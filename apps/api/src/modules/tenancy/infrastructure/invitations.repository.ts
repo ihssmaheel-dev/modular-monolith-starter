@@ -66,6 +66,24 @@ export class InvitationsRepository extends BaseRepository<Invitation, Invitation
       );
   }
 
+  async deleteByEmail(email: string): Promise<void> {
+    const db = this.getDb();
+    await (
+      db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } }
+    )
+      .delete(invitations)
+      .where(eq(invitations.email, email));
+  }
+
+  async deleteByTenant(tenantId: string): Promise<void> {
+    const db = this.getDb();
+    await (
+      db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } }
+    )
+      .delete(invitations)
+      .where(eq(invitations.tenantId, tenantId));
+  }
+
   async findByTokenHash(tokenHash: string): Promise<Result<Invitation | null, never>> {
     const db = this.getDb();
     const rows = await (

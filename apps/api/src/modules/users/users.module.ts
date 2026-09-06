@@ -7,6 +7,7 @@ import { VerifyUserCredentialsQuery } from "./application/queries/verify-user-cr
 import { CreateUserCommand } from "./application/commands/create-user.command";
 import { UpdateUserCommand } from "./application/commands/update-user.command";
 import { DeleteUserCommand } from "./application/commands/delete-user.command";
+import { AnonymizeUserCommand } from "./application/commands/anonymize-user.command";
 import { ResetUserPasswordCommand } from "./application/commands/reset-user-password.command";
 import { SetPasswordResetTokenCommand } from "./application/commands/set-password-reset-token.command";
 import { IncrementAuthVersionCommand } from "./application/commands/increment-auth-version.command";
@@ -27,6 +28,7 @@ import { UsersOrpcController } from "./presentation/users.orpc.controller";
     VerifyUserCredentialsQuery,
     CreateUserCommand,
     UpdateUserCommand,
+    AnonymizeUserCommand,
     DeleteUserCommand,
     ResetUserPasswordCommand,
     SetPasswordResetTokenCommand,
@@ -41,6 +43,7 @@ import { UsersOrpcController } from "./presentation/users.orpc.controller";
     VerifyUserCredentialsQuery,
     CreateUserCommand,
     UpdateUserCommand,
+    AnonymizeUserCommand,
     DeleteUserCommand,
     ResetUserPasswordCommand,
     SetPasswordResetTokenCommand,

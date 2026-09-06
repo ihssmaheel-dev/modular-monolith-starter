@@ -26,6 +26,11 @@ export const Permissions = {
   MEMBERS_WRITE: "members:write",
   INVITATIONS_READ: "invitations:read",
   INVITATIONS_WRITE: "invitations:write",
+  // Privacy (GDPR data-subject rights)
+  PRIVACY_EXPORT_SELF: "privacy:export:self",
+  PRIVACY_ERASE_SELF: "privacy:erase:self",
+  PRIVACY_ERASE_TENANT: "privacy:erase:tenant",
+  PRIVACY_REQUESTS_READ: "privacy:requests:read",
   // Billing & Enterprise
   BILLING_READ: "billing:read",
   BILLING_MANAGE: "billing:manage",
@@ -51,6 +56,8 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.FILES_UPLOAD,
     Permissions.FILES_DELETE,
     Permissions.FILES_WRITE,
+    Permissions.PRIVACY_EXPORT_SELF,
+    Permissions.PRIVACY_ERASE_SELF,
   ],
 };
 
@@ -81,6 +88,10 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.AUDIT_READ,
     Permissions.SETTINGS_READ,
     Permissions.SETTINGS_MANAGE,
+    Permissions.PRIVACY_EXPORT_SELF,
+    Permissions.PRIVACY_ERASE_SELF,
+    Permissions.PRIVACY_ERASE_TENANT,
+    Permissions.PRIVACY_REQUESTS_READ,
   ],
   member: [
     Permissions.ORGANIZATIONS_READ,
@@ -94,6 +105,8 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.FILES_READ,
     Permissions.FILES_UPLOAD,
     Permissions.FILES_WRITE,
+    Permissions.PRIVACY_EXPORT_SELF,
+    Permissions.PRIVACY_ERASE_SELF,
   ],
 };
 

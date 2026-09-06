@@ -5,6 +5,10 @@ import { AcceptInvitationCommand } from "./application/commands/accept-invitatio
 import { CreateOrganizationCommand } from "./application/commands/create-organization.command";
 import { InviteMemberCommand } from "./application/commands/invite-member.command";
 import { RemoveMemberCommand } from "./application/commands/remove-member.command";
+import { PurgeUserTenancyDataCommand } from "./application/commands/purge-user-tenancy-data.command";
+import { DeleteOrganizationDataCommand } from "./application/commands/delete-organization-data.command";
+import { HardDeleteOrganizationCommand } from "./application/commands/hard-delete-organization.command";
+import { ListInvitationsByEmailQuery } from "./application/queries/list-invitations-by-email.query";
 import { UpdateMemberCommand } from "./application/commands/update-member.command";
 import { InvitationEmailListener } from "./application/listeners/invitation-email.listener";
 import { MembershipUserListener } from "./application/listeners/membership-user.listener";
@@ -37,6 +41,10 @@ const providers = [
   AcceptInvitationCommand,
   UpdateMemberCommand,
   RemoveMemberCommand,
+  PurgeUserTenancyDataCommand,
+  DeleteOrganizationDataCommand,
+  HardDeleteOrganizationCommand,
+  ListInvitationsByEmailQuery,
   InvitationEmailListener,
   MembershipUserListener,
   CanDeleteUserQuery,
@@ -64,7 +72,15 @@ export class TenancyModule {
         TenancyStatusController,
         ...(env.TENANCY_MODE === "multi" ? [OrganizationsController, MembershipsController] : []),
       ],
-      exports: [ResolveTenantAccessQuery, CanDeleteUserQuery],
+      exports: [
+        ResolveTenantAccessQuery,
+        CanDeleteUserQuery,
+        ListOrganizationsQuery,
+        ListInvitationsByEmailQuery,
+        PurgeUserTenancyDataCommand,
+        DeleteOrganizationDataCommand,
+        HardDeleteOrganizationCommand,
+      ],
     };
   }
 }

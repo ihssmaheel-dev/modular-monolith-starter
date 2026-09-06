@@ -241,6 +241,16 @@
       "invitationEmailMismatch": "Connectez-vous avec l’adresse qui a reçu cette invitation",
       "operationFailed": "L’opération sur l’organisation n’a pas pu être effectuée"
     },
+    "privacy": {
+      "exportFailed": "Impossible de préparer l’export de vos données",
+      "requestNotFound": "Demande de confidentialité introuvable",
+      "exportExpired": "Cet export a expiré. Faites une nouvelle demande.",
+      "erasureFailed": "Impossible de planifier la suppression",
+      "invalidPassword": "Mot de passe invalide",
+      "invalidConfirmation": "La confirmation ne correspond pas",
+      "orgEraseForbidden": "Seuls les propriétaires peuvent supprimer l’organisation",
+      "alreadyRequested": "Une demande de suppression est déjà en cours"
+    },
     "user": {
       "created": "Utilisateur créé avec succès",
       "updated": "Utilisateur mis à jour avec succès",
@@ -266,6 +276,31 @@
     "noNotes": "Aucune note pour le moment. Créez-en une ci-dessus.",
     "loading": "Chargement des notes...",
     "deleteConfirm": "Supprimer \"{{title}}\" ? Cette action est irréversible."
+  },
+  "privacy": {
+    "title": "Confidentialité et données",
+    "description": "Exportez ou supprimez vos données personnelles",
+    "exportTitle": "Exporter mes données",
+    "exportDescription": "Téléchargez une copie lisible par machine de votre profil, organisations, notes et fichiers.",
+    "requestExport": "Demander l’export",
+    "requestingExport": "Préparation de l’export...",
+    "downloadExport": "Télécharger",
+    "eraseAccountTitle": "Supprimer mon compte",
+    "eraseAccountDescription": "Votre profil est anonymisé immédiatement et vos données sont définitivement supprimées après 30 jours. Cette action est irréversible.",
+    "eraseAccount": "Supprimer mon compte",
+    "erasingAccount": "Suppression...",
+    "confirmPassword": "Confirmez avec votre mot de passe",
+    "eraseOrgTitle": "Supprimer l’organisation",
+    "eraseOrgDescription": "Supprime définitivement cette organisation et toutes ses données après 30 jours. Cette action est irréversible.",
+    "typeOrgName": "Tapez le nom de l’organisation pour confirmer",
+    "requests": "Mes demandes",
+    "noRequests": "Aucune demande de confidentialité.",
+    "statusRequested": "Demandée",
+    "statusReady": "Prête",
+    "statusFulfilled": "Terminée",
+    "statusExpired": "Expirée",
+    "exportReady": "Votre export est prêt",
+    "erasureScheduled": "Suppression planifiée. Vos données seront définitivement supprimées après le délai de grâce."
   },
   "tenancy": {
     "activeOrganization": "Organisation active",

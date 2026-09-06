@@ -5,6 +5,8 @@ import { NotesRepository } from "./infrastructure/notes.repository";
 import { CreateNoteCommand } from "./application/commands/create-note.command";
 import { UpdateNoteCommand } from "./application/commands/update-note.command";
 import { DeleteNoteCommand } from "./application/commands/delete-note.command";
+import { PurgeUserNotesCommand } from "./application/commands/purge-user-notes.command";
+import { PurgeTenantNotesCommand } from "./application/commands/purge-tenant-notes.command";
 import { GetNotesQuery } from "./application/queries/get-notes.query";
 import { GetNoteByIdQuery } from "./application/queries/get-note-by-id.query";
 import { NotesRealtimeListener } from "./application/listeners/notes-realtime.listener";
@@ -21,11 +23,13 @@ import { NotesOrpcController } from "./presentation/notes.orpc.controller";
     CreateNoteCommand,
     UpdateNoteCommand,
     DeleteNoteCommand,
+    PurgeUserNotesCommand,
+    PurgeTenantNotesCommand,
     GetNotesQuery,
     GetNoteByIdQuery,
     NotesRealtimeListener,
   ],
-  exports: [NotesRepository],
+  exports: [NotesRepository, GetNotesQuery, PurgeUserNotesCommand, PurgeTenantNotesCommand],
 })
 export class NotesModule implements OnModuleInit {
   constructor(private readonly authService: AuthorizationService) {}

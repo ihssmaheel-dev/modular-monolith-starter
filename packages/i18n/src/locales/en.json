@@ -243,6 +243,16 @@
       "updateFailed": "Failed to update note",
       "deleteFailed": "Failed to delete note"
     },
+    "privacy": {
+      "exportFailed": "Could not prepare your data export",
+      "requestNotFound": "Privacy request not found",
+      "exportExpired": "This export has expired. Request a new one.",
+      "erasureFailed": "Could not schedule deletion",
+      "invalidPassword": "Invalid password",
+      "invalidConfirmation": "Confirmation does not match",
+      "orgEraseForbidden": "Only organization owners can delete the organization",
+      "alreadyRequested": "A deletion request is already in progress"
+    },
     "tenancy": {
       "slugTaken": "This organization URL is already in use",
       "tenantRequired": "Select an organization to continue",
@@ -272,6 +282,31 @@
     "noNotes": "No notes yet. Create one above!",
     "loading": "Loading notes...",
     "deleteConfirm": "Delete \"{{title}}\"? This cannot be undone."
+  },
+  "privacy": {
+    "title": "Privacy & Data",
+    "description": "Export or erase your personal data",
+    "exportTitle": "Export my data",
+    "exportDescription": "Download a machine-readable copy of your profile, organizations, notes and files.",
+    "requestExport": "Request export",
+    "requestingExport": "Preparing export...",
+    "downloadExport": "Download",
+    "eraseAccountTitle": "Delete my account",
+    "eraseAccountDescription": "Your profile is anonymized immediately and your data is permanently deleted after 30 days. This cannot be undone.",
+    "eraseAccount": "Delete my account",
+    "erasingAccount": "Deleting...",
+    "confirmPassword": "Confirm with your password",
+    "eraseOrgTitle": "Delete organization",
+    "eraseOrgDescription": "Permanently delete this organization and all of its data after 30 days. This cannot be undone.",
+    "typeOrgName": "Type the organization name to confirm",
+    "requests": "My requests",
+    "noRequests": "No privacy requests yet.",
+    "statusRequested": "Requested",
+    "statusReady": "Ready",
+    "statusFulfilled": "Fulfilled",
+    "statusExpired": "Expired",
+    "exportReady": "Your export is ready",
+    "erasureScheduled": "Deletion scheduled. Your data will be permanently removed after the grace period."
   },
   "tenancy": {
     "activeOrganization": "Active organization",

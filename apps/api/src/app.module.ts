@@ -6,6 +6,7 @@ import { UsersModule } from "./modules/users/users.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { NotesModule } from "./modules/notes/notes.module";
 import { FilesModule } from "./modules/files/files.module";
+import { PrivacyModule } from "./modules/privacy/privacy.module";
 import { TenancyModule } from "./modules/tenancy/tenancy.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
 import { QueueModule } from "./infrastructure/queue/queue.module";
@@ -78,6 +79,7 @@ import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
     AuthModule,
     NotesModule,
     FilesModule,
+    PrivacyModule,
   ],
   providers: [
     {

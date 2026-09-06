@@ -241,6 +241,16 @@
       "invitationEmailMismatch": "Inicia sesión con el correo que recibió esta invitación",
       "operationFailed": "No se pudo completar la operación de la organización"
     },
+    "privacy": {
+      "exportFailed": "No se pudo preparar la exportación de tus datos",
+      "requestNotFound": "Solicitud de privacidad no encontrada",
+      "exportExpired": "Esta exportación ha caducado. Solicita una nueva.",
+      "erasureFailed": "No se pudo programar la eliminación",
+      "invalidPassword": "Contraseña inválida",
+      "invalidConfirmation": "La confirmación no coincide",
+      "orgEraseForbidden": "Solo los propietarios pueden eliminar la organización",
+      "alreadyRequested": "Ya hay una solicitud de eliminación en curso"
+    },
     "user": {
       "created": "Usuario creado exitosamente",
       "updated": "Usuario actualizado exitosamente",
@@ -266,6 +276,31 @@
     "noNotes": "Todavía no hay notas. Crea una arriba.",
     "loading": "Cargando notas...",
     "deleteConfirm": "¿Eliminar \"{{title}}\"? Esta acción no se puede deshacer."
+  },
+  "privacy": {
+    "title": "Privacidad y datos",
+    "description": "Exporta o elimina tus datos personales",
+    "exportTitle": "Exportar mis datos",
+    "exportDescription": "Descarga una copia legible por máquina de tu perfil, organizaciones, notas y archivos.",
+    "requestExport": "Solicitar exportación",
+    "requestingExport": "Preparando exportación...",
+    "downloadExport": "Descargar",
+    "eraseAccountTitle": "Eliminar mi cuenta",
+    "eraseAccountDescription": "Tu perfil se anonimiza de inmediato y tus datos se eliminan permanentemente después de 30 días. Esta acción no se puede deshacer.",
+    "eraseAccount": "Eliminar mi cuenta",
+    "erasingAccount": "Eliminando...",
+    "confirmPassword": "Confirma con tu contraseña",
+    "eraseOrgTitle": "Eliminar organización",
+    "eraseOrgDescription": "Elimina permanentemente esta organización y todos sus datos después de 30 días. Esta acción no se puede deshacer.",
+    "typeOrgName": "Escribe el nombre de la organización para confirmar",
+    "requests": "Mis solicitudes",
+    "noRequests": "Aún no hay solicitudes de privacidad.",
+    "statusRequested": "Solicitada",
+    "statusReady": "Lista",
+    "statusFulfilled": "Completada",
+    "statusExpired": "Caducada",
+    "exportReady": "Tu exportación está lista",
+    "erasureScheduled": "Eliminación programada. Tus datos se eliminarán permanentemente después del período de gracia."
   },
   "tenancy": {
     "activeOrganization": "Organización activa",

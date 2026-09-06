@@ -49,14 +49,25 @@ async function assertEnumMigrationOwnership(): Promise<void> {
   const journal = JSON.parse(
     await readFile(path.join(MIGRATIONS_PATH, "meta", "_journal.json"), "utf8"),
   ) as MigrationJournal;
-  const isSingle = journal.entries.length === 1 && journal.entries[0]?.tag === SINGLE_MIGRATION_TAG;
-  if (isSingle) {
-    const single = await readFile(
+  const tags = journal.entries.map((entry) => entry.tag);
+  if (tags[0] === SINGLE_MIGRATION_TAG) {
+    // Squashed lineage (post-0000_initial): DEAD_LETTER is defined once in the
+    // initial migration and must never be altered by later migrations.
+    const initial = await readFile(
       path.join(MIGRATIONS_PATH, `${SINGLE_MIGRATION_TAG}.sql`),
       "utf8",
     );
-    if ((single.match(enumAlteration) ?? []).length !== 1) {
-      throw new Error(`${SINGLE_MIGRATION_TAG}.sql must contain DEAD_LETTER exactly once`);
+    const definitions =
+      initial.match(/CREATE TYPE\s+"public"\."outbox_status"[^;]*'DEAD_LETTER'/gi) ?? [];
+    if (definitions.length !== 1) {
+      throw new Error(`${SINGLE_MIGRATION_TAG}.sql must define DEAD_LETTER exactly once`);
+    }
+    for (const tag of tags.slice(1)) {
+      const sql = await readFile(path.join(MIGRATIONS_PATH, `${tag}.sql`), "utf8");
+      enumAlteration.lastIndex = 0;
+      if (enumAlteration.test(sql)) {
+        throw new Error(`${tag}.sql must not alter outbox_status`);
+      }
     }
     return;
   }

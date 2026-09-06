@@ -7,6 +7,7 @@ import {
   membershipsContract,
   notesContract,
   organizationsContract,
+  privacyContract,
   usersContract,
 } from "@repo/contracts";
 import type { AnyContractProcedure } from "@orpc/contract" with { "resolution-mode": "import" };
@@ -23,6 +24,8 @@ import { MembershipsController } from "../../modules/tenancy/presentation/member
 import { MembershipsOrpcController } from "../../modules/tenancy/presentation/memberships.orpc.controller";
 import { OrganizationsController } from "../../modules/tenancy/presentation/organizations.controller";
 import { OrganizationsOrpcController } from "../../modules/tenancy/presentation/organizations.orpc.controller";
+import { PrivacyController } from "../../modules/privacy/presentation/privacy.controller";
+import { PrivacyOrpcController } from "../../modules/privacy/presentation/privacy.orpc.controller";
 import { RESPONSE_SCHEMA_KEY } from "../../common/decorators/response-schema.decorator";
 type RoutePair = {
   contract: AnyContractProcedure;
@@ -36,6 +39,7 @@ const ROUTES: RoutePair[] = [
   ...usersRoutes(),
   ...organizationRoutes(),
   ...membershipRoutes(),
+  ...privacyRoutes(),
 ];
 describe("oRPC and REST route parity", () => {
   it.each(ROUTES)("keeps $rpc.1 aligned with its REST controller and contract", (route) => {
@@ -136,6 +140,17 @@ function membershipRoutes(): RoutePair[] {
     ["inviteMember", "inviteMember", "invite"],
     ["listInvitations", "listInvitations", "listInvitationPage"],
     ["acceptInvitation", "acceptInvitation", "accept"],
+  ]);
+}
+function privacyRoutes(): RoutePair[] {
+  return routePairs(privacyContract, PrivacyOrpcController, PrivacyController, [
+    ["requestExport", "requestExport", "export"],
+    ["downloadExport", "downloadExport", "download"],
+    ["listRequests", "listRequests", "listMine"],
+    ["requestAccountErasure", "requestAccountErasure", "eraseAccount"],
+    ["requestOrganizationErasure", "requestOrganizationErasure", "eraseOrganization"],
+    ["listAllRequests", "listAllRequests", "listAll"],
+    ["purgeExpired", "purgeExpired", "purge"],
   ]);
 }
 function routePairs(

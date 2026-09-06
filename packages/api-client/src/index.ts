@@ -12,6 +12,7 @@ import {
   createAuthClient,
   createFilesClient,
   createNotesClient,
+  createPrivacyClient,
   createTenancyClient,
   createUsersClient,
 } from "./subclients";
@@ -116,6 +117,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     auth: createAuthClient(authenticatedFetch, orpcClient),
     files: createFilesClient(authenticatedFetch, orpcClient),
     notes: createNotesClient(authenticatedFetch, orpcClient),
+    privacy: createPrivacyClient(authenticatedFetch, orpcClient),
     tenancy: createTenancyClient(authenticatedFetch, orpcClient, options.getTenantId),
     users: createUsersClient(authenticatedFetch, orpcClient),
     orpc,

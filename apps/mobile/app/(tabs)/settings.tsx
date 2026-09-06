@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -9,6 +10,8 @@ import { useLocaleStore } from "@/stores/locale.store";
 import { useThemeStore, type Theme } from "@/stores/theme.store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useRequestExportMutation, useEraseAccountMutation } from "@/features/privacy/privacy.mutations";
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -30,6 +33,15 @@ export default function Settings() {
       router.replace("/(auth)/login");
     }
   };
+
+  const [erasePassword, setErasePassword] = useState("");
+  const exportMutation = useRequestExportMutation();
+  const eraseMutation = useEraseAccountMutation({
+    onSuccess: () => {
+      clearAuth();
+      router.replace("/(auth)/login");
+    },
+  });
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 16, gap: 16 }}>
@@ -100,6 +112,35 @@ export default function Settings() {
               </Text>
             </Pressable>
           ))}
+        </View>
+      </Card>
+
+      <Card>
+        <Text className="text-base font-bold text-foreground">{t("privacy.title")}</Text>
+        <Text className="mt-1 text-xs text-muted-foreground">{t("privacy.description")}</Text>
+        <View className="mt-3 gap-2">
+          <Button
+            variant="outline"
+            loading={exportMutation.isPending}
+            onPress={() => exportMutation.mutate()}
+          >
+            {t("privacy.requestExport")}
+          </Button>
+          <Input
+            secureTextEntry
+            autoComplete="password"
+            placeholder={t("privacy.confirmPassword")}
+            value={erasePassword}
+            onChangeText={setErasePassword}
+          />
+          <Button
+            variant="destructive"
+            loading={eraseMutation.isPending}
+            disabled={!erasePassword}
+            onPress={() => eraseMutation.mutate(erasePassword)}
+          >
+            {t("privacy.eraseAccount")}
+          </Button>
         </View>
       </Card>
 

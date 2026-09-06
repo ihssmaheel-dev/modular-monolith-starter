@@ -12,6 +12,9 @@ import {
 } from "@repo/ui/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
 import { useTheme } from "@/components/theme-provider";
+import { ExportCard } from "@/features/privacy/components/export-card";
+import { EraseAccountCard } from "@/features/privacy/components/erase-account-card";
+import { EraseOrganizationCard } from "@/features/privacy/components/erase-organization-card";
 
 export const Route = createFileRoute("/_app/settings")({ component: SettingsPage });
 
@@ -74,6 +77,9 @@ function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+      <ExportCard />
+      <EraseAccountCard />
+      <EraseOrganizationCard />
       <Card>
         <CardHeader>
           <CardTitle>{t("settings.appearance")}</CardTitle>

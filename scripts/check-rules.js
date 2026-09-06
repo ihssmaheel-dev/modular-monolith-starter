@@ -166,7 +166,9 @@ function checkTranslationUsage() {
 function checkTenantRepositories() {
   const modulesDirectory = path.join(ROOT, "apps/api/src/modules");
   for (const entry of fs.readdirSync(modulesDirectory, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name === "tenancy") continue;
+    // tenancy owns the tenant model; privacy DSRs are intentionally subject-scoped
+    // globals (they must outlive the tenants they reference for the Art. 12 audit trail).
+    if (!entry.isDirectory() || entry.name === "tenancy" || entry.name === "privacy") continue;
     const infrastructure = path.join(modulesDirectory, entry.name, "infrastructure");
     if (!fs.existsSync(infrastructure)) continue;
     const files = walk(infrastructure);

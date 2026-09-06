@@ -10,6 +10,8 @@ import { CanDeleteUserQuery } from "../../../tenancy/application/queries/can-del
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import type { UserEventDispatchFailed } from "../../domain/errors/user.errors";
 import { DatabaseService } from "../../../../infrastructure/database";
+import { SessionService } from "../../../../infrastructure/session/session.service";
+import { IncrementAuthVersionCommand } from "./increment-auth-version.command";
 
 @Injectable()
 export class DeleteUserCommand {
@@ -21,6 +23,8 @@ export class DeleteUserCommand {
     private readonly canDeleteUser: CanDeleteUserQuery,
     private readonly outbox: OutboxService,
     @Optional() private readonly database?: DatabaseService,
+    @Optional() private readonly sessions?: SessionService,
+    @Optional() private readonly incrementAuthVersion?: IncrementAuthVersionCommand,
   ) {}
 
   async execute(
@@ -49,6 +53,9 @@ export class DeleteUserCommand {
     if (existing.isErr()) return err(existing.error);
     const allowed = await this.canDeleteUser.execute(id);
     if (allowed.isErr()) return err(allowed.error);
+
+    if (this.incrementAuthVersion) await this.incrementAuthVersion.execute(id);
+    if (this.sessions) await this.sessions.revokeAllForUser(id);
 
     const deleted = await this.repository.deleteById(id);
     if (deleted.isErr()) return err({ type: "USER_NOT_FOUND", userId: id });

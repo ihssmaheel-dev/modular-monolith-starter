@@ -5,7 +5,10 @@ import { FilesController } from "./presentation/files.controller";
 import { RequestUploadCommand } from "./application/commands/request-upload.command";
 import { ConfirmUploadCommand } from "./application/commands/confirm-upload.command";
 import { DeleteFileCommand } from "./application/commands/delete-file.command";
+import { PurgeUserFilesCommand } from "./application/commands/purge-user-files.command";
+import { PurgeTenantFilesCommand } from "./application/commands/purge-tenant-files.command";
 import { GetFileByIdQuery } from "./application/queries/get-file-by-id.query";
+import { ListFilesByUploaderQuery } from "./application/queries/list-files-by-uploader.query";
 import { GetFileDownloadUrlQuery } from "./application/queries/get-file-download-url.query";
 import { ListFilesByParentQuery } from "./application/queries/list-files-by-parent.query";
 import { FileCleanupWorker } from "./application/workers/file-cleanup.worker";
@@ -23,9 +26,12 @@ import { FilesOrpcController } from "./presentation/files.orpc.controller";
     RequestUploadCommand,
     ConfirmUploadCommand,
     DeleteFileCommand,
+    PurgeUserFilesCommand,
+    PurgeTenantFilesCommand,
     GetFileByIdQuery,
     GetFileDownloadUrlQuery,
     ListFilesByParentQuery,
+    ListFilesByUploaderQuery,
     FileCleanupWorker,
     FileScanWorker,
     FileReconciliationWorker,
@@ -35,9 +41,12 @@ import { FilesOrpcController } from "./presentation/files.orpc.controller";
     RequestUploadCommand,
     ConfirmUploadCommand,
     DeleteFileCommand,
+    PurgeUserFilesCommand,
+    PurgeTenantFilesCommand,
     GetFileByIdQuery,
     GetFileDownloadUrlQuery,
     ListFilesByParentQuery,
+    ListFilesByUploaderQuery,
     FileCleanupWorker,
     FileScanWorker,
     FileReconciliationWorker,

@@ -11,4 +11,8 @@ export const queryKeys = {
       ["users", tenantId, "list", { page, limit }] as const,
     detail: (tenantId: string | null, id: string) => ["users", tenantId, "detail", id] as const,
   },
+  privacy: {
+    all: () => ["privacy"] as const,
+    requests: (page: number, limit: number) => ["privacy", "requests", { page, limit }] as const,
+  },
 } as const;

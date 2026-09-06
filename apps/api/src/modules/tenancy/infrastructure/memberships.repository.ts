@@ -98,6 +98,13 @@ export class MembershipsRepository extends BaseRepository<Membership, Membership
       .where(eq(memberships.userId, userId));
   }
 
+  async deleteByTenant(tenantId: string): Promise<void> {
+    const db = this.getDb();
+    await (db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } })
+      .delete(memberships)
+      .where(eq(memberships.tenantId, tenantId));
+  }
+
   private exists(filter: Record<string, unknown>): Promise<Result<boolean, never>> {
     return this.count(filter).then((r) => r.map((c) => c > 0));
   }
