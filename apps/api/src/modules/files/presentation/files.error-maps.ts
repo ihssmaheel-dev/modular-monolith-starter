@@ -15,6 +15,10 @@ export const REQUEST_UPLOAD_ERRORS: ErrorMap = {
     i18nKey: "api.error.uploadFailed",
   },
   FILE_TOO_LARGE: { status: HttpStatus.PAYLOAD_TOO_LARGE, i18nKey: "api.error.fileTooLarge" },
+  QUOTA_EXCEEDED: {
+    status: HttpStatus.PAYLOAD_TOO_LARGE,
+    i18nKey: "api.error.quotaExceeded",
+  },
 };
 
 export const CONFIRM_UPLOAD_ERRORS: ErrorMap = {

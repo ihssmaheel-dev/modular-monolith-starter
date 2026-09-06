@@ -10,12 +10,14 @@ import { PurgeTenantNotesCommand } from "./application/commands/purge-tenant-not
 import { GetNotesQuery } from "./application/queries/get-notes.query";
 import { GetNoteByIdQuery } from "./application/queries/get-note-by-id.query";
 import { NotesRealtimeListener } from "./application/listeners/notes-realtime.listener";
+import { AttachFileToNoteCommand } from "./application/commands/attach-file-to-note.command";
 import { NotesController } from "./presentation/notes.controller";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
+import { FilesModule } from "../files/files.module";
 import { NotesOrpcController } from "./presentation/notes.orpc.controller";
 
 @Module({
-  imports: [OutboxModule],
+  imports: [OutboxModule, FilesModule],
   controllers: [NotesController, NotesOrpcController],
   providers: [
     NotesController,
@@ -25,11 +27,18 @@ import { NotesOrpcController } from "./presentation/notes.orpc.controller";
     DeleteNoteCommand,
     PurgeUserNotesCommand,
     PurgeTenantNotesCommand,
+    AttachFileToNoteCommand,
     GetNotesQuery,
     GetNoteByIdQuery,
     NotesRealtimeListener,
   ],
-  exports: [NotesRepository, GetNotesQuery, PurgeUserNotesCommand, PurgeTenantNotesCommand],
+  exports: [
+    NotesRepository,
+    GetNotesQuery,
+    PurgeUserNotesCommand,
+    PurgeTenantNotesCommand,
+    AttachFileToNoteCommand,
+  ],
 })
 export class NotesModule implements OnModuleInit {
   constructor(private readonly authService: AuthorizationService) {}

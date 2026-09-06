@@ -78,7 +78,7 @@ export class FilesController {
   ): Promise<PresignedUrlResponse> {
     const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
-    const result = await this.requestUploadCmd.execute(body, actor.sub);
+    const result = await this.requestUploadCmd.execute(body, actor);
     return handleResult(result, REQUEST_UPLOAD_ERRORS, this.i18n, lang);
   }
 
@@ -136,12 +136,14 @@ export class FilesController {
         PaginationQuerySchema.extend({
           parentType: z.enum(["note", "user", "general"]),
           parentId: z.string().min(1).optional(),
+          slot: z.string().max(64).optional(),
         }),
       ),
     )
     query: {
       parentType: "note" | "user" | "general";
       parentId?: string;
+      slot?: string;
       page: number;
       limit: number;
     },
@@ -155,6 +157,7 @@ export class FilesController {
       query.parentId,
       query.page,
       query.limit,
+      query.slot,
     );
     const data = handleResult(result, {}, this.i18n, lang);
     return {

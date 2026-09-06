@@ -18,6 +18,7 @@ export function toFileResponse(file: FileEntity): FileMetadataResponse {
     url: `${baseUrl}/${file.key}`,
     parentId: file.parentId,
     parentType: file.parentType,
+    slot: file.slot ?? null,
     uploadedBy: file.uploadedBy,
     status: file.status,
     createdAt: file.createdAt.toISOString(),

@@ -64,9 +64,11 @@ export default function Notes() {
             className="flex-row items-center justify-between gap-3 rounded-xl p-4 shadow-sm"
           >
             <View className="min-w-0 flex-1">
-              <Text className="font-medium text-foreground" numberOfLines={1}>
-                {item.title}
-              </Text>
+              <Link href={`/notes/${item.id}`}>
+                <Text className="font-medium text-foreground underline" numberOfLines={1}>
+                  {item.title}
+                </Text>
+              </Link>
               <Text className="text-xs text-muted-foreground" numberOfLines={2}>
                 {item.content}
               </Text>

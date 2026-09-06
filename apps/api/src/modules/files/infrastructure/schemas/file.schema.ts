@@ -21,6 +21,7 @@ export const files = pgTable(
     bucket: text("bucket").notNull(),
     parentId: text("parent_id"),
     parentType: fileParentTypeEnum("parent_type").notNull().default("general"),
+    slot: text("slot"),
     uploadedBy: text("uploaded_by").notNull(),
     status: fileStatusEnum("status").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -29,6 +30,7 @@ export const files = pgTable(
   },
   (t) => [
     index("files_tenant_parent_idx").on(t.tenantId, t.parentType, t.parentId),
+    index("files_parent_slot_idx").on(t.parentType, t.parentId, t.slot),
     index("files_uploaded_by_idx").on(t.uploadedBy),
     index("files_key_idx").on(t.key),
     index("files_deleted_at_idx").on(t.deletedAt),

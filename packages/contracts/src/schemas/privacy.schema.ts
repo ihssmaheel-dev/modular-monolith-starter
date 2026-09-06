@@ -72,6 +72,7 @@ export const ExportedFileSchema = z.object({
   contentType: z.string(),
   fileSize: z.number(),
   tenantId: z.string().nullable(),
+  slot: z.string().max(64).nullable(),
   createdAt: z.string().datetime(),
 });
 

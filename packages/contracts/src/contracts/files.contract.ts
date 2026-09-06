@@ -48,6 +48,7 @@ export const filesContract = oc.prefix("/files").router({
       PaginationQuerySchema.extend({
         parentId: z.string().optional(),
         parentType: z.enum(["note", "user", "general"]),
+        slot: z.string().max(64).optional(),
       }),
     )
     .output(FileListResponseSchema),

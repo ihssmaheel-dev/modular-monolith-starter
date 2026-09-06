@@ -15,6 +15,13 @@
       "when": 1788707935287,
       "tag": "0001_nostalgic_senator_kelly",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788715982453,
+      "tag": "0002_curved_silver_surfer",
+      "breakpoints": true
     }
   ]
 }

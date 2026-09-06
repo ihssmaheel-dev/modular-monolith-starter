@@ -179,6 +179,7 @@ export class RequestExportCommand {
           contentType: file.contentType,
           fileSize: file.fileSize,
           tenantId: file.tenantId ?? null,
+          slot: file.slot ?? null,
           createdAt: toIso(file.createdAt),
         });
       }

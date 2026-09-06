@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { CreateNoteDto } from "@repo/contracts";
+import type { CreateNoteDto, NoteResponseDto } from "@repo/contracts";
 import { getApiClient } from "@/lib/api";
 
-export function useCreateNoteMutation(opts?: { onSuccess?: () => void }) {
+export function useCreateNoteMutation(opts?: { onSuccess?: (note: NoteResponseDto) => void }) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: CreateNoteDto) => {
@@ -10,9 +10,9 @@ export function useCreateNoteMutation(opts?: { onSuccess?: () => void }) {
       if (response.status !== 201) throw new Error("api.note.createFailed");
       return response.body;
     },
-    onSuccess: () => {
+    onSuccess: (note) => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-      opts?.onSuccess?.();
+      opts?.onSuccess?.(note);
     },
   });
 }

@@ -105,6 +105,7 @@ function notesRoutes(): RoutePair[] {
     ["create", "create", "create"],
     ["update", "update", "update"],
     ["delete", "delete", "delete"],
+    ["attachFile", "attachFile", "attachFile"],
   ]);
 }
 function filesRoutes(): RoutePair[] {

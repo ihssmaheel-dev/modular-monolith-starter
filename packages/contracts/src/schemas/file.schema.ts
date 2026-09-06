@@ -20,8 +20,16 @@ export const RequestUploadSchema = z.object({
   fileName: z.string().min(1).max(255),
   contentType: z.enum(ALLOWED_MIME_TYPES),
   fileSize: z.number().positive().max(MAX_FILE_SIZE_BYTES),
-  parentId: z.string().optional(),
-  parentType: z.enum(["note", "user", "general"]).default("general"),
+});
+
+export const AttachFileSchema = z.object({
+  fileId: z.string().min(1).max(1024),
+  slot: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/, "api.error.invalidRequest")
+    .optional(),
 });
 
 export const ConfirmUploadSchema = z.object({
@@ -44,6 +52,7 @@ export const FileMetadataSchema = z.object({
   url: z.string(),
   parentId: z.string().optional(),
   parentType: z.string(),
+  slot: z.string().max(64).nullable(),
   uploadedBy: z.string(),
   status: z.enum(["pending", "uploading", "scanning", "uploaded", "failed"]),
   createdAt: z.string().datetime(),
@@ -69,6 +78,7 @@ export const FileListResponseSchema = z.object({
 });
 
 export type RequestUploadInput = z.infer<typeof RequestUploadSchema>;
+export type AttachFileInput = z.infer<typeof AttachFileSchema>;
 export type ConfirmUploadInput = z.infer<typeof ConfirmUploadSchema>;
 export type FileMetadataResponse = z.infer<typeof FileMetadataSchema>;
 export type PresignedUrlResponse = z.infer<typeof PresignedUrlResponseSchema>;

@@ -6,6 +6,7 @@ import {
   UpdateNoteSchema,
   NoteIdParamSchema,
 } from "../schemas/note.schema";
+import { AttachFileSchema, FileMetadataSchema } from "../schemas/file.schema";
 import { PaginationQuerySchema } from "../schemas/pagination.schema";
 import { EmptyResponseSchema } from "../schemas/common.schema";
 
@@ -30,4 +31,13 @@ export const notesContract = oc.prefix("/notes").router({
     .route({ method: "DELETE", path: "/{id}", summary: "Delete a note", successStatus: 204 })
     .input(NoteIdParamSchema)
     .output(EmptyResponseSchema),
+  attachFile: oc
+    .route({
+      method: "POST",
+      path: "/{id}/attachments",
+      summary: "Attach an uploaded file to a note",
+      successStatus: 201,
+    })
+    .input(NoteIdParamSchema.and(AttachFileSchema))
+    .output(FileMetadataSchema),
 });

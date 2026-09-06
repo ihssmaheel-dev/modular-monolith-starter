@@ -26,19 +26,26 @@ import {
   type PaginationQuery,
   type NoteResponseDto,
   type NoteListResponseDto,
+  type AttachFileInput,
+  type FileMetadataResponse,
   CreateNoteSchema,
   UpdateNoteSchema,
   PaginationQuerySchema,
   NoteListResponseSchema,
   NoteResponseSchema,
   EmptyResponseSchema,
+  AttachFileSchema,
+  FileMetadataSchema,
 } from "@repo/contracts";
 import { CreateNoteCommand } from "../application/commands/create-note.command";
 import { UpdateNoteCommand } from "../application/commands/update-note.command";
 import { DeleteNoteCommand } from "../application/commands/delete-note.command";
+import { AttachFileToNoteCommand } from "../application/commands/attach-file-to-note.command";
 import { GetNotesQuery } from "../application/queries/get-notes.query";
 import { GetNoteByIdQuery } from "../application/queries/get-note-by-id.query";
 import { toNoteResponse } from "./notes.mapper";
+import { ATTACH_FILE_ERRORS } from "./notes.error-maps";
+import { toFileResponse } from "../../files/presentation/files.mapper";
 import { I18nService } from "../../../infrastructure/i18n/i18n.service";
 import { handleResult } from "../../../common/utils/presentation.utils";
 
@@ -48,6 +55,7 @@ export class NotesController {
     private readonly createNoteCommand: CreateNoteCommand,
     private readonly updateNoteCommand: UpdateNoteCommand,
     private readonly deleteNoteCommand: DeleteNoteCommand,
+    private readonly attachFileToNoteCommand: AttachFileToNoteCommand,
     private readonly getNotesQuery: GetNotesQuery,
     private readonly getNoteByIdQuery: GetNoteByIdQuery,
     private readonly i18n: I18nService,
@@ -167,5 +175,22 @@ export class NotesController {
       this.i18n,
       lang,
     );
+  }
+
+  @Post(":id/attachments")
+  @HttpCode(HttpStatus.CREATED)
+  @Idempotent()
+  @RequirePermission("notes:update")
+  @ResponseSchema(FileMetadataSchema)
+  async attachFile(
+    @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
+    @Body(new ZodValidationPipe(AttachFileSchema)) body: AttachFileInput,
+    @Req() req: FastifyRequest,
+  ): Promise<FileMetadataResponse> {
+    const lang = req?.headers["accept-language"];
+    const actor = requireAuthenticatedUser(req);
+    const result = await this.attachFileToNoteCommand.execute(id, body.fileId, actor, body.slot);
+    const file = handleResult(result, ATTACH_FILE_ERRORS, this.i18n, lang);
+    return toFileResponse(file);
   }
 }

@@ -17,6 +17,8 @@
     "@repo/contracts": "workspace:*",
     "@tanstack/react-query": "^5.102.8",
     "expo": "~57.0.20",
+    "expo-document-picker": "^57.0.1",
+    "expo-file-system": "^57.0.6",
     "expo-linking": "~57.0.9",
     "expo-localization": "~57.0.1",
     "expo-router": "~57.0.19",

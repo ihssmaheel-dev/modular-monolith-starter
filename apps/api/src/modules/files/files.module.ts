@@ -5,6 +5,7 @@ import { FilesController } from "./presentation/files.controller";
 import { RequestUploadCommand } from "./application/commands/request-upload.command";
 import { ConfirmUploadCommand } from "./application/commands/confirm-upload.command";
 import { DeleteFileCommand } from "./application/commands/delete-file.command";
+import { LinkFileCommand } from "./application/commands/link-file.command";
 import { PurgeUserFilesCommand } from "./application/commands/purge-user-files.command";
 import { PurgeTenantFilesCommand } from "./application/commands/purge-tenant-files.command";
 import { GetFileByIdQuery } from "./application/queries/get-file-by-id.query";
@@ -26,6 +27,7 @@ import { FilesOrpcController } from "./presentation/files.orpc.controller";
     RequestUploadCommand,
     ConfirmUploadCommand,
     DeleteFileCommand,
+    LinkFileCommand,
     PurgeUserFilesCommand,
     PurgeTenantFilesCommand,
     GetFileByIdQuery,
@@ -41,6 +43,7 @@ import { FilesOrpcController } from "./presentation/files.orpc.controller";
     RequestUploadCommand,
     ConfirmUploadCommand,
     DeleteFileCommand,
+    LinkFileCommand,
     PurgeUserFilesCommand,
     PurgeTenantFilesCommand,
     GetFileByIdQuery,

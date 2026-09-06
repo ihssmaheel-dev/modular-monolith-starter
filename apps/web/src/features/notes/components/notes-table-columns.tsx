@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
@@ -14,7 +15,15 @@ export function getNotesColumns(
     {
       key: "title",
       header: t("notes.noteTitle"),
-      cell: (row) => <span className="font-medium">{row.title}</span>,
+      cell: (row) => (
+        <Link
+          to="/_app/notes/$noteId"
+          params={{ noteId: row.id }}
+          className="font-medium hover:underline"
+        >
+          {row.title}
+        </Link>
+      ),
     },
     {
       key: "content",

@@ -16,7 +16,9 @@ export default function NewNote() {
     resolver: zodResolver(CreateNoteSchema),
     defaultValues: { title: "", content: "" },
   });
-  const mutation = useCreateNoteMutation({ onSuccess: () => router.back() });
+  const mutation = useCreateNoteMutation({
+    onSuccess: (note) => router.replace(`/notes/${note.id}`),
+  });
 
   return (
     <ScrollView

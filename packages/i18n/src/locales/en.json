@@ -201,6 +201,7 @@
       "transactionFailed": "Transaction failed",
       "uploadFailed": "Upload failed",
       "fileTooLarge": "File exceeds the allowed size",
+      "quotaExceeded": "Storage quota exceeded",
       "presignFailed": "Presign failed",
       "deleteFailed": "Delete failed",
       "invalidAddress": "No recipients provided",
@@ -282,6 +283,26 @@
     "noNotes": "No notes yet. Create one above!",
     "loading": "Loading notes...",
     "deleteConfirm": "Delete \"{{title}}\"? This cannot be undone."
+  },
+  "files": {
+    "pickFiles": "Pick files",
+    "dropFiles": "Drag files here or click to browse",
+    "browseHint": "PDF, images, text, CSV or ZIP up to 10 MB",
+    "uploading": "Uploading...",
+    "uploaded": "Uploaded",
+    "clearFinished": "Clear finished",
+    "deleted": "File deleted",
+    "download": "Download",
+    "noAttachments": "No attachments yet.",
+    "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
+    "attachments": "Attachments",
+    "status": {
+      "pending": "Pending",
+      "uploading": "Uploading",
+      "scanning": "Scanning",
+      "uploaded": "Uploaded",
+      "failed": "Failed"
+    }
   },
   "privacy": {
     "title": "Privacy & Data",

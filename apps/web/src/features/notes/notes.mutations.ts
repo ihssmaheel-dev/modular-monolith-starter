@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import type { CreateNoteDto } from "@repo/contracts";
+import type { CreateNoteDto, NoteResponseDto } from "@repo/contracts";
 import { toast } from "@repo/ui/components/ui/toast";
 import { getApiClient } from "@/lib/api";
 
-export function useCreateNoteMutation(opts?: { onSuccess?: () => void }) {
+export function useCreateNoteMutation(opts?: { onSuccess?: (note: NoteResponseDto) => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   return useMutation({
@@ -13,10 +13,10 @@ export function useCreateNoteMutation(opts?: { onSuccess?: () => void }) {
       if (response.status !== 201) throw new Error("api.note.createFailed");
       return response.body;
     },
-    onSuccess: () => {
+    onSuccess: (note) => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       toast.add({ title: t("api.note.created"), type: "success" } as never);
-      opts?.onSuccess?.();
+      opts?.onSuccess?.(note);
     },
     onError: () => toast.add({ title: t("api.note.createFailed"), type: "error" } as never),
   });

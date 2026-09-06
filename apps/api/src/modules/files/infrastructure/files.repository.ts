@@ -23,6 +23,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       bucket: row.bucket,
       parentId: row.parentId ?? undefined,
       parentType: row.parentType as FileEntity["parentType"],
+      slot: row.slot ?? null,
       uploadedBy: row.uploadedBy,
       status: row.status as FileEntity["status"],
       createdAt: row.createdAt,
@@ -62,6 +63,27 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       .where(
         and(
           inArray(files.status, ["pending", "uploading", "scanning", "failed"]),
+          lt(files.createdAt, cutoff),
+        ),
+      );
+    return (rows ?? []).map((r) => this.toDomain(r));
+  }
+
+  async findUnlinkedBefore(cutoff: Date, systemScope = false): Promise<FileEntity[]> {
+    if (!systemScope || !this.tenantContext.isSystemScope()) return [];
+    const db = this.getDb();
+    const rows = await (
+      db as unknown as {
+        select: () => { from: (t: unknown) => { where: (c: unknown) => Promise<FileRow[]> } };
+      }
+    )
+      .select()
+      .from(files)
+      .where(
+        and(
+          eq(files.status, "uploaded"),
+          isNull(files.parentId),
+          isNull(files.deletedAt),
           lt(files.createdAt, cutoff),
         ),
       );

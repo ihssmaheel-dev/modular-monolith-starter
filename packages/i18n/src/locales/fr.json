@@ -184,6 +184,7 @@
       "transactionFailed": "La transaction a échoué",
       "uploadFailed": "Le téléversement a échoué",
       "fileTooLarge": "Le fichier dépasse la taille autorisée",
+      "quotaExceeded": "Quota de stockage dépassé",
       "presignFailed": "Impossible de générer l’URL signée",
       "deleteFailed": "La suppression a échoué",
       "invalidAddress": "Aucun destinataire fourni",
@@ -337,5 +338,25 @@
       "too_big": "La chaîne doit contenir au plus {{maximum}} caractère(s)",
       "custom": "Échec de la validation"
     }
+  },
+  "files": {
+    "dropFiles": "Glissez des fichiers ici ou cliquez pour parcourir",
+    "browseHint": "PDF, images, texte, CSV ou ZIP jusqu’à 10 Mo",
+    "uploading": "Envoi en cours...",
+    "uploaded": "Envoyé",
+    "clearFinished": "Effacer les terminés",
+    "deleted": "Fichier supprimé",
+    "download": "Télécharger",
+    "noAttachments": "Aucune pièce jointe.",
+    "deleteConfirm": "Supprimer « {{name}} » ? Cette action est irréversible.",
+    "attachments": "Pièces jointes",
+    "status": {
+      "pending": "En attente",
+      "uploading": "Envoi",
+      "scanning": "Analyse",
+      "uploaded": "Envoyé",
+      "failed": "Échec"
+    },
+    "pickFiles": "Choisir des fichiers"
   }
 }

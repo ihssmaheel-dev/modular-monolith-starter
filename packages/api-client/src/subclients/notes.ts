@@ -1,11 +1,18 @@
 import type {
+  AttachFileInput,
   CreateNoteDto,
+  FileMetadataResponse,
   NoteListResponseDto,
   NoteResponseDto,
   PaginationQuery,
   UpdateNoteDto,
 } from "@repo/contracts";
-import { EmptyResponseSchema, NoteListResponseSchema, NoteResponseSchema } from "@repo/contracts";
+import {
+  EmptyResponseSchema,
+  FileMetadataSchema,
+  NoteListResponseSchema,
+  NoteResponseSchema,
+} from "@repo/contracts";
 import type { FetchFn } from "../types";
 import { orpcResponse, type OrpcClient } from "../orpc";
 import { normalizePagination } from "../utils";
@@ -70,14 +77,33 @@ export function createNotesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
         : fetchFn<void>(`/notes/${encodeURIComponent(req.params.id)}`, { method: "DELETE" }),
   };
 
+  const attachFile = (req: { params: { id: string }; body: AttachFileInput }) =>
+    orpc
+      ? orpcResponse(
+          () => orpc.notes.attachFile({ id: req.params.id, ...req.body }),
+          201,
+          FileMetadataSchema,
+        )
+      : fetchFn<FileMetadataResponse>(
+          `/notes/${encodeURIComponent(req.params.id)}/attachments`,
+          {
+            method: "POST",
+            body: JSON.stringify(req.body),
+          },
+          FileMetadataSchema,
+        );
+
   // Keep ergonomic aliases while preserving the explicit HTTP method names.
   return {
     ...client,
+    attachFile,
     list: (input: { page?: number; limit?: number } = {}) =>
       client.getNotes({ query: { page: input.page ?? 1, limit: input.limit ?? 20 } }),
     get: (id: string) => client.getNoteById({ params: { id } }),
     create: client.createNote,
     update: (id: string, body: UpdateNoteDto) => client.updateNote({ params: { id }, body }),
     remove: (id: string) => client.deleteNote({ params: { id } }),
+    attach: (id: string, fileId: string, slot?: string) =>
+      attachFile({ params: { id }, body: slot ? { fileId, slot } : { fileId } }),
   };
 }

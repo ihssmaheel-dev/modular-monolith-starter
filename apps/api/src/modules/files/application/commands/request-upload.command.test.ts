@@ -5,10 +5,13 @@ import { FilesRepository } from "../../infrastructure/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok, err } from "neverthrow";
 import type { TenantContextService } from "../../../../infrastructure/database";
+import type { AuthenticatedUser } from "@repo/contracts";
 
 vi.mock("../../../../config/env", () => ({
   env: { S3_BUCKET: "test-bucket", API_URL: "http://localhost:3001" },
 }));
+
+const ACTOR = { sub: "user-1", email: "u@example.com", role: "user" } as AuthenticatedUser;
 
 describe("RequestUploadCommand", () => {
   let command: RequestUploadCommand;
@@ -41,10 +44,8 @@ describe("RequestUploadCommand", () => {
         fileName: "test.pdf",
         contentType: "application/pdf",
         fileSize: 1024,
-        parentType: "note",
-        parentId: "note-1",
       },
-      "user-1",
+      ACTOR,
     );
 
     expect(result.isErr()).toBe(true);
@@ -62,10 +63,8 @@ describe("RequestUploadCommand", () => {
         fileName: "test.pdf",
         contentType: "application/pdf",
         fileSize: 1024,
-        parentType: "note",
-        parentId: "note-1",
       },
-      "user-1",
+      ACTOR,
     );
 
     expect(result.isErr()).toBe(true);
@@ -74,18 +73,43 @@ describe("RequestUploadCommand", () => {
     }
   });
 
-  it("should return upload URL on success", async () => {
+  it("should return QUOTA_EXCEEDED when the user quota is exhausted", async () => {
+    const tenantContext = {
+      get: vi.fn().mockReturnValue({ mode: "single" }),
+    } as unknown as TenantContextService;
+    const overQuotaRepo = {
+      create: vi.fn(),
+      sumActiveBytes: vi.fn().mockResolvedValue(Number.MAX_SAFE_INTEGER),
+    } as unknown as FilesRepository;
+    const guarded = new RequestUploadCommand(storage, overQuotaRepo, tenantContext);
+
+    const result = await guarded.execute(
+      {
+        fileName: "big.pdf",
+        contentType: "application/pdf",
+        fileSize: 1024,
+      },
+      ACTOR,
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("QUOTA_EXCEEDED");
+    }
+    expect(overQuotaRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("should return upload URL on success with a user-scoped key", async () => {
     vi.mocked(storage.getPresignedUploadUrl).mockResolvedValue(ok("https://s3.example.com/upload"));
 
     const file: FileEntity = {
       id: "file-1",
-      key: "note/note-1/user-1/abc-test.pdf",
+      key: "general/user-1/abc-test.pdf",
       fileName: "test.pdf",
       contentType: "application/pdf",
       fileSize: 1024,
       bucket: "test-bucket",
-      parentId: "note-1",
-      parentType: "note",
+      parentType: "general",
       uploadedBy: "user-1",
       status: "pending",
       createdAt: new Date(),
@@ -98,53 +122,20 @@ describe("RequestUploadCommand", () => {
         fileName: "test.pdf",
         contentType: "application/pdf",
         fileSize: 1024,
-        parentType: "note",
-        parentId: "note-1",
       },
-      "user-1",
+      ACTOR,
     );
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
       expect(result.value.uploadUrl).toBe("https://s3.example.com/upload");
-      expect(result.value.fileKey).toContain("note/note-1/user-1/");
+      expect(result.value.fileKey).toMatch(/^general\/user-1\//);
       expect(result.value.expiresAt).toBeDefined();
       expect(Number.isNaN(Date.parse(result.value.expiresAt ?? ""))).toBe(false);
     }
-  });
-
-  it("should build key with general prefix when parentId is absent", async () => {
-    vi.mocked(storage.getPresignedUploadUrl).mockResolvedValue(ok("https://s3.example.com/upload"));
-
-    const file: FileEntity = {
-      id: "file-2",
-      key: "general/user-1/abc-file.txt",
-      fileName: "file.txt",
-      contentType: "text/plain",
-      fileSize: 100,
-      bucket: "test-bucket",
-      parentType: "general",
-      uploadedBy: "user-1",
-      status: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    vi.mocked(filesRepo.create).mockResolvedValue(ok(file));
-
-    const result = await command.execute(
-      {
-        fileName: "file.txt",
-        contentType: "text/plain",
-        fileSize: 100,
-        parentType: "general",
-      },
-      "user-1",
+    expect(filesRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ parentType: "general", uploadedBy: "user-1" }),
     );
-
-    expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value.fileKey).toMatch(/^general\/user-1\//);
-    }
   });
 
   it("should sanitize file name in key", async () => {
@@ -170,9 +161,8 @@ describe("RequestUploadCommand", () => {
         fileName: "my file.pdf",
         contentType: "application/pdf",
         fileSize: 500,
-        parentType: "general",
       },
-      "user-1",
+      ACTOR,
     );
 
     expect(result.isOk()).toBe(true);

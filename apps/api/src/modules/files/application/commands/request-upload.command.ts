@@ -5,10 +5,11 @@ import { env } from "../../../../config/env";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { FilesRepository } from "../../infrastructure/files.repository";
 import type { FileError } from "../../domain/errors/file.errors";
-import type { RequestUploadInput } from "@repo/contracts";
+import type { FileEntity } from "../../domain/entities/file.entity";
+import type { AuthenticatedUser, RequestUploadInput } from "@repo/contracts";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { env as runtimeEnv } from "../../../../config/env";
-import { DatabaseService } from "../../../../infrastructure/database";
+import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 
 const PRESIGNED_UPLOAD_TTL_SECONDS = 3_600;
@@ -36,12 +37,14 @@ export class RequestUploadCommand {
 
   async execute(
     input: RequestUploadInput,
-    userId: string,
+    actor: AuthenticatedUser,
   ): Promise<Result<RequestUploadResult, FileError>> {
+    const userId = actor.sub;
     const fileKey = this.buildKey(input, userId);
 
     const createResult = await this.createFileRecord(fileKey, input, userId);
     if (createResult.isErr()) {
+      if (createResult.error.type === "QUOTA_EXCEEDED") return err(createResult.error);
       return err({
         type: "UPLOAD_FAILED",
         message: "api.error.uploadFailed",
@@ -60,18 +63,21 @@ export class RequestUploadCommand {
     return ok({ ...transfer.value, fileKey });
   }
 
-  private async createFileRecord(fileKey: string, input: RequestUploadInput, userId: string) {
-    const create = async () => {
+  private async createFileRecord(
+    fileKey: string,
+    input: RequestUploadInput,
+    userId: string,
+  ): Promise<Result<{ id: string }, FileError | TransactionError>> {
+    const create = async (): Promise<Result<FileEntity, FileError>> => {
       const quota = await this.checkQuota(input.fileSize, userId);
-      if (!quota) return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
+      if (!quota) return err({ type: "QUOTA_EXCEEDED", message: "api.error.quotaExceeded" });
       return this.filesRepo.create({
         key: fileKey,
         fileName: input.fileName,
         contentType: input.contentType,
         fileSize: input.fileSize,
         bucket: env.S3_BUCKET,
-        parentId: input.parentId,
-        parentType: input.parentType,
+        parentType: "general",
         uploadedBy: userId,
         status: "pending",
       });
@@ -118,12 +124,10 @@ export class RequestUploadCommand {
   private buildKey(input: RequestUploadInput, userId: string): string {
     const uuid = randomUUID();
     const sanitized = input.fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const prefix =
-      input.parentType !== "general" && input.parentId
-        ? `${input.parentType}/${input.parentId}`
-        : "general";
+    // Uploads are parent-agnostic (linked later by the owning module), so keys
+    // are always user-scoped: ownership is provable from the path alone.
     const tenantId = this.tenantContext.get().tenantId;
     const tenantPrefix = tenantId ? `tenants/${tenantId}/` : "";
-    return `${tenantPrefix}${prefix}/${userId}/${uuid}-${sanitized}`;
+    return `${tenantPrefix}general/${userId}/${uuid}-${sanitized}`;
   }
 }

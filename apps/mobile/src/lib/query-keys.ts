@@ -15,4 +15,9 @@ export const queryKeys = {
     all: () => ["privacy"] as const,
     requests: (page: number, limit: number) => ["privacy", "requests", { page, limit }] as const,
   },
+  files: {
+    all: (tenantId: string | null) => ["files", tenantId] as const,
+    list: (tenantId: string | null, parentType: string, parentId?: string) =>
+      ["files", tenantId, "list", { parentType, parentId }] as const,
+  },
 } as const;

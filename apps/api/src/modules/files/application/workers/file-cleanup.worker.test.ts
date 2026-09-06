@@ -31,6 +31,7 @@ describe("FileCleanupWorker", () => {
   beforeEach(() => {
     mockFilesRepo = {
       findPendingFilesBefore: vi.fn().mockResolvedValue([STALE_FILE]),
+      findUnlinkedBefore: vi.fn().mockResolvedValue([]),
       deleteById: vi.fn().mockResolvedValue({ isOk: () => true, value: STALE_FILE }),
     } as unknown as FilesRepository;
 
@@ -78,6 +79,18 @@ describe("FileCleanupWorker", () => {
       expect.any(String),
       1,
     );
+  });
+
+  it("purges confirmed but never-linked files older than the unlinked cutoff", async () => {
+    const unlinked = { ...STALE_FILE, id: "file-unlinked-1", status: "uploaded" as const };
+    vi.mocked(mockFilesRepo.findPendingFilesBefore).mockResolvedValue([]);
+    vi.mocked(mockFilesRepo.findUnlinkedBefore).mockResolvedValue([unlinked]);
+
+    const result = await worker.cleanupOrphanPendingFiles();
+
+    expect(result.purgedCount).toBe(1);
+    expect(mockStorage.delete).toHaveBeenCalledWith(unlinked.key);
+    expect(mockFilesRepo.deleteById).toHaveBeenCalledWith(unlinked.id);
   });
 
   it("handles storage deletion errors gracefully without throwing", async () => {

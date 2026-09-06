@@ -10,6 +10,7 @@ import { DatabaseService } from "../../../../infrastructure/database";
 import { env } from "../../../../config/env";
 
 const PENDING_EXPIRATION_HOURS = 24;
+const UNLINKED_EXPIRATION_DAYS = 7;
 const CLEANUP_BATCH_SIZE = 100;
 
 @Injectable()
@@ -42,9 +43,13 @@ export class FileCleanupWorker {
 
     try {
       const cutoff = new Date(Date.now() - PENDING_EXPIRATION_HOURS * 60 * 60 * 1000);
+      const unlinkedCutoff = new Date(Date.now() - UNLINKED_EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
         const staleFiles = await this.database.runTransaction(() =>
           this.filesRepository.findPendingFilesBefore(cutoff, true),
+        );
+        const unlinkedFiles = await this.database.runTransaction(() =>
+          this.filesRepository.findUnlinkedBefore(unlinkedCutoff, true),
         );
         const repository = this.filesRepository as unknown as {
           findDeletedFiles?: (limit: number) => Promise<typeof staleFiles>;
@@ -54,7 +59,7 @@ export class FileCleanupWorker {
               repository.findDeletedFiles!(CLEANUP_BATCH_SIZE),
             )
           : [];
-        for (const file of [...staleFiles, ...deletedFiles]) {
+        for (const file of [...staleFiles, ...unlinkedFiles, ...deletedFiles]) {
           const deleted = await this.purgeFile(file);
           if (deleted) {
             purgedCount += 1;

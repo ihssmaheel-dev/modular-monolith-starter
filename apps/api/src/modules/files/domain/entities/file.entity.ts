@@ -8,6 +8,7 @@ export interface FileEntity {
   bucket: string;
   parentId?: string;
   parentType: "note" | "user" | "general";
+  slot?: string | null;
   uploadedBy: string;
   status: "pending" | "uploading" | "scanning" | "uploaded" | "failed";
   createdAt: Date;

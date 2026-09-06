@@ -76,4 +76,17 @@ export class NotesOrpcController {
       ),
     );
   }
+
+  @Implement(notesContract.attachFile)
+  @Idempotent()
+  @RequirePermission("notes:update")
+  attachFile(@Req() request: FastifyRequest) {
+    return implement(notesContract.attachFile).handler(({ input }) =>
+      invokeOrpc(
+        () => this.notesController.attachFile(input.id, input, request),
+        this.i18n,
+        request.headers["accept-language"],
+      ),
+    );
+  }
 }

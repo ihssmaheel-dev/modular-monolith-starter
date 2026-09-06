@@ -22,6 +22,7 @@ type FileListQuery = {
   limit?: number;
   parentId?: string;
   parentType?: "note" | "user" | "general";
+  slot?: string;
 };
 
 export function createFilesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
@@ -77,6 +78,7 @@ export function createFilesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
               ...normalizePagination(req.query),
               parentId: req.query?.parentId,
               parentType,
+              ...(req.query?.slot ? { slot: req.query.slot } : {}),
             }),
           200,
           FileListResponseSchema,

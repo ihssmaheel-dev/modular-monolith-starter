@@ -20,11 +20,13 @@ export function NoteCreateForm() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const goBack = () => navigate({ to: FRONTEND_ROUTES.notes });
+  const goToDetail = (id: string) =>
+    navigate({ to: "/_app/notes/$noteId", params: { noteId: id } });
   const form = useForm<CreateNoteDto>({
     resolver: zodResolver(CreateNoteSchema),
     defaultValues: { title: "", content: "" },
   });
-  const mutation = useCreateNoteMutation({ onSuccess: goBack });
+  const mutation = useCreateNoteMutation({ onSuccess: (note) => goToDetail(note.id) });
 
   return (
     <div className="w-full space-y-6">

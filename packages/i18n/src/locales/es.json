@@ -184,6 +184,7 @@
       "transactionFailed": "La transacción falló",
       "uploadFailed": "La carga falló",
       "fileTooLarge": "El archivo supera el tamaño permitido",
+      "quotaExceeded": "Cuota de almacenamiento excedida",
       "presignFailed": "No se pudo generar la URL firmada",
       "deleteFailed": "No se pudo eliminar",
       "invalidAddress": "No se proporcionaron destinatarios",
@@ -337,5 +338,25 @@
       "too_big": "La cadena debe contener como máximo {{maximum}} carácter(es)",
       "custom": "Falló la validación"
     }
+  },
+  "files": {
+    "dropFiles": "Arrastra archivos aquí o haz clic para buscar",
+    "browseHint": "PDF, imágenes, texto, CSV o ZIP hasta 10 MB",
+    "uploading": "Subiendo...",
+    "uploaded": "Subido",
+    "clearFinished": "Limpiar terminados",
+    "deleted": "Archivo eliminado",
+    "download": "Descargar",
+    "noAttachments": "Sin archivos adjuntos.",
+    "deleteConfirm": "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
+    "attachments": "Archivos adjuntos",
+    "status": {
+      "pending": "Pendiente",
+      "uploading": "Subiendo",
+      "scanning": "Analizando",
+      "uploaded": "Subido",
+      "failed": "Fallido"
+    },
+    "pickFiles": "Elegir archivos"
   }
 }
