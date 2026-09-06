@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateNoteSchema, type CreateNoteDto } from "@repo/contracts";
+import { CreateNoteSchema, noteDetailPath, type CreateNoteDto } from "@repo/contracts";
 import { useCreateNoteMutation } from "@/features/notes/notes.mutations";
 
 export default function NewNote() {
@@ -17,7 +17,7 @@ export default function NewNote() {
     defaultValues: { title: "", content: "" },
   });
   const mutation = useCreateNoteMutation({
-    onSuccess: (note) => router.replace(`/notes/${note.id}`),
+    onSuccess: (note) => router.replace(noteDetailPath(note.id) as "/notes/[id]"),
   });
 
   return (

@@ -11,6 +11,7 @@ import {
 import { useTheme } from "@/theme/theme-provider";
 import { mobileTokens } from "@/theme/tokens.generated";
 import { Link } from "expo-router";
+import { noteDetailPath } from "@repo/contracts";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { notesListQuery } from "@/features/notes/notes.queries";
@@ -64,7 +65,7 @@ export default function Notes() {
             className="flex-row items-center justify-between gap-3 rounded-xl p-4 shadow-sm"
           >
             <View className="min-w-0 flex-1">
-              <Link href={`/notes/${item.id}`}>
+              <Link href={noteDetailPath(item.id) as "/notes/[id]"}>
                 <Text className="font-medium text-foreground underline" numberOfLines={1}>
                   {item.title}
                 </Text>
