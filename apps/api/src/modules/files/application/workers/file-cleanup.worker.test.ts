@@ -81,6 +81,16 @@ describe("FileCleanupWorker", () => {
     );
   });
 
+  it("bounds janitor scans to one batch per run", async () => {
+    vi.mocked(mockFilesRepo.findPendingFilesBefore).mockResolvedValue([]);
+    vi.mocked(mockFilesRepo.findUnlinkedBefore).mockResolvedValue([]);
+
+    await worker.cleanupOrphanPendingFiles();
+
+    expect(mockFilesRepo.findPendingFilesBefore).toHaveBeenCalledWith(expect.any(Date), true, 100);
+    expect(mockFilesRepo.findUnlinkedBefore).toHaveBeenCalledWith(expect.any(Date), true, 100);
+  });
+
   it("purges confirmed but never-linked files older than the unlinked cutoff", async () => {
     const unlinked = { ...STALE_FILE, id: "file-unlinked-1", status: "uploaded" as const };
     vi.mocked(mockFilesRepo.findPendingFilesBefore).mockResolvedValue([]);

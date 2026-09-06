@@ -46,10 +46,10 @@ export class FileCleanupWorker {
       const unlinkedCutoff = new Date(Date.now() - UNLINKED_EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
         const staleFiles = await this.database.runTransaction(() =>
-          this.filesRepository.findPendingFilesBefore(cutoff, true),
+          this.filesRepository.findPendingFilesBefore(cutoff, true, CLEANUP_BATCH_SIZE),
         );
         const unlinkedFiles = await this.database.runTransaction(() =>
-          this.filesRepository.findUnlinkedBefore(unlinkedCutoff, true),
+          this.filesRepository.findUnlinkedBefore(unlinkedCutoff, true, CLEANUP_BATCH_SIZE),
         );
         const repository = this.filesRepository as unknown as {
           findDeletedFiles?: (limit: number) => Promise<typeof staleFiles>;

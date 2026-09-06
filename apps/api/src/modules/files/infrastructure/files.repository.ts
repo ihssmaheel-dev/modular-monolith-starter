@@ -50,12 +50,20 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     return this.updateOne({ key, status: "pending" }, { status: "uploading" });
   }
 
-  async findPendingFilesBefore(cutoff: Date, systemScope = false): Promise<FileEntity[]> {
+  async findPendingFilesBefore(
+    cutoff: Date,
+    systemScope = false,
+    limit = 100,
+  ): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
     const rows = await (
       db as unknown as {
-        select: () => { from: (t: unknown) => { where: (c: unknown) => Promise<FileRow[]> } };
+        select: () => {
+          from: (t: unknown) => {
+            where: (c: unknown) => { limit: (n: number) => Promise<FileRow[]> };
+          };
+        };
       }
     )
       .select()
@@ -65,16 +73,21 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
           inArray(files.status, ["pending", "uploading", "scanning", "failed"]),
           lt(files.createdAt, cutoff),
         ),
-      );
+      )
+      .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
   }
 
-  async findUnlinkedBefore(cutoff: Date, systemScope = false): Promise<FileEntity[]> {
+  async findUnlinkedBefore(cutoff: Date, systemScope = false, limit = 100): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
     const rows = await (
       db as unknown as {
-        select: () => { from: (t: unknown) => { where: (c: unknown) => Promise<FileRow[]> } };
+        select: () => {
+          from: (t: unknown) => {
+            where: (c: unknown) => { limit: (n: number) => Promise<FileRow[]> };
+          };
+        };
       }
     )
       .select()
@@ -86,7 +99,8 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
           isNull(files.deletedAt),
           lt(files.createdAt, cutoff),
         ),
-      );
+      )
+      .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
   }
 
