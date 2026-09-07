@@ -1160,95 +1160,52 @@
     "public.audit_action": {
       "name": "audit_action",
       "schema": "public",
-      "values": [
-        "CREATE",
-        "UPDATE",
-        "DELETE"
-      ]
+      "values": ["CREATE", "UPDATE", "DELETE"]
     },
     "public.outbox_status": {
       "name": "outbox_status",
       "schema": "public",
-      "values": [
-        "PENDING",
-        "PROCESSING",
-        "PUBLISHED",
-        "FAILED",
-        "DEAD_LETTER"
-      ]
+      "values": ["PENDING", "PROCESSING", "PUBLISHED", "FAILED", "DEAD_LETTER"]
     },
     "public.file_parent_type": {
       "name": "file_parent_type",
       "schema": "public",
-      "values": [
-        "note",
-        "user",
-        "general"
-      ]
+      "values": ["note", "user", "general"]
     },
     "public.file_status": {
       "name": "file_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "uploading",
-        "scanning",
-        "uploaded",
-        "failed"
-      ]
+      "values": ["pending", "uploading", "scanning", "uploaded", "failed"]
     },
     "public.dsr_status": {
       "name": "dsr_status",
       "schema": "public",
-      "values": [
-        "REQUESTED",
-        "READY",
-        "FULFILLED",
-        "EXPIRED"
-      ]
+      "values": ["REQUESTED", "READY", "FULFILLED", "EXPIRED"]
     },
     "public.dsr_type": {
       "name": "dsr_type",
       "schema": "public",
-      "values": [
-        "EXPORT",
-        "ACCOUNT_ERASURE",
-        "ORGANIZATION_ERASURE"
-      ]
+      "values": ["EXPORT", "ACCOUNT_ERASURE", "ORGANIZATION_ERASURE"]
     },
     "public.invitation_role": {
       "name": "invitation_role",
       "schema": "public",
-      "values": [
-        "admin",
-        "member"
-      ]
+      "values": ["admin", "member"]
     },
     "public.invitation_status": {
       "name": "invitation_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "accepted",
-        "revoked"
-      ]
+      "values": ["pending", "accepted", "revoked"]
     },
     "public.membership_role": {
       "name": "membership_role",
       "schema": "public",
-      "values": [
-        "owner",
-        "admin",
-        "member"
-      ]
+      "values": ["owner", "admin", "member"]
     },
     "public.user_role": {
       "name": "user_role",
       "schema": "public",
-      "values": [
-        "admin",
-        "user"
-      ]
+      "values": ["admin", "user"]
     }
   },
   "schemas": {},

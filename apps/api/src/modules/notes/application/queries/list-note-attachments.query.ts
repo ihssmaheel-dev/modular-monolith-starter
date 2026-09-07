@@ -29,9 +29,7 @@ export class ListNoteAttachmentsQuery {
     limit = 20,
     slot?: string,
   ): Promise<Result<PaginatedResult<FileEntity>, NoteNotFound | TransactionError>> {
-    const operation = async (): Promise<
-      Result<PaginatedResult<FileEntity>, NoteNotFound>
-    > => {
+    const operation = async (): Promise<Result<PaginatedResult<FileEntity>, NoteNotFound>> => {
       const note = await this.getNoteById.execute(noteId, actor);
       if (note.isErr() || !note.value) return err({ type: "NOTE_NOT_FOUND", noteId });
       return this.listFiles.executeForVerifiedParent("note", noteId, page, limit, slot);

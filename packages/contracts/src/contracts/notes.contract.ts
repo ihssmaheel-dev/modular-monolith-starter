@@ -7,7 +7,11 @@ import {
   UpdateNoteSchema,
   NoteIdParamSchema,
 } from "../schemas/note.schema";
-import { AttachFileSchema, FileListResponseSchema, FileMetadataSchema } from "../schemas/file.schema";
+import {
+  AttachFileSchema,
+  FileListResponseSchema,
+  FileMetadataSchema,
+} from "../schemas/file.schema";
 import { PaginationQuerySchema } from "../schemas/pagination.schema";
 import { EmptyResponseSchema } from "../schemas/common.schema";
 

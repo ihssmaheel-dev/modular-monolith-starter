@@ -214,8 +214,7 @@ describe("REST input validation", () => {
       const target = prototype[route.rest[1]] as object | undefined;
       if (!target) throw new Error(`Missing REST handler: ${route.rest[1]}`);
       const args = Reflect.getMetadata(ROUTE_ARGS_METADATA, target) as
-        | Record<string, { type: RouteParamtypes; pipes?: unknown[] }>
-        | undefined;
+        Record<string, { type: RouteParamtypes; pipes?: unknown[] }> | undefined;
       if (!args) return;
       for (const arg of Object.values(args)) {
         if (

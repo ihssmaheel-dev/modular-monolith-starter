@@ -48,7 +48,13 @@ describe("ListNoteAttachmentsQuery", () => {
 
     expect(result.isOk()).toBe(true);
     expect(getNoteById.execute).toHaveBeenCalledWith("note-1", ACTOR);
-    expect(listFiles.executeForVerifiedParent).toHaveBeenCalledWith("note", "note-1", 1, 20, undefined);
+    expect(listFiles.executeForVerifiedParent).toHaveBeenCalledWith(
+      "note",
+      "note-1",
+      1,
+      20,
+      undefined,
+    );
   });
 
   it("should deny listing without note access and never touch files", async () => {

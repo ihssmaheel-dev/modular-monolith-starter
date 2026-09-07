@@ -68,9 +68,7 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
     )
       .select()
       .from(dsrRequests)
-      .where(
-        and(eq(dsrRequests.status, "READY"), lt(dsrRequests.expiresAt, new Date())) as never,
-      )
+      .where(and(eq(dsrRequests.status, "READY"), lt(dsrRequests.expiresAt, new Date())) as never)
       .limit(limit);
     return rows.map((r) => this.toDomain(r));
   }

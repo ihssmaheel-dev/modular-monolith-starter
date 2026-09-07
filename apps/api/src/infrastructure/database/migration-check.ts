@@ -8,8 +8,6 @@ import { env } from "../../config/env";
 
 const MIGRATIONS_PATH = path.resolve(process.cwd(), "../../migrations/pg");
 const DATABASE_PREFIX = "monolith_migration_check";
-const ENUM_OWNER_MIGRATION = "0002_colossal_zodiak.sql";
-const HARDENING_MIGRATION = "0003_production_hardening.sql";
 const SINGLE_MIGRATION_TAG = "0000_initial";
 const HARDENED_TABLES = [
   "audit_logs",
@@ -54,35 +52,23 @@ async function assertEnumMigrationOwnership(): Promise<void> {
     await readFile(path.join(MIGRATIONS_PATH, "meta", "_journal.json"), "utf8"),
   ) as MigrationJournal;
   const tags = journal.entries.map((entry) => entry.tag);
-  if (tags[0] === SINGLE_MIGRATION_TAG) {
-    // Squashed lineage (post-0000_initial): DEAD_LETTER is defined once in the
-    // initial migration and must never be altered by later migrations.
-    const initial = await readFile(
-      path.join(MIGRATIONS_PATH, `${SINGLE_MIGRATION_TAG}.sql`),
-      "utf8",
-    );
-    const definitions =
-      initial.match(/CREATE TYPE\s+"public"\."outbox_status"[^;]*'DEAD_LETTER'/gi) ?? [];
-    if (definitions.length !== 1) {
-      throw new Error(`${SINGLE_MIGRATION_TAG}.sql must define DEAD_LETTER exactly once`);
-    }
-    for (const tag of tags.slice(1)) {
-      const sql = await readFile(path.join(MIGRATIONS_PATH, `${tag}.sql`), "utf8");
-      enumAlteration.lastIndex = 0;
-      if (enumAlteration.test(sql)) {
-        throw new Error(`${tag}.sql must not alter outbox_status`);
-      }
-    }
-    return;
+  if (tags[0] !== SINGLE_MIGRATION_TAG) {
+    throw new Error(`Migration lineage must start with ${SINGLE_MIGRATION_TAG}`);
   }
-  const enumOwner = await readFile(path.join(MIGRATIONS_PATH, ENUM_OWNER_MIGRATION), "utf8");
-  const hardening = await readFile(path.join(MIGRATIONS_PATH, HARDENING_MIGRATION), "utf8");
-  if ((enumOwner.match(enumAlteration) ?? []).length !== 1) {
-    throw new Error(`${ENUM_OWNER_MIGRATION} must add DEAD_LETTER exactly once`);
+  // Squashed lineage (post-0000_initial): DEAD_LETTER is defined once in the
+  // initial migration and must never be altered by later migrations.
+  const initial = await readFile(path.join(MIGRATIONS_PATH, `${SINGLE_MIGRATION_TAG}.sql`), "utf8");
+  const definitions =
+    initial.match(/CREATE TYPE\s+"public"\."outbox_status"[^;]*'DEAD_LETTER'/gi) ?? [];
+  if (definitions.length !== 1) {
+    throw new Error(`${SINGLE_MIGRATION_TAG}.sql must define DEAD_LETTER exactly once`);
   }
-  enumAlteration.lastIndex = 0;
-  if (enumAlteration.test(hardening)) {
-    throw new Error(`${HARDENING_MIGRATION} must not alter outbox_status`);
+  for (const tag of tags.slice(1)) {
+    const sql = await readFile(path.join(MIGRATIONS_PATH, `${tag}.sql`), "utf8");
+    enumAlteration.lastIndex = 0;
+    if (enumAlteration.test(sql)) {
+      throw new Error(`${tag}.sql must not alter outbox_status`);
+    }
   }
 }
 

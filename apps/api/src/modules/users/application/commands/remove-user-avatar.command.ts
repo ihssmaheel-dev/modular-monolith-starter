@@ -22,15 +22,12 @@ export class RemoveUserAvatarCommand {
   async execute(
     actor: AuthenticatedUser,
   ): Promise<Result<User, UserNotFound | FileError | TransactionError>> {
-    const operation = (): Promise<Result<User, UserNotFound | FileError>> =>
-      this.persist(actor);
+    const operation = (): Promise<Result<User, UserNotFound | FileError>> => this.persist(actor);
     if (!this.database) return operation();
     return this.database.withResultTransaction(operation);
   }
 
-  private async persist(
-    actor: AuthenticatedUser,
-  ): Promise<Result<User, UserNotFound | FileError>> {
+  private async persist(actor: AuthenticatedUser): Promise<Result<User, UserNotFound | FileError>> {
     const userResult = await this.getUserById.execute(actor.sub);
     if (userResult.isErr()) return err(userResult.error);
     const user = userResult.value;

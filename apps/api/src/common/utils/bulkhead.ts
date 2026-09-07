@@ -17,10 +17,7 @@ export class Bulkhead<E> {
     this.fallbackError = fallbackError;
   }
 
-  async execute<T>(
-    action: () => Promise<Result<T, E>>,
-    key = "default",
-  ): Promise<Result<T, E>> {
+  async execute<T>(action: () => Promise<Result<T, E>>, key = "default"): Promise<Result<T, E>> {
     const active = this.counts.get(key) ?? 0;
     if (active >= this.maxConcurrent) {
       return err(this.fallbackError);

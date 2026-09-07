@@ -28,7 +28,7 @@ You are working in a modular monolith codebase. Before making any changes, read 
 - **All user-facing text must use i18n.** Translations live in packages/i18n (@repo/i18n).
 - **All error messages must use I18nService.** Never hardcode.
 - Ask in every PR: "Is this the simplest structure that could work?"
-- Keep files under 150 lines. If it's longer, split it.
+- Keep files small and single-responsibility. Limits per area live in `ai_instructions/CODE_QUALITY_RULES.md` (app code 400 lines, web routes 150, web lib 250, stores 200, tests 800) — that table is the single source, not this list.
 - Functions under 30 lines. No deep nesting.
 - No magic numbers, no copy-paste, no `any`, no `console.log`.
 - **Every new file must land in the correct location on first creation.** See `FILE_PLACEMENT_RULES.md`.

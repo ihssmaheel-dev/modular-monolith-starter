@@ -76,7 +76,9 @@ export class StorageService {
     return true;
   }
 
-  private guarded<T>(action: () => Promise<Result<T, StorageError>>): Promise<Result<T, StorageError>> {
+  private guarded<T>(
+    action: () => Promise<Result<T, StorageError>>,
+  ): Promise<Result<T, StorageError>> {
     // Bulkhead partitions are per-tenant for fairness; the circuit breaker
     // stays global because a downstream S3 outage affects every tenant.
     return this.bulkhead.execute(action, this.partitionKey());

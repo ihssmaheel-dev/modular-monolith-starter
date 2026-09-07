@@ -11,7 +11,10 @@ import { useThemeStore, type Theme } from "@/stores/theme.store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useRequestExportMutation, useEraseAccountMutation } from "@/features/privacy/privacy.mutations";
+import {
+  useRequestExportMutation,
+  useEraseAccountMutation,
+} from "@/features/privacy/privacy.mutations";
 import { AvatarUpload } from "@/features/users/components/avatar-upload";
 
 export default function Settings() {

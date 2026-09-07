@@ -121,7 +121,13 @@ describe("AttachFileToNoteCommand", () => {
     const result = await command.execute("note-1", "file-2", ACTOR, "cover");
 
     expect(result.isOk()).toBe(true);
-    expect(listFiles.executeForVerifiedParent).toHaveBeenCalledWith("note", "note-1", 1, 100, "cover");
+    expect(listFiles.executeForVerifiedParent).toHaveBeenCalledWith(
+      "note",
+      "note-1",
+      1,
+      100,
+      "cover",
+    );
     expect(deleteFile.execute).toHaveBeenCalledWith("file-1", ACTOR);
     expect(linkFile.execute).toHaveBeenCalledWith(
       "file-2",

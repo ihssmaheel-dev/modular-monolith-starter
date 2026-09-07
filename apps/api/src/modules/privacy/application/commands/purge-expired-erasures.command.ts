@@ -48,9 +48,7 @@ export class PurgeExpiredErasuresCommand {
     const operation = () => this.persist();
     if (!this.database) return operation();
     const database = this.database;
-    const result = await database.withSystemScope(() =>
-      database.withResultTransaction(operation),
-    );
+    const result = await database.withSystemScope(() => database.withResultTransaction(operation));
     return result.mapErr((error) =>
       error.type === "TRANSACTION_FAILED" ? { type: "PURGE_FAILED" } : error,
     );

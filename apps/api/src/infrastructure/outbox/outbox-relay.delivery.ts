@@ -6,7 +6,11 @@ import { PinoLoggerService } from "../logger/logger.service";
 import { DatabaseService } from "../database";
 import { QueueService } from "../queue/queue.service";
 import { OutboxEvent, OutboxRepository } from "./outbox.repository";
-import { OUTBOX_DURABLE_QUEUE_UNAVAILABLE, OUTBOX_MAX_ATTEMPTS, OUTBOX_QUEUE } from "./outbox.constants";
+import {
+  OUTBOX_DURABLE_QUEUE_UNAVAILABLE,
+  OUTBOX_MAX_ATTEMPTS,
+  OUTBOX_QUEUE,
+} from "./outbox.constants";
 import { env } from "../../config/env";
 
 const RETRY_BASE_DELAY_MS = 5_000;
@@ -68,9 +72,7 @@ export class OutboxRelayDelivery {
   private async scheduleRetry(event: OutboxEvent, error: unknown): Promise<void> {
     const attempts = event.attempts + 1;
     const exhausted = attempts >= OUTBOX_MAX_ATTEMPTS;
-    const delay = withJitter(
-      RETRY_BASE_DELAY_MS * RETRY_MULTIPLIER ** Math.max(0, attempts - 1),
-    );
+    const delay = withJitter(RETRY_BASE_DELAY_MS * RETRY_MULTIPLIER ** Math.max(0, attempts - 1));
     await this.database.runTransaction(() =>
       this.repository.updateById(event.id, {
         status: exhausted ? "DEAD_LETTER" : "PENDING",

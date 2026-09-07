@@ -171,11 +171,7 @@ export class DatabaseService implements OnModuleDestroy {
     return undefined;
   }
 
-  async emitAfterCommit(
-    emitter: EventEmitter2,
-    event: string,
-    payload: unknown,
-  ): Promise<void> {
+  async emitAfterCommit(emitter: EventEmitter2, event: string, payload: unknown): Promise<void> {
     const run = async (): Promise<void> => {
       try {
         await emitter.emitAsync(event, payload);
@@ -187,8 +183,7 @@ export class DatabaseService implements OnModuleDestroy {
       await run();
       return;
     }
-    const pending =
-      (this.cls.get("afterCommit") as Array<() => Promise<void>> | undefined) ?? [];
+    const pending = (this.cls.get("afterCommit") as Array<() => Promise<void>> | undefined) ?? [];
     pending.push(run);
     this.cls.set("afterCommit", pending);
   }

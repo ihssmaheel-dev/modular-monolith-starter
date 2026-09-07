@@ -100,7 +100,11 @@ export function createNotesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
     ...client,
     attachFile,
     listAttachments: (id: string, input: { page?: number; limit?: number; slot?: string } = {}) => {
-      const query = { page: input.page ?? 1, limit: input.limit ?? 20, ...(input.slot ? { slot: input.slot } : {}) };
+      const query = {
+        page: input.page ?? 1,
+        limit: input.limit ?? 20,
+        ...(input.slot ? { slot: input.slot } : {}),
+      };
       if (orpc) {
         return orpcResponse(
           () => orpc.notes.listAttachments({ id, ...query }),

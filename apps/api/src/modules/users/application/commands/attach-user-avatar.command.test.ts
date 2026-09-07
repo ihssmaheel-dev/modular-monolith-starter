@@ -53,13 +53,7 @@ describe("AttachUserAvatarCommand", () => {
     linkFile = { execute: vi.fn() } as unknown as LinkFileCommand;
     deleteFile = { execute: vi.fn() } as unknown as DeleteFileCommand;
     users = { updateById: vi.fn() } as unknown as UsersRepository;
-    command = new AttachUserAvatarCommand(
-      getUserById,
-      getFileById,
-      linkFile,
-      deleteFile,
-      users,
-    );
+    command = new AttachUserAvatarCommand(getUserById, getFileById, linkFile, deleteFile, users);
   });
 
   it("should link the image and store its id on the user", async () => {

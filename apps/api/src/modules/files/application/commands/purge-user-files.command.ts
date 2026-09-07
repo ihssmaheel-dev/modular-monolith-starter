@@ -41,10 +41,7 @@ export class PurgeUserFilesCommand {
     return ok({ deleted });
   }
 
-  private async purgeOne(file: {
-    id: string;
-    key: string;
-  }): Promise<Result<void, FileError>> {
+  private async purgeOne(file: { id: string; key: string }): Promise<Result<void, FileError>> {
     const storageResult = await this.storage.delete(file.key);
     if (storageResult.isErr()) {
       this.logger.error({ key: file.key }, "Erasure storage delete failed");
