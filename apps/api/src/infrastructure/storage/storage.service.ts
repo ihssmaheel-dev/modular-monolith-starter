@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { ok, err, type Result } from "neverthrow";
 import { PinoLoggerService } from "../logger/logger.service";
 import {
@@ -13,13 +13,17 @@ import { S3Driver } from "./drivers/s3.driver";
 import { Readable } from "node:stream";
 import { CircuitBreaker } from "../../common/utils/circuit-breaker";
 import { Bulkhead } from "../../common/utils/bulkhead";
+import { TenantContextService } from "../database";
 
 @Injectable()
 export class StorageService {
   private driver: StorageDriver;
   private circuitBreaker: CircuitBreaker<StorageError>;
   private bulkhead: Bulkhead<StorageError>;
-  constructor(private logger: PinoLoggerService) {
+  constructor(
+    private logger: PinoLoggerService,
+    @Optional() private readonly tenantContext?: TenantContextService,
+  ) {
     this.logger = logger.child({ module: "StorageService" });
     this.driver = new S3Driver();
     this.logger.info({}, "Storage: Using S3 driver (Postgres mode)");
@@ -38,7 +42,7 @@ export class StorageService {
     body: FileInput,
     contentType: string,
   ): Promise<Result<UploadResult, StorageError>> {
-    return this.bulkhead.execute(() =>
+    return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
           const result = await this.driver.upload(key, body, contentType);
@@ -56,7 +60,7 @@ export class StorageService {
     contentType: string,
     ttlSeconds = PRESIGN_TTL_SECONDS,
   ): Promise<Result<string, StorageError>> {
-    return this.bulkhead.execute(() =>
+    return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
           const url = await this.driver.getPresignedUploadUrl(key, contentType, ttlSeconds);
@@ -72,11 +76,21 @@ export class StorageService {
     return true;
   }
 
+  private guarded<T>(action: () => Promise<Result<T, StorageError>>): Promise<Result<T, StorageError>> {
+    // Bulkhead partitions are per-tenant for fairness; the circuit breaker
+    // stays global because a downstream S3 outage affects every tenant.
+    return this.bulkhead.execute(action, this.partitionKey());
+  }
+
+  private partitionKey(): string {
+    return this.tenantContext?.get().tenantId ?? "global";
+  }
+
   async getPresignedDownloadUrl(
     key: string,
     ttlSeconds = PRESIGN_TTL_SECONDS,
   ): Promise<Result<string, StorageError>> {
-    return this.bulkhead.execute(() =>
+    return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
           const url = await this.driver.getPresignedDownloadUrl(key, ttlSeconds);
@@ -90,7 +104,7 @@ export class StorageService {
   }
 
   async delete(key: string): Promise<Result<void, StorageError>> {
-    return this.bulkhead.execute(() =>
+    return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
           await this.driver.delete(key);
@@ -105,7 +119,7 @@ export class StorageService {
   }
 
   async getMetadata(key: string): Promise<Result<StoredObjectMetadata | null, StorageError>> {
-    return this.bulkhead.execute(() =>
+    return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
           return ok(await this.driver.getMetadata(key));
@@ -118,7 +132,7 @@ export class StorageService {
   }
 
   async getDownloadStream(key: string): Promise<Result<Readable, StorageError>> {
-    return this.bulkhead.execute(() =>
+    return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
           return ok(await this.driver.getDownloadStream(key));

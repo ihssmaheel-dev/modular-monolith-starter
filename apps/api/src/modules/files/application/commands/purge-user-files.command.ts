@@ -1,6 +1,6 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
-import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
+import type { TransactionError } from "../../../../infrastructure/database";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { FileError } from "../../domain/errors/file.errors";
@@ -10,9 +10,11 @@ const PURGE_BATCH_LIMIT = 500;
 
 /**
  * GDPR erasure fan-out: delete every object uploaded by a subject in the
- * current tenant context (S3 bytes first, then rows). Idempotent: safe to
- * retry — missing objects are treated as already purged. Reads in bounded
- * batches so subjects with large libraries cannot exhaust memory.
+ * current tenant context (S3 bytes first, then rows). Work proceeds in
+ * bounded batches with no long-lived transaction: S3 calls happen outside
+ * any transaction, each row delete is atomic, and completed batches survive
+ * failures. Idempotent: safe to retry — missing objects are treated as
+ * already purged.
  */
 @Injectable()
 export class PurgeUserFilesCommand {
@@ -20,27 +22,23 @@ export class PurgeUserFilesCommand {
     private readonly files: FilesRepository,
     private readonly storage: StorageService,
     private readonly logger: PinoLoggerService,
-    @Optional() private readonly database?: DatabaseService,
   ) {}
 
   async execute(
     userId: string,
   ): Promise<Result<{ deleted: number }, FileError | TransactionError>> {
-    const operation = async (): Promise<Result<{ deleted: number }, FileError>> => {
-      let deleted = 0;
-      for (;;) {
-        const items = await this.files.findByUploader(userId, PURGE_BATCH_LIMIT);
-        if (items.length === 0) break;
-        for (const file of items) {
-          const purged = await this.purgeOne(file);
-          if (purged.isErr()) return err(purged.error);
-          deleted += 1;
-        }
+    let deleted = 0;
+    for (;;) {
+      const items = await this.files.findByUploader(userId, PURGE_BATCH_LIMIT);
+      if (items.length === 0) break;
+      for (const file of items) {
+        const purged = await this.purgeOne(file);
+        if (purged.isErr()) return err(purged.error);
+        deleted += 1;
       }
-      return ok({ deleted });
-    };
-    if (!this.database) return operation();
-    return this.database.withResultTransaction(operation);
+      if (items.length < PURGE_BATCH_LIMIT) break;
+    }
+    return ok({ deleted });
   }
 
   private async purgeOne(file: {

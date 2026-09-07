@@ -38,8 +38,11 @@ describe("WelcomeEmailListener", () => {
         html: expect.stringContaining("https://app.example.com/auth"),
       },
       {
+        jobId: "welcome-email:user-123",
         attempts: 5,
         backoff: { type: "exponential", delay: 5_000 },
+        removeOnComplete: 100,
+        removeOnFail: 1000,
       },
     );
   });

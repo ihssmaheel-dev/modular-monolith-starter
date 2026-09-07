@@ -36,6 +36,13 @@
       "when": 1788776099748,
       "tag": "0004_rls_organizations_dsr",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788778690746,
+      "tag": "0005_perf_hot_path_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -43,7 +43,7 @@ export class OutboxRelayDelivery {
           attempts: OUTBOX_MAX_ATTEMPTS,
           backoff: { type: "exponential", delay: RETRY_BASE_DELAY_MS },
           removeOnComplete: 1000,
-          removeOnFail: false,
+          removeOnFail: 1000,
         });
       } else {
         if (env.NODE_ENV === "production") {
@@ -68,7 +68,9 @@ export class OutboxRelayDelivery {
   private async scheduleRetry(event: OutboxEvent, error: unknown): Promise<void> {
     const attempts = event.attempts + 1;
     const exhausted = attempts >= OUTBOX_MAX_ATTEMPTS;
-    const delay = RETRY_BASE_DELAY_MS * RETRY_MULTIPLIER ** Math.max(0, attempts - 1);
+    const delay = withJitter(
+      RETRY_BASE_DELAY_MS * RETRY_MULTIPLIER ** Math.max(0, attempts - 1),
+    );
     await this.database.runTransaction(() =>
       this.repository.updateById(event.id, {
         status: exhausted ? "DEAD_LETTER" : "PENDING",
@@ -112,4 +114,8 @@ export class OutboxRelayDelivery {
       this.logger.warn({ err: error, eventId: event.id }, "Outbox latency metric failed");
     }
   }
+}
+
+function withJitter(delayMs: number): number {
+  return Math.round(delayMs * (0.8 + Math.random() * 0.4));
 }

@@ -29,8 +29,11 @@ export class WelcomeEmailListener {
     if (queue) {
       try {
         await queue.add("welcome", data, {
+          jobId: `welcome-email:${event.userId}`,
           attempts: EMAIL_RETRY_ATTEMPTS,
           backoff: { type: "exponential", delay: EMAIL_RETRY_DELAY_MS },
+          removeOnComplete: 100,
+          removeOnFail: 1000,
         });
         return;
       } catch (error) {

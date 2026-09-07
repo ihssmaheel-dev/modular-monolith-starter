@@ -110,6 +110,21 @@ export class OutboxRepository extends BaseRepository<OutboxEvent, OutboxRow> {
       .returning();
     return rows.length > 0;
   }
+
+  async deletePublishedBefore(cutoff: Date, limit: number): Promise<number> {
+    const db = this.getDb();
+    const result = await (
+      db as unknown as { execute: (query: unknown) => Promise<{ rows: unknown[] }> }
+    ).execute(sql`WITH old AS (
+        SELECT id FROM outbox_events
+        WHERE status = 'PUBLISHED' AND updated_at < ${cutoff}
+        ORDER BY updated_at ASC
+        LIMIT ${limit}
+      )
+      DELETE FROM outbox_events WHERE id IN (SELECT id FROM old)
+      RETURNING id`);
+    return result.rows.length;
+  }
 }
 
 function toDate(value: Date | string): Date {

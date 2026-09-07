@@ -71,6 +71,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       .where(
         and(
           inArray(files.status, ["pending", "uploading", "scanning", "failed"]),
+          isNull(files.deletedAt),
           lt(files.createdAt, cutoff),
         ),
       )
@@ -132,8 +133,11 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       WITH candidates AS (
         SELECT id
         FROM files
-        WHERE status = 'uploading'
-           OR (status = 'scanning' AND updated_at < NOW() - INTERVAL '10 minutes')
+        WHERE deleted_at IS NULL
+          AND (
+            status = 'uploading'
+            OR (status = 'scanning' AND updated_at < NOW() - INTERVAL '10 minutes')
+          )
         ORDER BY updated_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED

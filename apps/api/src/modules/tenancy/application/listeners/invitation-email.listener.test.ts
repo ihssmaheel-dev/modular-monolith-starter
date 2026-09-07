@@ -40,7 +40,12 @@ describe("InvitationEmailListener", () => {
     expect(add).toHaveBeenCalledWith(
       "organization-invitation",
       expect.objectContaining({ to: "invitee@example.com", subject: "email.invitation.subject" }),
-      expect.objectContaining({ attempts: 5 }),
+      expect.objectContaining({
+        attempts: 5,
+        jobId: expect.stringMatching(/^invitation-email:[0-9a-f]{32}$/),
+        removeOnComplete: 100,
+        removeOnFail: 1000,
+      }),
     );
     const element = vi.mocked(render).mock.calls[0]?.[0] as
       ReactElement<{ acceptUrl?: string }> | undefined;

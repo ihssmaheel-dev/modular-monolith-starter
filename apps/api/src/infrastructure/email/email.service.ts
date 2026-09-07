@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { err, Result } from "neverthrow";
 import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
@@ -7,6 +7,7 @@ import { SmtpDriver } from "./drivers/smtp.driver";
 import { CircuitBreaker } from "../../common/utils/circuit-breaker";
 import { Bulkhead } from "../../common/utils/bulkhead";
 import { MetricsService } from "../metrics/metrics.service";
+import { TenantContextService } from "../database";
 import type { EmailDriver, EmailError, SendEmailParams, SendEmailResult } from "./email.types";
 
 @Injectable()
@@ -19,6 +20,7 @@ export class EmailService {
   constructor(
     logger: PinoLoggerService,
     private readonly metricsService: MetricsService,
+    @Optional() private readonly tenantContext?: TenantContextService,
   ) {
     this.logger = logger.child({ module: "EmailService" });
 
@@ -76,8 +78,10 @@ export class EmailService {
     }
 
     if (this.driver) {
-      return this.bulkhead.execute(() =>
-        this.circuitBreaker.execute(() => this.driver!.send(recipients, params)),
+      const partition = this.tenantContext?.get().tenantId ?? "global";
+      return this.bulkhead.execute(
+        () => this.circuitBreaker.execute(() => this.driver!.send(recipients, params)),
+        partition,
       );
     }
 

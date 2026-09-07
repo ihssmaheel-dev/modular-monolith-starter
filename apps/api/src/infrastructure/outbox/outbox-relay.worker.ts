@@ -9,6 +9,8 @@ import { OutboxRelayDelivery } from "./outbox-relay.delivery";
 
 const BATCH_SIZE = 10;
 const LOCK_TIMEOUT_MS = 60_000;
+const PUBLISHED_RETENTION_DAYS = 30;
+const RETENTION_BATCH_SIZE = 1000;
 
 @Injectable()
 export class OutboxRelayWorker {
@@ -35,6 +37,7 @@ export class OutboxRelayWorker {
         await this.recoverStaleLocks();
         const events = await this.getPendingEvents();
         for (const event of events) await this.relayEvent(event);
+        await this.retainPublishedEvents();
       });
     } catch (error) {
       this.logger.error({ err: error }, "Outbox relay failed");
@@ -70,6 +73,14 @@ export class OutboxRelayWorker {
       this.repository.recoverStaleLocks(cutoff),
     );
     if (recovered > 0) this.logger.warn({ recovered }, "Recovered stale outbox locks");
+  }
+
+  private async retainPublishedEvents(): Promise<void> {
+    const cutoff = new Date(Date.now() - PUBLISHED_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    const pruned = await this.database.runTransaction(() =>
+      this.repository.deletePublishedBefore(cutoff, RETENTION_BATCH_SIZE),
+    );
+    if (pruned > 0) this.logger.info({ pruned }, "Pruned published outbox events");
   }
 }
 

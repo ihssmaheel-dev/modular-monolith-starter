@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
+import { createHash } from "node:crypto";
 import { OrganizationInvitationEmail, render } from "@repo/email";
 import { buildFrontendUrl, FRONTEND_ROUTES, type EmailJobData } from "@repo/contracts";
 import * as React from "react";
@@ -29,8 +30,11 @@ export class InvitationEmailListener {
     if (queue) {
       try {
         await queue.add("organization-invitation", data, {
+          jobId: `invitation-email:${invitationKey(event.token)}`,
           attempts: EMAIL_RETRY_ATTEMPTS,
           backoff: { type: "exponential", delay: EMAIL_RETRY_DELAY_MS },
+          removeOnComplete: 100,
+          removeOnFail: 1000,
         });
         return;
       } catch (error) {
@@ -62,4 +66,8 @@ export class InvitationEmailListener {
     );
     return { to: event.email, subject: translate("email.invitation.subject"), html };
   }
+}
+
+function invitationKey(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 32);
 }
