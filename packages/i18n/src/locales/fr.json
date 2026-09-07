@@ -225,7 +225,8 @@
     },
     "file": {
       "notFound": "Fichier introuvable",
-      "metadataMismatch": "Les octets envoyés ne correspondent pas à la demande. Veuillez renvoyer le fichier."
+      "metadataMismatch": "Les octets envoyés ne correspondent pas à la demande. Veuillez renvoyer le fichier.",
+      "uploadNotReady": "Le fichier est encore en cours de traitement. Veuillez réessayer sous peu."
     },
     "note": {
       "created": "Note créée avec succès",

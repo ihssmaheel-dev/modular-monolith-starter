@@ -66,7 +66,13 @@ export class AttachFileToNoteCommand {
     slot: string,
     actor: AuthenticatedUser,
   ): Promise<Result<void, FileError | TransactionError>> {
-    const existing = await this.listFiles.execute("note", actor, noteId, 1, SLOT_LIST_LIMIT, slot);
+    const existing = await this.listFiles.executeForVerifiedParent(
+      "note",
+      noteId,
+      1,
+      SLOT_LIST_LIMIT,
+      slot,
+    );
     if (existing.isErr()) {
       return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
     }

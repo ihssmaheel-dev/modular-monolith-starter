@@ -1,6 +1,7 @@
 import { env } from "../../../config/env";
 import { FileEntity } from "../domain/entities/file.entity";
-import type { FileMetadataResponse } from "@repo/contracts";
+import type { FileListResponse, FileMetadataResponse } from "@repo/contracts";
+import type { PaginatedResult } from "../../../infrastructure/database";
 
 export function toFileResponse(file: FileEntity): FileMetadataResponse {
   const baseUrl =
@@ -31,4 +32,14 @@ function storageBaseUrl(bucket: string): string {
     return `${endpoint.toString().replace(/\/$/, "")}/${bucket}`;
   }
   return `${endpoint.protocol}//${bucket}.${endpoint.host}`;
+}
+
+export function toFileListResponse(page: PaginatedResult<FileEntity>): FileListResponse {
+  return {
+    items: page.items.map(toFileResponse),
+    total: page.total,
+    page: page.page,
+    limit: page.limit,
+    totalPages: page.totalPages,
+  };
 }

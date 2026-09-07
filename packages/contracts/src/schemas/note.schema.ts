@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PaginationQuerySchema } from "./pagination.schema";
 
 export const NoteIdParamSchema = z.object({ id: z.string() });
 
@@ -28,9 +29,14 @@ export const NoteListResponseSchema = z.object({
   totalPages: z.number().int().positive(),
 });
 
+export const NoteAttachmentsQuerySchema = PaginationQuerySchema.extend({
+  slot: z.string().max(64).optional(),
+});
+
 export type CreateNoteDto = z.infer<typeof CreateNoteSchema>;
 export type UpdateNoteDto = z.infer<typeof UpdateNoteSchema>;
 export type NoteResponseDto = z.infer<typeof NoteResponseSchema>;
 export type NoteResponse = NoteResponseDto;
 export type NoteListResponseDto = z.infer<typeof NoteListResponseSchema>;
 export type NoteListResponse = NoteListResponseDto;
+export type NoteAttachmentsQuery = z.infer<typeof NoteAttachmentsQuerySchema>;

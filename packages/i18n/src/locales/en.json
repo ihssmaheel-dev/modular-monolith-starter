@@ -240,7 +240,8 @@
     },
     "file": {
       "notFound": "File not found",
-      "metadataMismatch": "Uploaded bytes do not match the request. Please upload again."
+      "metadataMismatch": "Uploaded bytes do not match the request. Please upload again.",
+      "uploadNotReady": "File is still being processed. Try again shortly."
     },
     "note": {
       "created": "Note created successfully",

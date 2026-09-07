@@ -1,6 +1,7 @@
 import type {
   AttachFileInput,
   CreateNoteDto,
+  FileListResponse,
   FileMetadataResponse,
   NoteListResponseDto,
   NoteResponseDto,
@@ -9,6 +10,7 @@ import type {
 } from "@repo/contracts";
 import {
   EmptyResponseSchema,
+  FileListResponseSchema,
   FileMetadataSchema,
   NoteListResponseSchema,
   NoteResponseSchema,
@@ -97,6 +99,25 @@ export function createNotesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
   return {
     ...client,
     attachFile,
+    listAttachments: (id: string, input: { page?: number; limit?: number; slot?: string } = {}) => {
+      const query = { page: input.page ?? 1, limit: input.limit ?? 20, ...(input.slot ? { slot: input.slot } : {}) };
+      if (orpc) {
+        return orpcResponse(
+          () => orpc.notes.listAttachments({ id, ...query }),
+          200,
+          FileListResponseSchema,
+        );
+      }
+      const sp = new URLSearchParams();
+      sp.set("page", String(query.page));
+      sp.set("limit", String(query.limit));
+      if (query.slot) sp.set("slot", query.slot);
+      return fetchFn<FileListResponse>(
+        `/notes/${encodeURIComponent(id)}/attachments?${sp.toString()}`,
+        {},
+        FileListResponseSchema,
+      );
+    },
     list: (input: { page?: number; limit?: number } = {}) =>
       client.getNotes({ query: { page: input.page ?? 1, limit: input.limit ?? 20 } }),
     get: (id: string) => client.getNoteById({ params: { id } }),

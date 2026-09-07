@@ -43,7 +43,7 @@ import { DeleteFileCommand } from "../application/commands/delete-file.command";
 import { GetFileByIdQuery } from "../application/queries/get-file-by-id.query";
 import { GetFileDownloadUrlQuery } from "../application/queries/get-file-download-url.query";
 import { ListFilesByParentQuery } from "../application/queries/list-files-by-parent.query";
-import { toFileResponse } from "./files.mapper";
+import { toFileListResponse, toFileResponse } from "./files.mapper";
 import { I18nService } from "../../../infrastructure/i18n/i18n.service";
 import { handleResult } from "../../../common/utils/presentation.utils";
 import {
@@ -160,13 +160,7 @@ export class FilesController {
       query.slot,
     );
     const data = handleResult(result, {}, this.i18n, lang);
-    return {
-      items: data.items.map(toFileResponse),
-      total: data.total,
-      page: data.page,
-      limit: data.limit,
-      totalPages: data.totalPages,
-    };
+    return toFileListResponse(data);
   }
 
   @Delete(":id")

@@ -122,4 +122,48 @@ describe("ListFilesByParentQuery", () => {
       expect(result.value.total).toBe(0);
     }
   });
+
+  it("should not scope uploads for admins", async () => {
+    vi.mocked(filesRepo.paginate).mockResolvedValue(
+      ok({
+        items: mockFiles,
+        total: 2,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      }),
+    );
+    const admin = { sub: "admin-1", email: "admin@example.com", role: "admin" } as const;
+
+    await query.execute("note", admin, "note-1");
+
+    expect(filesRepo.paginate).toHaveBeenCalledWith(
+      { parentType: "note", parentId: "note-1" },
+      { page: 1, limit: 20, sort: { createdAt: -1 } },
+    );
+  });
+
+  it("should list a verified parent without uploader scoping", async () => {
+    vi.mocked(filesRepo.paginate).mockResolvedValue(
+      ok({
+        items: mockFiles,
+        total: 2,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      }),
+    );
+
+    const result = await query.executeForVerifiedParent("note", "note-1", 1, 20, "cover");
+
+    expect(result.isOk()).toBe(true);
+    expect(filesRepo.paginate).toHaveBeenCalledWith(
+      { parentType: "note", parentId: "note-1", slot: "cover" },
+      { page: 1, limit: 20, sort: { createdAt: -1 } },
+    );
+  });
 });

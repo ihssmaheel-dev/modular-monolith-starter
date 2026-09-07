@@ -4,6 +4,8 @@ export const queryKeys = {
     list: (tenantId: string | null, page: number, limit: number) =>
       ["notes", tenantId, "list", { page, limit }] as const,
     detail: (tenantId: string | null, id: string) => ["notes", tenantId, "detail", id] as const,
+    attachments: (tenantId: string | null, id: string) =>
+      ["notes", tenantId, "detail", id, "attachments"] as const,
   },
   users: {
     all: (tenantId: string | null) => ["users", tenantId] as const,

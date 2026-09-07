@@ -28,14 +28,18 @@ import {
   type NoteListResponseDto,
   type AttachFileInput,
   type FileMetadataResponse,
+  type FileListResponse,
+  type NoteAttachmentsQuery,
   CreateNoteSchema,
   UpdateNoteSchema,
   PaginationQuerySchema,
+  NoteAttachmentsQuerySchema,
   NoteListResponseSchema,
   NoteResponseSchema,
   EmptyResponseSchema,
   AttachFileSchema,
   FileMetadataSchema,
+  FileListResponseSchema,
 } from "@repo/contracts";
 import { CreateNoteCommand } from "../application/commands/create-note.command";
 import { UpdateNoteCommand } from "../application/commands/update-note.command";
@@ -43,9 +47,10 @@ import { DeleteNoteCommand } from "../application/commands/delete-note.command";
 import { AttachFileToNoteCommand } from "../application/commands/attach-file-to-note.command";
 import { GetNotesQuery } from "../application/queries/get-notes.query";
 import { GetNoteByIdQuery } from "../application/queries/get-note-by-id.query";
-import { toNoteResponse } from "./notes.mapper";
-import { ATTACH_FILE_ERRORS } from "./notes.error-maps";
-import { toFileResponse } from "../../files/presentation/files.mapper";
+import { ListNoteAttachmentsQuery } from "../application/queries/list-note-attachments.query";
+import { toNoteListResponse, toNoteResponse } from "./notes.mapper";
+import { ATTACH_FILE_ERRORS, NOTE_NOT_FOUND_ERRORS } from "./notes.error-maps";
+import { toFileResponse, toFileListResponse } from "../../files/presentation/files.mapper";
 import { I18nService } from "../../../infrastructure/i18n/i18n.service";
 import { handleResult } from "../../../common/utils/presentation.utils";
 
@@ -58,6 +63,7 @@ export class NotesController {
     private readonly attachFileToNoteCommand: AttachFileToNoteCommand,
     private readonly getNotesQuery: GetNotesQuery,
     private readonly getNoteByIdQuery: GetNoteByIdQuery,
+    private readonly listAttachmentsQuery: ListNoteAttachmentsQuery,
     private readonly i18n: I18nService,
   ) {}
 
@@ -74,13 +80,7 @@ export class NotesController {
     const actor = requireAuthenticatedUser(req);
     const result = await this.getNotesQuery.execute({ page, limit }, actor);
     const val = handleResult(result, {}, this.i18n, lang);
-    return {
-      items: val.items.map(toNoteResponse),
-      total: val.total,
-      page: val.page,
-      limit: val.limit,
-      totalPages: val.totalPages,
-    };
+    return toNoteListResponse(val);
   }
 
   @Get(":id")
@@ -192,5 +192,26 @@ export class NotesController {
     const result = await this.attachFileToNoteCommand.execute(id, body.fileId, actor, body.slot);
     const file = handleResult(result, ATTACH_FILE_ERRORS, this.i18n, lang);
     return toFileResponse(file);
+  }
+
+  @Get(":id/attachments")
+  @RequirePermission("notes:read")
+  @ResponseSchema(FileListResponseSchema)
+  async listAttachments(
+    @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
+    @Query(new ZodValidationPipe(NoteAttachmentsQuerySchema)) query: NoteAttachmentsQuery,
+    @Req() req: FastifyRequest,
+  ): Promise<FileListResponse> {
+    const lang = req?.headers["accept-language"];
+    const actor = requireAuthenticatedUser(req);
+    const result = await this.listAttachmentsQuery.execute(
+      id,
+      actor,
+      Number(query.page ?? 1),
+      Number(query.limit ?? 20),
+      query.slot,
+    );
+    const data = handleResult(result, NOTE_NOT_FOUND_ERRORS, this.i18n, lang);
+    return toFileListResponse(data);
   }
 }

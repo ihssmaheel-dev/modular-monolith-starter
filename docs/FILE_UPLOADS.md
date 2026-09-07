@@ -127,7 +127,12 @@ in `RequestUploadCommand.checkQuota` and document the new semantics.
    Register in your module.
 3. Contract: add `POST /{id}/attachments` with `ParentIdParam.and(AttachFileSchema)`
    → `FileMetadataSchema`; controller + oRPC + parity entries (copy notes).
-4. UI: reuse `FileDrop` with `onUploaded={(file) => attach(file.id)}`.
+   Add `GET /{id}/attachments` (pagination + optional `slot`) backed by a
+   parent-owned list query that authorizes the parent first — never expose
+   another parent's files through the generic `GET /files` endpoint, which is
+   self-scoped by design (`ListFilesByParentQuery.execute`).
+4. UI: reuse `FileDrop` with `onUploaded={(file) => attach(file.id)}`, and read
+   attachments through your parent endpoint (see `noteAttachmentsQuery`).
 5. Permissions: reuse your module's `:update` action for attach. No new permission
    needed unless attach deserves its own scope.
 

@@ -54,7 +54,10 @@ describe("AttachFileToNoteCommand", () => {
   beforeEach(() => {
     getNoteById = { execute: vi.fn() } as unknown as GetNoteByIdQuery;
     linkFile = { execute: vi.fn() } as unknown as LinkFileCommand;
-    listFiles = { execute: vi.fn() } as unknown as ListFilesByParentQuery;
+    listFiles = {
+      execute: vi.fn(),
+      executeForVerifiedParent: vi.fn(),
+    } as unknown as ListFilesByParentQuery;
     deleteFile = { execute: vi.fn() } as unknown as DeleteFileCommand;
     command = new AttachFileToNoteCommand(getNoteById, linkFile, listFiles, deleteFile);
   });
@@ -103,20 +106,22 @@ describe("AttachFileToNoteCommand", () => {
     const result = await command.execute("note-1", "file-1", ACTOR);
 
     expect(result.isOk()).toBe(true);
-    expect(listFiles.execute).not.toHaveBeenCalled();
+    expect(listFiles.executeForVerifiedParent).not.toHaveBeenCalled();
     expect(deleteFile.execute).not.toHaveBeenCalled();
   });
 
   it("should replace the previous file when attaching with the same slot", async () => {
     vi.mocked(getNoteById.execute).mockResolvedValue(ok(NOTE));
-    vi.mocked(listFiles.execute).mockResolvedValue(ok({ ...emptyPage, items: [FILE] }) as never);
+    vi.mocked(listFiles.executeForVerifiedParent).mockResolvedValue(
+      ok({ ...emptyPage, items: [FILE] }) as never,
+    );
     vi.mocked(deleteFile.execute).mockResolvedValue(ok(undefined));
     vi.mocked(linkFile.execute).mockResolvedValue(ok(FILE as never));
 
     const result = await command.execute("note-1", "file-2", ACTOR, "cover");
 
     expect(result.isOk()).toBe(true);
-    expect(listFiles.execute).toHaveBeenCalledWith("note", ACTOR, "note-1", 1, 100, "cover");
+    expect(listFiles.executeForVerifiedParent).toHaveBeenCalledWith("note", "note-1", 1, 100, "cover");
     expect(deleteFile.execute).toHaveBeenCalledWith("file-1", ACTOR);
     expect(linkFile.execute).toHaveBeenCalledWith(
       "file-2",
@@ -127,7 +132,9 @@ describe("AttachFileToNoteCommand", () => {
 
   it("should fail the attach when the previous slotted file cannot be removed", async () => {
     vi.mocked(getNoteById.execute).mockResolvedValue(ok(NOTE));
-    vi.mocked(listFiles.execute).mockResolvedValue(ok({ ...emptyPage, items: [FILE] }) as never);
+    vi.mocked(listFiles.executeForVerifiedParent).mockResolvedValue(
+      ok({ ...emptyPage, items: [FILE] }) as never,
+    );
     vi.mocked(deleteFile.execute).mockResolvedValue(
       err({ type: "UNAUTHORIZED", message: "api.error.unauthorized" }),
     );

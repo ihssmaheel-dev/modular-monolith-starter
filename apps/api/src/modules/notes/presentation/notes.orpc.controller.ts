@@ -89,4 +89,16 @@ export class NotesOrpcController {
       ),
     );
   }
+
+  @Implement(notesContract.listAttachments)
+  @RequirePermission("notes:read")
+  listAttachments(@Req() request: FastifyRequest) {
+    return implement(notesContract.listAttachments).handler(({ input }) =>
+      invokeOrpc(
+        () => this.notesController.listAttachments(input.id, input, request),
+        this.i18n,
+        request.headers["accept-language"],
+      ),
+    );
+  }
 }

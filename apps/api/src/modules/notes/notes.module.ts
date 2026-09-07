@@ -9,6 +9,7 @@ import { PurgeUserNotesCommand } from "./application/commands/purge-user-notes.c
 import { PurgeTenantNotesCommand } from "./application/commands/purge-tenant-notes.command";
 import { GetNotesQuery } from "./application/queries/get-notes.query";
 import { GetNoteByIdQuery } from "./application/queries/get-note-by-id.query";
+import { ListNoteAttachmentsQuery } from "./application/queries/list-note-attachments.query";
 import { NotesRealtimeListener } from "./application/listeners/notes-realtime.listener";
 import { AttachFileToNoteCommand } from "./application/commands/attach-file-to-note.command";
 import { NotesController } from "./presentation/notes.controller";
@@ -30,6 +31,7 @@ import { NotesOrpcController } from "./presentation/notes.orpc.controller";
     AttachFileToNoteCommand,
     GetNotesQuery,
     GetNoteByIdQuery,
+    ListNoteAttachmentsQuery,
     NotesRealtimeListener,
   ],
   exports: [

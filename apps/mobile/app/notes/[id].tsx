@@ -4,8 +4,7 @@ import { mobileTokens } from "@/theme/tokens.generated";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { noteByIdQuery } from "@/features/notes/notes.queries";
-import { filesListQuery } from "@/features/files/files.queries";
+import { noteByIdQuery, noteAttachmentsQuery } from "@/features/notes/notes.queries";
 import {
   openFileDownload,
   useAttachNoteFileMutation,
@@ -22,7 +21,7 @@ export default function NoteDetail() {
   const noteId = typeof id === "string" ? id : "";
   const noteQuery = useQuery({ ...noteByIdQuery(noteId), enabled: noteId.length > 0 });
   const attachmentsQuery = useQuery({
-    ...filesListQuery("note", noteId),
+    ...noteAttachmentsQuery(noteId),
     enabled: noteId.length > 0,
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];

@@ -17,7 +17,7 @@ function file(overrides: Partial<FileEntity> = {}): FileEntity {
     bucket: "b",
     parentType: "general",
     uploadedBy: "user-1",
-    status: "uploading",
+    status: "uploaded",
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -93,5 +93,15 @@ describe("LinkFileCommand", () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.type).toBe("UPLOAD_FAILED");
+  });
+
+  it("should refuse to link a file that is still being processed", async () => {
+    vi.mocked(filesRepo.findById).mockResolvedValue(ok(file({ status: "scanning" })));
+
+    const result = await command.execute("file-1", { parentType: "note", parentId: "n1" }, ACTOR);
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error.type).toBe("UPLOAD_IN_PROGRESS");
+    expect(filesRepo.updateById).not.toHaveBeenCalled();
   });
 });

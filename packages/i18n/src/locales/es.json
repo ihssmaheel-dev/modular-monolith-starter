@@ -225,7 +225,8 @@
     },
     "file": {
       "notFound": "Archivo no encontrado",
-      "metadataMismatch": "Los bytes subidos no coinciden con la solicitud. Vuelve a subir el archivo."
+      "metadataMismatch": "Los bytes subidos no coinciden con la solicitud. Vuelve a subir el archivo.",
+      "uploadNotReady": "El archivo aún se está procesando. Inténtalo de nuevo en breve."
     },
     "note": {
       "created": "Nota creada correctamente",

@@ -1,0 +1,33 @@
+import { sql } from "drizzle-orm";
+import { env } from "../../config/env";
+import type { DatabaseService } from "./database.service";
+import type { PinoLoggerService } from "../logger/logger.service";
+
+/**
+ * Fail fast on tenancy-mode vs data mismatch: booting `single` against a
+ * database that already holds organizations means multi-tenant data would be
+ * served without tenant isolation. Never silently continue.
+ */
+export async function verifyTenancyMode(
+  database: DatabaseService,
+  logger: PinoLoggerService,
+): Promise<void> {
+  if (env.TENANCY_MODE !== "single") return;
+  const db = database.getDb();
+  const rows = (await (
+    db as unknown as {
+      execute: (query: unknown) => Promise<{ rows: Array<{ count: string }> }>;
+    }
+  ).execute(sql`select count(*) as count from organizations`)) as {
+    rows: Array<{ count: string }>;
+  };
+  const count = Number(rows.rows[0]?.count ?? 0);
+  if (count > 0) {
+    logger.error(
+      { organizationCount: count },
+      "Refusing to boot: TENANCY_MODE=single but organizations exist. " +
+        "Set TENANCY_MODE=multi or migrate data before starting.",
+    );
+    throw new Error("TENANCY_MODE_MISMATCH: organizations exist in single-tenant mode");
+  }
+}

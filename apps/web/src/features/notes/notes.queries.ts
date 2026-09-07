@@ -29,3 +29,17 @@ export function noteByIdQuery(id: string) {
     enabled: !!id,
   });
 }
+
+export function noteAttachmentsQuery(id: string) {
+  const tenantId = useTenantStore.getState().tenantId;
+  return queryOptions({
+    queryKey: queryKeys.notes.attachments(tenantId, id),
+    queryFn: async () => {
+      const client = getApiClient();
+      const res = await client.notes.listAttachments(id, { limit: 100 });
+      if (res.status !== 200) throw new Error("api.note.notFound");
+      return res.body;
+    },
+    enabled: !!id,
+  });
+}

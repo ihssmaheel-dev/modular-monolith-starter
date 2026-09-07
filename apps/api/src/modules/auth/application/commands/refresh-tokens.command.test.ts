@@ -20,6 +20,7 @@ describe("RefreshTokensCommand", () => {
 
     getUserById = {
       execute: vi.fn(),
+      executeFresh: vi.fn(),
     } as unknown as GetUserByIdQuery;
 
     command = new RefreshTokensCommand(getUserById);
@@ -42,7 +43,7 @@ describe("RefreshTokensCommand", () => {
       type: "refresh",
       version: 0,
     });
-    vi.mocked(getUserById.execute).mockResolvedValue(
+    vi.mocked(getUserById.executeFresh).mockResolvedValue(
       err({ type: "USER_NOT_FOUND", userId: "user-123" }),
     );
 
@@ -70,7 +71,7 @@ describe("RefreshTokensCommand", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
+    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok(user));
     vi.mocked(jwtUtils.signAccessToken).mockReturnValue("new-access");
     vi.mocked(jwtUtils.signRefreshToken).mockReturnValue("new-refresh");
 
@@ -116,11 +117,37 @@ describe("RefreshTokensCommand", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
+    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok(user));
 
     const result = await command.execute("old-refresh-token");
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.type).toBe("INVALID_TOKEN");
+  });
+
+  it("reads the current auth version, never a cached one", async () => {
+    vi.mocked(jwtUtils.verifyRefreshToken).mockReturnValue({
+      sub: "user-123",
+      type: "refresh",
+      version: 0,
+    });
+    const user = User.fromPersistence({
+      id: "user-123",
+      email: "test@example.com",
+      name: "Test",
+      role: "user",
+      authVersion: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok(user));
+    vi.mocked(jwtUtils.signAccessToken).mockReturnValue("new-access");
+    vi.mocked(jwtUtils.signRefreshToken).mockReturnValue("new-refresh");
+
+    const result = await command.execute("valid-refresh-token");
+
+    expect(result.isOk()).toBe(true);
+    expect(getUserById.executeFresh).toHaveBeenCalledWith("user-123");
+    expect(getUserById.execute).not.toHaveBeenCalled();
   });
 });

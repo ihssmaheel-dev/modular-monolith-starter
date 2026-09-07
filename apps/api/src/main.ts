@@ -23,6 +23,7 @@ import {
 } from "@repo/contracts";
 import { ClsService } from "nestjs-cls";
 import { ErrorReporterService } from "./infrastructure/error-reporting";
+import { DatabaseService, verifyTenancyMode } from "./infrastructure/database";
 
 // Configure high-performance global HTTP agent
 setGlobalDispatcher(
@@ -61,6 +62,7 @@ async function bootstrap() {
   if (env.PROCESS_ROLE === "worker") {
     const workerApp = await NestFactory.createApplicationContext(AppModule);
     workerApp.enableShutdownHooks();
+    await verifyTenancyMode(workerApp.get(DatabaseService), workerApp.get(PinoLoggerService));
     return;
   }
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -182,6 +184,8 @@ async function bootstrap() {
   });
 
   app.enableShutdownHooks();
+
+  await verifyTenancyMode(app.get(DatabaseService), logger);
 
   await app.listen(env.PORT, "0.0.0.0");
 

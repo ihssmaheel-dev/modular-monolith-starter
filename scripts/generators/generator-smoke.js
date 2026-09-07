@@ -36,8 +36,11 @@ try {
     path.join(context.contractsPath, "src/contracts/index.ts"),
     "utf8",
   );
+  const clientIndex = fs.readFileSync(path.join(context.clientPath, "src/index.ts"), "utf8");
   assert.match(client, /orpc\.tasks\.list/);
   assert.match(registry, /tasks: tasksContract/);
+  assert.match(clientIndex, /createTasksClient,/);
+  assert.match(clientIndex, /tasks: createTasksClient\(authenticatedFetch, orpcClient\),/);
   console.log(`Generator smoke passed for ${files.length} generated TypeScript files.`);
 } finally {
   fs.rmSync(rootPath, { recursive: true, force: true });
@@ -66,7 +69,7 @@ function createFixtures(context) {
       'import { oc } from "@orpc/contract";\nimport { membershipsContract } from "./memberships.contract";\nexport const apiContract = oc.router({\n  memberships: membershipsContract,\n});\n',
     [path.join(context.clientPath, "src/subclients/index.ts")]: "",
     [path.join(context.clientPath, "src/index.ts")]:
-      'import { createUsersClient } from "./subclients";\nconst authenticatedFetch = null;\nconst orpcClient = null;\nexport const api = { users: createUsersClient(authenticatedFetch, orpcClient) };\n',
+      'import {\n  createUsersClient,\n} from "./subclients";\nconst authenticatedFetch = null;\nconst orpcClient = null;\nexport const api = {\n    users: createUsersClient(authenticatedFetch, orpcClient),\n};\n',
   };
   for (const [file, content] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(file), { recursive: true });

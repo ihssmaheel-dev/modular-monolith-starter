@@ -27,7 +27,7 @@ export class RefreshTokensCommand {
       if (!consumed) return err({ type: "INVALID_TOKEN" });
     }
 
-    const result = await this.getUserById.execute(decoded.sub);
+    const result = await this.getUserById.executeFresh(decoded.sub);
     if (result.isErr() || !result.value) {
       return err({ type: "USER_NOT_FOUND" });
     }

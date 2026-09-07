@@ -18,8 +18,9 @@ export function createOrpcClient(baseUrl: string, options: ApiClientOptions = {}
   const link = new OpenAPILink(apiContract, {
     url: rpcUrl,
     fetch: async (request) => {
-      const initial = request.clone();
-      const response = await fetch(withHeaders(request, options), { credentials: "include" });
+      const headed = withHeaders(request, options);
+      const initial = headed.clone();
+      const response = await fetch(headed, { credentials: "include" });
       if (response.status !== 401 || !canRefreshRequest(request)) return response;
 
       refreshPromise ??= requestRefresh(baseUrl, options).finally(() => {

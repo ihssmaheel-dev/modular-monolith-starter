@@ -5,8 +5,7 @@ import { ArrowLeft, Paperclip } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
 import { FRONTEND_ROUTES } from "@repo/contracts";
-import { noteByIdQuery } from "@/features/notes/notes.queries";
-import { filesListQuery } from "@/features/files/files.queries";
+import { noteByIdQuery, noteAttachmentsQuery } from "@/features/notes/notes.queries";
 import {
   downloadFileById,
   useAttachNoteFileMutation,
@@ -23,7 +22,7 @@ export function NoteDetail({ id }: { id: string }) {
   const goBack = () => navigate({ to: FRONTEND_ROUTES.notes });
   const noteQuery = useQuery(noteByIdQuery(id));
   const attachmentsQuery = useQuery({
-    ...filesListQuery("note", id),
+    ...noteAttachmentsQuery(id),
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       const pending = items.some((item) => item.status !== "uploaded" && item.status !== "failed");

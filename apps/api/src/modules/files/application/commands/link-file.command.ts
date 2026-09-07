@@ -41,6 +41,9 @@ export class LinkFileCommand {
       if (file.status === "failed") {
         return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
       }
+      if (file.status !== "uploaded") {
+        return err({ type: "UPLOAD_IN_PROGRESS", message: "api.error.uploadFailed" });
+      }
       const update: Record<string, unknown> = { parentType: parent.parentType };
       if (parent.parentType === "general") {
         update.parentId = null;

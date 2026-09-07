@@ -104,8 +104,8 @@ export function create${FeaturePlural}Client(fetchFn: FetchFn, orpc?: OrpcClient
     const propertyLine = `    ${featurePlural}: create${FeaturePlural}Client(authenticatedFetch, orpcClient),`;
     if (!index.includes(propertyLine)) {
       index = index.replace(
-        "    users: createUsersClient(authenticatedFetch),",
-        `    users: createUsersClient(authenticatedFetch),\n${propertyLine}`,
+        "    users: createUsersClient(authenticatedFetch, orpcClient),",
+        `    users: createUsersClient(authenticatedFetch, orpcClient),\n${propertyLine}`,
       );
     }
     fs.writeFileSync(indexPath, index, "utf8");

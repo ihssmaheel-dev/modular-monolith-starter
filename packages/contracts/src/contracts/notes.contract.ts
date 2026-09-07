@@ -1,4 +1,5 @@
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 import {
   CreateNoteSchema,
   NoteListResponseSchema,
@@ -6,7 +7,7 @@ import {
   UpdateNoteSchema,
   NoteIdParamSchema,
 } from "../schemas/note.schema";
-import { AttachFileSchema, FileMetadataSchema } from "../schemas/file.schema";
+import { AttachFileSchema, FileListResponseSchema, FileMetadataSchema } from "../schemas/file.schema";
 import { PaginationQuerySchema } from "../schemas/pagination.schema";
 import { EmptyResponseSchema } from "../schemas/common.schema";
 
@@ -40,4 +41,12 @@ export const notesContract = oc.prefix("/notes").router({
     })
     .input(NoteIdParamSchema.and(AttachFileSchema))
     .output(FileMetadataSchema),
+  listAttachments: oc
+    .route({ method: "GET", path: "/{id}/attachments", summary: "List a note's attachments" })
+    .input(
+      NoteIdParamSchema.and(PaginationQuerySchema).and(
+        z.object({ slot: z.string().max(64).optional() }),
+      ),
+    )
+    .output(FileListResponseSchema),
 });
