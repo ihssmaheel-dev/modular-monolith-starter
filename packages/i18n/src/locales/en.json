@@ -321,6 +321,8 @@
     "requestExport": "Request export",
     "requestingExport": "Preparing export...",
     "downloadExport": "Download",
+    "exportTruncated": "Some items were omitted (1000-item limit). Contact support if you need everything.",
+    "exportExpiresOn": "Available until {{date}}",
     "eraseAccountTitle": "Delete my account",
     "eraseAccountDescription": "Your profile is anonymized immediately and your data is permanently deleted after 30 days. This cannot be undone.",
     "eraseAccount": "Delete my account",

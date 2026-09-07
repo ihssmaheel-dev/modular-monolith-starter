@@ -17,9 +17,7 @@ export class DownloadExportQuery {
     if (found.isErr() || !found.value) return err({ type: "DSR_NOT_FOUND", requestId: id });
     const request = found.value;
 
-    const isOwner = request.subjectUserId === actor.sub;
-    const isAdmin = actor.role === "admin";
-    if (!isOwner && !isAdmin) return err({ type: "DSR_FORBIDDEN" });
+    if (request.subjectUserId !== actor.sub) return err({ type: "DSR_FORBIDDEN" });
     if (request.type !== "EXPORT") return err({ type: "DSR_NOT_FOUND", requestId: id });
     if (request.status !== "READY" || request.isExpired()) {
       if (request.status === "READY") await this.requests.updateById(id, { status: "EXPIRED" });

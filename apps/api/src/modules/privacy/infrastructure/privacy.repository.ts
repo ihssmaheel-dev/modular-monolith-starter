@@ -54,4 +54,24 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
       .limit(limit);
     return rows.map((r) => this.toDomain(r));
   }
+
+  async findExpiredExportBatch(limit: number): Promise<DsrRequest[]> {
+    const db = this.getDb();
+    const rows = await (
+      db as unknown as {
+        select: () => {
+          from: (t: unknown) => {
+            where: (c: unknown) => { limit: (n: number) => Promise<DsrRow[]> };
+          };
+        };
+      }
+    )
+      .select()
+      .from(dsrRequests)
+      .where(
+        and(eq(dsrRequests.status, "READY"), lt(dsrRequests.expiresAt, new Date())) as never,
+      )
+      .limit(limit);
+    return rows.map((r) => this.toDomain(r));
+  }
 }

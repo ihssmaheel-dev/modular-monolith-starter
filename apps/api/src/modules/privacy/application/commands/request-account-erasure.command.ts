@@ -12,6 +12,7 @@ import { VerifyUserCredentialsQuery } from "../../../users/application/queries/v
 import { AnonymizeUserCommand } from "../../../users/application/commands/anonymize-user.command";
 import { IncrementAuthVersionCommand } from "../../../users/application/commands/increment-auth-version.command";
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
+import { CanDeleteUserQuery } from "../../../tenancy/application/queries/can-delete-user.query";
 import { PurgeUserTenancyDataCommand } from "../../../tenancy/application/commands/purge-user-tenancy-data.command";
 import { PurgeUserNotesCommand } from "../../../notes/application/commands/purge-user-notes.command";
 import { PurgeUserFilesCommand } from "../../../files/application/commands/purge-user-files.command";
@@ -37,6 +38,7 @@ export class RequestAccountErasureCommand {
     private readonly incrementAuthVersion: IncrementAuthVersionCommand,
     private readonly sessions: SessionService,
     private readonly listOrganizations: ListOrganizationsQuery,
+    private readonly canDeleteUser: CanDeleteUserQuery,
     private readonly purgeTenancy: PurgeUserTenancyDataCommand,
     private readonly purgeNotes: PurgeUserNotesCommand,
     private readonly purgeFiles: PurgeUserFilesCommand,
@@ -73,6 +75,9 @@ export class RequestAccountErasureCommand {
     const existing = await this.requests.findPendingErasureForSubject(actor.sub);
     if (existing.isErr()) return err({ type: "ERASURE_FAILED" });
     if (existing.value) return err({ type: "ERASURE_ALREADY_REQUESTED" });
+
+    const deletable = await this.canDeleteUser.execute(actor.sub);
+    if (deletable.isErr()) return err({ type: "LAST_OWNER_BLOCKED" });
 
     const orgsResult = await this.listOrganizations.execute(actor, 1, EXPORT_PAGE_LIMIT);
     const tenantIds = orgsResult.isOk()

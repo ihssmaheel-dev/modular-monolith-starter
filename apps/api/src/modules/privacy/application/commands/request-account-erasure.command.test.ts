@@ -9,6 +9,7 @@ import { AnonymizeUserCommand } from "../../../users/application/commands/anonym
 import { IncrementAuthVersionCommand } from "../../../users/application/commands/increment-auth-version.command";
 import { SessionService } from "../../../../infrastructure/session/session.service";
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
+import { CanDeleteUserQuery } from "../../../tenancy/application/queries/can-delete-user.query";
 import { PurgeUserTenancyDataCommand } from "../../../tenancy/application/commands/purge-user-tenancy-data.command";
 import { PurgeUserNotesCommand } from "../../../notes/application/commands/purge-user-notes.command";
 import { PurgeUserFilesCommand } from "../../../files/application/commands/purge-user-files.command";
@@ -58,6 +59,9 @@ describe("RequestAccountErasureCommand", () => {
         .fn()
         .mockResolvedValue(ok({ items: [], total: 0, page: 1, limit: 100, totalPages: 1 })),
     } as unknown as ListOrganizationsQuery;
+    const canDeleteUser = {
+      execute: vi.fn().mockResolvedValue(ok(undefined)),
+    } as unknown as CanDeleteUserQuery;
     const purgeTenancy = {
       execute: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as PurgeUserTenancyDataCommand;
@@ -82,6 +86,7 @@ describe("RequestAccountErasureCommand", () => {
       incrementAuthVersion,
       sessions,
       listOrganizations,
+      canDeleteUser,
       purgeTenancy,
       purgeNotes,
       purgeFiles,
@@ -124,11 +129,39 @@ describe("RequestAccountErasureCommand", () => {
     );
   });
 
+  it("should block erasure while the user solely owns an organization", async () => {
+    const blocked = new RequestAccountErasureCommand(
+      requests,
+      { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
+      verifyCredentials,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        execute: vi.fn().mockResolvedValue(err({ type: "USER_OWNS_ORGANIZATION" })),
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      outbox,
+      {} as never,
+    );
+
+    const result = await blocked.execute(ACTOR, "secret123");
+
+    expect(result.isErr() && result.error.type).toBe("LAST_OWNER_BLOCKED");
+    expect(requests.create).not.toHaveBeenCalled();
+  });
+
   it("should return ERASURE_FAILED when user lookup fails", async () => {
     const cmd = new RequestAccountErasureCommand(
       requests,
       { execute: vi.fn().mockResolvedValue(err({ type: "USER_NOT_FOUND", userId: "x" })) } as never,
       verifyCredentials,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

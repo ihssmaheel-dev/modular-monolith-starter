@@ -10,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/ui/card";
+import { toast } from "@repo/ui/components/ui/toast";
+import { formatDate } from "@/lib/format";
 import { privacyRequestsQuery, downloadExportFile } from "../privacy.queries";
 import { useRequestExportMutation } from "../privacy.mutations";
 
@@ -28,7 +30,10 @@ export function ExportCard() {
   const download = async (id: string) => {
     setDownloadingId(id);
     try {
-      await downloadExportFile(id, EXPORT_FILENAME);
+      const snapshot = await downloadExportFile(id, EXPORT_FILENAME);
+      if (snapshot.truncated) {
+        toast.add({ title: t("privacy.exportTruncated"), type: "warning" } as never);
+      }
     } finally {
       setDownloadingId(null);
     }
@@ -57,10 +62,12 @@ export function ExportCard() {
             {readyExports.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-lg border p-3"
+                className="flex items-center justify-between gap-2 rounded-lg border p-3"
               >
                 <span className="text-sm text-muted-foreground">
-                  {new Date(item.createdAt).toLocaleDateString()}
+                  {formatDate(item.createdAt)}
+                  {item.expiresAt &&
+                    ` · ${t("privacy.exportExpiresOn", { date: formatDate(item.expiresAt) })}`}
                 </span>
                 <Button
                   variant="outline"

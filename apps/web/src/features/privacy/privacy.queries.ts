@@ -13,7 +13,10 @@ export function privacyRequestsQuery(page = 1, limit = 20) {
   });
 }
 
-export async function downloadExportFile(id: string, fallbackName: string): Promise<void> {
+export async function downloadExportFile(
+  id: string,
+  fallbackName: string,
+): Promise<import("@repo/contracts").ExportDownloadResponse> {
   const res = await getApiClient().privacy.downloadExport(id);
   if (res.status !== 200) throw new Error("api.privacy.exportFailed");
   const blob = new Blob([JSON.stringify(res.body, null, 2)], { type: "application/json" });
@@ -25,4 +28,5 @@ export async function downloadExportFile(id: string, fallbackName: string): Prom
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+  return res.body;
 }

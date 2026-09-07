@@ -17,10 +17,10 @@ export class GetNotesQuery {
   ) {}
 
   async execute(
-    options: { page?: number; limit?: number },
+    options: { page?: number; limit?: number; createdBy?: string },
     actor: AuthenticatedUser,
   ): Promise<Result<PaginatedResult<Note>, never>> {
-    const filter = canListTenantResources(
+    const filter: Record<string, string> = canListTenantResources(
       this.authorization,
       this.tenantContext,
       actor,
@@ -28,6 +28,7 @@ export class GetNotesQuery {
     )
       ? {}
       : { createdBy: actor.sub };
+    if (options.createdBy) filter.createdBy = options.createdBy;
     return this.repository.paginate(filter, {
       page: options.page ?? 1,
       limit: options.limit ?? 20,

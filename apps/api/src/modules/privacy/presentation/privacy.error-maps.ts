@@ -23,5 +23,9 @@ export const ERASURE_ERRORS: ErrorMap = {
     status: HttpStatus.CONFLICT,
     i18nKey: "api.privacy.alreadyRequested",
   },
+  LAST_OWNER_BLOCKED: {
+    status: HttpStatus.CONFLICT,
+    i18nKey: "api.user.ownsOrganization",
+  },
   USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
 };

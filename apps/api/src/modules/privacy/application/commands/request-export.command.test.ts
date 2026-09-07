@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { err, ok } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { RequestExportCommand } from "./request-export.command";
+import { Note } from "../../../notes/domain/entities/note.entity";
 import { PrivacyRepository } from "../../infrastructure/privacy.repository";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
@@ -18,6 +19,7 @@ const ACTOR = { sub: "user-1", email: "a@example.com", role: "user" } as Authent
 describe("RequestExportCommand", () => {
   let command: RequestExportCommand;
   let requests: PrivacyRepository;
+  let getNotes: GetNotesQuery;
   let outbox: OutboxService;
   let events: EventEmitter2;
 
@@ -43,11 +45,12 @@ describe("RequestExportCommand", () => {
     const listInvitationsByEmail = {
       execute: vi.fn().mockResolvedValue(ok([])),
     } as unknown as ListInvitationsByEmailQuery;
-    const getNotes = {
+    const getNotesMock = {
       execute: vi
         .fn()
         .mockResolvedValue(ok({ items: [], total: 0, page: 1, limit: 100, totalPages: 1 })),
     } as unknown as GetNotesQuery;
+    getNotes = getNotesMock;
     const listFilesByUploader = {
       execute: vi.fn().mockResolvedValue(ok([])),
     } as unknown as ListFilesByUploaderQuery;
@@ -89,5 +92,56 @@ describe("RequestExportCommand", () => {
     const result = await command.execute(ACTOR);
 
     expect(result.isErr()).toBe(true);
+  });
+
+  it("should scope notes to the subject and collect every page", async () => {
+    const note = (id: string) =>
+      Note.fromPersistence({
+        id,
+        title: `T${id}`,
+        content: "C",
+        createdBy: "user-1",
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        updatedAt: new Date("2026-01-02T00:00:00Z"),
+      });
+    vi.mocked(getNotes.execute).mockImplementation(async (options: { page?: number }) =>
+      options.page === 1
+        ? ok({
+            items: [note("n1")],
+            total: 2,
+            page: 1,
+            limit: 100,
+            totalPages: 2,
+            hasNextPage: true,
+            hasPrevPage: false,
+          })
+        : ok({
+            items: [note("n2")],
+            total: 2,
+            page: 2,
+            limit: 100,
+            totalPages: 2,
+            hasNextPage: false,
+            hasPrevPage: true,
+          }),
+    );
+    vi.mocked(requests.create).mockResolvedValue(ok({ id: "dsr-2" }) as never);
+
+    const result = await command.execute(ACTOR);
+
+    expect(result.isOk()).toBe(true);
+    expect(getNotes.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ createdBy: "user-1" }),
+      ACTOR,
+    );
+    expect(requests.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ truncated: false }),
+      }),
+    );
+    const payload = vi.mocked(requests.create).mock.calls[0]?.[0] as {
+      payload: { notes: Array<{ id: string }> };
+    };
+    expect(payload.payload.notes.map((n) => n.id)).toEqual(["n1", "n2"]);
   });
 });

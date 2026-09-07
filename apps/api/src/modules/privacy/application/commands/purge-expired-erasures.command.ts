@@ -67,7 +67,24 @@ export class PurgeExpiredErasuresCommand {
       }
       purged += 1;
     }
+    const scrubbed = await this.scrubExpiredExports();
+    if (scrubbed.isErr()) return err(scrubbed.error);
     return ok({ purged });
+  }
+
+  private async scrubExpiredExports(): Promise<Result<void, PrivacyError>> {
+    const stale = await this.requests.findExpiredExportBatch(PURGE_BATCH_LIMIT);
+    for (const request of stale) {
+      const updated = await this.requests.updateById(request.id, {
+        status: "EXPIRED",
+        payload: null,
+      });
+      if (updated.isErr() || !updated.value) {
+        this.logger.error({ requestId: request.id }, "Export snapshot scrub failed");
+        return err({ type: "PURGE_FAILED" });
+      }
+    }
+    return ok(undefined);
   }
 
   private async fulfill(

@@ -53,8 +53,7 @@ export class RequestExportCommand {
     if (userResult.isErr()) return err({ type: "EXPORT_FAILED" });
     const user = userResult.value;
 
-    const orgsResult = await this.listOrganizations.execute(actor, 1, EXPORT_PAGE_LIMIT);
-    const accesses = orgsResult.isOk() ? orgsResult.value.items : [];
+    const accesses = await this.collectAccesses(actor);
     const tenantIds = [...new Set(accesses.map((a) => a.organization.data.id))];
 
     const invitationsResult = await this.listInvitationsByEmail.execute(user.email);
@@ -121,33 +120,68 @@ export class RequestExportCommand {
     return ok(created.value);
   }
 
+  private async collectAccesses(
+    actor: AuthenticatedUser,
+  ): Promise<Array<{ organization: { data: { id: string; name: string } }; role: string }>> {
+    const accesses: Array<{ organization: { data: { id: string; name: string } }; role: string }> =
+      [];
+    let page = 1;
+    for (;;) {
+      const result = await this.listOrganizations.execute(actor, page, EXPORT_PAGE_LIMIT);
+      if (result.isErr()) break;
+      for (const access of result.value.items) {
+        accesses.push({
+          organization: {
+            data: { id: access.organization.data.id, name: access.organization.data.name },
+          },
+          role: access.role,
+        });
+      }
+      if (page >= result.value.totalPages) break;
+      page += 1;
+    }
+    return accesses;
+  }
+
   private async collectNotes(actor: AuthenticatedUser, tenantIds: string[]) {
     const items: Array<Record<string, unknown>> = [];
     let truncated = false;
     const scopes = env.TENANCY_MODE === "multi" && tenantIds.length > 0 ? tenantIds : [undefined];
     for (const tenantId of scopes) {
-      const run =
-        tenantId !== undefined
-          ? () =>
-              this.tenantContext.run({ mode: "multi", tenantId }, () =>
-                this.getNotes.execute({ page: 1, limit: EXPORT_PAGE_LIMIT }, actor),
-              )
-          : () => this.getNotes.execute({ page: 1, limit: EXPORT_PAGE_LIMIT }, actor);
-      const result = await run();
-      if (result.isErr()) continue;
-      for (const note of result.value.items) {
-        if (items.length >= EXPORT_MAX_ITEMS) {
-          truncated = true;
-          break;
+      let page = 1;
+      for (;;) {
+        const run =
+          tenantId !== undefined
+            ? () =>
+                this.tenantContext.run({ mode: "multi", tenantId }, () =>
+                  this.getNotes.execute(
+                    { page, limit: EXPORT_PAGE_LIMIT, createdBy: actor.sub },
+                    actor,
+                  ),
+                )
+            : () =>
+                this.getNotes.execute(
+                  { page, limit: EXPORT_PAGE_LIMIT, createdBy: actor.sub },
+                  actor,
+                );
+        const result = await run();
+        if (result.isErr()) break;
+        for (const note of result.value.items) {
+          if (items.length >= EXPORT_MAX_ITEMS) {
+            truncated = true;
+            break;
+          }
+          items.push({
+            id: note.id,
+            title: note.title,
+            content: note.content,
+            tenantId: note.tenantId ?? null,
+            createdAt: toIso(note.createdAt),
+            updatedAt: toIso(note.updatedAt),
+          });
         }
-        items.push({
-          id: note.id,
-          title: note.title,
-          content: note.content,
-          tenantId: note.tenantId ?? null,
-          createdAt: toIso(note.createdAt),
-          updatedAt: toIso(note.updatedAt),
-        });
+        if (truncated || page >= result.value.totalPages) break;
+        page += 1;
       }
       if (truncated) break;
     }

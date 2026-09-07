@@ -294,6 +294,8 @@
     "requestExport": "Solicitar exportación",
     "requestingExport": "Preparando exportación...",
     "downloadExport": "Descargar",
+    "exportTruncated": "Se omitieron algunos elementos (límite de 1000). Contacta con soporte si los necesitas todos.",
+    "exportExpiresOn": "Disponible hasta el {{date}}",
     "eraseAccountTitle": "Eliminar mi cuenta",
     "eraseAccountDescription": "Tu perfil se anonimiza de inmediato y tus datos se eliminan permanentemente después de 30 días. Esta acción no se puede deshacer.",
     "eraseAccount": "Eliminar mi cuenta",

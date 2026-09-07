@@ -13,6 +13,7 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   Idempotent,
+  RateLimit,
   RequirePermission,
   TenantAgnostic,
   requireAuthenticatedUser,
@@ -60,6 +61,7 @@ export class PrivacyController {
 
   @Post("export")
   @HttpCode(HttpStatus.OK)
+  @RateLimit(10, 60)
   @RequirePermission("privacy:export:self")
   @ResponseSchema(DsrResponseSchema)
   async export(@Req() req: FastifyRequest): Promise<DsrResponse> {
@@ -71,6 +73,7 @@ export class PrivacyController {
   }
 
   @Get("export/:id/download")
+  @RateLimit(30, 60)
   @RequirePermission("privacy:export:self")
   @ResponseSchema(ExportDownloadResponseSchema)
   async download(
@@ -104,6 +107,7 @@ export class PrivacyController {
   @Post("erase-account")
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
+  @RateLimit(5, 900)
   @RequirePermission("privacy:erase:self")
   @ResponseSchema(DsrResponseSchema)
   async eraseAccount(
@@ -121,6 +125,7 @@ export class PrivacyController {
   @Post("organizations/:organizationId/erase")
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
+  @RateLimit(5, 900)
   @RequirePermission("privacy:erase:tenant")
   @ResponseSchema(DsrResponseSchema)
   async eraseOrganization(
@@ -160,6 +165,7 @@ export class PrivacyController {
 
   @Post("admin/purge-expired")
   @HttpCode(HttpStatus.OK)
+  @RateLimit(5, 60)
   @RequirePermission("privacy:requests:read")
   @ResponseSchema(EmptyResponseSchema)
   async purge(@Req() req: FastifyRequest): Promise<void> {

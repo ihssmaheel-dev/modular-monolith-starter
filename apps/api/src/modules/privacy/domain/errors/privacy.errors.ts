@@ -5,6 +5,7 @@ export type InvalidPassword = { type: "INVALID_PASSWORD" };
 export type InvalidConfirmation = { type: "INVALID_CONFIRMATION" };
 export type OrgEraseForbidden = { type: "ORG_ERASE_FORBIDDEN" };
 export type ErasureAlreadyRequested = { type: "ERASURE_ALREADY_REQUESTED" };
+export type LastOwnerBlocked = { type: "LAST_OWNER_BLOCKED" };
 export type ExportFailed = { type: "EXPORT_FAILED" };
 export type ErasureFailed = { type: "ERASURE_FAILED" };
 export type PurgeFailed = { type: "PURGE_FAILED" };
@@ -17,6 +18,7 @@ export type PrivacyError =
   | InvalidConfirmation
   | OrgEraseForbidden
   | ErasureAlreadyRequested
+  | LastOwnerBlocked
   | ExportFailed
   | ErasureFailed
   | PurgeFailed;
@@ -37,6 +39,8 @@ export function formatPrivacyError(error: PrivacyError): string {
       return "Only organization owners can delete the organization";
     case "ERASURE_ALREADY_REQUESTED":
       return "A deletion request is already in progress";
+    case "LAST_OWNER_BLOCKED":
+      return "Transfer organization ownership before deleting this account";
     case "EXPORT_FAILED":
       return "Data export failed";
     case "ERASURE_FAILED":

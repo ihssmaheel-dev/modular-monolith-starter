@@ -22,12 +22,16 @@ erasure (Art. 17) for accounts and organizations.
 
 ## Flows
 
-- **Export**: `POST /privacy/export` → snapshot (profile, memberships, invitations,
-  own notes up to 1000, own file manifests up to 1000, `truncated` flag when capped)
-  stored on the DSR, `READY` for 7 days → `GET /privacy/export/:id/download`.
-- **Delete account**: `POST /privacy/erase-account {password}` (password re-auth) →
-  sessions revoked + tokens invalidated now, profile anonymized now, tenancy/notes/files
-  purged now, DSR `REQUESTED` with 30-day grace → nightly `PurgeExpiredErasuresCommand`
+- **Export**: `POST /privacy/export` (rate-limited) → snapshot (profile, memberships,
+  invitations, **own** notes across all pages/tenants up to 1000, own file manifests up to
+  1000, `truncated` flag when capped) stored on the DSR, `READY` for 7 days →
+  `GET /privacy/export/:id/download` (**owner-only**, even for admins; stale snapshots
+  are scrubbed nightly by `PurgeExpiredErasuresCommand`).
+- **Delete account**: `POST /privacy/erase-account {password}` (password re-auth,
+  rate-limited) → sole-ownership check first (last remaining owner is blocked with
+  `409 ownsOrganization` until ownership is transferred) → sessions revoked + tokens
+  invalidated now, profile anonymized now, tenancy/notes/files purged now,
+  DSR `REQUESTED` with 30-day grace → nightly `PurgeExpiredErasuresCommand`
   hard-deletes the user row and marks `FULFILLED`. One pending request per subject.
 - **Delete organization**: `POST /privacy/organizations/:id/erase {confirmationName}`
   (owner only, exact name match) → tenant notes/files/memberships/invitations purged now,
