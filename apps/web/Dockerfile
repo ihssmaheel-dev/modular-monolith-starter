@@ -12,6 +12,8 @@ FROM base AS installer
 WORKDIR /app
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_APP_NAME
+ENV VITE_APP_NAME=${VITE_APP_NAME}
 COPY .gitignore .gitignore
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml

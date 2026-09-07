@@ -68,7 +68,7 @@ claims, conflicts, replay, stale recovery, and lock release.
 
 ## Request security pipeline
 
-Request ID and trace context are established first, followed by origin/CSRF checks, authentication, tenant resolution, permission evaluation, resource policy evaluation, Zod validation, and the application command/query. Controllers contain no business logic.
+Guards run in registration order — authentication, origin/CSRF checks, tenant resolution, permission evaluation — followed by rate limiting; interceptors establish request ID/trace context, logging, idempotency, origin validation, the database transaction, and response validation before Zod validation and the application command/query. Controllers contain no business logic.
 
 ## Modules
 
@@ -76,7 +76,7 @@ Each module owns its domain entities, application commands/queries, policies, ev
 
 ## Tenancy
 
-Single mode resolves a configured/default tenant context. Multi mode requires an authenticated membership for the requested tenant. Tenant-scoped repositories and PostgreSQL RLS provide defense in depth. System jobs must use an explicit system context and must be tested for cross-tenant isolation. Outbox writes make this distinction explicit: `dispatchTenant` derives a trusted tenant scope, while `dispatchGlobal` uses the internal transaction-local system scope. The system flag is not accepted in public tenant context or request data.
+Single mode carries no tenant identity (`{ mode: "single" }` — there is no default tenant). Multi mode requires an authenticated membership for the requested tenant. Tenant-scoped repositories and PostgreSQL RLS provide defense in depth. System jobs must use an explicit system context and must be tested for cross-tenant isolation. Outbox writes make this distinction explicit: `dispatchTenant` derives a trusted tenant scope, while `dispatchGlobal` uses the internal transaction-local system scope. The system flag is not accepted in public tenant context or request data.
 
 ## Events and side effects
 

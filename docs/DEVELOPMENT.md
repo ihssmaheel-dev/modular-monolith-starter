@@ -97,7 +97,7 @@ pnpm test:e2e           # API/application flows (Supertest)
 pnpm lint               # eslint across api + web + shared packages
 pnpm format:check
 pnpm rules:check        # dependency-cruiser + conventions (api domain isolation + no fetch in routes + no hardcoded i18n)
-pnpm build              # api + web (.output) + shared packages
+pnpm build              # api (dist) + web SSR bundle (dist/server via srvx) + shared packages
 pnpm typecheck          # tsc across all workspaces
 pnpm --filter web typecheck
 ```

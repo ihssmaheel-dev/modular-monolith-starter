@@ -27,6 +27,7 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL}
+        VITE_APP_NAME: ${VITE_APP_NAME:-Workspace}
     container_name: monorepo-web
     expose:
       - "3000"

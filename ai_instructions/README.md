@@ -20,7 +20,7 @@ Before any code change, read these files in order:
 
 ## Canonical runtime decisions
 
-- oRPC is the canonical runtime transport under `/api/rpc`; REST controllers are the compatibility transport under `/api`. Both delegate to the same application commands/queries, and every route requires parity/smoke tests.
+- oRPC is the canonical runtime transport under `/api/v1/rpc`; REST controllers are the compatibility transport under `/api/v1`. Both delegate to the same application commands/queries, and every route requires parity/smoke tests.
 - `TENANCY_MODE` is deployment-scoped (`single` or `multi`) and cannot be selected by clients.
 - Critical side effects use the transactional outbox; in-process events are only for non-critical local notifications.
 - Every API input/output is Zod validated, every error has a stable code plus i18n key, and tenant-scoped cache keys include tenant ID.

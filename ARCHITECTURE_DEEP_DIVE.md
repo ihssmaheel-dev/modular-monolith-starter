@@ -46,7 +46,7 @@ graph TD
 The backend and web share capability packages (`@repo/contracts`, `@repo/authorization`, `@repo/i18n`, `@repo/api-client`, `@repo/ui`). If the backend changes a rule or contract, the web compiler catches drift before the code is run.
 
 - Web is TanStack Start (Vite 8, TanStack Router file-based, streaming SSR) + TanStack Query + Zustand + react-i18next + Tailwind 4 + `@repo/ui` (Base UI + shadcn base-nova). Forms use `react-hook-form` + `zodResolver` + schemas from `@repo/contracts`.
-- oRPC procedures are the canonical runtime API under `/api/rpc`. Web and mobile use `getApiClient()`
+- oRPC procedures are the canonical runtime API under `/api/v1/rpc`. Web and mobile use `getApiClient()`
   from `@repo/api-client`, which centralizes credentials, refresh, CSRF, tenant, locale, idempotency,
   and typed response DTOs. REST controllers remain a compatibility surface and delegate to the same
   commands and queries.
@@ -94,7 +94,7 @@ sequenceDiagram
     participant I as Infrastructure Layer (Repository)
     participant DB as Postgres (Drizzle)
 
-    Web->>C: POST /api/notes { title: "Hello" } + x-tenant-id + idempotency-key + Accept-Language
+    Web->>C: POST /api/v1/notes { title: "Hello" } + x-tenant-id + idempotency-key + Accept-Language
     C->>C: Validates payload via Zod (ZodValidationPipe + CreateNoteSchema @repo/contracts)
     C->>A: Executes CreateNoteCommand
     A->>D: Note.fromPersistence / validation

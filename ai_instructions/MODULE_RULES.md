@@ -181,7 +181,7 @@ export class AppModule {}
 - **Enforce Fine-Grained Authorization**: Protect endpoints with `@RequirePermission('...')` to enforce RBAC action vocabulary and multi-tenant scoping.
 - Validate input via Zod schemas from `@repo/contracts` before calling application layer.
 - `apiContract` (`oc.router` in `@repo/contracts`) is the runtime contract source. Each procedure
-  must have a Nest `@Implement(...)` oRPC handler served under `/api/rpc`, with REST controllers
+  must have a Nest `@Implement(...)` oRPC handler served under `/api/v1/rpc`, with REST controllers
   retained only as compatibility mappings where required. Both transports delegate to the same
   application command/query and are covered by parity/smoke tests.
 - **Protect mutations with Idempotency**: All critical POST, PUT, or DELETE endpoints (e.g., payments, resource creation) MUST be protected using the `@Idempotent()` decorator. The client is required to send an `idempotency-key` header to prevent duplicate processing.

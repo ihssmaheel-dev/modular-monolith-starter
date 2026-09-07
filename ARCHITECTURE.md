@@ -47,7 +47,7 @@ graph TD
 
 By sharing capability packages (`@repo/contracts`, `@repo/authorization`, `@repo/i18n`, `@repo/api-client`, `@repo/ui`), **web and backend speak the exact same language**. If the backend changes an API rule or contract, the web compiler catches drift before the code is run.
 
-- oRPC procedures are the canonical runtime API under `/api/rpc`. Web and mobile use `getApiClient()`
+- oRPC procedures are the canonical runtime API under `/api/v1/rpc`. Web and mobile use `getApiClient()`
   from `@repo/api-client`, which centralizes credentials, refresh, CSRF, tenant, locale, idempotency,
   and typed response DTOs. REST controllers remain a compatibility surface and delegate to the same
   commands and queries.
@@ -136,7 +136,7 @@ sequenceDiagram
     participant I as 4. Infrastructure (Repository)
     participant DB as Postgres
 
-    Web->>C: POST /api/notes { title: "Hello" } + x-tenant-id + idempotency-key + Accept-Language
+    Web->>C: POST /api/v1/notes { title: "Hello" } + x-tenant-id + idempotency-key + Accept-Language
     C->>C: Validates payload via CreateNoteSchema (ZodValidationPipe, @repo/contracts)
     C->>A: Executes CreateNoteCommand
     A->>D: Note.create(data)
@@ -193,7 +193,7 @@ The web client is **fully wired** to the modular monolith via `@repo/contracts` 
 - **API:** `src/lib/api.ts` => `getApiClient()` singleton: `createApiClient(getWebEnv().VITE_API_URL, { getAccessToken: () => useAuthStore.getState().accessToken, getLocale: () => useLocaleStore.getState().locale, getTenantId: () => useTenantStore.getState().tenantId, onAuthRefreshed: (r) => useAuthStore.getState().setAuth(r), onAuthFailure: () => clearAuth + redirect /auth })`. Automatically sends `accept-language`, `x-tenant-id`, `idempotency-key` and 401-refreshes via `requestRefresh`.
 - **State:** `src/stores/auth.store.ts` (zustand persist `auth-storage`), `locale.store.ts`, `tenant.store.ts`. Query keys come from `src/lib/query-keys.ts` (always tenant-scoped). Query/mutation helpers live in `src/features/[domain]/` with UI in `components/` subfolders; dates go through `src/lib/format.ts` (`date-fns`, locale-aware).
 - **UI:** `@repo/ui` primitives (`Button`, `Card`, `Input`, `Tabs`, `Badge`, `Dialog`, etc) + Tailwind + `ThemeProvider` (light/dark/system, localStorage, `d` toggles). shadcn CLI: `pnpm dlx shadcn@latest add <component> -c apps/web` writes to `packages/ui/src/components/ui`.
-- **Env:** `src/lib/env.ts` Zod `VITE_API_URL` from `import.meta.env` (default `http://localhost:3000/api`). Validated, never raw `process.env` beyond that file.
+- **Env:** `src/lib/env.ts` Zod `VITE_API_URL` from `import.meta.env` (default `http://localhost:3000/api/v1`). Validated, never raw `process.env` beyond that file.
 - **i18n:** `src/lib/i18n.tsx` `resources = { en: { translation: locales.en }, es, fr }` + `LanguageDetector`. Keys like `auth.login`, `dashboard.welcome`, `notes.createNote` shared with backend.
 
 ### 4.2 The Single UI Source (`packages/ui`)

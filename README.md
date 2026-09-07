@@ -18,7 +18,7 @@ A production-grade, highly scalable TypeScript modular monolith architecture des
   - `@repo/typescript-config`: Centralized TypeScript configurations (TS ~6)
 - **Observability:** Grafana + Prometheus + Loki + Promtail + Jaeger + Postgres & Redis Exporters
 - **Documentation:** Interactive Scalar API Reference (`@scalar/fastify-api-reference`) & OpenAPI 3.1
-- **Tooling & Monorepo:** Turborepo 2.10 + pnpm 10 workspaces + TypeScript ~6 + Vitest 4 (api) + Playwright (web)
+- **Tooling & Monorepo:** Turborepo 2.10 + pnpm 10 workspaces + TypeScript ~6 + Vitest 5 (api) + Playwright (web)
 
 ---
 

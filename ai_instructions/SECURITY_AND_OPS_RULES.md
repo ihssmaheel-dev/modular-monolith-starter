@@ -71,7 +71,7 @@ export const env = loadEnv();
 - **Hybrid FGA Engine**: Enforce access via unified **RBAC + ReBAC + ABAC** evaluation.
 - **Action Vocabulary**: Use explicit permission action strings (`notes:create`, `files:upload`, `team:invite`, `billing:manage`).
 - **Endpoint Fast-Guard**: Protect HTTP controllers with `@RequirePermission('...')` to reject unauthorized requests at the presentation boundary.
-- **Application & Domain Protection**: In CQRS command/query handlers or domain policies, use `AuthorizationService.check({ principal, action, resource, context })` or `AuthorizationService.assert(...)`.
+- **Application & Domain Protection**: In CQRS command/query handlers or domain policies, use `AuthorizationService.check({ principal, action, resource, context })` (or `can(...)` for booleans, `assert(...)` to throw `ForbiddenException`), or the `canAccessResource()` helper in `apps/api/src/common/utils/resource-authorization.ts` for owner-aware checks.
 - **ReBAC & Ownership**: Resource ownership (`resource.ownerId === principal.id`) grants full author access within the tenant boundary.
 - **Tenant Isolation**: Cross-tenant resource access is strictly forbidden (`TENANT_MISMATCH`).
 - **Closed-World Default Deny**: Deny by default. Allow only what is explicitly permitted by superadmin, ownership, matching policy, or role.
@@ -133,7 +133,7 @@ Add an index when:
 ## Observability, Tracing, and Logging
 
 ### OpenTelemetry (Distributed Tracing)
-- The monolithic backend exports distributed traces via the `TracingModule`.
+- The monolithic backend exports distributed traces via a side-effect `import "./tracing"` in `apps/api/src/main.ts` (there is no `TracingModule` — tracing boots before the Nest application exists).
 - HTTP endpoints and Database queries are automatically instrumented.
 - For extremely heavy backend workflows (like large batch processing), wrap the logic in a custom trace span using standard OpenTelemetry SDKs.
 

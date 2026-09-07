@@ -209,9 +209,9 @@ describe("UsersService", () => {
   "test": "vitest run",
   "test:unit": "vitest run --config vitest.config.ts",
   "test:integration": "vitest run --config vitest.integration.config.ts",
-  "test:e2e": "vitest run --config vitest.config.ts --include '**/*.e2e.test.ts'",
+  "test:e2e": "vitest run --config vitest.e2e.config.ts",
   "test:watch": "vitest watch"
 }
 ```
 
-**Note:** vitest 4.x deprecated the `--dir` flag. Always use `--config vitest.config.ts` instead.
+**Note:** each layer has its own config (`vitest.config.ts`, `vitest.integration.config.ts`, `vitest.e2e.config.ts`). Always pass `--config` explicitly instead of `--dir` or `--include`.

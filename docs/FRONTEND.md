@@ -28,8 +28,9 @@ pnpm --filter web typecheck
 ```
 
 `start` runs the built SSR handler with the static client bundle on port `3000` (`PORT` can override it).
-It is independent of the API process, but requires a valid `VITE_API_URL` at build time and runtime so it can
-reach the separately deployed API.
+It is independent of the API process. `VITE_API_URL` is baked into the client bundle at build time — changing it
+at runtime does not affect already-built browser assets (only the SSR server process reads runtime env), so set it
+correctly before `pnpm --filter web build`.
 
 ### Structure
 

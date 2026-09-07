@@ -371,6 +371,8 @@ docs/                            ← feature guides (living docs)
 ├── NEW_MODULE.md               ← Module creation guide
 ├── TENANCY.md                  ← Multi-tenancy architecture
 ├── FRONTEND.md                 ← Web (TanStack Start) + UI system guide
+├── FILE_UPLOADS.md             ← Upload-then-attach pattern + slots + avatar recipe
+├── PRIVACY.md                  ← GDPR export & erasure flows
 ├── PRODUCTION_ARCHITECTURE.md  ← Production baseline (transports, tenancy, workers)
 ├── PRODUCTION_OPS.md           ← CD, TLS, secrets, backups, alerting, load shedding
 └── STARTING_A_NEW_PROJECT.md   ← New-product checklist

@@ -29,25 +29,25 @@ the same checks. See `docker/.env.prod.example` for the compose-side pattern.
 
 ## API core and connectivity
 
-| Variable                            | Default / purpose                                                              |
-| ----------------------------------- | ------------------------------------------------------------------------------ |
-| `NODE_ENV`                          | `development`; one of `development`, `test`, `production`                      |
-| `PROCESS_ROLE`                      | `all` locally; use `api` for HTTP-only or `worker` for queue/scheduled workers |
-| `PORT`                              | `3000`; API listener port                                                      |
-| `TRUST_PROXY`                       | `false`; set `true` behind nginx/LB so `req.ip` rate-limiting works            |
-| `LOG_LEVEL`                         | `info`; Pino level from `fatal` through `trace`                                |
-| `TENANCY_MODE`                      | `single`; choose `single` or `multi` before production data exists             |
-| `CLIENT_URL`                        | `http://localhost:5173`; allowed browser origin                                |
-| `API_URL`                           | `http://localhost:3000`; externally reachable API origin                       |
-| `DATABASE_URL`                      | Local PostgreSQL connection string; production must include `sslmode=require`  |
-| `DB_MAX_POOL_SIZE`                  | `10`; maximum PostgreSQL connections in pool                                   |
-| `DB_STATEMENT_TIMEOUT_MS`           | `30000`; maximum statement duration                                            |
-| `DB_LOCK_TIMEOUT_MS`                | `5000`; maximum lock wait duration                                             |
-| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `60000`; idle transaction guard                                                |
-| `AUDIT_RETENTION_DAYS`              | `365`; minimum 30 days before audit records are purged by the worker           |
-| `REDIS_URL`                         | `redis://localhost:6379` locally; `rediss://` required in production           |
-| `FEATURE_FLAGS`                     | `{}`; JSON object mapping feature-flag keys to boolean values                  |
-| `TEST_DATABASE_URL`                 | Integration/E2E database; its name must contain `test`                         |
+| Variable                            | Default / purpose                                                                                              |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                          | `development`; one of `development`, `test`, `production`                                                      |
+| `PROCESS_ROLE`                      | `all` locally; use `api` for HTTP-only or `worker` for queue/scheduled workers                                 |
+| `PORT`                              | `3000`; API listener port                                                                                      |
+| `TRUST_PROXY`                       | `false`; set `true` behind nginx/LB so `req.ip` rate-limiting works                                            |
+| `LOG_LEVEL`                         | `info`; Pino level from `fatal` through `trace`                                                                |
+| `TENANCY_MODE`                      | `single`; choose `single` or `multi` before production data exists                                             |
+| `CLIENT_URL`                        | `http://localhost:5173`; allowed browser origin                                                                |
+| `API_URL`                           | `http://localhost:3000`; externally reachable API origin                                                       |
+| `DATABASE_URL`                      | Local PostgreSQL connection string; production requires TLS (`sslmode=require`, `verify-ca`, or `verify-full`) |
+| `DB_MAX_POOL_SIZE`                  | `10`; maximum PostgreSQL connections in pool                                                                   |
+| `DB_STATEMENT_TIMEOUT_MS`           | `30000`; maximum statement duration                                                                            |
+| `DB_LOCK_TIMEOUT_MS`                | `5000`; maximum lock wait duration                                                                             |
+| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `60000`; idle transaction guard                                                                                |
+| `AUDIT_RETENTION_DAYS`              | `365`; minimum 30 days before audit records are purged by the worker                                           |
+| `REDIS_URL`                         | `redis://localhost:6379` locally; `rediss://` required in production                                           |
+| `FEATURE_FLAGS`                     | `{}`; JSON object mapping feature-flag keys to boolean values                                                  |
+| `TEST_DATABASE_URL`                 | Integration/E2E database; its name must contain `test`                                                         |
 
 ## Authentication, security, and observability
 
