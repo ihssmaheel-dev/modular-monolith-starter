@@ -218,7 +218,8 @@
       "workerUnavailable": "El trabajador en segundo plano no está disponible"
     },
     "file": {
-      "notFound": "Archivo no encontrado"
+      "notFound": "Archivo no encontrado",
+      "metadataMismatch": "Los bytes subidos no coinciden con la solicitud. Vuelve a subir el archivo."
     },
     "note": {
       "created": "Nota creada correctamente",
@@ -344,6 +345,7 @@
     "browseHint": "PDF, imágenes, texto, CSV o ZIP hasta 10 MB",
     "uploading": "Subiendo...",
     "uploaded": "Subido",
+    "retry": "Reintentar",
     "clearFinished": "Limpiar terminados",
     "deleted": "Archivo eliminado",
     "download": "Descargar",

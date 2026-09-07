@@ -61,14 +61,17 @@ describe("ConfirmUploadCommand", () => {
     }
   });
 
-  it("should reject confirmation when the object was not uploaded", async () => {
+  it("should reject confirmation with METADATA_MISMATCH when the object was not uploaded", async () => {
     const file = createFile();
     vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
     vi.mocked(storage.getMetadata).mockResolvedValue(ok(null));
 
     const result = await command.execute(file.key, ACTOR);
 
-    expect(result.isErr() && result.error.type).toBe("UPLOAD_FAILED");
+    expect(result.isErr() && result.error.type).toBe("METADATA_MISMATCH");
+    if (result.isErr()) {
+      expect(result.error.message).toBe("api.file.metadataMismatch");
+    }
     expect(filesRepo.updateById).not.toHaveBeenCalled();
   });
 

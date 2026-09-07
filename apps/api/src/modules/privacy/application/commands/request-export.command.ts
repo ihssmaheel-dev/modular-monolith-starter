@@ -163,9 +163,9 @@ export class RequestExportCommand {
         tenantId !== undefined
           ? () =>
               this.tenantContext.run({ mode: "multi", tenantId }, () =>
-                this.listFilesByUploader.execute(userId),
+                this.listFilesByUploader.execute(userId, EXPORT_MAX_ITEMS),
               )
-          : () => this.listFilesByUploader.execute(userId);
+          : () => this.listFilesByUploader.execute(userId, EXPORT_MAX_ITEMS);
       const result = await run();
       if (result.isErr()) continue;
       for (const file of result.value) {

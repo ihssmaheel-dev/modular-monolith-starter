@@ -68,6 +68,50 @@ filtering ("all files of this employee" becomes N queries). Why not a JSON
 column? Slots need indexed equality filtering — plain `text` + the
 `files_parent_slot_idx` index does that.
 
+## Single-slot replace rule
+
+Unslotted attachments are unlimited. A **slotted** attachment point holds at
+most one file: attaching with the same `slot` replaces the previous file
+(delete old via `DeleteFileCommand`, then link new). The reference
+`AttachFileToNoteCommand` implements this; copy it. If a slot legitimately
+needs N files, enforce `max` in the parent command (see `SLOTS` example
+above) instead of replacing.
+
+## Profile photo / reference-column pattern
+
+Two supported shapes — **default to A** unless the parent needs a
+synchronous foreign key:
+
+**A. Link-table only (default, no parent migration).** Read the avatar with
+`listByParent({ parentType: "user", parentId: userId, slot: "avatar" })`.
+Upload, then attach exactly like notes:
+
+```ts
+// modules/users/application/commands/attach-user-avatar.command.ts
+async execute(userId, fileId, actor) {
+  await this.getUserById.execute(userId);          // ownership ✓
+  return this.linkFile.execute(fileId, { parentType: "user", parentId: userId, slot: "avatar" }, actor);
+}
+```
+
+Single-photo replace comes free from the slot rule above. `parentType:
+"user"` already exists in the enum, contract, and indexes.
+
+**B. FK column storing the reference (only when the parent needs it).**
+Add `users.avatar_file_id → files.id`, then in one
+`withResultTransaction`: `linkFile(...)` + `usersRepo.updateById(userId,
+{ avatarFileId })`. The `files` row stays the source of truth for bytes;
+the column is a read shortcut. Deleting the file must clear the column in
+the same transaction.
+
+## Quota scope
+
+`FILE_USER_QUOTA_BYTES` (default 100 MB) is enforced **per user globally**
+(`sumActiveBytes(uploadedBy)` across tenants, soft-deleted excluded). This
+is intentional for the starter: one abuse bucket per human. Multi-tenant
+billing that needs per-organization quotas should scope the sum by tenant
+in `RequestUploadCommand.checkQuota` and document the new semantics.
+
 ## Recipe for a new module (e.g. invoices)
 
 1. Client: reuse `uploadFile(client, source, putBytes)` from `@repo/api-client`

@@ -13,6 +13,7 @@ export interface QueuedUpload {
   progress: number;
   status: "queued" | "uploading" | "done" | "error";
   errorKey?: string;
+  file?: File;
 }
 
 interface FileDropProps {
@@ -27,6 +28,19 @@ function validateFile(file: File, accept: readonly string[], maxSizeBytes: numbe
   if (!(accept as readonly string[]).includes(file.type)) return "api.error.invalidRequest";
   if (file.size <= 0 || file.size > maxSizeBytes) return "api.error.fileTooLarge";
   return null;
+}
+
+const UPLOAD_ERROR_KEYS = new Set([
+  "api.error.invalidRequest",
+  "api.error.fileTooLarge",
+  "api.error.quotaExceeded",
+  "api.file.metadataMismatch",
+]);
+
+function toUploadErrorKey(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (UPLOAD_ERROR_KEYS.has(message)) return message;
+  return "api.error.uploadFailed";
 }
 
 export function FileDrop({
@@ -55,6 +69,7 @@ export function FileDrop({
         size: file.size,
         progress: 0,
         status: "queued" as const,
+        file,
       }));
       setQueue((current) => [...current, ...fresh]);
       let done = 0;
@@ -71,14 +86,37 @@ export function FileDrop({
           await upload(file, (ratio) => patch(row.key, { progress: ratio }));
           patch(row.key, { status: "done", progress: 1 });
           done += 1;
-        } catch {
-          patch(row.key, { status: "error", errorKey: "api.error.uploadFailed" });
+        } catch (error) {
+          patch(row.key, { status: "error", errorKey: toUploadErrorKey(error) });
         }
       }
       if (done > 0) onUploaded?.(done);
     },
     [accept, maxSizeBytes, upload, onUploaded, patch],
   );
+
+  const retry = useCallback(
+    async (key: string) => {
+      const row = queue.find((item) => item.key === key);
+      if (!row?.file) return;
+      patch(key, { status: "uploading", progress: 0, errorKey: undefined });
+      try {
+        await upload(row.file, (ratio) => patch(key, { progress: ratio }));
+        patch(key, { status: "done", progress: 1 });
+        onUploaded?.(1);
+      } catch (error) {
+        patch(key, { status: "error", errorKey: toUploadErrorKey(error) });
+      }
+    },
+    [queue, upload, onUploaded, patch],
+  );
+
+  const hasFinished = queue.some((item) => item.status === "done" || item.status === "error");
+  const clearFinished = useCallback(() => {
+    setQueue((current) =>
+      current.filter((item) => item.status !== "done" && item.status !== "error"),
+    );
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -122,9 +160,16 @@ export function FileDrop({
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-medium">{item.name}</span>
                 {item.status === "error" ? (
-                  <span className="flex items-center gap-1 text-xs text-destructive">
-                    <FileWarning className="size-3.5" />
-                    {t(item.errorKey ?? "api.error.uploadFailed")}
+                  <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-xs text-destructive">
+                      <FileWarning className="size-3.5" />
+                      {t(item.errorKey ?? "api.error.uploadFailed")}
+                    </span>
+                    {item.file && (
+                      <Button variant="ghost" size="sm" onClick={() => void retry(item.key)}>
+                        {t("files.retry")}
+                      </Button>
+                    )}
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground">
@@ -139,11 +184,13 @@ export function FileDrop({
           ))}
         </ul>
       )}
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" onClick={() => setQueue([])}>
-          {t("files.clearFinished")}
-        </Button>
-      </div>
+      {hasFinished && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={clearFinished}>
+            {t("files.clearFinished")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

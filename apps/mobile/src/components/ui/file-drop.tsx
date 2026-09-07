@@ -12,6 +12,7 @@ export interface QueuedNativeUpload {
   progress: number;
   status: "queued" | "uploading" | "done" | "error";
   errorKey?: string;
+  input?: { uri: string; fileName: string; contentType: string; fileSize: number };
 }
 
 interface FileDropProps {
@@ -34,6 +35,19 @@ function validatePicked(
   }
   if (!asset.size || asset.size <= 0 || asset.size > maxSizeBytes) return "api.error.fileTooLarge";
   return null;
+}
+
+const UPLOAD_ERROR_KEYS = new Set([
+  "api.error.invalidRequest",
+  "api.error.fileTooLarge",
+  "api.error.quotaExceeded",
+  "api.file.metadataMismatch",
+]);
+
+function toUploadErrorKey(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (UPLOAD_ERROR_KEYS.has(message)) return message;
+  return "api.error.uploadFailed";
 }
 
 export function FileDrop({
@@ -67,6 +81,12 @@ export function FileDrop({
         size: asset.size ?? 0,
         progress: 0,
         status: "queued" as const,
+        input: {
+          uri: asset.uri,
+          fileName: asset.name ?? "file",
+          contentType: asset.mimeType ?? "application/octet-stream",
+          fileSize: asset.size ?? 0,
+        },
       }));
       setQueue((current) => [...current, ...fresh]);
       let done = 0;
@@ -91,8 +111,8 @@ export function FileDrop({
           );
           patch(row.key, { status: "done", progress: 1 });
           done += 1;
-        } catch {
-          patch(row.key, { status: "error", errorKey: "api.error.uploadFailed" });
+        } catch (error) {
+          patch(row.key, { status: "error", errorKey: toUploadErrorKey(error) });
         }
       }
       if (done > 0) onUploaded?.(done);
@@ -100,6 +120,22 @@ export function FileDrop({
       setPicking(false);
     }
   }, [accept, maxSizeBytes, upload, onUploaded, patch]);
+
+  const retry = React.useCallback(
+    async (key: string) => {
+      const row = queue.find((item) => item.key === key);
+      if (!row?.input) return;
+      patch(key, { status: "uploading", progress: 0, errorKey: undefined });
+      try {
+        await upload(row.input, (ratio) => patch(key, { progress: ratio }));
+        patch(key, { status: "done", progress: 1 });
+        onUploaded?.(1);
+      } catch (error) {
+        patch(key, { status: "error", errorKey: toUploadErrorKey(error) });
+      }
+    },
+    [queue, upload, onUploaded, patch],
+  );
 
   return (
     <View className="gap-3">
@@ -112,9 +148,16 @@ export function FileDrop({
             {item.name}
           </Text>
           {item.status === "error" ? (
-            <Text className="text-xs text-destructive">
-              {t(item.errorKey ?? "api.error.uploadFailed")}
-            </Text>
+            <View className="flex-row items-center justify-between gap-2">
+              <Text className="text-xs text-destructive">
+                {t(item.errorKey ?? "api.error.uploadFailed")}
+              </Text>
+              {item.input && (
+                <Button variant="ghost" size="sm" onPress={() => void retry(item.key)}>
+                  {t("files.retry")}
+                </Button>
+              )}
+            </View>
           ) : (
             <Text className="text-xs text-muted-foreground">
               {item.status === "done" ? t("files.uploaded") : `${Math.round(item.progress * 100)}%`}

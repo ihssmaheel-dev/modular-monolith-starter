@@ -27,6 +27,10 @@ export const CONFIRM_UPLOAD_ERRORS: ErrorMap = {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     i18nKey: "api.error.uploadFailed",
   },
+  METADATA_MISMATCH: {
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    i18nKey: "api.file.metadataMismatch",
+  },
 };
 
 // Removed GridFS transfer errors — S3 presigned URLs only

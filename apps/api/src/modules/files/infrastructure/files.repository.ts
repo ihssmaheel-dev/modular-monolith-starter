@@ -41,9 +41,9 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     return result.isOk() ? result.value : [];
   }
 
-  async findByUploader(uploadedBy: string): Promise<FileEntity[]> {
-    const result = await this.find({ uploadedBy });
-    return result.isOk() ? result.value : [];
+  async findByUploader(uploadedBy: string, limit = 1000): Promise<FileEntity[]> {
+    const result = await this.paginate({ uploadedBy }, { page: 1, limit });
+    return result.isOk() ? result.value.items : [];
   }
 
   async claimPendingUpload(key: string) {

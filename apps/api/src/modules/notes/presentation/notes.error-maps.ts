@@ -9,4 +9,8 @@ export const ATTACH_FILE_ERRORS: ErrorMap = {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     i18nKey: "api.error.uploadFailed",
   },
+  DELETE_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    i18nKey: "api.error.deleteFailed",
+  },
 };

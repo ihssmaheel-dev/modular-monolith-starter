@@ -20,6 +20,7 @@ import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AppNotesIndexRouteImport } from './routes/_app.notes.index'
+import { Route as AppNotesNoteIdRouteImport } from './routes/_app.notes.$noteId'
 import { Route as AppNotesNewRouteImport } from './routes/_app.notes.new'
 
 const IndexRoute = IndexRouteImport.update({
@@ -76,6 +77,11 @@ const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
   path: '/notes/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotesNoteIdRoute = AppNotesNoteIdRouteImport.update({
+  id: '/notes/$noteId',
+  path: '/notes/$noteId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotesNewRoute = AppNotesNewRouteImport.update({
   id: '/notes/new',
   path: '/notes/new',
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/': typeof AuthIndexRoute
+  '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/notes/': typeof AppNotesIndexRoute
 }
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth': typeof AuthIndexRoute
+  '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/notes': typeof AppNotesIndexRoute
 }
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/': typeof AuthIndexRoute
+  '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/notes/': typeof AppNotesIndexRoute
 }
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/auth/forgot-password'
     | '/auth/reset-password'
     | '/auth/'
+    | '/notes/$noteId'
     | '/notes/new'
     | '/notes/'
   fileRoutesByTo: FileRoutesByTo
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/auth/forgot-password'
     | '/auth/reset-password'
     | '/auth'
+    | '/notes/$noteId'
     | '/notes/new'
     | '/notes'
   id:
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/auth/forgot-password'
     | '/auth/reset-password'
     | '/auth/'
+    | '/_app/notes/$noteId'
     | '/_app/notes/new'
     | '/_app/notes/'
   fileRoutesById: FileRoutesById
@@ -250,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/notes/$noteId': {
+      id: '/_app/notes/$noteId'
+      path: '/notes/$noteId'
+      fullPath: '/notes/$noteId'
+      preLoaderRoute: typeof AppNotesNoteIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notes/new': {
       id: '/_app/notes/new'
       path: '/notes/new'
@@ -264,6 +283,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppUsersRoute: typeof AppUsersRoute
+  AppNotesNoteIdRoute: typeof AppNotesNoteIdRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
 }
@@ -272,6 +292,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppUsersRoute: AppUsersRoute,
+  AppNotesNoteIdRoute: AppNotesNoteIdRoute,
   AppNotesNewRoute: AppNotesNewRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
 }

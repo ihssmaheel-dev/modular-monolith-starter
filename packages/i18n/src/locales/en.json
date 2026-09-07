@@ -232,7 +232,8 @@
       "ownsOrganization": "Transfer or remove this user's organization ownership before deletion"
     },
     "file": {
-      "notFound": "File not found"
+      "notFound": "File not found",
+      "metadataMismatch": "Uploaded bytes do not match the request. Please upload again."
     },
     "note": {
       "created": "Note created successfully",
@@ -290,6 +291,7 @@
     "browseHint": "PDF, images, text, CSV or ZIP up to 10 MB",
     "uploading": "Uploading...",
     "uploaded": "Uploaded",
+    "retry": "Retry",
     "clearFinished": "Clear finished",
     "deleted": "File deleted",
     "download": "Download",

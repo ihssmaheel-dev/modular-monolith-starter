@@ -46,7 +46,7 @@ export class ConfirmUploadCommand {
 
     const metadata = await this.storage.getMetadata(file.key);
     if (metadata.isErr() || !this.matches(file, metadata.value)) {
-      return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
+      return err({ type: "METADATA_MISMATCH", message: "api.file.metadataMismatch" });
     }
 
     const update = () => this.filesRepo.updateById(file.id, { status: "uploading" });

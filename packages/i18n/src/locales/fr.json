@@ -218,7 +218,8 @@
       "workerUnavailable": "Le processus en arrière-plan est indisponible"
     },
     "file": {
-      "notFound": "Fichier introuvable"
+      "notFound": "Fichier introuvable",
+      "metadataMismatch": "Les octets envoyés ne correspondent pas à la demande. Veuillez renvoyer le fichier."
     },
     "note": {
       "created": "Note créée avec succès",
@@ -344,6 +345,7 @@
     "browseHint": "PDF, images, texte, CSV ou ZIP jusqu’à 10 Mo",
     "uploading": "Envoi en cours...",
     "uploaded": "Envoyé",
+    "retry": "Réessayer",
     "clearFinished": "Effacer les terminés",
     "deleted": "Fichier supprimé",
     "download": "Télécharger",
