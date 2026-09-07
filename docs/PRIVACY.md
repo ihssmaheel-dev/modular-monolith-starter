@@ -13,6 +13,7 @@ erasure (Art. 17) for accounts and organizations.
 | `notes`                         | title, content, createdBy                   | Hard-deleted per subject (account) or per tenant (org)                                                                                                                         |
 | `files` + S3                    | fileName, uploadedBy, object bytes          | S3 object deleted first, then row; orphans reconciled by `FileReconciliationWorker`                                                                                            |
 | Redis sessions/tokens           | userId, ip, userAgent, deviceName, jti      | `revokeAllForUser` immediately on erasure request                                                                                                                              |
+| `notifications` + prefs/devices | userId, tokens, category toggles            | Purged with the account (`PurgeUserNotificationsCommand`); tenant rows purged on org erasure                                                                                   |
 | `outbox_events` payloads        | May carry emails/titles while PENDING       | Relayed payloads are immutable; pending subject payloads are consumed before purge                                                                                             |
 | `audit_logs` before/after       | May carry emails/names (immutable trigger)  | **Retained** under Art. 17(3)(b)/(e) (legal obligation / legal claims) with `purge_audit_logs_older_than` retention; new privacy events carry ids/statuses only, never raw PII |
 | Email jobs                      | to/subject/html                             | Transient BullMQ payloads with retries; no local archive                                                                                                                       |
@@ -24,13 +25,13 @@ erasure (Art. 17) for accounts and organizations.
 
 - **Export**: `POST /privacy/export` (rate-limited) → snapshot (profile, memberships,
   invitations, **own** notes across all pages/tenants up to 1000, own file manifests up to
-  1000, `truncated` flag when capped) stored on the DSR, `READY` for 7 days →
+  1000, notification preferences, `truncated` flag when capped) stored on the DSR, `READY` for 7 days →
   `GET /privacy/export/:id/download` (**owner-only**, even for admins; stale snapshots
   are scrubbed nightly by `PurgeExpiredErasuresCommand`).
 - **Delete account**: `POST /privacy/erase-account {password}` (password re-auth,
   rate-limited) → sole-ownership check first (last remaining owner is blocked with
   `409 ownsOrganization` until ownership is transferred) → sessions revoked + tokens
-  invalidated now, profile anonymized now, tenancy/notes/files purged now,
+  invalidated now, profile anonymized now, tenancy/notes/files/notifications purged now,
   DSR `REQUESTED` with 30-day grace → nightly `PurgeExpiredErasuresCommand`
   hard-deletes the user row and marks `FULFILLED`. One pending request per subject.
 - **Delete organization**: `POST /privacy/organizations/:id/erase {confirmationName}`

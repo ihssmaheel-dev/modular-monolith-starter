@@ -8,6 +8,7 @@ import { OutboxService } from "../../../../infrastructure/outbox/outbox.service"
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
 import { ListInvitationsByEmailQuery } from "../../../tenancy/application/queries/list-invitations-by-email.query";
+import { GetPreferencesQuery } from "../../../notifications/application/queries/get-preferences.query";
 import { GetNotesQuery } from "../../../notes/application/queries/get-notes.query";
 import { ListFilesByUploaderQuery } from "../../../files/application/queries/list-files-by-uploader.query";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
@@ -33,6 +34,7 @@ export class RequestExportCommand {
     private readonly listInvitationsByEmail: ListInvitationsByEmailQuery,
     private readonly getNotes: GetNotesQuery,
     private readonly listFilesByUploader: ListFilesByUploaderQuery,
+    private readonly getPreferences: GetPreferencesQuery,
     private readonly tenantContext: TenantContextService,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
@@ -61,6 +63,8 @@ export class RequestExportCommand {
 
     const notes = await this.collectNotes(actor, tenantIds);
     const files = await this.collectFiles(actor.sub, tenantIds);
+    const preferencesResult = await this.getPreferences.execute(actor.sub);
+    const preferences = preferencesResult.isOk() ? preferencesResult.value : [];
 
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -86,6 +90,7 @@ export class RequestExportCommand {
       })),
       notes: notes.items,
       files: files.items,
+      notificationPreferences: preferences,
     };
 
     const expiresAt = new Date(Date.now() + EXPORT_TTL_DAYS * 24 * 60 * 60 * 1000);

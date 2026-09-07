@@ -17,6 +17,8 @@ import { SidebarTrigger } from "@repo/ui/components/ui/sidebar";
 import { useAuthStore } from "@/stores/auth.store";
 import { getApiClient } from "@/lib/api";
 import { useTheme } from "@/components/theme-provider";
+import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 
 export function AppHeader() {
@@ -40,6 +42,8 @@ export function AppHeader() {
     }
   };
 
+  useRealtimeNotifications();
+
   const cycleTheme = () =>
     setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
 
@@ -62,6 +66,7 @@ export function AppHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <Button
           variant="ghost"
           size="icon"

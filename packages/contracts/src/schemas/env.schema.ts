@@ -147,6 +147,10 @@ export const envSchema = z
     SMTP_USER: z.string().default(""),
     SMTP_PASS: z.string().default(""),
 
+    PUSH_PROVIDER: z.enum(["none", "expo"]).default("none"),
+    EXPO_ACCESS_TOKEN: z.preprocess(emptyStringAsUndefined, z.string().min(16).optional()),
+    NOTIFICATION_DIGEST_MAX_ITEMS: z.coerce.number().int().min(1).max(100).default(20),
+
     SEED_ADMIN_EMAIL: z.string().email().optional(),
     SEED_ADMIN_PASSWORD: z.string().min(12).optional(),
   })

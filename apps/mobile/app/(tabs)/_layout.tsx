@@ -12,6 +12,7 @@ export default function TabsLayout() {
     <Tabs screenOptions={{ headerShown: true }}>
       <Tabs.Screen name="index" options={{ title: t("dashboard.title") }} />
       <Tabs.Screen name="notes" options={{ title: t("notes.title") }} />
+      <Tabs.Screen name="notifications" options={{ title: t("notifications.title") }} />
       <Tabs.Screen name="users" options={{ title: t("users.title") }} />
       <Tabs.Screen name="settings" options={{ title: t("settings.title") }} />
     </Tabs>

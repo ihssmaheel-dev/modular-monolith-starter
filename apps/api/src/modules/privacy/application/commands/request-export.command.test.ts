@@ -54,6 +54,9 @@ describe("RequestExportCommand", () => {
     const listFilesByUploader = {
       execute: vi.fn().mockResolvedValue(ok([])),
     } as unknown as ListFilesByUploaderQuery;
+    const getPreferences = {
+      execute: vi.fn().mockResolvedValue(ok([])),
+    } as never;
     const tenantContext = {} as TenantContextService;
     outbox = {
       dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)),
@@ -67,6 +70,7 @@ describe("RequestExportCommand", () => {
       listInvitationsByEmail,
       getNotes,
       listFilesByUploader,
+      getPreferences,
       tenantContext,
       outbox,
       events,

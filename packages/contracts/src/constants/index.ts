@@ -13,3 +13,4 @@ export const MILLISECONDS_PER_MINUTE = 60_000;
 
 export * from "./tenancy.constants";
 export * from "./frontend-routes.constants";
+export * from "./notification.constants";

@@ -274,6 +274,12 @@
       "invitationInvalid": "This invitation is invalid or has expired",
       "invitationEmailMismatch": "Sign in with the email address that received this invitation",
       "operationFailed": "The organization operation could not be completed"
+    },
+    "notifications": {
+      "sendFailed": "Could not send the notification",
+      "notFound": "Notification not found",
+      "preferenceInvalid": "Invalid notification preference",
+      "deviceInvalid": "Invalid device token"
     }
   },
   "notes": {
@@ -369,6 +375,38 @@
       "too_small": "String must contain at least {{minimum}} character(s)",
       "too_big": "String must contain at most {{maximum}} character(s)",
       "custom": "Validation failed"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Stay up to date with your workspace",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "unread": "Unread",
+    "unreadBadge": "{{count}} unread",
+    "noNotifications": "You're all caught up.",
+    "viewAll": "View all",
+    "preferencesTitle": "Notification preferences",
+    "preferencesDescription": "Choose which channels notify you, per category",
+    "channelInApp": "In app",
+    "channelEmail": "Email",
+    "channelPush": "Push",
+    "cadenceRealtime": "Instant",
+    "cadenceHourly": "Hourly digest",
+    "cadenceDaily": "Daily digest",
+    "categoryAccount": "Account",
+    "categoryCollaboration": "Collaboration",
+    "categoryWorkspace": "Workspace",
+    "categoryPrivacy": "Privacy",
+    "devicesTitle": "Push devices",
+    "liveUpdates": "Live",
+    "digestTitle": "You have {{count}} new updates",
+    "digestHeading": "Your updates",
+    "digestFooter": "Manage notification preferences anytime in Settings.",
+    "types": {
+      "userWelcome": "Welcome, {{name}}!",
+      "invitationReceived": "{{organization}} invited you to collaborate",
+      "exportReady": "Your data export is ready"
     }
   }
 }

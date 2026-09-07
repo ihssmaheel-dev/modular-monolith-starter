@@ -3,7 +3,7 @@ import type { FastifyRequest } from "fastify";
 import { RealtimeService } from "../realtime.service";
 import { Subject, Observable } from "rxjs";
 import { finalize } from "rxjs/operators";
-import { NoDatabaseTransaction, requireAuthenticatedUser } from "../../../common";
+import { NoDatabaseTransaction, TenantAgnostic, requireAuthenticatedUser } from "../../../common";
 import type { TenantContext } from "@repo/contracts";
 
 type TenantRequest = FastifyRequest & { tenant?: TenantContext };
@@ -14,6 +14,7 @@ export class RealtimeSseController {
 
   @Sse("events")
   @NoDatabaseTransaction()
+  @TenantAgnostic()
   sse(@Req() request: TenantRequest): Observable<NestMessageEvent> {
     const user = requireAuthenticatedUser(request);
     const tenantId = request.tenant?.tenantId;

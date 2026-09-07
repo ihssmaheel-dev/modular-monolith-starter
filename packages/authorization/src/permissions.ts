@@ -31,6 +31,10 @@ export const Permissions = {
   PRIVACY_ERASE_SELF: "privacy:erase:self",
   PRIVACY_ERASE_TENANT: "privacy:erase:tenant",
   PRIVACY_REQUESTS_READ: "privacy:requests:read",
+  // Notifications
+  NOTIFICATIONS_READ: "notifications:read",
+  NOTIFICATIONS_WRITE: "notifications:write",
+  NOTIFICATIONS_MANAGE: "notifications:manage",
   // Billing & Enterprise
   BILLING_READ: "billing:read",
   BILLING_MANAGE: "billing:manage",
@@ -58,6 +62,8 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.FILES_WRITE,
     Permissions.PRIVACY_EXPORT_SELF,
     Permissions.PRIVACY_ERASE_SELF,
+    Permissions.NOTIFICATIONS_READ,
+    Permissions.NOTIFICATIONS_WRITE,
   ],
 };
 
@@ -92,6 +98,9 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_ERASE_SELF,
     Permissions.PRIVACY_ERASE_TENANT,
     Permissions.PRIVACY_REQUESTS_READ,
+    Permissions.NOTIFICATIONS_READ,
+    Permissions.NOTIFICATIONS_WRITE,
+    Permissions.NOTIFICATIONS_MANAGE,
   ],
   member: [
     Permissions.ORGANIZATIONS_READ,
@@ -107,6 +116,8 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.FILES_WRITE,
     Permissions.PRIVACY_EXPORT_SELF,
     Permissions.PRIVACY_ERASE_SELF,
+    Permissions.NOTIFICATIONS_READ,
+    Permissions.NOTIFICATIONS_WRITE,
   ],
 };
 

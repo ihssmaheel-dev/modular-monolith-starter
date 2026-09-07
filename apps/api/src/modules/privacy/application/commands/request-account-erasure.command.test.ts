@@ -65,6 +65,9 @@ describe("RequestAccountErasureCommand", () => {
     const purgeTenancy = {
       execute: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as PurgeUserTenancyDataCommand;
+    const purgeNotifications = {
+      execute: vi.fn().mockResolvedValue(ok(undefined)),
+    } as never;
     const purgeNotes = {
       execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })),
     } as unknown as PurgeUserNotesCommand;
@@ -88,6 +91,7 @@ describe("RequestAccountErasureCommand", () => {
       listOrganizations,
       canDeleteUser,
       purgeTenancy,
+      purgeNotifications,
       purgeNotes,
       purgeFiles,
       tenantContext,
@@ -146,6 +150,7 @@ describe("RequestAccountErasureCommand", () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
       outbox,
       {} as never,
     );
@@ -161,6 +166,7 @@ describe("RequestAccountErasureCommand", () => {
       requests,
       { execute: vi.fn().mockResolvedValue(err({ type: "USER_NOT_FOUND", userId: "x" })) } as never,
       verifyCredentials,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

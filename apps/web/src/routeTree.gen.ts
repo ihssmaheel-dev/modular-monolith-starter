@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppUsersRouteImport } from './routes/_app.users'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
@@ -45,6 +46,11 @@ const AuthRoute = AuthRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
+  '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/users': typeof AppUsersRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/dashboard': typeof AppDashboardRoute
+  '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/users': typeof AppUsersRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/users': typeof AppUsersRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/auth'
     | '/dashboard'
+    | '/notifications'
     | '/settings'
     | '/users'
     | '/auth/forgot-password'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invitation'
     | '/dashboard'
+    | '/notifications'
     | '/settings'
     | '/users'
     | '/auth/forgot-password'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/accept-invitation'
     | '/auth'
     | '/_app/dashboard'
+    | '/_app/notifications'
     | '/_app/settings'
     | '/_app/users'
     | '/auth/forgot-password'
@@ -218,6 +230,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -281,6 +300,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppUsersRoute: typeof AppUsersRoute
   AppNotesNoteIdRoute: typeof AppNotesNoteIdRoute
@@ -290,6 +310,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppUsersRoute: AppUsersRoute,
   AppNotesNoteIdRoute: AppNotesNoteIdRoute,

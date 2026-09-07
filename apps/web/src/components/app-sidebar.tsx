@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { FRONTEND_ROUTES } from "@repo/contracts";
-import { FilePlus2, FileText, LayoutDashboard, Layers3, Users } from "lucide-react";
+import { Bell, FilePlus2, FileText, LayoutDashboard, Layers3, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -95,6 +95,17 @@ export function AppSidebar() {
                 >
                   <Users />
                   <span>{t("users.title")}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to={FRONTEND_ROUTES.notifications} />}
+                  isActive={location.pathname.startsWith("/notifications")}
+                  tooltip={t("notifications.title")}
+                >
+                  <Bell />
+                  <span>{t("notifications.title")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

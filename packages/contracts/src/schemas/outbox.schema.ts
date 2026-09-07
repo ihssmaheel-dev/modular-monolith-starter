@@ -53,6 +53,18 @@ const payloadSchemas: Record<string, z.ZodType<Record<string, unknown>>> = {
     token: z.string().min(1),
     locale: localeSchema,
   }),
+  "notification.created": z.object({
+    notificationId: z.string().min(1),
+    userId: z.string().min(1),
+    type: z.string().min(1),
+    tenantId: z.string().min(1).optional(),
+  }),
+  "notification.digest.ready": z.object({
+    batchId: z.string().min(1),
+    userId: z.string().min(1),
+    type: z.string().min(1),
+    count: z.number().int().nonnegative(),
+  }),
 };
 
 export function parseOutboxEventEnvelope(value: unknown): OutboxEventEnvelope {

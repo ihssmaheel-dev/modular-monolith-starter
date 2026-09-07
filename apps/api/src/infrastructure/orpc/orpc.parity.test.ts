@@ -8,6 +8,7 @@ import {
   filesContract,
   membershipsContract,
   notesContract,
+  notificationsContract,
   organizationsContract,
   privacyContract,
   usersContract,
@@ -28,6 +29,8 @@ import { OrganizationsController } from "../../modules/tenancy/presentation/orga
 import { OrganizationsOrpcController } from "../../modules/tenancy/presentation/organizations.orpc.controller";
 import { PrivacyController } from "../../modules/privacy/presentation/privacy.controller";
 import { PrivacyOrpcController } from "../../modules/privacy/presentation/privacy.orpc.controller";
+import { NotificationsController } from "../../modules/notifications/presentation/notifications.controller";
+import { NotificationsOrpcController } from "../../modules/notifications/presentation/notifications.orpc.controller";
 import { RESPONSE_SCHEMA_KEY } from "../../common/decorators/response-schema.decorator";
 import { ZodValidationPipe } from "../../common/pipes/validation.pipe";
 type RoutePair = {
@@ -43,6 +46,7 @@ const ROUTES: RoutePair[] = [
   ...organizationRoutes(),
   ...membershipRoutes(),
   ...privacyRoutes(),
+  ...notificationRoutes(),
 ];
 describe("oRPC and REST route parity", () => {
   it.each(ROUTES)("keeps $rpc.1 aligned with its REST controller and contract", (route) => {
@@ -158,6 +162,18 @@ function privacyRoutes(): RoutePair[] {
     ["requestOrganizationErasure", "requestOrganizationErasure", "eraseOrganization"],
     ["listAllRequests", "listAllRequests", "listAll"],
     ["purgeExpired", "purgeExpired", "purge"],
+  ]);
+}
+function notificationRoutes(): RoutePair[] {
+  return routePairs(notificationsContract, NotificationsOrpcController, NotificationsController, [
+    ["list", "list", "list"],
+    ["unreadCount", "unreadCount", "unreadCount"],
+    ["markRead", "markRead", "markOneRead"],
+    ["markAllRead", "markAllRead", "markAllRead"],
+    ["getPreferences", "getPreferences", "getPreferences"],
+    ["updatePreferences", "updatePreferences", "putPreferences"],
+    ["registerDevice", "registerDevice", "addDevice"],
+    ["deleteDevice", "deleteDevice", "deleteDevice"],
   ]);
 }
 function routePairs(

@@ -9,6 +9,7 @@ import { ListOrganizationsQuery } from "../../../tenancy/application/queries/lis
 import { DeleteOrganizationDataCommand } from "../../../tenancy/application/commands/delete-organization-data.command";
 import { PurgeTenantNotesCommand } from "../../../notes/application/commands/purge-tenant-notes.command";
 import { PurgeTenantFilesCommand } from "../../../files/application/commands/purge-tenant-files.command";
+import { PurgeUserNotificationsCommand } from "../../../notifications/application/commands/purge-user-notifications.command";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { OrganizationErasureRequestedEvent } from "../../domain/events/privacy.events";
@@ -30,6 +31,7 @@ export class RequestOrganizationErasureCommand {
     private readonly deleteOrganizationData: DeleteOrganizationDataCommand,
     private readonly purgeNotes: PurgeTenantNotesCommand,
     private readonly purgeFiles: PurgeTenantFilesCommand,
+    private readonly purgeNotifications: PurgeUserNotificationsCommand,
     private readonly tenantContext: TenantContextService,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
@@ -64,6 +66,9 @@ export class RequestOrganizationErasureCommand {
 
     const purged = await this.purgeTenantScope(organizationId);
     if (purged.isErr()) return err({ type: "ERASURE_FAILED" });
+
+    const notificationsPurged = await this.purgeNotifications.purgeTenant(organizationId);
+    if (notificationsPurged.isErr()) return err({ type: "ERASURE_FAILED" });
 
     const scrubbed = await this.deleteOrganizationData.execute(organizationId);
     if (scrubbed.isErr()) return err({ type: "ERASURE_FAILED" });

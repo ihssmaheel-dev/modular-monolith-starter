@@ -5,3 +5,4 @@ export * from "./files";
 export * from "./tenancy";
 export * from "./upload";
 export * from "./privacy";
+export * from "./notifications";

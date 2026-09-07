@@ -5,6 +5,7 @@ import { DatabaseModule } from "../../infrastructure/database";
 import { UsersModule } from "../users/users.module";
 import { NotesModule } from "../notes/notes.module";
 import { FilesModule } from "../files/files.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { PrivacyController } from "./presentation/privacy.controller";
 import { PrivacyOrpcController } from "./presentation/privacy.orpc.controller";
 import { RequestExportCommand } from "./application/commands/request-export.command";
@@ -23,6 +24,7 @@ import { PrivacyRepository } from "./infrastructure/privacy.repository";
     UsersModule,
     NotesModule,
     FilesModule,
+    NotificationsModule,
   ],
   controllers: [PrivacyController, PrivacyOrpcController],
   providers: [

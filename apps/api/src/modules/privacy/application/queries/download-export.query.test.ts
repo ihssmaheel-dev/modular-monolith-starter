@@ -23,6 +23,7 @@ function payload() {
     invitations: [],
     notes: [],
     files: [],
+    notificationPreferences: [],
     truncated: false,
   };
 }

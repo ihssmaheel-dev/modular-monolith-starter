@@ -268,6 +268,12 @@
       "emailTaken": "L'e-mail est déjà pris",
       "invalidAvatar": "L'avatar doit être une image JPEG, PNG, GIF ou WebP de 5 Mo maximum",
       "ownsOrganization": "Transférez ou supprimez la propriété des organisations de cet utilisateur avant de le supprimer"
+    },
+    "notifications": {
+      "sendFailed": "Impossible d’envoyer la notification",
+      "notFound": "Notification introuvable",
+      "preferenceInvalid": "Préférence de notification invalide",
+      "deviceInvalid": "Jeton d’appareil invalide"
     }
   },
   "notes": {
@@ -370,5 +376,37 @@
       "failed": "Échec"
     },
     "pickFiles": "Choisir des fichiers"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Restez informé de votre espace de travail",
+    "markAllRead": "Tout marquer comme lu",
+    "markRead": "Marquer comme lu",
+    "unreadBadge": "{{count}} non lues",
+    "noNotifications": "Vous êtes à jour.",
+    "viewAll": "Tout voir",
+    "preferencesTitle": "Préférences de notification",
+    "preferencesDescription": "Choisissez vos canaux par catégorie",
+    "channelInApp": "Dans l’app",
+    "channelEmail": "E-mail",
+    "channelPush": "Push",
+    "cadenceRealtime": "Instantané",
+    "cadenceHourly": "Résumé horaire",
+    "cadenceDaily": "Résumé quotidien",
+    "categoryAccount": "Compte",
+    "categoryCollaboration": "Collaboration",
+    "categoryWorkspace": "Espace de travail",
+    "categoryPrivacy": "Confidentialité",
+    "devicesTitle": "Appareils push",
+    "liveUpdates": "En direct",
+    "digestTitle": "Vous avez {{count}} nouveautés",
+    "digestHeading": "Vos nouveautés",
+    "digestFooter": "Gérez vos préférences dans Réglages à tout moment.",
+    "types": {
+      "userWelcome": "Bienvenue, {{name}} !",
+      "invitationReceived": "{{organization}} vous a invité à collaborer",
+      "exportReady": "Votre export de données est prêt"
+    },
+    "unread": "Non lue"
   }
 }

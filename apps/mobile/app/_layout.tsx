@@ -10,6 +10,7 @@ import { useLocaleStore } from "@/stores/locale.store";
 import { useTenantStore } from "@/stores/tenant.store";
 import { useThemeStore } from "@/stores/theme.store";
 import { ThemeProvider } from "@/theme/theme-provider";
+import { PushBootstrap } from "@/components/push-bootstrap";
 import "../global.css";
 
 export default function RootLayout() {
@@ -54,6 +55,7 @@ export default function RootLayout() {
   return (
     <QueryProvider>
       <ThemeProvider>
+        <PushBootstrap />
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }} />
       </ThemeProvider>

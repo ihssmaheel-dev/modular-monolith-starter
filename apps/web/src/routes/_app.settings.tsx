@@ -15,6 +15,7 @@ import { useTheme } from "@/components/theme-provider";
 import { ExportCard } from "@/features/privacy/components/export-card";
 import { EraseAccountCard } from "@/features/privacy/components/erase-account-card";
 import { EraseOrganizationCard } from "@/features/privacy/components/erase-organization-card";
+import { PreferencesCard } from "@/features/notifications/components/preferences-card";
 import { AvatarUpload } from "@/features/users/components/avatar-upload";
 
 export const Route = createFileRoute("/_app/settings")({ component: SettingsPage });
@@ -79,6 +80,7 @@ function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+      <PreferencesCard />
       <ExportCard />
       <EraseAccountCard />
       <EraseOrganizationCard />

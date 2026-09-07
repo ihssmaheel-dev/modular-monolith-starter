@@ -76,6 +76,14 @@ export const ExportedFileSchema = z.object({
   createdAt: z.string().datetime(),
 });
 
+export const ExportedPreferenceSchema = z.object({
+  category: z.string(),
+  inApp: z.boolean(),
+  email: z.boolean(),
+  push: z.boolean(),
+  digestCadence: z.string(),
+});
+
 export const ExportDownloadResponseSchema = z.object({
   exportedAt: z.string().datetime(),
   profile: ExportedProfileSchema,
@@ -83,6 +91,7 @@ export const ExportDownloadResponseSchema = z.object({
   invitations: z.array(ExportedInvitationSchema),
   notes: z.array(ExportedNoteSchema),
   files: z.array(ExportedFileSchema),
+  notificationPreferences: z.array(ExportedPreferenceSchema),
   truncated: z.boolean(),
 });
 

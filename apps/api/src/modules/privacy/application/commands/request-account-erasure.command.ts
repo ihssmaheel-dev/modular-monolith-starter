@@ -14,6 +14,7 @@ import { IncrementAuthVersionCommand } from "../../../users/application/commands
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
 import { CanDeleteUserQuery } from "../../../tenancy/application/queries/can-delete-user.query";
 import { PurgeUserTenancyDataCommand } from "../../../tenancy/application/commands/purge-user-tenancy-data.command";
+import { PurgeUserNotificationsCommand } from "../../../notifications/application/commands/purge-user-notifications.command";
 import { PurgeUserNotesCommand } from "../../../notes/application/commands/purge-user-notes.command";
 import { PurgeUserFilesCommand } from "../../../files/application/commands/purge-user-files.command";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
@@ -40,6 +41,7 @@ export class RequestAccountErasureCommand {
     private readonly listOrganizations: ListOrganizationsQuery,
     private readonly canDeleteUser: CanDeleteUserQuery,
     private readonly purgeTenancy: PurgeUserTenancyDataCommand,
+    private readonly purgeNotifications: PurgeUserNotificationsCommand,
     private readonly purgeNotes: PurgeUserNotesCommand,
     private readonly purgeFiles: PurgeUserFilesCommand,
     private readonly tenantContext: TenantContextService,
@@ -92,6 +94,9 @@ export class RequestAccountErasureCommand {
 
     const tenancyPurged = await this.purgeTenancy.execute(actor.sub, user.email);
     if (tenancyPurged.isErr()) return err({ type: "ERASURE_FAILED" });
+
+    const notificationsPurged = await this.purgeNotifications.execute(actor.sub);
+    if (notificationsPurged.isErr()) return err({ type: "ERASURE_FAILED" });
 
     for (const tenantId of tenantIds) {
       const purged = await this.purgeTenantData(actor.sub, tenantId);

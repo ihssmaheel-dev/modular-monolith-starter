@@ -11,6 +11,7 @@ export const FRONTEND_ROUTES = {
   dashboard: "/dashboard",
   notes: "/notes",
   newNote: "/notes/new",
+  notifications: "/notifications",
   settings: "/settings",
   users: "/users",
   acceptInvitation: "/accept-invitation",

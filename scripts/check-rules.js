@@ -178,7 +178,11 @@ function checkTenantRepositories() {
   for (const entry of fs.readdirSync(modulesDirectory, { withFileTypes: true })) {
     // tenancy owns the tenant model; privacy DSRs are intentionally subject-scoped
     // globals (they must outlive the tenants they reference for the Art. 12 audit trail).
-    if (!entry.isDirectory() || entry.name === "tenancy" || entry.name === "privacy") continue;
+    // notifications is an inbox: rows are subject-scoped globals readable across
+    // tenants (like memberships), with tenantId kept for display/audit context only.
+    if (!entry.isDirectory() || ["tenancy", "privacy", "notifications"].includes(entry.name)) {
+      continue;
+    }
     const infrastructure = path.join(modulesDirectory, entry.name, "infrastructure");
     if (!fs.existsSync(infrastructure)) continue;
     const files = walk(infrastructure);

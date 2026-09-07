@@ -22,4 +22,10 @@ export const queryKeys = {
     list: (tenantId: string | null, parentType: string, parentId?: string) =>
       ["files", tenantId, "list", { parentType, parentId }] as const,
   },
+  notifications: {
+    all: () => ["notifications"] as const,
+    list: (page: number, limit: number) => ["notifications", "list", { page, limit }] as const,
+    unreadCount: () => ["notifications", "unread-count"] as const,
+    preferences: () => ["notifications", "preferences"] as const,
+  },
 } as const;
