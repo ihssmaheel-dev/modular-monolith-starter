@@ -6,7 +6,7 @@ import { PinoLoggerService } from "../logger/logger.service";
 import { DatabaseService } from "../database";
 import { QueueService } from "../queue/queue.service";
 import { OutboxEvent, OutboxRepository } from "./outbox.repository";
-import { OUTBOX_MAX_ATTEMPTS, OUTBOX_QUEUE } from "./outbox.constants";
+import { OUTBOX_DURABLE_QUEUE_UNAVAILABLE, OUTBOX_MAX_ATTEMPTS, OUTBOX_QUEUE } from "./outbox.constants";
 import { env } from "../../config/env";
 
 const RETRY_BASE_DELAY_MS = 5_000;
@@ -47,7 +47,7 @@ export class OutboxRelayDelivery {
         });
       } else {
         if (env.NODE_ENV === "production") {
-          throw new Error("OUTBOX_DURABLE_QUEUE_UNAVAILABLE");
+          throw new Error(OUTBOX_DURABLE_QUEUE_UNAVAILABLE);
         }
         await this.eventEmitter.emitAsync(event.topic, event.payload);
       }

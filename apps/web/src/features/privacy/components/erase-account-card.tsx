@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { TriangleAlert } from "lucide-react";
+import { FRONTEND_ROUTES } from "@repo/contracts";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -14,18 +16,23 @@ import { Label } from "@repo/ui/components/ui/label";
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
 import { useEraseAccountMutation } from "../privacy.mutations";
 import { useAuthStore } from "@/stores/auth.store";
+import { useTenantStore } from "@/stores/tenant.store";
 
 export function EraseAccountCard() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const clearTenant = useTenantStore((state) => state.setTenantId);
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const eraseMutation = useEraseAccountMutation({
     onSuccess: () => {
       setOpen(false);
       setPassword("");
+      queryClient.clear();
+      clearTenant(null);
       clearAuth();
-      window.location.href = "/auth";
+      window.location.href = FRONTEND_ROUTES.auth;
     },
   });
 

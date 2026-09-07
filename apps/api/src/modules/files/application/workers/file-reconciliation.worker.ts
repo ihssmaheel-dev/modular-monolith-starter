@@ -34,7 +34,7 @@ export class FileReconciliationWorker {
     try {
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
         const files = await this.database.runTransaction(() =>
-          this.files.findUploadedFiles(RECONCILIATION_BATCH_SIZE),
+          this.files.findUploadedFiles(RECONCILIATION_BATCH_SIZE, true),
         );
         for (const file of files) {
           checked += 1;

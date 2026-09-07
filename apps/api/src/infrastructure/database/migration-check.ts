@@ -18,6 +18,8 @@ const HARDENED_TABLES = [
   "files",
   "memberships",
   "invitations",
+  "organizations",
+  "dsr_requests",
 ] as const;
 const HARDENING_POLICIES = [
   "audit_system_scope",
@@ -26,6 +28,8 @@ const HARDENING_POLICIES = [
   "tenant_isolation_files",
   "tenant_isolation_memberships",
   "tenant_isolation_invitations",
+  "tenant_isolation_organizations",
+  "subject_isolation_dsr_requests",
 ] as const;
 
 type MigrationEntry = { tag: string };

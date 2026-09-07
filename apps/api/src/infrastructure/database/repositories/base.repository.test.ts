@@ -89,4 +89,20 @@ describe("BaseRepository Tenant Isolation", () => {
 
     expect(result.isOk()).toBe(true);
   });
+
+  it("reports whether deleteById removed a row", async () => {
+    vi.mocked(mockContext.get).mockReturnValue({ mode: "multi", tenantId: "tenant-123" });
+    const returning = vi.fn().mockResolvedValue([{ id: "1" }]);
+    vi.mocked(mockDb.getDb).mockReturnValue({
+      delete: vi.fn(() => ({ where: vi.fn(() => ({ returning })) })),
+    } as never);
+    const repo = new TestRepo(mockDb, mockContext, true);
+
+    const deleted = await repo.deleteById("1");
+    expect(deleted.isOk() && deleted.value).toBe(true);
+
+    returning.mockResolvedValue([]);
+    const missing = await repo.deleteById("gone");
+    expect(missing.isOk() && missing.value).toBe(false);
+  });
 });

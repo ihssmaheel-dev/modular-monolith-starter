@@ -149,15 +149,25 @@ function checkLocaleParity() {
 function checkTranslationUsage() {
   const englishFile = path.join(ROOT, "packages/i18n/src/locales/en.json");
   const englishKeys = new Set(leafKeys(JSON.parse(fs.readFileSync(englishFile, "utf8"))));
-  const translationPattern = /\b(?:t|translate)\(\s*["'`]([^"'`]+)["'`]/g;
+  const patterns = [
+    { pattern: /\b(?:t|translate)\(\s*["'`]([^"'`]+)["'`]/g, keyPattern: null },
+    {
+      pattern: /\bthrow\s+new\s+Error\(\s*["'`]([^"'`]+)["'`]/g,
+      keyPattern: /^[A-Za-z0-9_.{}-]+$/,
+    },
+  ];
 
   for (const directory of ["apps", "packages"]) {
     for (const file of walk(path.join(ROOT, directory))) {
       if (!CODE_EXTENSIONS.has(path.extname(file)) || isTest(file)) continue;
       const source = fs.readFileSync(file, "utf8");
-      for (const match of source.matchAll(translationPattern)) {
-        const key = match[1];
-        if (key && !englishKeys.has(key)) report(file, `unknown translation key: ${key}`);
+      for (const { pattern: translationPattern, keyPattern } of patterns) {
+        for (const match of source.matchAll(translationPattern)) {
+          const key = match[1];
+          if (!key) continue;
+          if (keyPattern && !keyPattern.test(key)) continue;
+          if (!englishKeys.has(key)) report(file, `unknown translation key: ${key}`);
+        }
       }
     }
   }
@@ -245,6 +255,21 @@ function checkGeneratedTokensFresh() {
   }
 }
 
+function checkRoutePermissions() {
+  const routePattern = /@(Get|Post|Put|Patch|Delete|Implement)\(/;
+  for (const file of walk(path.join(ROOT, "apps/api/src"))) {
+    if (!file.endsWith(".controller.ts") || isTest(file)) continue;
+    const source = fs.readFileSync(file, "utf8");
+    if (!routePattern.test(source)) continue;
+    if (source.includes("@RequirePermission") || source.includes("@Public")) continue;
+    if (source.includes("allow-authenticated-only-routes")) continue;
+    report(
+      file,
+      "controllers with routes must declare @RequirePermission (or @Public for open routes)",
+    );
+  }
+}
+
 for (const directory of ["apps", "packages"]) {
   for (const file of walk(path.join(ROOT, directory))) {
     if (CODE_EXTENSIONS.has(path.extname(file))) checkFile(file);
@@ -255,6 +280,7 @@ checkTranslationUsage();
 checkTenantRepositories();
 checkDocumentationDrift();
 checkGeneratedTokensFresh();
+checkRoutePermissions();
 
 if (failures.length) {
   process.stderr.write(

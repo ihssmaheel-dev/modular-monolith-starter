@@ -20,6 +20,9 @@ export class DatabaseMutatedEvent {
   ) {}
 }
 
+/** Machine code for internal control flow — never user-facing, never an i18n key. */
+const AUDIT_WRITE_FAILED = "AUDIT_WRITE_FAILED";
+
 @Injectable()
 export class AuditListener {
   private readonly logger: PinoLoggerService;
@@ -42,7 +45,7 @@ export class AuditListener {
         : await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, () =>
             this.database.withSystemScope(() => this.writeAuditRecord(event)),
           );
-      if (result.isErr()) throw new Error("AUDIT_WRITE_FAILED");
+      if (result.isErr()) throw new Error(AUDIT_WRITE_FAILED);
     } catch (error) {
       this.logger.error(
         {

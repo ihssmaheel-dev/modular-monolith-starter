@@ -13,15 +13,17 @@ export async function verifyTenancyMode(
   logger: PinoLoggerService,
 ): Promise<void> {
   if (env.TENANCY_MODE !== "single") return;
-  const db = database.getDb();
-  const rows = (await (
-    db as unknown as {
-      execute: (query: unknown) => Promise<{ rows: Array<{ count: string }> }>;
-    }
-  ).execute(sql`select count(*) as count from organizations`)) as {
-    rows: Array<{ count: string }>;
-  };
-  const count = Number(rows.rows[0]?.count ?? 0);
+  const count = await database.withSystemScope(async () => {
+    const db = database.getDb();
+    const rows = (await (
+      db as unknown as {
+        execute: (query: unknown) => Promise<{ rows: Array<{ count: string }> }>;
+      }
+    ).execute(sql`select count(*) as count from organizations`)) as {
+      rows: Array<{ count: string }>;
+    };
+    return Number(rows.rows[0]?.count ?? 0);
+  });
   if (count > 0) {
     logger.error(
       { organizationCount: count },

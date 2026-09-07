@@ -26,6 +26,10 @@ import { toOrganizationResponse } from "./tenancy.mapper";
 
 @Controller("tenancy")
 @TenantAgnostic()
+// allow-authenticated-only-routes — every authenticated user may found an
+// organization; listing is membership-scoped inside ListOrganizationsQuery.
+// Adding @RequirePermission here would lock out non-admin users because the
+// global user role carries no organization permissions by design.
 export class OrganizationsController {
   constructor(
     private readonly createOrganization: CreateOrganizationCommand,

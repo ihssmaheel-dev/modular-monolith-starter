@@ -104,20 +104,24 @@ export class RequestExportCommand {
     );
     if (dispatched.isErr()) return err({ type: "EXPORT_FAILED" });
 
-    try {
-      await this.events.emitAsync("database.mutated", {
-        collectionName: "dsr_requests",
-        documentId: created.value.id,
-        action: "CREATE",
-        actorId: actor.sub,
-        tenantId: undefined,
-        before: null,
-        after: { id: created.value.id, type: "EXPORT", status: "READY" },
-      });
-    } catch {
-      return err({ type: "EXPORT_FAILED" });
-    }
+    await this.emitMutated({
+      collectionName: "dsr_requests",
+      documentId: created.value.id,
+      action: "CREATE",
+      actorId: actor.sub,
+      tenantId: undefined,
+      before: null,
+      after: { id: created.value.id, type: "EXPORT", status: "READY" },
+    });
     return ok(created.value);
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.events, "database.mutated", payload);
+      return;
+    }
+    await this.events.emitAsync("database.mutated", payload);
   }
 
   private async collectAccesses(

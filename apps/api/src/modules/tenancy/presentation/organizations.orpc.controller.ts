@@ -9,6 +9,8 @@ import { OrganizationsController } from "./organizations.controller";
 
 @Controller("rpc")
 @TenantAgnostic()
+// allow-authenticated-only-routes: mirrors OrganizationsController — any
+// authenticated user may found an organization; see that file for rationale.
 export class OrganizationsOrpcController {
   constructor(
     private readonly organizationsController: OrganizationsController,

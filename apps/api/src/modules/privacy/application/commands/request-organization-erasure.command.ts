@@ -84,20 +84,24 @@ export class RequestOrganizationErasureCommand {
     );
     if (dispatched.isErr()) return err({ type: "ERASURE_FAILED" });
 
-    try {
-      await this.events.emitAsync("database.mutated", {
-        collectionName: "dsr_requests",
-        documentId: created.value.id,
-        action: "CREATE",
-        actorId: actor.sub,
-        tenantId: organizationId,
-        before: null,
-        after: { id: created.value.id, type: "ORGANIZATION_ERASURE", status: "REQUESTED" },
-      });
-    } catch {
-      return err({ type: "ERASURE_FAILED" });
-    }
+    await this.emitMutated({
+      collectionName: "dsr_requests",
+      documentId: created.value.id,
+      action: "CREATE",
+      actorId: actor.sub,
+      tenantId: organizationId,
+      before: null,
+      after: { id: created.value.id, type: "ORGANIZATION_ERASURE", status: "REQUESTED" },
+    });
     return ok(created.value);
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.events, "database.mutated", payload);
+      return;
+    }
+    await this.events.emitAsync("database.mutated", payload);
   }
 
   private async purgeTenantScope(tenantId: string): Promise<Result<void, PrivacyError>> {

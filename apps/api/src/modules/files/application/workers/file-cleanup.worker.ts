@@ -52,11 +52,11 @@ export class FileCleanupWorker {
           this.filesRepository.findUnlinkedBefore(unlinkedCutoff, true, CLEANUP_BATCH_SIZE),
         );
         const repository = this.filesRepository as unknown as {
-          findDeletedFiles?: (limit: number) => Promise<typeof staleFiles>;
+          findDeletedFiles?: (limit: number, systemScope?: boolean) => Promise<typeof staleFiles>;
         };
         const deletedFiles = repository.findDeletedFiles
           ? await this.database.runTransaction(() =>
-              repository.findDeletedFiles!(CLEANUP_BATCH_SIZE),
+              repository.findDeletedFiles!(CLEANUP_BATCH_SIZE, true),
             )
           : [];
         for (const file of [...staleFiles, ...unlinkedFiles, ...deletedFiles]) {

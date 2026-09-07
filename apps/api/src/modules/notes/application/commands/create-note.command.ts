@@ -52,21 +52,25 @@ export class CreateNoteCommand {
       );
       const dispatched = await this.outbox.dispatchTenant("note.created", event);
       if (dispatched.isErr()) return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
-      try {
-        await this.eventEmitter.emitAsync("database.mutated", {
-          collectionName: "notes",
-          documentId: result.value.id,
-          action: "CREATE",
-          actorId: actor.sub,
-          tenantId: result.value.tenantId,
-          before: null,
-          after: { id: result.value.id, title: result.value.title },
-        });
-      } catch {
-        return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
-      }
+      await this.emitMutated({
+        collectionName: "notes",
+        documentId: result.value.id,
+        action: "CREATE",
+        actorId: actor.sub,
+        tenantId: result.value.tenantId,
+        before: null,
+        after: { id: result.value.id, title: result.value.title },
+      });
     }
 
     return result;
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", payload);
+      return;
+    }
+    await this.eventEmitter.emitAsync("database.mutated", payload);
   }
 }

@@ -1,4 +1,5 @@
 import { Inject, Injectable, OnModuleDestroy, Optional } from "@nestjs/common";
+import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
 import { Pool } from "pg";
@@ -10,6 +11,9 @@ import type { TransactionError } from "./database.types";
 
 export type Database = NodePgDatabase;
 export type DrizzleDb = Database;
+
+/** Machine code for internal control flow — never user-facing, never an i18n key. */
+export const TENANT_CONTEXT_REQUIRES_TRANSACTION = "TENANT_CONTEXT_REQUIRES_TRANSACTION";
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
@@ -135,7 +139,7 @@ export class DatabaseService implements OnModuleDestroy {
   /** Changes the tenant scope inside the active transaction for invitation/system workflows. */
   async setTenantContext(tenantId: string): Promise<void> {
     const tx = this.getTx();
-    if (!tx) throw new Error("TENANT_CONTEXT_REQUIRES_TRANSACTION");
+    if (!tx) throw new Error(TENANT_CONTEXT_REQUIRES_TRANSACTION);
     await this.setConfig(tx, "app.current_tenant", tenantId);
     this.cls?.set("tenantId", tenantId);
   }
@@ -167,6 +171,28 @@ export class DatabaseService implements OnModuleDestroy {
     return undefined;
   }
 
+  async emitAfterCommit(
+    emitter: EventEmitter2,
+    event: string,
+    payload: unknown,
+  ): Promise<void> {
+    const run = async (): Promise<void> => {
+      try {
+        await emitter.emitAsync(event, payload);
+      } catch (error) {
+        this.logger.error({ error: String(error), event }, "Post-commit event emission failed");
+      }
+    };
+    if (!this.cls?.isActive() || !this.getTx()) {
+      await run();
+      return;
+    }
+    const pending =
+      (this.cls.get("afterCommit") as Array<() => Promise<void>> | undefined) ?? [];
+    pending.push(run);
+    this.cls.set("afterCommit", pending);
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.pool.end();
     this.logger.info({}, "Postgres pool closed");
@@ -176,10 +202,19 @@ export class DatabaseService implements OnModuleDestroy {
     await this.configureTransactionContext(tx);
     const current = this.cls?.isActive() ? this.cls.get() : {};
     if (!this.cls) return fn();
-    return this.cls.runWith(
-      { ...current, databaseTx: tx } as unknown as Record<string, unknown>,
+    const afterCommit: Array<() => Promise<void>> = [];
+    const result = await this.cls.runWith(
+      { ...current, databaseTx: tx, afterCommit } as unknown as Record<string, unknown>,
       fn,
     );
+    for (const callback of afterCommit) {
+      try {
+        await callback();
+      } catch (error) {
+        this.logger.error({ error: String(error) }, "After-commit callback failed");
+      }
+    }
+    return result;
   }
 
   private async configureTransactionContext(tx: DrizzleDb): Promise<void> {

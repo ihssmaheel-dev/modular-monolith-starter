@@ -53,20 +53,24 @@ export class DeleteNoteCommand {
     );
     const dispatched = await this.outbox.dispatchTenant("note.deleted", event);
     if (dispatched.isErr()) return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
-    try {
-      await this.eventEmitter.emitAsync("database.mutated", {
-        collectionName: "notes",
-        documentId: id,
-        action: "DELETE",
-        actorId: actor.sub,
-        tenantId: existing.value.tenantId,
-        before: { id, title: existing.value.title },
-        after: null,
-      });
-    } catch {
-      return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
-    }
+    await this.emitMutated({
+      collectionName: "notes",
+      documentId: id,
+      action: "DELETE",
+      actorId: actor.sub,
+      tenantId: existing.value.tenantId,
+      before: { id, title: existing.value.title },
+      after: null,
+    });
 
     return ok(undefined);
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", payload);
+      return;
+    }
+    await this.eventEmitter.emitAsync("database.mutated", payload);
   }
 }

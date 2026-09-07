@@ -13,7 +13,7 @@ export function loginMutationOptions() {
     mutationFn: async (data: LoginInput) => {
       const client = getApiClient();
       const res = await client.auth.login({ body: data });
-      if (res.status !== 200) throw new Error("api.auth.loginFailed");
+      if (res.status !== 200) throw new Error("auth.loginFailed");
       return res.body;
     },
   });
@@ -25,7 +25,7 @@ export function registerMutationOptions() {
     mutationFn: async (data: RegisterInput) => {
       const client = getApiClient();
       const res = await client.auth.register({ body: data });
-      if (res.status !== 201 && res.status !== 200) throw new Error("api.auth.registrationFailed");
+      if (res.status !== 201 && res.status !== 200) throw new Error("auth.registrationFailed");
       return res.body;
     },
   });

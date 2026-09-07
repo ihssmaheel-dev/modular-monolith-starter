@@ -13,6 +13,7 @@ import { TenantContextService } from "../database";
 import { OutboxRepository } from "./outbox.repository";
 import {
   OUTBOX_DEDUPE_TTL_SECONDS,
+  OUTBOX_EVENT_IN_PROGRESS,
   OUTBOX_MAX_ATTEMPTS,
   OUTBOX_PROCESSING_TTL_SECONDS,
   OUTBOX_QUEUE,
@@ -72,10 +73,10 @@ export class OutboxEventWorker implements OnModuleInit {
     const key = `outbox:consumer:v1:${eventId}`;
     const existing = await client.get(key);
     if (existing === "completed") return false;
-    if (existing === "processing") throw new Error("OUTBOX_EVENT_IN_PROGRESS");
+    if (existing === "processing") throw new Error(OUTBOX_EVENT_IN_PROGRESS);
     const claimed = await client.set(key, "processing", "EX", OUTBOX_PROCESSING_TTL_SECONDS, "NX");
     if (claimed === "OK") return true;
-    throw new Error("OUTBOX_EVENT_IN_PROGRESS");
+    throw new Error(OUTBOX_EVENT_IN_PROGRESS);
   }
 
   private async markEventProcessed(eventId: string): Promise<void> {

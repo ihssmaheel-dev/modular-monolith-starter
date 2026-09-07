@@ -73,20 +73,24 @@ export class UpdateUserCommand {
       new UserUpdatedEvent(saved.value.id, data),
     );
     if (dispatched.isErr()) return err({ type: "USER_EVENT_DISPATCH_FAILED" });
-    try {
-      await this.eventEmitter.emitAsync("database.mutated", {
-        collectionName: "users",
-        documentId: saved.value.id,
-        action: "UPDATE",
-        actorId: saved.value.id,
-        tenantId: undefined,
-        before: { id: existing.value.id },
-        after: { id: saved.value.id, email: saved.value.email, name: saved.value.name },
-      });
-    } catch {
-      return err({ type: "USER_EVENT_DISPATCH_FAILED" });
-    }
+    await this.emitMutated({
+      collectionName: "users",
+      documentId: saved.value.id,
+      action: "UPDATE",
+      actorId: saved.value.id,
+      tenantId: undefined,
+      before: { id: existing.value.id },
+      after: { id: saved.value.id, email: saved.value.email, name: saved.value.name },
+    });
 
     return ok(saved.value);
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", payload);
+      return;
+    }
+    await this.eventEmitter.emitAsync("database.mutated", payload);
   }
 }

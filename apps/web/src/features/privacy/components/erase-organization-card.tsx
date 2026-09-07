@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "@tanstack/react-router";
 import { Building2 } from "lucide-react";
+import { FRONTEND_ROUTES } from "@repo/contracts";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -17,7 +19,9 @@ import { useTenantStore } from "@/stores/tenant.store";
 
 export function EraseOrganizationCard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const tenantId = useTenantStore((state) => state.tenantId);
+  const clearTenant = useTenantStore((state) => state.setTenantId);
   const [open, setOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const eraseMutation = useEraseOrganizationMutation();
@@ -28,6 +32,8 @@ export function EraseOrganizationCard() {
     await eraseMutation.mutateAsync({ organizationId: tenantId, confirmationName: confirmation });
     setOpen(false);
     setConfirmation("");
+    clearTenant(null);
+    navigate({ to: FRONTEND_ROUTES.dashboard });
   };
 
   return (

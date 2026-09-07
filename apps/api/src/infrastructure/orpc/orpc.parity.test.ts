@@ -1,5 +1,7 @@
 import "reflect-metadata";
 import { HTTP_CODE_METADATA, METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { ROUTE_ARGS_METADATA } from "@nestjs/common/constants";
+import { RouteParamtypes } from "@nestjs/common/enums/route-paramtypes.enum";
 import { RequestMethod } from "@nestjs/common";
 import {
   authContract,
@@ -27,6 +29,7 @@ import { OrganizationsOrpcController } from "../../modules/tenancy/presentation/
 import { PrivacyController } from "../../modules/privacy/presentation/privacy.controller";
 import { PrivacyOrpcController } from "../../modules/privacy/presentation/privacy.orpc.controller";
 import { RESPONSE_SCHEMA_KEY } from "../../common/decorators/response-schema.decorator";
+import { ZodValidationPipe } from "../../common/pipes/validation.pipe";
 type RoutePair = {
   contract: AnyContractProcedure;
   rpc: [object, string];
@@ -173,3 +176,88 @@ function routePairs(
 function missingContract(name: string): AnyContractProcedure {
   throw new Error(`Missing contract procedure: ${name}`);
 }
+
+const REST_CONTROLLERS: Array<[object, string]> = [
+  [AuthController, "AuthController"],
+  [NotesController, "NotesController"],
+  [FilesController, "FilesController"],
+  [UsersController, "UsersController"],
+  [OrganizationsController, "OrganizationsController"],
+  [MembershipsController, "MembershipsController"],
+  [PrivacyController, "PrivacyController"],
+];
+
+describe("REST route coverage", () => {
+  const covered = new Set(ROUTES.map((route) => routeMethodId(route.rest[0], route.rest[1])));
+  for (const [controller, label] of REST_CONTROLLERS) {
+    const prototype = (controller as { prototype: Record<string, object> }).prototype;
+    for (const name of Object.getOwnPropertyNames(prototype)) {
+      if (name === "constructor") continue;
+      if (Reflect.getMetadata(METHOD_METADATA, prototype[name] as object) === undefined) continue;
+      it(`${label}.${name} is covered by parity ROUTES`, () => {
+        expect(covered.has(`${label}.${name}`)).toBe(true);
+      });
+    }
+  }
+});
+
+function routeMethodId(controller: object, method: string): string {
+  const label =
+    REST_CONTROLLERS.find(([candidate]) => candidate === controller)?.[1] ?? "UnknownController";
+  return `${label}.${method}`;
+}
+
+describe("REST input validation", () => {
+  for (const route of ROUTES) {
+    it(`${routeMethodId(route.rest[0], route.rest[1])} validates body/query/param inputs with Zod`, () => {
+      const prototype = (route.rest[0] as { prototype: Record<string, object> }).prototype;
+      const target = prototype[route.rest[1]] as object | undefined;
+      if (!target) throw new Error(`Missing REST handler: ${route.rest[1]}`);
+      const args = Reflect.getMetadata(ROUTE_ARGS_METADATA, target) as
+        | Record<string, { type: RouteParamtypes; pipes?: unknown[] }>
+        | undefined;
+      if (!args) return;
+      for (const arg of Object.values(args)) {
+        if (
+          arg.type === RouteParamtypes.BODY ||
+          arg.type === RouteParamtypes.QUERY ||
+          arg.type === RouteParamtypes.PARAM
+        ) {
+          expect(arg.pipes?.some((pipe) => pipe instanceof ZodValidationPipe)).toBe(true);
+        }
+      }
+    });
+  }
+});
+
+const INPUTLESS_PROCEDURES = new Set([
+  "auth.logout",
+  "auth.me",
+  "organizations.status",
+  "privacy.requestExport",
+  "privacy.purgeExpired",
+  "users.removeAvatar",
+]);
+
+describe("oRPC contract input coverage", () => {
+  const covered: Record<string, Record<string, AnyContractProcedure>> = {
+    auth: authContract as unknown as Record<string, AnyContractProcedure>,
+    notes: notesContract as unknown as Record<string, AnyContractProcedure>,
+    files: filesContract as unknown as Record<string, AnyContractProcedure>,
+    users: usersContract as unknown as Record<string, AnyContractProcedure>,
+    organizations: organizationsContract as unknown as Record<string, AnyContractProcedure>,
+    memberships: membershipsContract as unknown as Record<string, AnyContractProcedure>,
+    privacy: privacyContract as unknown as Record<string, AnyContractProcedure>,
+  };
+  for (const [name, contract] of Object.entries(covered)) {
+    for (const key of Object.keys(contract)) {
+      const procedure = contract[key];
+      if (!procedure || typeof procedure !== "object" || !("~orpc" in procedure)) continue;
+      it(`${name}.${key} declares an input schema or is an approved exception`, () => {
+        if (INPUTLESS_PROCEDURES.has(`${name}.${key}`)) return;
+        const inputSchema = (procedure["~orpc"] as { inputSchema?: unknown }).inputSchema;
+        expect(inputSchema).toBeDefined();
+      });
+    }
+  }
+});

@@ -64,12 +64,13 @@ export function AvatarUpload() {
 
   if (!user) return null;
   const busy = picking || attachMutation.isPending || removeMutation.isPending;
+  const avatarUrl = user.avatarFileId ? avatarUrlQuery.data : undefined;
 
   return (
     <View className="flex-row items-center gap-4">
       <View className="size-16 items-center justify-center overflow-hidden rounded-full bg-muted">
-        {avatarUrlQuery.data ? (
-          <Image source={{ uri: avatarUrlQuery.data }} className="size-full" />
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} className="size-full" />
         ) : (
           <Text className="text-lg font-bold text-foreground">{initials(user.name)}</Text>
         )}

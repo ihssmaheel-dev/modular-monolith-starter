@@ -47,7 +47,10 @@ export class PurgeExpiredErasuresCommand {
   async execute(): Promise<Result<{ purged: number }, PrivacyError>> {
     const operation = () => this.persist();
     if (!this.database) return operation();
-    const result = await this.database.withResultTransaction(operation);
+    const database = this.database;
+    const result = await database.withSystemScope(() =>
+      database.withResultTransaction(operation),
+    );
     return result.mapErr((error) =>
       error.type === "TRANSACTION_FAILED" ? { type: "PURGE_FAILED" } : error,
     );
@@ -102,7 +105,7 @@ export class PurgeExpiredErasuresCommand {
         "privacy.account.purged",
         new AccountPurgedEvent(requestId, subject.subjectUserId),
       );
-      await this.events.emitAsync("database.mutated", {
+      await this.emitMutated({
         collectionName: "dsr_requests",
         documentId: requestId,
         action: "UPDATE",
@@ -123,5 +126,13 @@ export class PurgeExpiredErasuresCommand {
       return ok(undefined);
     }
     return err({ type: "PURGE_FAILED" });
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.events, "database.mutated", payload);
+      return;
+    }
+    await this.events.emitAsync("database.mutated", payload);
   }
 }

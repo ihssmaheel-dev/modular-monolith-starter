@@ -63,20 +63,24 @@ export class DeleteUserCommand {
 
     const dispatched = await this.outbox.dispatchGlobal("user.deleted", new UserDeletedEvent(id));
     if (dispatched.isErr()) return err({ type: "USER_EVENT_DISPATCH_FAILED" });
-    try {
-      await this.eventEmitter.emitAsync("database.mutated", {
-        collectionName: "users",
-        documentId: id,
-        action: "DELETE",
-        actorId: id,
-        tenantId: undefined,
-        before: { id, email: existing.value.email },
-        after: null,
-      });
-    } catch {
-      return err({ type: "USER_EVENT_DISPATCH_FAILED" });
-    }
+    await this.emitMutated({
+      collectionName: "users",
+      documentId: id,
+      action: "DELETE",
+      actorId: id,
+      tenantId: undefined,
+      before: { id, email: existing.value.email },
+      after: null,
+    });
 
     return ok(undefined);
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", payload);
+      return;
+    }
+    await this.eventEmitter.emitAsync("database.mutated", payload);
   }
 }

@@ -238,10 +238,15 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
     const whereClause = tenantClause
       ? and(eq(idCol, id as string), tenantClause)
       : eq(idCol, id as string);
-    await (db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } })
+    const rows = await (
+      db as unknown as {
+        delete: (t: unknown) => { where: (c: unknown) => { returning: () => Promise<TRow[]> } };
+      }
+    )
       .delete(this.table)
-      .where(whereClause);
-    return ok(true);
+      .where(whereClause)
+      .returning();
+    return ok(rows.length > 0);
   }
 }
 

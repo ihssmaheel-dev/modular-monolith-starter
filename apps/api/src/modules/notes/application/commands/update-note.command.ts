@@ -65,20 +65,24 @@ export class UpdateNoteCommand {
     );
     const dispatched = await this.outbox.dispatchTenant("note.updated", event);
     if (dispatched.isErr()) return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
-    try {
-      await this.eventEmitter.emitAsync("database.mutated", {
-        collectionName: "notes",
-        documentId: saved.value.id,
-        action: "UPDATE",
-        actorId: actor.sub,
-        tenantId: saved.value.tenantId,
-        before: { id: existing.value.id },
-        after: { id: saved.value.id, title: saved.value.title },
-      });
-    } catch {
-      return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
-    }
+    await this.emitMutated({
+      collectionName: "notes",
+      documentId: saved.value.id,
+      action: "UPDATE",
+      actorId: actor.sub,
+      tenantId: saved.value.tenantId,
+      before: { id: existing.value.id },
+      after: { id: saved.value.id, title: saved.value.title },
+    });
 
     return ok(saved.value);
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", payload);
+      return;
+    }
+    await this.eventEmitter.emitAsync("database.mutated", payload);
   }
 }

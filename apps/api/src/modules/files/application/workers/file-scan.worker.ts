@@ -32,7 +32,7 @@ export class FileScanWorker {
     try {
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
         const files = await this.database.runTransaction(() =>
-          this.files.claimUploadingFiles(SCAN_BATCH_SIZE),
+          this.files.claimUploadingFiles(SCAN_BATCH_SIZE, true),
         );
         for (const file of files) await this.scanOne(file);
       });

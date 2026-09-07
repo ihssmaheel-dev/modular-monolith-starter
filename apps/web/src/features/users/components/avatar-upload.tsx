@@ -41,11 +41,12 @@ export function AvatarUpload() {
 
   if (!user) return null;
   const busy = attachMutation.isPending || removeMutation.isPending;
+  const avatarUrl = user.avatarFileId ? avatarUrlQuery.data : undefined;
 
   return (
     <div className="flex items-center gap-4">
       <Avatar size="lg">
-        {avatarUrlQuery.data && <AvatarImage src={avatarUrlQuery.data} alt={t("users.avatar")} />}
+        {avatarUrl && <AvatarImage src={avatarUrl} alt={t("users.avatar")} />}
         <AvatarFallback>{initials(user.name)}</AvatarFallback>
       </Avatar>
       <div className="space-y-1">

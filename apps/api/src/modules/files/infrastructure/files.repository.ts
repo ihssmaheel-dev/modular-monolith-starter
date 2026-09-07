@@ -104,7 +104,8 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     return (rows ?? []).map((r) => this.toDomain(r));
   }
 
-  async findUploadedFiles(limit: number): Promise<FileEntity[]> {
+  async findUploadedFiles(limit: number, systemScope = false): Promise<FileEntity[]> {
+    if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
     const rows = await (
       db as unknown as {
@@ -122,7 +123,8 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     return (rows ?? []).map((r) => this.toDomain(r));
   }
 
-  async claimUploadingFiles(limit: number): Promise<FileEntity[]> {
+  async claimUploadingFiles(limit: number, systemScope = false): Promise<FileEntity[]> {
+    if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
     const result = await (
       db as unknown as { execute: (query: unknown) => Promise<{ rows: FileRow[] }> }
@@ -158,7 +160,8 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     return result.rows.map((row) => this.toDomain(row));
   }
 
-  async findDeletedFiles(limit: number): Promise<FileEntity[]> {
+  async findDeletedFiles(limit: number, systemScope = false): Promise<FileEntity[]> {
+    if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
     const rows = await (
       db as unknown as {
