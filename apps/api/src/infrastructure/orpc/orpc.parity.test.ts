@@ -125,6 +125,8 @@ function usersRoutes(): RoutePair[] {
     ["create", "create", "create"],
     ["update", "update", "update"],
     ["delete", "delete", "delete"],
+    ["attachAvatar", "attachAvatar", "attachAvatar"],
+    ["removeAvatar", "removeAvatar", "removeAvatar"],
   ]);
 }
 function organizationRoutes(): RoutePair[] {

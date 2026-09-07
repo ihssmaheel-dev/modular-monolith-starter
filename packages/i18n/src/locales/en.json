@@ -75,7 +75,13 @@
     "role": "Assigned Role",
     "created": "Joined Date",
     "status": "Account Status",
-    "totalUsers": "Total Users"
+    "totalUsers": "Total Users",
+    "avatar": "Profile photo",
+    "avatarChange": "Change photo",
+    "avatarRemove": "Remove photo",
+    "avatarUpdated": "Profile photo updated",
+    "avatarRemoved": "Profile photo removed",
+    "avatarHint": "JPEG, PNG, GIF or WebP up to 5 MB"
   },
   "settings": {
     "eyebrow": "Preferences & System",
@@ -229,6 +235,7 @@
       "deleted": "User deleted successfully",
       "notFound": "User not found",
       "emailTaken": "Email is already taken",
+      "invalidAvatar": "Avatar must be a JPEG, PNG, GIF or WebP image up to 5 MB",
       "ownsOrganization": "Transfer or remove this user's organization ownership before deletion"
     },
     "file": {

@@ -32,6 +32,7 @@ export const AuthResponseSchema = z.object({
     email: z.string(),
     name: z.string(),
     role: z.enum(["admin", "user"]),
+    avatarFileId: z.string().nullable(),
   }),
 });
 

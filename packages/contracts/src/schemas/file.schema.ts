@@ -16,6 +16,12 @@ export const ALLOWED_MIME_TYPES = [
 export const MAX_FILE_SIZE_MB = 10;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+export const AVATAR_SLOT = "avatar" as const;
+
+export const AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
+
+export const AVATAR_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
 export const RequestUploadSchema = z.object({
   fileName: z.string().min(1).max(255),
   contentType: z.enum(ALLOWED_MIME_TYPES),
@@ -30,6 +36,10 @@ export const AttachFileSchema = z.object({
     .max(64)
     .regex(/^[a-z0-9-]+$/, "api.error.invalidRequest")
     .optional(),
+});
+
+export const AttachAvatarSchema = z.object({
+  fileId: z.string().min(1).max(1024),
 });
 
 export const ConfirmUploadSchema = z.object({
@@ -79,6 +89,7 @@ export const FileListResponseSchema = z.object({
 
 export type RequestUploadInput = z.infer<typeof RequestUploadSchema>;
 export type AttachFileInput = z.infer<typeof AttachFileSchema>;
+export type AttachAvatarInput = z.infer<typeof AttachAvatarSchema>;
 export type ConfirmUploadInput = z.infer<typeof ConfirmUploadSchema>;
 export type FileMetadataResponse = z.infer<typeof FileMetadataSchema>;
 export type PresignedUrlResponse = z.infer<typeof PresignedUrlResponseSchema>;

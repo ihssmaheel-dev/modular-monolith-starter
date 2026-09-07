@@ -67,6 +67,7 @@ describe("LoginCommand", () => {
           email: "test@example.com",
           name: "Test User",
           role: "user",
+          avatarFileId: null,
         },
       });
     }

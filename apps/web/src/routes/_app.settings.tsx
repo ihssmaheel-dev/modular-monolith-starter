@@ -15,6 +15,7 @@ import { useTheme } from "@/components/theme-provider";
 import { ExportCard } from "@/features/privacy/components/export-card";
 import { EraseAccountCard } from "@/features/privacy/components/erase-account-card";
 import { EraseOrganizationCard } from "@/features/privacy/components/erase-organization-card";
+import { AvatarUpload } from "@/features/users/components/avatar-upload";
 
 export const Route = createFileRoute("/_app/settings")({ component: SettingsPage });
 
@@ -44,6 +45,7 @@ function SettingsPage() {
             <CardDescription>{t("settings.accountSecurityDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <AvatarUpload />
             <div>
               <p className="text-xs text-muted-foreground">{t("common.name")}</p>
               <p className="font-medium">{user?.name}</p>

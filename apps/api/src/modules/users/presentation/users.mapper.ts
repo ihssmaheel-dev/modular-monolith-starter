@@ -7,6 +7,7 @@ export function toUserResponse(user: User): UserResponse {
     email: user.email,
     name: user.name,
     role: user.role,
+    avatarFileId: user.avatarFileId,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

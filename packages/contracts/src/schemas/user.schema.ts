@@ -20,6 +20,7 @@ export const UserResponseSchema = z.object({
   email: z.string(),
   name: z.string(),
   role: z.enum(["admin", "user"]),
+  avatarFileId: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

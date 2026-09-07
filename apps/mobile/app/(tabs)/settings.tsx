@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequestExportMutation, useEraseAccountMutation } from "@/features/privacy/privacy.mutations";
+import { AvatarUpload } from "@/features/users/components/avatar-upload";
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -57,6 +58,7 @@ export default function Settings() {
           {t("settings.accountSecurityDescription")}
         </Text>
         <View className="mt-4 gap-3">
+          <AvatarUpload />
           <View>
             <Text className="text-xs text-muted-foreground">{t("common.name")}</Text>
             <Text className="font-medium text-foreground">{user?.name}</Text>

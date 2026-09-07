@@ -81,7 +81,13 @@ describe("RefreshTokensCommand", () => {
       expect(result.value).toEqual({
         accessToken: "new-access",
         refreshToken: "new-refresh",
-        user: { id: "user-123", email: "test@example.com", name: "Test", role: "user" },
+        user: {
+          id: "user-123",
+          email: "test@example.com",
+          name: "Test",
+          role: "user",
+          avatarFileId: null,
+        },
       });
     }
     expect(jwtUtils.verifyRefreshToken).toHaveBeenCalledWith("valid-refresh-token");

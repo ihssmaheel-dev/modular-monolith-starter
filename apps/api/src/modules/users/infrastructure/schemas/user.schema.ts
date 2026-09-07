@@ -12,6 +12,7 @@ export const users = pgTable(
     passwordResetTokenHash: text("password_reset_token_hash"),
     passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true }),
     role: userRoleEnum("role").notNull().default("user"),
+    avatarFileId: text("avatar_file_id"),
     authVersion: integer("auth_version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -19,6 +20,7 @@ export const users = pgTable(
   },
   (t) => [
     uniqueIndex("users_email_unique").on(t.email),
+    index("users_avatar_file_id_idx").on(t.avatarFileId),
     index("users_deleted_at_idx").on(t.deletedAt),
   ],
 );

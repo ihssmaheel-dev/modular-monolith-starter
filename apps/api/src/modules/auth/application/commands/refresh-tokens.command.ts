@@ -48,7 +48,13 @@ export class RefreshTokensCommand {
     return ok({
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatarFileId: user.avatarFileId,
+      },
     });
   }
 }

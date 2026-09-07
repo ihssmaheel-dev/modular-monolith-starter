@@ -11,14 +11,17 @@ import { AnonymizeUserCommand } from "./application/commands/anonymize-user.comm
 import { ResetUserPasswordCommand } from "./application/commands/reset-user-password.command";
 import { SetPasswordResetTokenCommand } from "./application/commands/set-password-reset-token.command";
 import { IncrementAuthVersionCommand } from "./application/commands/increment-auth-version.command";
+import { AttachUserAvatarCommand } from "./application/commands/attach-user-avatar.command";
+import { RemoveUserAvatarCommand } from "./application/commands/remove-user-avatar.command";
 import { UsersRepository } from "./infrastructure/users.repository";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { WelcomeEmailListener } from "./application/listeners/welcome-email.listener";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
+import { FilesModule } from "../files/files.module";
 import { UsersOrpcController } from "./presentation/users.orpc.controller";
 
 @Module({
-  imports: [EventEmitterModule, OutboxModule],
+  imports: [EventEmitterModule, OutboxModule, FilesModule],
   controllers: [UsersController, UsersOrpcController],
   providers: [
     UsersController,
@@ -33,6 +36,8 @@ import { UsersOrpcController } from "./presentation/users.orpc.controller";
     ResetUserPasswordCommand,
     SetPasswordResetTokenCommand,
     IncrementAuthVersionCommand,
+    AttachUserAvatarCommand,
+    RemoveUserAvatarCommand,
     UsersRepository,
     WelcomeEmailListener,
   ],
@@ -48,6 +53,8 @@ import { UsersOrpcController } from "./presentation/users.orpc.controller";
     ResetUserPasswordCommand,
     SetPasswordResetTokenCommand,
     IncrementAuthVersionCommand,
+    AttachUserAvatarCommand,
+    RemoveUserAvatarCommand,
   ],
 })
 export class UsersModule {}

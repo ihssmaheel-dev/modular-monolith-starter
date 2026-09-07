@@ -1,4 +1,5 @@
 import type {
+  AttachAvatarInput,
   CreateUserInput,
   PaginationQuery,
   UpdateUserInput,
@@ -64,5 +65,17 @@ export function createUsersClient(fetchFn: FetchFn, orpc?: OrpcClient) {
       orpc
         ? orpcResponse(() => orpc.users.delete({ id: req.params.id }), 204, EmptyResponseSchema)
         : fetchFn<void>(`/users/${encodeURIComponent(req.params.id)}`, { method: "DELETE" }),
+    attachAvatar: (body: AttachAvatarInput) =>
+      orpc
+        ? orpcResponse(() => orpc.users.attachAvatar(body), 201, UserResponseSchema)
+        : fetchFn<UserResponse>(
+            "/users/me/avatar",
+            { method: "POST", body: JSON.stringify(body) },
+            UserResponseSchema,
+          ),
+    removeAvatar: () =>
+      orpc
+        ? orpcResponse(() => orpc.users.removeAvatar(), 200, UserResponseSchema)
+        : fetchFn<UserResponse>("/users/me/avatar", { method: "DELETE" }, UserResponseSchema),
   };
 }

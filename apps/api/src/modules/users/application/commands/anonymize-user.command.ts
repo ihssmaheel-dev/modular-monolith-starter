@@ -46,6 +46,7 @@ export class AnonymizeUserCommand {
     const updated = await this.repository.updateById(userId, {
       email: anonymizedEmail(userId),
       name: ANONYMIZED_USER_NAME,
+      avatarFileId: null,
       passwordHash: unusableHash,
       passwordResetTokenHash: null,
       passwordResetExpiresAt: null,

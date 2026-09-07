@@ -19,6 +19,7 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
       email: row.email,
       name: row.name,
       role: row.role as "user" | "admin",
+      avatarFileId: row.avatarFileId ?? null,
       authVersion: row.authVersion,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

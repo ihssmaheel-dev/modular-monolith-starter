@@ -138,7 +138,13 @@
     "role": "Rôle attribué",
     "created": "Date d'adhésion",
     "status": "Statut du compte",
-    "totalUsers": "Total des utilisateurs"
+    "totalUsers": "Total des utilisateurs",
+    "avatar": "Photo de profil",
+    "avatarChange": "Changer la photo",
+    "avatarRemove": "Supprimer la photo",
+    "avatarUpdated": "Photo de profil mise à jour",
+    "avatarRemoved": "Photo de profil supprimée",
+    "avatarHint": "JPEG, PNG, GIF ou WebP jusqu’à 5 Mo"
   },
   "settings": {
     "eyebrow": "Préférences et Système",
@@ -259,6 +265,7 @@
       "deleted": "Utilisateur supprimé avec succès",
       "notFound": "Utilisateur non trouvé",
       "emailTaken": "L'e-mail est déjà pris",
+      "invalidAvatar": "L'avatar doit être une image JPEG, PNG, GIF ou WebP de 5 Mo maximum",
       "ownsOrganization": "Transférez ou supprimez la propriété des organisations de cet utilisateur avant de le supprimer"
     }
   },

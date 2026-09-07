@@ -77,4 +77,30 @@ export class UsersOrpcController {
       ),
     );
   }
+
+  @Implement(usersContract.attachAvatar)
+  @Idempotent()
+  @RequirePermission("users:write")
+  attachAvatar(@Req() request: FastifyRequest) {
+    return implement(usersContract.attachAvatar).handler(({ input }) =>
+      invokeOrpc(
+        () => this.usersController.attachAvatar(input, request),
+        this.i18n,
+        request.headers["accept-language"],
+      ),
+    );
+  }
+
+  @Implement(usersContract.removeAvatar)
+  @Idempotent()
+  @RequirePermission("users:write")
+  removeAvatar(@Req() request: FastifyRequest) {
+    return implement(usersContract.removeAvatar).handler(() =>
+      invokeOrpc(
+        () => this.usersController.removeAvatar(request),
+        this.i18n,
+        request.headers["accept-language"],
+      ),
+    );
+  }
 }

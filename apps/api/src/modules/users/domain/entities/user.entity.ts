@@ -6,6 +6,7 @@ export interface UserData {
   email: string;
   name: string;
   role: UserRole;
+  avatarFileId?: string | null;
   authVersion?: number;
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +44,9 @@ export class User {
   get role() {
     return this.data.role;
   }
+  get avatarFileId() {
+    return this.data.avatarFileId ?? null;
+  }
   get authVersion() {
     return this.data.authVersion ?? 0;
   }
@@ -56,6 +60,11 @@ export class User {
   update(fields: { email?: string; name?: string }): void {
     if (fields.email) this.data.email = fields.email;
     if (fields.name) this.data.name = fields.name;
+    this.data.updatedAt = new Date();
+  }
+
+  setAvatar(fileId: string | null): void {
+    this.data.avatarFileId = fileId;
     this.data.updatedAt = new Date();
   }
 

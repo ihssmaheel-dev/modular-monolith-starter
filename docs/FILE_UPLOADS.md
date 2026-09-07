@@ -102,7 +102,11 @@ Add `users.avatar_file_id → files.id`, then in one
 `withResultTransaction`: `linkFile(...)` + `usersRepo.updateById(userId,
 { avatarFileId })`. The `files` row stays the source of truth for bytes;
 the column is a read shortcut. Deleting the file must clear the column in
-the same transaction.
+the same transaction. This is now proven, not hypothetical: see
+`AttachUserAvatarCommand` / `RemoveUserAvatarCommand`
+(`modules/users/application/commands/`) for the reference implementation,
+including image-only gating, single-photo replace, and erasure-safe
+anonymize clearing.
 
 ## Quota scope
 

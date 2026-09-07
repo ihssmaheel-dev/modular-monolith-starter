@@ -86,7 +86,13 @@ describe("RegisterCommand", () => {
       expect(result.value).toEqual({
         accessToken: "access-token",
         refreshToken: "refresh-token",
-        user: { id: "user-123", email: "test@example.com", name: "Test", role: "user" },
+        user: {
+          id: "user-123",
+          email: "test@example.com",
+          name: "Test",
+          role: "user",
+          avatarFileId: null,
+        },
       });
     }
     expect(createUser.execute).toHaveBeenCalledWith(

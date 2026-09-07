@@ -13,14 +13,22 @@ import {
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
-import { Idempotent, RequirePermission, TenantAgnostic, ResponseSchema } from "../../../common";
+import {
+  Idempotent,
+  RequirePermission,
+  TenantAgnostic,
+  requireAuthenticatedUser,
+  ResponseSchema,
+} from "../../../common";
 import { ZodValidationPipe } from "../../../common/pipes/validation.pipe";
 import {
+  type AttachAvatarInput,
   type CreateUserInput,
   type UpdateUserInput,
   type PaginationQuery,
   type UserResponse,
   type UserListResponse,
+  AttachAvatarSchema,
   CreateUserSchema,
   UpdateUserSchema,
   PaginationQuerySchema,
@@ -33,9 +41,12 @@ import { GetUserByIdQuery } from "../application/queries/get-user-by-id.query";
 import { CreateUserCommand } from "../application/commands/create-user.command";
 import { UpdateUserCommand } from "../application/commands/update-user.command";
 import { DeleteUserCommand } from "../application/commands/delete-user.command";
+import { AttachUserAvatarCommand } from "../application/commands/attach-user-avatar.command";
+import { RemoveUserAvatarCommand } from "../application/commands/remove-user-avatar.command";
 import { I18nService } from "../../../infrastructure/i18n/i18n.service";
 import { handleResult } from "../../../common/utils/presentation.utils";
 import { toUserResponse } from "./users.mapper";
+import { AVATAR_ERRORS } from "./users.error-maps";
 
 @Controller("users")
 @TenantAgnostic()
@@ -46,6 +57,8 @@ export class UsersController {
     private readonly createUserCommand: CreateUserCommand,
     private readonly updateUserCommand: UpdateUserCommand,
     private readonly deleteUserCommand: DeleteUserCommand,
+    private readonly attachAvatarCommand: AttachUserAvatarCommand,
+    private readonly removeAvatarCommand: RemoveUserAvatarCommand,
     private readonly i18n: I18nService,
   ) {}
 
@@ -166,5 +179,33 @@ export class UsersController {
       this.i18n,
       lang,
     );
+  }
+
+  @Post("me/avatar")
+  @HttpCode(HttpStatus.CREATED)
+  @Idempotent()
+  @RequirePermission("users:write")
+  @ResponseSchema(UserResponseSchema)
+  async attachAvatar(
+    @Body(new ZodValidationPipe(AttachAvatarSchema)) body: AttachAvatarInput,
+    @Req() req: FastifyRequest,
+  ): Promise<UserResponse> {
+    const lang = req?.headers["accept-language"];
+    const actor = requireAuthenticatedUser(req);
+    const result = await this.attachAvatarCommand.execute(actor, body.fileId);
+    const user = handleResult(result, AVATAR_ERRORS, this.i18n, lang);
+    return toUserResponse(user);
+  }
+
+  @Delete("me/avatar")
+  @Idempotent()
+  @RequirePermission("users:write")
+  @ResponseSchema(UserResponseSchema)
+  async removeAvatar(@Req() req: FastifyRequest): Promise<UserResponse> {
+    const lang = req?.headers["accept-language"];
+    const actor = requireAuthenticatedUser(req);
+    const result = await this.removeAvatarCommand.execute(actor);
+    const user = handleResult(result, AVATAR_ERRORS, this.i18n, lang);
+    return toUserResponse(user);
   }
 }

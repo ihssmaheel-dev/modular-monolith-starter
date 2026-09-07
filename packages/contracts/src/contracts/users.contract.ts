@@ -6,6 +6,7 @@ import {
   UserListResponseSchema,
   UserIdParamSchema,
 } from "../schemas/user.schema";
+import { AttachAvatarSchema } from "../schemas/file.schema";
 import { PaginationQuerySchema } from "../schemas/pagination.schema";
 import { EmptyResponseSchema } from "../schemas/common.schema";
 
@@ -30,4 +31,16 @@ export const usersContract = oc.prefix("/users").router({
     .route({ method: "DELETE", path: "/{id}", summary: "Delete user", successStatus: 204 })
     .input(UserIdParamSchema)
     .output(EmptyResponseSchema),
+  attachAvatar: oc
+    .route({
+      method: "POST",
+      path: "/me/avatar",
+      summary: "Attach my profile avatar",
+      successStatus: 201,
+    })
+    .input(AttachAvatarSchema)
+    .output(UserResponseSchema),
+  removeAvatar: oc
+    .route({ method: "DELETE", path: "/me/avatar", summary: "Remove my profile avatar" })
+    .output(UserResponseSchema),
 });
