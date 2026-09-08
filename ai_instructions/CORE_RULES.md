@@ -24,7 +24,7 @@ Supreme laws of this codebase. These are never negotiable.
 | Frontend Web | TanStack Start 1 (Vite 8 + TanStack Router 1 file-based + TanStack Query 5 + Zustand 5 + react-i18next + date-fns) |
 | UI System | @repo/ui — Tailwind CSS 4 + tw-animate-css + shadcn base-nova + Base UI React 1 + lucide-react + CVA |
 | i18n Sources | @repo/i18n (en/es/fr) — backend I18nService + web react-i18next |
-| Testing | Vitest 4 (api) + Playwright (web) |
+| Testing | Vitest 5 (api + web unit) + Playwright (web e2e) |
 
 **No paid services. No proprietary dependencies. No exceptions.**
 

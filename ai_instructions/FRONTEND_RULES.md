@@ -46,8 +46,14 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 - Use `cn()` from `@repo/ui/lib/utils` for conditional classes and keep design tokens in `packages/ui/src/styles/globals.css`.
 - All user-facing text uses `useTranslation().t()` and keys from `@repo/i18n`; raw API errors are never displayed.
 
-## Shared invariants
+## Testing (web)
 
+- Vitest + Testing Library under `apps/web/vitest.config.ts`; co-located `*.test.{ts,tsx}` (see `TESTING_RULES.md`).
+- Test wrappers live in `src/test/utils.tsx`: `renderWithProviders` by default, `renderWithApp` only when the component needs the router.
+- Forms: test the Zod guard — invalid drafts never call `mutate`; drafts survive background refetches.
+- Components: cover loading/error/empty tri-states and verify error branches offer retry (never a false empty state).
+
+## Shared invariants
 - Never call `fetch` directly from routes or features; use `getApiClient()`. Only `_app.tsx` may call it, for session bootstrap (`auth.me()`).
 - Pagination is mandatory (`page`, `limit`, `total`, `totalPages`) with shared limits from `@repo/contracts`.
 - Mutations send idempotency keys automatically through the API client.

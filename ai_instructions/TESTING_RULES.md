@@ -12,6 +12,7 @@ Test contract for the codebase. Quality without ceremony.
 | `application/` | Unit | Vitest | Use cases, service logic. Mock repository. |
 | `infrastructure/` | Integration | Vitest + real Postgres/Redis (testcontainers or local docker) | Repositories, adapters. Real Postgres/Redis. |
 | `presentation/` + full flows | E2E | Supertest (API), Playwright (web) | API endpoints, user journeys. |
+| `apps/web/src/**` | Unit | Vitest + Testing Library (jsdom) | Query/mutation option builders, lib, stores, hooks, components. Mock `getApiClient()`. |
 
 ---
 
@@ -23,6 +24,14 @@ Test contract for the codebase. Quality without ceremony.
 - Test business rules in isolation.
 - Fast. Should complete in milliseconds.
 - One test file per source file, co-located next to it.
+
+### Unit Tests (web frontend)
+- Run under `apps/web/vitest.config.ts` (jsdom, globals). Never hit the network.
+- Mock `@/lib/api` (`getApiClient`) and external transports (`uploadFile`, `EventSource`).
+- One test file per source file, co-located next to it (`*.test.{ts,tsx}`).
+- Every `src/features/*/*.{queries,mutations}.ts` module has a co-located test (enforced by `pnpm rules:check`).
+- Prefer `renderWithProviders` (Query client + i18n); use `renderWithApp` (memory router) only for components that need `Link`/`useNavigate`.
+- Assert translated output (interpolated strings, never raw keys), loading/error/empty tri-states, disabled-while-pending, and per-status error keys.
 
 ### Integration Tests (infrastructure)
 - Use real PostgreSQL and Redis (via testcontainers or local docker).
