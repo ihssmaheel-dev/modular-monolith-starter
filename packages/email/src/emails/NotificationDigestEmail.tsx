@@ -3,14 +3,14 @@ import { emailTokens } from "../styles/tokens";
 
 export interface DigestEmailItem {
   title: string;
-  detail?: string;
 }
 
-interface NotificationDigestEmailProps {
+export interface NotificationDigestEmailProps {
   preview: string;
   heading: string;
   items: DigestEmailItem[];
   count: number;
+  overflowText: string | null;
   footer: string;
 }
 
@@ -18,7 +18,7 @@ const MAX_DETAILED_ITEMS = 3;
 const MAX_HEADLINE_ITEMS = 10;
 
 /**
- * Tiered digest rendering: 1–3 items show full detail, 4–10 headlines,
+ * Tiered digest rendering: 1–3 items emphasized, 4–10 headlines,
  * 11+ top items plus a count line. One template serves single sends
  * (count = 1) and digests alike.
  */
@@ -27,6 +27,7 @@ export function NotificationDigestEmail({
   heading,
   items,
   count,
+  overflowText,
   footer,
 }: NotificationDigestEmailProps) {
   const detailed = items.slice(0, MAX_DETAILED_ITEMS);
@@ -60,22 +61,13 @@ export function NotificationDigestEmail({
               {heading}
             </Heading>
             {detailed.map((item, index) => (
-              <Container key={`detail-${index}`}>
-                <Text
-                  className="text-[14px] leading-[24px] font-semibold"
-                  style={{ color: emailTokens.light.foreground }}
-                >
-                  {item.title}
-                </Text>
-                {item.detail ? (
-                  <Text
-                    className="text-[14px] leading-[24px]"
-                    style={{ color: emailTokens.light.foreground }}
-                  >
-                    {item.detail}
-                  </Text>
-                ) : null}
-              </Container>
+              <Text
+                key={`detail-${index}`}
+                className="text-[14px] leading-[24px] font-semibold"
+                style={{ color: emailTokens.light.foreground }}
+              >
+                {item.title}
+              </Text>
             ))}
             {headlines.map((item, index) => (
               <Text
@@ -86,12 +78,12 @@ export function NotificationDigestEmail({
                 • {item.title}
               </Text>
             ))}
-            {overflow > 0 ? (
+            {overflow > 0 && overflowText ? (
               <Text
                 className="text-[14px] leading-[24px] font-semibold"
                 style={{ color: emailTokens.light.foreground }}
               >
-                +{overflow} more
+                {overflowText}
               </Text>
             ) : null}
             <Text

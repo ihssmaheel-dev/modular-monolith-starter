@@ -91,15 +91,17 @@ manually, verify those registrations after generation.
 Cross-module work calls another module's command/query or publishes an event; it never imports the
 other module's repository.
 
-## 8b. Notify on meaningful events
+## 8. Notify on meaningful events
 
 Never send email, push, or realtime messages from your module. Dispatch a domain
 event through the transactional outbox, then add a handler in
 `notifications/application/listeners/domain-event-fanout.listener.ts` plus a
 type entry in `NOTIFICATION_TYPES` (`@repo/contracts`) and title strings in
-`packages/i18n`. See `docs/NOTIFICATIONS.md` for the full recipe.
+`packages/i18n`. Declare the event's `tenantId` (or omit it for global events),
+list the channels in `defaultChannels`, and set `digestWindowMinutes: 0` unless
+the type should batch. See `docs/NOTIFICATIONS.md` for the full recipe.
 
-## 8. Add tests and validate
+## 9. Add tests and validate
 
 - Unit-test domain behavior without NestJS or external services.
 - Unit-test commands and queries with mocked repositories.

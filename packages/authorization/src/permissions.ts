@@ -34,7 +34,6 @@ export const Permissions = {
   // Notifications
   NOTIFICATIONS_READ: "notifications:read",
   NOTIFICATIONS_WRITE: "notifications:write",
-  NOTIFICATIONS_MANAGE: "notifications:manage",
   // Billing & Enterprise
   BILLING_READ: "billing:read",
   BILLING_MANAGE: "billing:manage",
@@ -100,7 +99,6 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_REQUESTS_READ,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
-    Permissions.NOTIFICATIONS_MANAGE,
   ],
   member: [
     Permissions.ORGANIZATIONS_READ,
@@ -129,6 +127,7 @@ export function matchesPermission(userPerm: string, requiredPerm: string): boole
   }
   if (userPerm === "notes:write" && requiredPerm.startsWith("notes:")) return true;
   if (userPerm === "files:write" && requiredPerm.startsWith("files:")) return true;
+  if (userPerm === "notifications:write" && requiredPerm.startsWith("notifications:")) return true;
   if (
     userPerm === "team:manage" &&
     (requiredPerm.startsWith("team:") ||

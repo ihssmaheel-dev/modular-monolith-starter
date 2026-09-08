@@ -403,6 +403,7 @@
     "digestTitle": "Vous avez {{count}} nouveautés",
     "digestHeading": "Vos nouveautés",
     "digestFooter": "Gérez vos préférences dans Réglages à tout moment.",
+    "digestMore": "+{{count}} autres",
     "types": {
       "userWelcome": "Bienvenue, {{name}} !",
       "invitationReceived": "{{organization}} vous a invité à collaborer",

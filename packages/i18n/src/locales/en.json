@@ -404,6 +404,7 @@
     "digestTitle": "You have {{count}} new updates",
     "digestHeading": "Your updates",
     "digestFooter": "Manage notification preferences anytime in Settings.",
+    "digestMore": "+{{count}} more",
     "types": {
       "userWelcome": "Welcome, {{name}}!",
       "invitationReceived": "{{organization}} invited you to collaborate",

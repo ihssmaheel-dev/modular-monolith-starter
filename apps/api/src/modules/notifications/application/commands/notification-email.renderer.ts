@@ -19,12 +19,16 @@ export async function renderNotificationEmail(input: {
   const renderedItems = input.items.map((item) => ({
     title: input.translate(item.titleKey, item.titleParams),
   }));
+  const shown = Math.min(renderedItems.length, 10);
+  const overflow = input.count - shown;
   return render(
     React.createElement(NotificationDigestEmail, {
       preview: input.subject,
       heading: input.translate("notifications.digestHeading", { count: input.count }),
       items: renderedItems,
       count: input.count,
+      overflowText:
+        overflow > 0 ? input.translate("notifications.digestMore", { count: overflow }) : null,
       footer: input.translate("notifications.digestFooter"),
     }),
   );

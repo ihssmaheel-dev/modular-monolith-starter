@@ -9,20 +9,19 @@ send email, push, or realtime messages directly.
 Feature command → outbox.dispatch("<domain>.<event>")
   → OutboxEventWorker → DomainEventFanoutListener
   → SendNotificationCommand (THE single entry point)
-    1. persist center row (notifications table)
-    2. load preferences (seeded defaults on first use)
-    3. critical or realtime cadence → deliver now on enabled channels
-       else batch-on-write into (user, type, entity) window
-    4. transactional outbox event (notification.created / digest.ready)
+    1. validate recipient + resolve preferences (seeded defaults on first use)
+    2. persist center row + outbox event in one transaction
+       (notification.created now, digest.ready when its window closes)
+    3. after commit: deliver on enabled channels (realtime, email, push)
 ```
 
 ## Channels (ports, swappable)
 
-| Channel | Transport                                                                   | Notes                                                                                          |
-| ------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| In-app  | `RealtimeService.sendToUser` (Redis stream → WS/SSE)                        | Live badge + feed invalidation; works offline-first via center rows                            |
-| Email   | `EmailService.send` (circuit breaker + bulkhead)                            | `NotificationDigestEmail` tiered rendering (1–3 detail, 4–10 headlines, 11+ count)             |
-| Push    | `PushDriver` port → `ExpoPushDriver` (`PUSH_PROVIDER=expo`, default `none`) | Count-only payloads; dead tokens pruned inline; swap to FCM-direct without touching call sites |
+| Channel | Transport                                                                   | Notes                                                                                                                              |
+| ------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| In-app  | `RealtimeService.sendToUser` (Redis stream → WS/SSE)                        | Live badge + feed invalidation; works offline-first via center rows                                                                |
+| Email   | `EmailService.send` (circuit breaker + per-tenant bulkhead)                 | `NotificationDigestEmail` tiered rendering (1–3 detail, 4–10 headlines, 11+ count)                                                 |
+| Push    | `PushDriver` port → `ExpoPushDriver` (`PUSH_PROVIDER=expo`, default `none`) | Title/body + `{userId, tenantId}` data; receipts polled, dead tokens pruned inline; swap to FCM-direct without touching call sites |
 
 Push titles render in the API default locale for v1; per-user locale is a
 follow-up requiring a stored locale on users.
@@ -42,8 +41,9 @@ in code.
 
 ## Digest rules
 
-- Batch-on-write windows keyed `(userId, type, entityId|none)`; atomic claim via
-  `updateOne({id, status: open})` so concurrent workers never double-deliver.
+- Batch-on-write windows keyed `(userId, type, entityId|none)`; work happens
+  first, then an atomic `open → delivered` claim, and a replica that loses the
+  claim deletes its duplicate row — exactly one visible digest row.
 - One digest = one center row + one email + one count-only push. Items capped at
   `NOTIFICATION_DIGEST_MAX_ITEMS` (retains latest).
 - `DigestWorker` runs every minute (`PROCESS_ROLE !== api`); empty windows close
@@ -74,9 +74,12 @@ inline during fan-out.
 
 ## Privacy & ops
 
-- Erasure: `PurgeUserNotificationsCommand` (account) and `purgeTenant`
-  (organization) are called by the privacy erasure flow; export manifest
-  includes preferences.
+- Erasure: `PurgeUserNotificationsCommand` (account, also called at grace
+  fulfillment) and `purgeTenant` (organization; preferences and device tokens
+  are account-scoped and survive org erasure by design); export manifest
+  includes preferences, inbox rows, device manifests, and batch manifests.
+- RLS: all four tables enforce `subject_isolation_*` policies; repositories
+  carry `subject-scoped:` markers instead of tenant scoping.
 - Metrics: `notifications_digest_delivered_total`, existing outbox/email gauges.
 - Env: `PUSH_PROVIDER=none|expo`, `EXPO_ACCESS_TOKEN?`, `NOTIFICATION_DIGEST_MAX_ITEMS`.
 
