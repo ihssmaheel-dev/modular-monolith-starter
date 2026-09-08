@@ -181,7 +181,7 @@ The web client (`apps/web`, TanStack Start) consumes the same schemas/contracts 
 
 Unified **RBAC + ReBAC + ABAC** engine:
 
-- **Action Vocabulary**: Granular permissions (e.g., `notes:create`, `team:invite`, `billing:manage`).
+- **Action Vocabulary**: Granular permissions (e.g., `notes:create`, `team:invite`, `privacy:erase:self`).
 - **Relationship-Based Access Control**: Resource ownership (`resource.ownerId === principal.id`).
 - **Attribute-Based Access Control**: Dynamic policy predicates (tenant scoping, department matching).
 - **Backend Protection**: Controller `@RequirePermission('notes:create')` and application `AuthorizationService.check(...)`.

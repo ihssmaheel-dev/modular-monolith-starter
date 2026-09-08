@@ -42,7 +42,7 @@ describe("Unified Authorization Engine (RBAC + ReBAC + ABAC)", () => {
   it("1. Superadmin bypass: admin role allows any action", () => {
     const decision = evaluateAuthorization({
       principal: adminUser,
-      action: "billing:manage",
+      action: "team:manage",
       resource: sampleNote,
     });
 
@@ -136,7 +136,7 @@ describe("Unified Authorization Engine (RBAC + ReBAC + ABAC)", () => {
   it("7. Default DENY: denies unauthorized actions", () => {
     const decision = evaluateAuthorization({
       principal: bob,
-      action: "billing:manage",
+      action: "team:manage",
       resource: sampleNote,
     });
 

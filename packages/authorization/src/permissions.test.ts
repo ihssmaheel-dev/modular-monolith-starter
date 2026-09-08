@@ -10,7 +10,7 @@ describe("Permissions Engine", () => {
 
     it("matches global wildcard * and admin", () => {
       expect(matchesPermission("*", "notes:create")).toBe(true);
-      expect(matchesPermission("admin", "billing:manage")).toBe(true);
+      expect(matchesPermission("admin", "team:manage")).toBe(true);
     });
 
     it("matches namespace wildcard e.g. notes:*", () => {
@@ -36,7 +36,7 @@ describe("Permissions Engine", () => {
 
     it("evaluates mode any", () => {
       expect(hasPermission(userPerms, ["notes:delete", "notes:read"], "any")).toBe(true);
-      expect(hasPermission(userPerms, ["billing:manage", "users:delete"], "any")).toBe(false);
+      expect(hasPermission(userPerms, ["team:manage", "users:delete"], "any")).toBe(false);
     });
 
     it("returns true for empty required list", () => {
@@ -48,20 +48,20 @@ describe("Permissions Engine", () => {
     it("resolves admin role permissions", () => {
       const perms = resolveUserPermissions("admin");
       expect(perms).toContain(Permissions.USERS_DELETE);
-      expect(perms).toContain(Permissions.BILLING_MANAGE);
+      expect(perms).toContain(Permissions.TEAM_MANAGE);
     });
 
     it("resolves tenant member permissions", () => {
       const perms = resolveUserPermissions("user", "member");
       expect(perms).toContain(Permissions.NOTES_CREATE);
       expect(perms).toContain(Permissions.TEAM_READ);
-      expect(perms).not.toContain(Permissions.BILLING_MANAGE);
+      expect(perms).not.toContain(Permissions.TEAM_MANAGE);
     });
 
     it("resolves tenant admin permissions", () => {
       const perms = resolveUserPermissions("user", "admin");
       expect(perms).toContain(Permissions.TEAM_INVITE);
-      expect(perms).toContain(Permissions.BILLING_MANAGE);
+      expect(perms).toContain(Permissions.TEAM_MANAGE);
     });
   });
 });

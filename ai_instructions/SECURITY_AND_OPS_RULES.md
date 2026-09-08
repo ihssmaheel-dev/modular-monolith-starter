@@ -69,7 +69,7 @@ export const env = loadEnv();
 
 ### Authorization (Fine-Grained Authorization / FGA)
 - **Hybrid FGA Engine**: Enforce access via unified **RBAC + ReBAC + ABAC** evaluation.
-- **Action Vocabulary**: Use explicit permission action strings (`notes:create`, `files:upload`, `team:invite`, `billing:manage`).
+- **Action Vocabulary**: Use explicit permission action strings (`notes:create`, `files:upload`, `team:invite`, `privacy:erase:self`).
 - **Endpoint Fast-Guard**: Protect HTTP controllers with `@RequirePermission('...')` to reject unauthorized requests at the presentation boundary.
 - **Application & Domain Protection**: In CQRS command/query handlers or domain policies, use `AuthorizationService.check({ principal, action, resource, context })` (or `can(...)` for booleans, `assert(...)` to throw `ForbiddenException`), or the `canAccessResource()` helper in `apps/api/src/common/utils/resource-authorization.ts` for owner-aware checks.
 - **ReBAC & Ownership**: Resource ownership (`resource.ownerId === principal.id`) grants full author access within the tenant boundary.

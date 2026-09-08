@@ -79,7 +79,7 @@ describe("PermissionsGuard", () => {
     const reflector = {
       getAllAndOverride: vi
         .fn()
-        .mockReturnValue({ permissions: [Permissions.BILLING_MANAGE], mode: "all" }),
+        .mockReturnValue({ permissions: [Permissions.TEAM_MANAGE], mode: "all" }),
     } as unknown as Reflector;
     const guard = new PermissionsGuard(reflector, new AuthorizationService());
     const ctx = createMockContext({ role: "user" }, { role: "admin" });

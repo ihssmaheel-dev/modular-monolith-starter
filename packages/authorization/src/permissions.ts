@@ -34,15 +34,6 @@ export const Permissions = {
   // Notifications
   NOTIFICATIONS_READ: "notifications:read",
   NOTIFICATIONS_WRITE: "notifications:write",
-  // Billing & Enterprise
-  BILLING_READ: "billing:read",
-  BILLING_MANAGE: "billing:manage",
-  AUDIT_READ: "audit:read",
-  SETTINGS_READ: "settings:read",
-  SETTINGS_MANAGE: "settings:manage",
-  // Orders
-  ORDERS_READ: "orders:read",
-  ORDERS_WRITE: "orders:write",
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
@@ -88,11 +79,6 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.FILES_UPLOAD,
     Permissions.FILES_DELETE,
     Permissions.FILES_WRITE,
-    Permissions.BILLING_READ,
-    Permissions.BILLING_MANAGE,
-    Permissions.AUDIT_READ,
-    Permissions.SETTINGS_READ,
-    Permissions.SETTINGS_MANAGE,
     Permissions.PRIVACY_EXPORT_SELF,
     Permissions.PRIVACY_ERASE_SELF,
     Permissions.PRIVACY_ERASE_TENANT,
