@@ -1,8 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type { PreferenceItem } from "@repo/contracts";
+import { toast } from "@repo/ui/components/ui/toast";
 import { getApiClient } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useMarkReadMutation() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -11,25 +15,29 @@ export function useMarkReadMutation() {
       return res.body;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() });
     },
+    onError: () => toast.add({ title: t("api.notifications.notFound"), type: "error" } as never),
   });
 }
 
 export function useMarkAllReadMutation() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
       const res = await getApiClient().notifications.markAllRead();
-      if (res.status !== 200) throw new Error("api.notifications.notFound");
+      if (res.status !== 200) throw new Error("api.notifications.fetchFailed");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() });
     },
+    onError: () => toast.add({ title: t("api.notifications.fetchFailed"), type: "error" } as never),
   });
 }
 
 export function useUpdatePreferencesMutation() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (preferences: PreferenceItem[]) => {
@@ -38,21 +46,9 @@ export function useUpdatePreferencesMutation() {
       return res.body.preferences;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.preferences() });
     },
-  });
-}
-
-export function useRegisterDeviceMutation() {
-  return useMutation({
-    mutationFn: async (input: { platform: "ios" | "android" | "web"; token: string }) => {
-      const res = await getApiClient().notifications.registerDevice({
-        platform: input.platform,
-        provider: "expo",
-        token: input.token,
-      });
-      if (res.status !== 201) throw new Error("api.notifications.deviceInvalid");
-      return res.body;
-    },
+    onError: () =>
+      toast.add({ title: t("api.notifications.preferenceInvalid"), type: "error" } as never),
   });
 }

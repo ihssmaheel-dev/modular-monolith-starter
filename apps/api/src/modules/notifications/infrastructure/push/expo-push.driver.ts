@@ -60,9 +60,7 @@ export class ExpoPushDriver implements PushDriver {
     const receiptOwners = new Map<string, number>();
     await this.sendChunks(expo, sendable, results, receiptOwners);
     await this.checkReceipts(expo, receiptOwners, results);
-    return results.map(
-      (result) => result ?? { status: "failed", reason: "PUSH_REQUEST_FAILED" },
-    );
+    return results.map((result) => result ?? { status: "failed", reason: "PUSH_REQUEST_FAILED" });
   }
 
   private async sendChunks(

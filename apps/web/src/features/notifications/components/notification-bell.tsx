@@ -13,8 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
 import { FRONTEND_ROUTES } from "@repo/contracts";
+import { formatDateTime } from "@/lib/format";
 import { notificationsListQuery, unreadCountQuery } from "../notifications.queries";
 import { useMarkAllReadMutation } from "../notifications.mutations";
+
+const MAX_BADGE = 99;
 
 export function NotificationBell() {
   const { t } = useTranslation();
@@ -22,6 +25,7 @@ export function NotificationBell() {
   const recentQuery = useQuery(notificationsListQuery(1, 5));
   const markAllRead = useMarkAllReadMutation();
   const count = countQuery.data ?? 0;
+  const items = recentQuery.data?.items ?? [];
 
   return (
     <DropdownMenu>
@@ -32,26 +36,27 @@ export function NotificationBell() {
             size="icon"
             aria-label={t("notifications.title")}
             className="relative"
-          />
-        }
-      >
-        <Bell className="size-4" />
-        {count > 0 && (
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px]"
           >
-            {count > 99 ? "99+" : count}
-          </Badge>
-        )}
-      </DropdownMenuTrigger>
+            <Bell className="size-4" />
+            {count > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px]"
+              >
+                {count > MAX_BADGE ? `${MAX_BADGE}+` : count}
+              </Badge>
+            )}
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>{t("notifications.title")}</span>
           {count > 0 && (
             <button
               type="button"
-              className="text-xs font-normal text-primary hover:underline"
+              className="text-xs font-normal text-primary hover:underline disabled:opacity-50"
+              disabled={markAllRead.isPending}
               onClick={() => markAllRead.mutate()}
             >
               {t("notifications.markAllRead")}
@@ -59,24 +64,36 @@ export function NotificationBell() {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {(recentQuery.data?.items ?? []).slice(0, 5).map((item) => (
-          <DropdownMenuItem key={item.id} className="flex-col items-start gap-1">
-            <span className="text-sm font-medium">{t(item.titleKey)}</span>
-            <span className="text-xs text-muted-foreground">
-              {new Date(item.createdAt).toLocaleString()}
-            </span>
-          </DropdownMenuItem>
-        ))}
-        {(recentQuery.data?.items.length ?? 0) === 0 && (
+        {recentQuery.isLoading ? (
+          <div className="h-20 animate-pulse rounded-lg bg-muted" />
+        ) : recentQuery.isError ? (
+          <DropdownMenuLabel className="font-normal text-destructive">
+            {t("api.notifications.fetchFailed")}{" "}
+            <button type="button" className="underline" onClick={() => recentQuery.refetch()}>
+              {t("common.retry")}
+            </button>
+          </DropdownMenuLabel>
+        ) : items.length === 0 ? (
           <DropdownMenuLabel className="font-normal text-muted-foreground">
             {t("notifications.noNotifications")}
           </DropdownMenuLabel>
+        ) : (
+          items.map((item) => (
+            <DropdownMenuItem key={item.id} className="flex-col items-start gap-1">
+              <span className="text-sm font-medium">
+                {t(item.titleKey, (item.titleParams as Record<string, string> | null) ?? {})}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatDateTime(item.createdAt)}
+              </span>
+            </DropdownMenuItem>
+          ))
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="justify-center">
-          <Link to={FRONTEND_ROUTES.notifications} className="text-sm text-primary">
+        <DropdownMenuItem render={<Link to={FRONTEND_ROUTES.notifications} />}>
+          <span className="w-full text-center text-sm text-primary">
             {t("notifications.viewAll")}
-          </Link>
+          </span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

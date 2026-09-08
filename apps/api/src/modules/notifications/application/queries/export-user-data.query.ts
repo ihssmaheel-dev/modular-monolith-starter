@@ -1,10 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
-import type {
-  ExportedBatch,
-  ExportedDevice,
-  ExportedNotification,
-} from "@repo/contracts";
+import type { ExportedBatch, ExportedDevice, ExportedNotification } from "@repo/contracts";
 import { NotificationsRepository } from "../../infrastructure/notifications.repository";
 import { DeviceTokensRepository } from "../../infrastructure/device-tokens.repository";
 import { BatchesRepository } from "../../infrastructure/batches.repository";

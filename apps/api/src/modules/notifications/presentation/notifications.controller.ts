@@ -76,7 +76,12 @@ export class NotificationsController {
       Number(query.page ?? 1),
       Number(query.limit ?? 20),
     );
-    const page = handleResult(result, NOTIFICATION_ERRORS, this.i18n, req?.headers["accept-language"]);
+    const page = handleResult(
+      result,
+      NOTIFICATION_ERRORS,
+      this.i18n,
+      req?.headers["accept-language"],
+    );
     return {
       items: page.items.map(toNotificationResponse),
       total: page.total,

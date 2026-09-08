@@ -9,15 +9,18 @@ import {
   useMarkAllReadMutation,
   useMarkReadMutation,
 } from "@/features/notifications/notifications.mutations";
+import { formatDateTime } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
+const PAGE_LIMIT = 20;
 
 export default function Notifications() {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const colors = mobileTokens[resolvedTheme];
   const [page, setPage] = useState(1);
-  const feedQuery = useQuery({ ...notificationsListQuery(page, 20) });
+  const feedQuery = useQuery({ ...notificationsListQuery(page, PAGE_LIMIT) });
   const markRead = useMarkReadMutation();
   const markAllRead = useMarkAllReadMutation();
 
@@ -38,21 +41,30 @@ export default function Notifications() {
             <Text className="text-lg font-bold text-foreground">
               {t("notifications.title")} ({feedQuery.data?.total ?? "—"})
             </Text>
-            <Button variant="outline" size="sm" onPress={() => markAllRead.mutate()}>
+            <Button
+              variant="outline"
+              size="sm"
+              loading={markAllRead.isPending}
+              disabled={markAllRead.isPending}
+              onPress={() => markAllRead.mutate()}
+            >
               {t("notifications.markAllRead")}
             </Button>
           </View>
         }
         renderItem={({ item }) => (
-          <Pressable onPress={() => !item.readAt && markRead.mutate(item.id)}>
+          <Pressable
+            disabled={markRead.isPending}
+            onPress={() => !item.readAt && markRead.mutate(item.id)}
+          >
             <Card>
-              <View className="flex-row items-center justify-between gap-3">
+              <View className="flex-row items-center gap-3">
                 <View className="min-w-0 flex-1">
                   <Text className="font-medium text-foreground" numberOfLines={2}>
-                    {t(item.titleKey)}
+                    {t(item.titleKey, (item.titleParams as Record<string, string> | null) ?? {})}
                   </Text>
                   <Text className="text-xs text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleString()}
+                    {formatDateTime(item.createdAt)}
                   </Text>
                 </View>
                 {!item.readAt && (
@@ -67,6 +79,15 @@ export default function Notifications() {
         ListEmptyComponent={
           feedQuery.isLoading ? (
             <ActivityIndicator className="mt-10" />
+          ) : feedQuery.isError ? (
+            <View className="mt-10 items-center gap-3">
+              <Text className="text-center text-sm text-destructive">
+                {t("api.notifications.fetchFailed")}
+              </Text>
+              <Button variant="outline" size="sm" onPress={() => feedQuery.refetch()}>
+                {t("common.retry")}
+              </Button>
+            </View>
           ) : (
             <Text className="mt-10 text-center text-sm text-muted-foreground">
               {t("notifications.noNotifications")}

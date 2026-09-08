@@ -54,7 +54,7 @@ export class UpdatePreferencesCommand {
     return result.mapErr((error) =>
       error.type === "TRANSACTION_FAILED"
         ? error
-        : ({ type: "PREFERENCE_INVALID", reason: "persist failed" }) as const,
+        : ({ type: "PREFERENCE_INVALID", reason: "persist failed" } as const),
     );
   }
 }

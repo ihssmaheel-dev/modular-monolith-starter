@@ -79,7 +79,9 @@ export class SendNotificationCommand {
     input: SendNotificationInput,
   ): Promise<Result<Notification, NotificationError | TransactionError>> {
     const operation = () => this.persist(input);
-    const result = this.database ? await this.database.withResultTransaction(operation) : await operation();
+    const result = this.database
+      ? await this.database.withResultTransaction(operation)
+      : await operation();
     if (result.isErr()) return err(result.error);
     // Channel delivery runs after commit: providers are slow, lossy, and must
     // never roll back the persisted row. deliver() catches per channel.
@@ -90,7 +92,10 @@ export class SendNotificationCommand {
   private async persist(
     input: SendNotificationInput,
   ): Promise<
-    Result<{ notification: Notification; wanted: NotificationChannel[] }, NotificationError | TransactionError>
+    Result<
+      { notification: Notification; wanted: NotificationChannel[] },
+      NotificationError | TransactionError
+    >
   > {
     const definition = getNotificationType(input.type);
     if (!definition) return err({ type: "UNKNOWN_NOTIFICATION_TYPE", key: input.type });
@@ -178,10 +183,7 @@ export class SendNotificationCommand {
     return ok(created.value);
   }
 
-  private async dispatchTenantScoped<T>(
-    tenantId: string,
-    fn: () => Promise<T>,
-  ): Promise<T> {
+  private async dispatchTenantScoped<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
     if (this.tenantContext) {
       return this.tenantContext.run({ mode: "multi", tenantId }, fn);
     }
@@ -263,7 +265,12 @@ export class SendNotificationCommand {
         } else if (channel === "email") {
           await this.deliverEmail(data.userId, data.titleKey, data.titleParams ?? undefined);
         } else if (channel === "push") {
-          await this.deliverPush(data.userId, data.titleKey, data.titleParams ?? undefined, tenantId);
+          await this.deliverPush(
+            data.userId,
+            data.titleKey,
+            data.titleParams ?? undefined,
+            tenantId,
+          );
         }
       } catch (error) {
         this.logger.error({ error, channel, notificationId: data.id }, "Channel delivery failed");
@@ -331,8 +338,6 @@ export class SendNotificationCommand {
 
 function isUniqueViolation(error: unknown): boolean {
   return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === "23505"
+    typeof error === "object" && error !== null && (error as { code?: unknown }).code === "23505"
   );
 }

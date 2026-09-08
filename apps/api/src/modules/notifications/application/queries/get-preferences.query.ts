@@ -13,7 +13,9 @@ export class GetPreferencesQuery {
     @Optional() private readonly database?: DatabaseService,
   ) {}
 
-  async execute(userId: string): Promise<Result<PreferenceItem[], NotificationError | TransactionError>> {
+  async execute(
+    userId: string,
+  ): Promise<Result<PreferenceItem[], NotificationError | TransactionError>> {
     const operation = async (): Promise<Result<PreferenceItem[], NotificationError>> => {
       const existing = await this.preferences.findByUser(userId);
       if (existing.isOk() && existing.value.length > 0) {
@@ -45,7 +47,9 @@ export class GetPreferencesQuery {
     if (!this.database) return operation();
     const result = await this.database.withResultTransaction(operation);
     return result.mapErr((error) =>
-      error.type === "TRANSACTION_FAILED" ? error : ({ type: "NOTIFICATION_FETCH_FAILED" }) as const,
+      error.type === "TRANSACTION_FAILED"
+        ? error
+        : ({ type: "NOTIFICATION_FETCH_FAILED" } as const),
     );
   }
 }

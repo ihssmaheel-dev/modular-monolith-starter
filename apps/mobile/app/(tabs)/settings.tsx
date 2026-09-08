@@ -4,6 +4,9 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SUPPORTED_LOCALES, type Locale } from "@repo/i18n";
 import { getApiClient } from "@/lib/api";
+import { getQueryClient } from "@/lib/query-client";
+import { unregisterPushDevice } from "@/lib/push";
+import { useTenantStore } from "@/stores/tenant.store";
 import { applyLocale } from "@/lib/i18n";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLocaleStore } from "@/stores/locale.store";
@@ -11,9 +14,7 @@ import { useThemeStore, type Theme } from "@/stores/theme.store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
-import { preferencesQuery } from "@/features/notifications/notifications.queries";
-import { useUpdatePreferencesMutation } from "@/features/notifications/notifications.mutations";
+import { PreferencesCard } from "@/features/notifications/components/preferences-card";
 import {
   useRequestExportMutation,
   useEraseAccountMutation,
@@ -36,24 +37,21 @@ export default function Settings() {
     try {
       await getApiClient().auth.logout();
     } finally {
+      await unregisterPushDevice();
+      getQueryClient().clear();
+      useTenantStore.getState().setTenantId(null);
       clearAuth();
       router.replace("/(auth)/login");
     }
   };
 
   const [erasePassword, setErasePassword] = useState("");
-  const prefsQuery = useQuery(preferencesQuery());
-  const prefsMutation = useUpdatePreferencesMutation();
-  const togglePref = (category: string, channel: "inApp" | "email" | "push") => {
-    const current = prefsQuery.data ?? [];
-    const next = current.map((row) =>
-      row.category === category ? { ...row, [channel]: !row[channel] } : row,
-    );
-    prefsMutation.mutate(next);
-  };
   const exportMutation = useRequestExportMutation();
   const eraseMutation = useEraseAccountMutation({
     onSuccess: () => {
+      void unregisterPushDevice();
+      getQueryClient().clear();
+      useTenantStore.getState().setTenantId(null);
       clearAuth();
       router.replace("/(auth)/login");
     },
@@ -132,36 +130,7 @@ export default function Settings() {
         </View>
       </Card>
 
-      <Card>
-        <Text className="text-base font-bold text-foreground">
-          {t("notifications.preferencesTitle")}
-        </Text>
-        <Text className="mt-1 text-xs text-muted-foreground">
-          {t("notifications.preferencesDescription")}
-        </Text>
-        <View className="mt-3 gap-3">
-          {(prefsQuery.data ?? []).map((row) => (
-            <View key={row.category}>
-              <Text className="text-sm font-medium text-foreground">{row.category}</Text>
-              <View className="mt-1 flex-row gap-2">
-                {(["inApp", "email", "push"] as const).map((channel) => (
-                  <Pressable
-                    key={channel}
-                    onPress={() => togglePref(row.category, channel)}
-                    className={`rounded-lg border px-3 py-1.5 ${row[channel] ? "bg-primary border-primary" : "border-border"}`}
-                  >
-                    <Text
-                      className={`text-xs font-medium ${row[channel] ? "text-primary-foreground" : "text-foreground"}`}
-                    >
-                      {channel}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          ))}
-        </View>
-      </Card>
+      <PreferencesCard />
 
       <Card>
         <Text className="text-base font-bold text-foreground">{t("privacy.title")}</Text>

@@ -8,6 +8,7 @@ import { DataTablePagination } from "@repo/ui/components/composed/data-table";
 import { EmptyState } from "@repo/ui/components/composed/empty-state";
 import { PageHeader } from "@repo/ui/components/composed/page-header";
 import { cn } from "@repo/ui/lib/utils";
+import { formatDateTime } from "@/lib/format";
 import { notificationsListQuery } from "../notifications.queries";
 import { useMarkAllReadMutation, useMarkReadMutation } from "../notifications.mutations";
 
@@ -45,6 +46,13 @@ export function NotificationsFeed({
         <CardContent className="space-y-2 pt-6">
           {feedQuery.isLoading ? (
             <div className="h-40 animate-pulse rounded-lg bg-muted" />
+          ) : feedQuery.isError ? (
+            <div className="space-y-3 rounded-lg border border-destructive/30 p-6 text-center">
+              <p className="text-sm text-destructive">{t("api.notifications.fetchFailed")}</p>
+              <Button variant="outline" size="sm" onClick={() => feedQuery.refetch()}>
+                {t("common.retry")}
+              </Button>
+            </div>
           ) : items.length === 0 ? (
             <EmptyState
               icon={<BellRing className="size-8" />}
@@ -57,16 +65,19 @@ export function NotificationsFeed({
                 <button
                   key={item.id}
                   type="button"
+                  disabled={markRead.isPending}
                   onClick={() => !item.readAt && markRead.mutate(item.id)}
                   className={cn(
-                    "flex w-full items-start justify-between gap-3 rounded-lg border p-3 text-left",
+                    "flex w-full items-start justify-between gap-3 rounded-lg border p-3 text-left disabled:opacity-70",
                     !item.readAt && "border-primary/40 bg-muted/40",
                   )}
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{t(item.titleKey)}</p>
+                    <p className="truncate text-sm font-medium">
+                      {t(item.titleKey, (item.titleParams as Record<string, string> | null) ?? {})}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(item.createdAt).toLocaleString()}
+                      {formatDateTime(item.createdAt)}
                     </p>
                   </div>
                   {!item.readAt && <Badge variant="secondary">{t("notifications.unread")}</Badge>}

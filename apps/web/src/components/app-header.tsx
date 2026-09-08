@@ -15,7 +15,9 @@ import {
 } from "@repo/ui/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@repo/ui/components/ui/sidebar";
 import { useAuthStore } from "@/stores/auth.store";
+import { useTenantStore } from "@/stores/tenant.store";
 import { getApiClient } from "@/lib/api";
+import { getQueryClient } from "@/lib/query-client";
 import { useTheme } from "@/components/theme-provider";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
@@ -27,6 +29,7 @@ export function AppHeader() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const clearTenant = useTenantStore((state) => state.setTenantId);
   const { theme, setTheme } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
   const initials = user?.name?.slice(0, 2).toUpperCase() ?? "U";
@@ -36,6 +39,8 @@ export function AppHeader() {
     try {
       await getApiClient().auth.logout();
     } finally {
+      getQueryClient().clear();
+      clearTenant(null);
       clearAuth();
       navigate({ to: FRONTEND_ROUTES.auth });
       setSigningOut(false);
@@ -53,7 +58,11 @@ export function AppHeader() {
       ? t("notes.newNote")
       : location.pathname.startsWith("/notes")
         ? t("notes.title")
-        : t("dashboard.title");
+        : location.pathname.startsWith("/notifications")
+          ? t("notifications.title")
+          : location.pathname.startsWith("/settings")
+            ? t("settings.title")
+            : t("dashboard.title");
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b bg-background/90 px-4 backdrop-blur sm:px-6">

@@ -3,10 +3,10 @@ import type { ZodType } from "zod";
 import type { ApiClientOptions, ApiResponse } from "./types";
 import {
   createIdempotencyKey,
+  createRefreshCoordinator,
   getAuthorizationHeader,
   getTransferHeaders,
   readCookie,
-  requestRefresh,
 } from "./utils";
 import {
   createAuthClient,
@@ -23,8 +23,7 @@ import { invalidResponseError, parseError } from "./response";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export function createApiClient(baseUrl: string, options: ApiClientOptions = {}) {
-  let refreshPromise: Promise<unknown> = Promise.resolve(null);
-  let isRefreshing = false;
+  const coordinator = createRefreshCoordinator(baseUrl, options);
 
   const authenticatedFetch = async <T>(
     path: string,
@@ -58,15 +57,9 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     const normalizedPath = path.replace(/^\/+/, "");
     const canRefresh = normalizedPath === "auth/me" || !normalizedPath.startsWith("auth/");
     if (res.status === 401 && canRefresh) {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        refreshPromise = requestRefresh(baseUrl, options).finally(() => {
-          isRefreshing = false;
-        });
-      }
-      const refreshed = await refreshPromise;
+      const refreshed = await coordinator.refresh();
       if (!refreshed) {
-        options.onAuthFailure?.();
+        coordinator.handleFailure();
         let body: unknown = null;
         try {
           body = await res.json();
@@ -76,10 +69,8 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
         return { status: res.status, body: body as T, error: parseError(body) };
       }
 
-      options.onAuthRefreshed?.(
-        refreshed as Parameters<NonNullable<typeof options.onAuthRefreshed>>[0],
-      );
-      headers.authorization = `Bearer ${(refreshed as { accessToken: string }).accessToken}`;
+      coordinator.handleSuccess(refreshed);
+      headers.authorization = `Bearer ${refreshed.accessToken}`;
       res = await fetch(url, { ...init, headers, credentials: "include" });
     }
 
@@ -111,7 +102,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     };
   };
 
-  const orpcClient = createOrpcClient(baseUrl, options);
+  const orpcClient = createOrpcClient(baseUrl, options, coordinator);
   const orpc = createTanstackQueryUtils(orpcClient);
 
   return {

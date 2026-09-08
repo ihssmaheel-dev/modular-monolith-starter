@@ -1,8 +1,13 @@
 import { createORPCClient } from "@orpc/client";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
-import { ApiErrorEnvelopeSchema, apiContract, type AuthResponse } from "@repo/contracts";
+import { ApiErrorEnvelopeSchema, apiContract } from "@repo/contracts";
 import type { ContractRouterClient } from "@orpc/contract";
-import { createIdempotencyKey, readCookie, requestRefresh } from "./utils";
+import {
+  createIdempotencyKey,
+  createRefreshCoordinator,
+  readCookie,
+  type RefreshCoordinator,
+} from "./utils";
 import type { ApiClientOptions } from "./types";
 import type { ApiResponse } from "./types";
 import type { ZodType } from "zod";
@@ -11,9 +16,12 @@ import { invalidResponseError } from "./response";
 const RPC_PATH = "/rpc";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-export function createOrpcClient(baseUrl: string, options: ApiClientOptions = {}) {
+export function createOrpcClient(
+  baseUrl: string,
+  options: ApiClientOptions = {},
+  coordinator: RefreshCoordinator = createRefreshCoordinator(baseUrl, options),
+) {
   const rpcUrl = `${baseUrl.replace(/\/+$/, "")}${RPC_PATH}`;
-  let refreshPromise: Promise<AuthResponse | null> | null = null;
 
   const link = new OpenAPILink(apiContract, {
     url: rpcUrl,
@@ -23,16 +31,13 @@ export function createOrpcClient(baseUrl: string, options: ApiClientOptions = {}
       const response = await fetch(headed, { credentials: "include" });
       if (response.status !== 401 || !canRefreshRequest(request)) return response;
 
-      refreshPromise ??= requestRefresh(baseUrl, options).finally(() => {
-        refreshPromise = null;
-      });
-      const refreshed = await refreshPromise;
+      const refreshed = await coordinator.refresh();
       if (!refreshed) {
-        options.onAuthFailure?.();
+        coordinator.handleFailure();
         return response;
       }
 
-      options.onAuthRefreshed?.(refreshed);
+      coordinator.handleSuccess(refreshed);
       return fetch(withHeaders(initial, options, refreshed.accessToken), {
         credentials: "include",
       });

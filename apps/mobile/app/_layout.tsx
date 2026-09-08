@@ -11,6 +11,7 @@ import { useTenantStore } from "@/stores/tenant.store";
 import { useThemeStore } from "@/stores/theme.store";
 import { ThemeProvider } from "@/theme/theme-provider";
 import { PushBootstrap } from "@/components/push-bootstrap";
+import { Toaster } from "@/components/ui/toast";
 import "../global.css";
 
 export default function RootLayout() {
@@ -58,6 +59,7 @@ export default function RootLayout() {
         <PushBootstrap />
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }} />
+        <Toaster />
       </ThemeProvider>
     </QueryProvider>
   );

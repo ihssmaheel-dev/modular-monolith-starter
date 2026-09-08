@@ -58,9 +58,9 @@ describe("RequestExportCommand", () => {
       execute: vi.fn().mockResolvedValue(ok([])),
     } as never;
     const exportNotifications = {
-      execute: vi.fn().mockResolvedValue(
-        ok({ notifications: [], devices: [], batches: [], truncated: false }),
-      ),
+      execute: vi
+        .fn()
+        .mockResolvedValue(ok({ notifications: [], devices: [], batches: [], truncated: false })),
     } as never;
     const tenantContext = {} as TenantContextService;
     outbox = {

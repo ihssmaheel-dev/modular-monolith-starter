@@ -61,3 +61,41 @@ export async function requestRefresh(
     return null;
   }
 }
+
+export interface RefreshCoordinator {
+  refresh: () => Promise<AuthResponse | null>;
+  handleFailure: () => void;
+  handleSuccess: (response: AuthResponse) => void;
+}
+
+/**
+ * Single-flight refresh shared by both transports, with a deduped
+ * auth-failure signal so N concurrent 401s cause one refresh and one logout.
+ */
+export function createRefreshCoordinator(
+  baseUrl: string,
+  options: ApiClientOptions,
+): RefreshCoordinator {
+  let pending: Promise<AuthResponse | null> | null = null;
+  let failureNotified = false;
+  return {
+    refresh: () => {
+      pending ??= requestRefresh(baseUrl, options).finally(() => {
+        pending = null;
+      });
+      return pending;
+    },
+    handleFailure: () => {
+      if (failureNotified) return;
+      failureNotified = true;
+      queueMicrotask(() => {
+        failureNotified = false;
+      });
+      options.onAuthFailure?.();
+    },
+    handleSuccess: (response: AuthResponse) => {
+      failureNotified = false;
+      options.onAuthRefreshed?.(response);
+    },
+  };
+}

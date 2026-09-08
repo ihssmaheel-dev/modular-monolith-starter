@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { SlidersHorizontal } from "lucide-react";
 import type { DigestCadence, PreferenceItem } from "@repo/contracts";
+import { UpdatePreferencesSchema } from "@repo/contracts";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -52,9 +53,14 @@ export function PreferencesCard() {
   const [draft, setDraft] = useState<PreferenceItem[] | null>(null);
   const rows = draft ?? prefsQuery.data ?? [];
 
-  useEffect(() => {
-    setDraft(null);
-  }, [prefsQuery.dataUpdatedAt]);
+  const save = () => {
+    if (!draft) return;
+    const parsed = UpdatePreferencesSchema.safeParse({ preferences: draft });
+    if (!parsed.success) return;
+    updateMutation.mutate(parsed.data.preferences, {
+      onSuccess: () => setDraft(null),
+    });
+  };
 
   const toggle = (category: string, channel: (typeof CHANNELS)[number], value: boolean) => {
     setDraft(
@@ -82,48 +88,60 @@ export function PreferencesCard() {
         <CardDescription>{t("notifications.preferencesDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {rows.map((row) => (
-          <div key={row.category} className="space-y-2 rounded-lg border p-3">
-            <p className="text-sm font-medium">{t(CATEGORY_LABELS[row.category] ?? row.category)}</p>
-            <div className="flex flex-wrap gap-4">
-              {CHANNELS.map((channel) => (
-                <div key={channel} className="flex items-center gap-2">
-                  <Switch
-                    checked={row[channel]}
-                    onCheckedChange={(value) => toggle(row.category, channel, value)}
-                    aria-label={t(CHANNEL_LABELS[channel])}
-                  />
-                  <Label>{t(CHANNEL_LABELS[channel])}</Label>
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <Select
-                value={row.digestCadence}
-                onValueChange={(value) => setCadence(row.category, value as DigestCadence)}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CADENCES.map((cadence) => (
-                    <SelectItem key={cadence} value={cadence}>
-                      {t(CADENCE_LABELS[cadence])}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        {prefsQuery.isLoading ? (
+          <div className="h-40 animate-pulse rounded-lg bg-muted" />
+        ) : prefsQuery.isError ? (
+          <div className="space-y-3 rounded-lg border border-destructive/30 p-6 text-center">
+            <p className="text-sm text-destructive">{t("api.notifications.fetchFailed")}</p>
+            <Button variant="outline" size="sm" onClick={() => prefsQuery.refetch()}>
+              {t("common.retry")}
+            </Button>
           </div>
-        ))}
-        <div className="flex justify-end">
-          <Button
-            disabled={!draft || updateMutation.isPending}
-            onClick={() => draft && updateMutation.mutate(draft)}
-          >
-            {t("common.save")}
-          </Button>
-        </div>
+        ) : (
+          <>
+            {rows.map((row) => (
+              <div key={row.category} className="space-y-2 rounded-lg border p-3">
+                <p className="text-sm font-medium">
+                  {t(CATEGORY_LABELS[row.category] ?? row.category)}
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  {CHANNELS.map((channel) => (
+                    <div key={channel} className="flex items-center gap-2">
+                      <Switch
+                        checked={row[channel]}
+                        onCheckedChange={(value) => toggle(row.category, channel, value)}
+                        aria-label={t(CHANNEL_LABELS[channel])}
+                      />
+                      <Label>{t(CHANNEL_LABELS[channel])}</Label>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={row.digestCadence}
+                    onValueChange={(value) => setCadence(row.category, value as DigestCadence)}
+                  >
+                    <SelectTrigger className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CADENCES.map((cadence) => (
+                        <SelectItem key={cadence} value={cadence}>
+                          {t(CADENCE_LABELS[cadence])}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-end">
+              <Button disabled={!draft || updateMutation.isPending} onClick={save}>
+                {t("common.save")}
+              </Button>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

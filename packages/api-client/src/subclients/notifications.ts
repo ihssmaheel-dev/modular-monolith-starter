@@ -45,7 +45,11 @@ export function createNotificationsClient(fetchFn: FetchFn, orpc?: OrpcClient) {
     unreadCount: () =>
       orpc
         ? orpcResponse(() => orpc.notifications.unreadCount(), 200, UnreadCountResponseSchema)
-        : fetchFn<UnreadCountResponse>("/notifications/unread-count", {}, UnreadCountResponseSchema),
+        : fetchFn<UnreadCountResponse>(
+            "/notifications/unread-count",
+            {},
+            UnreadCountResponseSchema,
+          ),
     markRead: (id: string) =>
       orpc
         ? orpcResponse(() => orpc.notifications.markRead({ id }), 200, NotificationResponseSchema)
@@ -54,6 +58,8 @@ export function createNotificationsClient(fetchFn: FetchFn, orpc?: OrpcClient) {
             { method: "PATCH" },
             NotificationResponseSchema,
           ),
+    // Void REST fallbacks carry no body to validate; the oRPC branch above
+    // still validates via EmptyResponseSchema. This exemption is deliberate.
     markAllRead: () =>
       orpc
         ? orpcResponse(() => orpc.notifications.markAllRead(), 200, EmptyResponseSchema)
@@ -64,7 +70,11 @@ export function createNotificationsClient(fetchFn: FetchFn, orpc?: OrpcClient) {
         : fetchFn<PreferencesResponse>("/notifications/preferences", {}, PreferencesResponseSchema),
     updatePreferences: (body: UpdatePreferencesInput) =>
       orpc
-        ? orpcResponse(() => orpc.notifications.updatePreferences(body), 200, PreferencesResponseSchema)
+        ? orpcResponse(
+            () => orpc.notifications.updatePreferences(body),
+            200,
+            PreferencesResponseSchema,
+          )
         : fetchFn<PreferencesResponse>(
             "/notifications/preferences",
             { method: "PUT", body: JSON.stringify(body) },
