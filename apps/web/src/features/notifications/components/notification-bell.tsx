@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
@@ -50,7 +49,7 @@ export function NotificationBell() {
         }
       />
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-1.5 py-1 text-xs font-medium text-muted-foreground">
           <span>{t("notifications.title")}</span>
           {count > 0 && (
             <button
@@ -62,21 +61,21 @@ export function NotificationBell() {
               {t("notifications.markAllRead")}
             </button>
           )}
-        </DropdownMenuLabel>
+        </div>
         <DropdownMenuSeparator />
         {recentQuery.isLoading ? (
           <div className="h-20 animate-pulse rounded-lg bg-muted" />
         ) : recentQuery.isError ? (
-          <DropdownMenuLabel className="font-normal text-destructive">
+          <div className="px-1.5 py-1 text-xs font-normal text-destructive">
             {t("api.notifications.fetchFailed")}{" "}
             <button type="button" className="underline" onClick={() => recentQuery.refetch()}>
               {t("common.retry")}
             </button>
-          </DropdownMenuLabel>
+          </div>
         ) : items.length === 0 ? (
-          <DropdownMenuLabel className="font-normal text-muted-foreground">
+          <div className="px-1.5 py-1 text-xs font-normal text-muted-foreground">
             {t("notifications.noNotifications")}
-          </DropdownMenuLabel>
+          </div>
         ) : (
           items.map((item) => (
             <DropdownMenuItem key={item.id} className="flex-col items-start gap-1">

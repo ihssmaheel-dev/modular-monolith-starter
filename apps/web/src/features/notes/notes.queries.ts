@@ -23,7 +23,8 @@ export function noteByIdQuery(id: string) {
     queryFn: async () => {
       const client = getApiClient();
       const res = await client.notes.get(id);
-      if (res.status !== 200) throw new Error("api.note.notFound");
+      if (res.status === 404) throw new Error("api.note.notFound");
+      if (res.status !== 200) throw new Error("api.note.fetchFailed");
       return res.body;
     },
     enabled: !!id,

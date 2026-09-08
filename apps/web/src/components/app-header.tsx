@@ -8,6 +8,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -108,13 +109,15 @@ export function AppHeader() {
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="space-y-1">
-              <p className="font-medium text-sm text-foreground">{user?.name}</p>
-              <p className="truncate text-xs font-normal text-muted-foreground">{user?.email}</p>
-              <Badge variant="secondary" className="mt-1 text-[10px] font-mono">
-                {user?.role}
-              </Badge>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="space-y-1">
+                <p className="font-medium text-sm text-foreground">{user?.name}</p>
+                <p className="truncate text-xs font-normal text-muted-foreground">{user?.email}</p>
+                <Badge variant="secondary" className="mt-1 text-[10px] font-mono">
+                  {user?.role}
+                </Badge>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={signOut}

@@ -34,6 +34,8 @@ export function ExportCard() {
       if (snapshot.truncated) {
         toast.add({ title: t("privacy.exportTruncated"), type: "warning" } as never);
       }
+    } catch {
+      toast.add({ title: t("api.privacy.exportFailed"), type: "error" } as never);
     } finally {
       setDownloadingId(null);
     }
