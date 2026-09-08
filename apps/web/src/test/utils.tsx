@@ -12,7 +12,6 @@ import {
   type RenderHookOptions,
   type RenderOptions,
 } from "@testing-library/react";
-import { vi } from "vitest";
 import "@/lib/i18n";
 
 export function createTestQueryClient() {
@@ -62,21 +61,4 @@ export function renderWithApp(ui: React.ReactElement, initialPath = "/") {
       </QueryClientProvider>,
     ),
   };
-}
-
-export function mockGetApiClient() {
-  const notes = {
-    list: vi.fn(),
-    get: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
-    attach: vi.fn(),
-    listAttachments: vi.fn(),
-  };
-  const users = { attachAvatar: vi.fn(), removeAvatar: vi.fn() };
-  const privacy = { requestExport: vi.fn(), downloadExport: vi.fn() };
-  const auth = { login: vi.fn(), register: vi.fn() };
-  const files = { getDownloadUrl: vi.fn() };
-  return { notes, users, privacy, auth, files };
 }
