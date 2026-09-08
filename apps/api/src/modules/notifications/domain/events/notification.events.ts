@@ -13,5 +13,6 @@ export class NotificationDigestReadyEvent {
     public readonly userId: string,
     public readonly type: string,
     public readonly count: number,
+    public readonly tenantId?: string,
   ) {}
 }

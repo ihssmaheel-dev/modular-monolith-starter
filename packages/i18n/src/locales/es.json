@@ -271,6 +271,7 @@
     },
     "notifications": {
       "sendFailed": "No se pudo enviar la notificación",
+      "fetchFailed": "No se pudieron cargar las notificaciones",
       "notFound": "Notificación no encontrada",
       "preferenceInvalid": "Preferencia de notificación inválida",
       "deviceInvalid": "Token de dispositivo inválido"

@@ -9,6 +9,7 @@ import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
 import { ListInvitationsByEmailQuery } from "../../../tenancy/application/queries/list-invitations-by-email.query";
 import { GetPreferencesQuery } from "../../../notifications/application/queries/get-preferences.query";
+import { ExportUserDataQuery } from "../../../notifications/application/queries/export-user-data.query";
 import { GetNotesQuery } from "../../../notes/application/queries/get-notes.query";
 import { ListFilesByUploaderQuery } from "../../../files/application/queries/list-files-by-uploader.query";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
@@ -35,6 +36,7 @@ export class RequestExportCommand {
     private readonly getNotes: GetNotesQuery,
     private readonly listFilesByUploader: ListFilesByUploaderQuery,
     private readonly getPreferences: GetPreferencesQuery,
+    private readonly exportNotifications: ExportUserDataQuery,
     private readonly tenantContext: TenantContextService,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
@@ -66,9 +68,14 @@ export class RequestExportCommand {
     const preferencesResult = await this.getPreferences.execute(actor.sub);
     const preferences = preferencesResult.isOk() ? preferencesResult.value : [];
 
+    const notificationData = await this.exportNotifications.execute(actor.sub);
+    const inbox = notificationData.isOk()
+      ? notificationData.value
+      : { notifications: [], devices: [], batches: [], truncated: false };
+
     const payload = {
       exportedAt: new Date().toISOString(),
-      truncated: notes.truncated || files.truncated,
+      truncated: notes.truncated || files.truncated || inbox.truncated,
       profile: {
         id: user.id,
         email: user.email,
@@ -91,6 +98,9 @@ export class RequestExportCommand {
       notes: notes.items,
       files: files.items,
       notificationPreferences: preferences,
+      notifications: inbox.notifications,
+      notificationDevices: inbox.devices,
+      notificationBatches: inbox.batches,
     };
 
     const expiresAt = new Date(Date.now() + EXPORT_TTL_DAYS * 24 * 60 * 60 * 1000);

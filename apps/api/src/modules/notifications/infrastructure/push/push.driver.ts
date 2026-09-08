@@ -18,3 +18,7 @@ export interface PushDriver {
   readonly provider: string;
   send(messages: PushMessage[]): Promise<PushSendResult[]>;
 }
+
+export function isExpoPushToken(token: string): boolean {
+  return token.startsWith("ExponentPushToken[") && token.endsWith("]");
+}

@@ -37,18 +37,16 @@ export class PreferencesRepository extends BaseRepository<NotificationPreference
 
   async upsertDefaults(rows: NotificationPreferenceData[]): Promise<void> {
     const db = this.getDb();
-    const existing = await this.findByUser(rows[0]?.userId ?? "__none__");
-    const known = new Set(existing.isOk() ? existing.value.map((p) => p.category) : []);
-    const missing = rows.filter((row) => !known.has(row.category));
-    if (missing.length === 0) return;
     await (
       db as unknown as {
-        insert: (t: unknown) => { values: (v: unknown) => Promise<void> };
+        insert: (t: unknown) => {
+          values: (v: unknown) => { onConflictDoNothing: (o: unknown) => Promise<void> };
+        };
       }
     )
       .insert(notificationPreferences)
       .values(
-        missing.map((row) => ({
+        rows.map((row) => ({
           id: row.id,
           userId: row.userId,
           category: row.category,
@@ -59,7 +57,10 @@ export class PreferencesRepository extends BaseRepository<NotificationPreference
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
         })),
-      );
+      )
+      .onConflictDoNothing({
+        target: [notificationPreferences.userId, notificationPreferences.category],
+      });
   }
 
   async replaceAll(userId: string, rows: NotificationPreferenceData[]): Promise<void> {

@@ -16,6 +16,7 @@ const SECRET_FILE_VARS = [
   "SMTP_USER",
   "SMTP_PASS",
   "RESEND_API_KEY",
+  "EXPO_ACCESS_TOKEN",
   "SEED_ADMIN_PASSWORD",
 ] as const;
 

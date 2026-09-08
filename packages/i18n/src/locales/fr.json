@@ -271,6 +271,7 @@
     },
     "notifications": {
       "sendFailed": "Impossible d’envoyer la notification",
+      "fetchFailed": "Impossible de charger les notifications",
       "notFound": "Notification introuvable",
       "preferenceInvalid": "Préférence de notification invalide",
       "deviceInvalid": "Jeton d’appareil invalide"

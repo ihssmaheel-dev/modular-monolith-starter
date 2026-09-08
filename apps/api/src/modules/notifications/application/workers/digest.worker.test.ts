@@ -31,8 +31,12 @@ describe("DigestWorker", () => {
     } as never;
     notifications = {
       create: vi.fn().mockResolvedValue(ok({ id: "notif-1" })),
+      findDigestByBatchId: vi.fn().mockResolvedValue(ok(null)),
+      deleteById: vi.fn().mockResolvedValue(ok(true)),
     } as never;
     const preferences = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
+    const devices = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
+    const push = { get: vi.fn() } as never;
     const getUserById = { execute: vi.fn().mockResolvedValue(ok(null)) } as never;
     const realtime = { sendToUser: vi.fn() } as unknown as RealtimeService;
     const email = {} as never;
@@ -46,6 +50,12 @@ describe("DigestWorker", () => {
     } as never;
     const database = {
       runTransaction: vi.fn(async (fn: () => unknown) => await (fn as () => Promise<unknown>)()),
+      emitAfterCommit: vi.fn(async (emitter: unknown, event: string, payload: unknown) => {
+        await (emitter as { emitAsync: (e: string, p: unknown) => Promise<unknown> }).emitAsync(
+          event,
+          payload,
+        );
+      }),
     } as never;
     const metrics = { incrementCounter: vi.fn() } as never;
     const logger = {
@@ -58,6 +68,8 @@ describe("DigestWorker", () => {
       batches,
       notifications,
       preferences,
+      devices,
+      push,
       getUserById,
       realtime,
       email,
@@ -93,12 +105,16 @@ describe("DigestWorker", () => {
     );
   });
 
-  it("should skip windows lost to a concurrent worker", async () => {
-    build({ updateOne: vi.fn().mockResolvedValue(ok(null)) });
+  it("should remove its duplicate row when losing the claim race", async () => {
+    const built = build({ updateOne: vi.fn().mockResolvedValue(ok(null)) });
+    const repo = built.notifications;
+    const deleteById = vi.fn().mockResolvedValue(ok(true));
+    (repo as unknown as { deleteById: unknown }).deleteById = deleteById;
 
     const result = await worker.closeDueWindows();
 
-    expect(result.delivered).toBe(0);
+    expect(result.delivered).toBe(1);
+    expect(deleteById).toHaveBeenCalledWith("notif-1");
   });
 
   it("should skip empty windows without counting delivery", async () => {
@@ -109,5 +125,19 @@ describe("DigestWorker", () => {
     const result = await worker.closeDueWindows();
 
     expect(result.delivered).toBe(0);
+  });
+
+  it("should skip work when a digest row already exists for the batch", async () => {
+    const built = build();
+    const repo = built.notifications;
+    const findDigest = vi.fn().mockResolvedValue(ok({ id: "notif-0" }));
+    (repo as unknown as { findDigestByBatchId: unknown }).findDigestByBatchId = findDigest;
+    const create = vi.fn();
+    (repo as unknown as { create: unknown }).create = create;
+
+    const result = await worker.closeDueWindows();
+
+    expect(result.delivered).toBe(1);
+    expect(create).not.toHaveBeenCalled();
   });
 });

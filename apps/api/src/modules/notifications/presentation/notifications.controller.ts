@@ -44,7 +44,6 @@ import {
 import { MarkReadCommand } from "../application/commands/mark-read.command";
 import { UpdatePreferencesCommand } from "../application/commands/update-preferences.command";
 import { RegisterDeviceTokenCommand } from "../application/commands/register-device-token.command";
-import { PurgeUserNotificationsCommand } from "../application/commands/purge-user-notifications.command";
 import { ListNotificationsQuery } from "../application/queries/list-notifications.query";
 import { GetPreferencesQuery } from "../application/queries/get-preferences.query";
 import { toNotificationResponse } from "./notifications.mapper";
@@ -59,7 +58,6 @@ export class NotificationsController {
     private readonly markReadCmd: MarkReadCommand,
     private readonly updatePreferencesCmd: UpdatePreferencesCommand,
     private readonly registerDeviceCmd: RegisterDeviceTokenCommand,
-    private readonly purgeUser: PurgeUserNotificationsCommand,
     private readonly listQuery: ListNotificationsQuery,
     private readonly preferencesQuery: GetPreferencesQuery,
     private readonly i18n: I18nService,
@@ -78,7 +76,14 @@ export class NotificationsController {
       Number(query.page ?? 1),
       Number(query.limit ?? 20),
     );
-    return handleResult(result, NOTIFICATION_ERRORS, this.i18n, req?.headers["accept-language"]);
+    const page = handleResult(result, NOTIFICATION_ERRORS, this.i18n, req?.headers["accept-language"]);
+    return {
+      items: page.items.map(toNotificationResponse),
+      total: page.total,
+      page: page.page,
+      limit: page.limit,
+      totalPages: page.totalPages,
+    };
   }
 
   @Get("unread-count")
@@ -90,6 +95,7 @@ export class NotificationsController {
   }
 
   @Patch(":id/read")
+  @Idempotent()
   @RequirePermission("notifications:write")
   @ResponseSchema(NotificationResponseSchema)
   async markOneRead(
@@ -109,6 +115,7 @@ export class NotificationsController {
 
   @Post("read-all")
   @HttpCode(HttpStatus.OK)
+  @Idempotent()
   @RequirePermission("notifications:write")
   @ResponseSchema(EmptyResponseSchema)
   async markAllRead(@Req() req: FastifyRequest): Promise<void> {
@@ -133,6 +140,7 @@ export class NotificationsController {
   }
 
   @Put("preferences")
+  @Idempotent()
   @RequirePermission("notifications:write")
   @ResponseSchema(PreferencesResponseSchema)
   async putPreferences(
@@ -182,11 +190,5 @@ export class NotificationsController {
     const actor = requireAuthenticatedUser(req);
     const result = await this.registerDeviceCmd.deleteDevice(actor.sub, id);
     handleResult(result, DEVICE_ERRORS, this.i18n, req?.headers["accept-language"]);
-  }
-
-  /** Internal GDPR fan-out entry point (called by the privacy module, not routed). */
-  async purgeForUser(userId: string): Promise<void> {
-    const result = await this.purgeUser.execute(userId);
-    if (result.isErr()) throw new Error("Notification purge failed");
   }
 }

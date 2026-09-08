@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import { randomUUID } from "crypto";
 import type { DigestCadence, PreferenceItem } from "@repo/contracts";
-import { DatabaseService } from "../../../../infrastructure/database";
+import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { isKnownCategory } from "../../domain/entities/notification-preference.entity";
 import type { NotificationError } from "../../domain/errors/notification.errors";
 import { PreferencesRepository } from "../../infrastructure/preferences.repository";
@@ -19,7 +19,10 @@ export class UpdatePreferencesCommand {
   async execute(
     userId: string,
     items: PreferenceItem[],
-  ): Promise<Result<PreferenceItem[], NotificationError>> {
+  ): Promise<Result<PreferenceItem[], NotificationError | TransactionError>> {
+    if (items.length === 0 || items.length > MAX_PREFERENCES) {
+      return err({ type: "PREFERENCE_INVALID", reason: "preferences must list 1-20 categories" });
+    }
     if (items.length === 0 || items.length > MAX_PREFERENCES) {
       return err({ type: "PREFERENCE_INVALID", reason: "preferences must list 1-20 categories" });
     }
@@ -48,6 +51,10 @@ export class UpdatePreferencesCommand {
     };
     if (!this.database) return operation();
     const result = await this.database.withResultTransaction(operation);
-    return result.mapErr(() => ({ type: "PREFERENCE_INVALID" as const, reason: "persist failed" }));
+    return result.mapErr((error) =>
+      error.type === "TRANSACTION_FAILED"
+        ? error
+        : ({ type: "PREFERENCE_INVALID", reason: "persist failed" }) as const,
+    );
   }
 }

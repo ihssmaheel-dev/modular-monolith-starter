@@ -45,7 +45,9 @@ describe("SendNotificationCommand", () => {
     } as never;
     const devices = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
     const batches = {} as never;
-    const getUserById = {} as never;
+    const getUserById = {
+      execute: vi.fn().mockResolvedValue(ok({ id: "user-1" })),
+    } as never;
     realtime = { sendToUser: vi.fn() } as never;
     const email = {} as never;
     const push = { get: vi.fn() } as never;
@@ -126,7 +128,7 @@ describe("SendNotificationCommand", () => {
       prefs as never,
       {} as never,
       {} as never,
-      {} as never,
+      { execute: vi.fn().mockResolvedValue(ok({ id: "user-1" })) } as never,
       realtime,
       {} as never,
       {} as never,
@@ -143,6 +145,33 @@ describe("SendNotificationCommand", () => {
     });
 
     expect(result.isErr() && result.error.type).toBe("NOTIFICATION_SEND_FAILED");
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
+  it("should refuse unknown recipients before touching preferences", async () => {
+    const getUserById = {
+      execute: vi.fn().mockResolvedValue(ok(null)),
+    } as never;
+    const findByUser = vi.fn();
+    const cmd = new SendNotificationCommand(
+      notifications,
+      { findByUser } as never,
+      {} as never,
+      {} as never,
+      getUserById,
+      realtime,
+      {} as never,
+      {} as never,
+      { t: (k: string) => k } as never,
+      outbox,
+      events,
+      { child: () => ({}) } as never,
+    );
+
+    const result = await cmd.execute({ userId: "ghost", type: "user.welcome", titleKey: "x" });
+
+    expect(result.isErr() && result.error.type).toBe("NOTIFICATION_SEND_FAILED");
+    expect(findByUser).not.toHaveBeenCalled();
     expect(notifications.create).not.toHaveBeenCalled();
   });
 });

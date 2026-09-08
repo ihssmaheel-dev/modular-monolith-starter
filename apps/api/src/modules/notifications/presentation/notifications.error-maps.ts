@@ -7,6 +7,10 @@ export const NOTIFICATION_ERRORS: ErrorMap = {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     i18nKey: "api.notifications.sendFailed",
   },
+  NOTIFICATION_FETCH_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    i18nKey: "api.notifications.fetchFailed",
+  },
   NOTIFICATION_DISPATCH_FAILED: {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     i18nKey: "api.notifications.sendFailed",
@@ -15,6 +19,10 @@ export const NOTIFICATION_ERRORS: ErrorMap = {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     i18nKey: "api.error.internal",
   },
+  TRANSACTION_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    i18nKey: "api.error.transactionFailed",
+  },
 };
 
 export const PREFERENCE_ERRORS: ErrorMap = {
@@ -22,11 +30,19 @@ export const PREFERENCE_ERRORS: ErrorMap = {
     status: HttpStatus.BAD_REQUEST,
     i18nKey: "api.notifications.preferenceInvalid",
   },
+  TRANSACTION_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    i18nKey: "api.error.transactionFailed",
+  },
 };
 
 export const DEVICE_ERRORS: ErrorMap = {
   DEVICE_TOKEN_INVALID: {
     status: HttpStatus.BAD_REQUEST,
     i18nKey: "api.notifications.deviceInvalid",
+  },
+  TRANSACTION_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    i18nKey: "api.error.transactionFailed",
   },
 };

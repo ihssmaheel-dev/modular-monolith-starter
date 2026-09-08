@@ -1,7 +1,7 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
 import type { PreferenceItem } from "@repo/contracts";
-import { DatabaseService } from "../../../../infrastructure/database";
+import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import type { NotificationError } from "../../domain/errors/notification.errors";
 import { defaultPreferencesForUser } from "../../domain/entities/notification-preference.entity";
 import { PreferencesRepository } from "../../infrastructure/preferences.repository";
@@ -13,7 +13,7 @@ export class GetPreferencesQuery {
     @Optional() private readonly database?: DatabaseService,
   ) {}
 
-  async execute(userId: string): Promise<Result<PreferenceItem[], NotificationError>> {
+  async execute(userId: string): Promise<Result<PreferenceItem[], NotificationError | TransactionError>> {
     const operation = async (): Promise<Result<PreferenceItem[], NotificationError>> => {
       const existing = await this.preferences.findByUser(userId);
       if (existing.isOk() && existing.value.length > 0) {
@@ -44,6 +44,8 @@ export class GetPreferencesQuery {
     };
     if (!this.database) return operation();
     const result = await this.database.withResultTransaction(operation);
-    return result.mapErr(() => ({ type: "NOTIFICATION_SEND_FAILED" as const }));
+    return result.mapErr((error) =>
+      error.type === "TRANSACTION_FAILED" ? error : ({ type: "NOTIFICATION_FETCH_FAILED" }) as const,
+    );
   }
 }

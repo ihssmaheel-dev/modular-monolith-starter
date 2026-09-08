@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../infrastructure/database";
 import { TenantContextService } from "../../../infrastructure/database";
@@ -54,9 +54,15 @@ export class BatchesRepository extends BaseRepository<NotificationBatch, Notific
     item: NotificationBatchItem,
     maxItems: number,
   ): Promise<Result<NotificationBatch | null, never>> {
-    const found = await this.findById(id);
-    if (found.isErr() || !found.value || found.value.status !== "open") return ok(null);
-    const items = [...found.value.items, item].slice(-maxItems);
+    const db = this.getDb();
+    const locked = await (
+      db as unknown as { execute: (query: unknown) => Promise<{ rows: Array<{ items: unknown }> }> }
+    ).execute(
+      sql`SELECT items FROM notification_batches WHERE id = ${id} AND status = 'open' FOR UPDATE`,
+    );
+    if (locked.rows.length === 0) return ok(null);
+    const current = (locked.rows[0]?.items as NotificationBatchItem[] | null) ?? [];
+    const items = [...current, item].slice(-Math.max(1, maxItems));
     const updated = await this.updateOne({ id, status: "open" }, { items });
     if (updated.isErr()) return ok(null);
     return ok(updated.value);

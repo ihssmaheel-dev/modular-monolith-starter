@@ -50,6 +50,13 @@
       "when": 1788799816768,
       "tag": "0006_familiar_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788843654517,
+      "tag": "0007_notification_uniques_indexes",
+      "breakpoints": true
     }
   ]
 }

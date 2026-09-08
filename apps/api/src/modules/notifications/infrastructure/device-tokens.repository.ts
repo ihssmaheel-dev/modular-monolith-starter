@@ -1,16 +1,18 @@
 import { Injectable } from "@nestjs/common";
 import { and, eq, lt } from "drizzle-orm";
+import { randomUUID } from "crypto";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../infrastructure/database";
 import { TenantContextService } from "../../../infrastructure/database";
 import { BaseRepository } from "../../../infrastructure/database";
 import { deviceTokens, type DeviceTokenRow } from "./schemas/notification.schema";
+import type { DevicePlatform, DeviceProvider } from "@repo/contracts";
 
 export interface DeviceToken {
   id: string;
   userId: string;
-  platform: string;
-  provider: string;
+  platform: DevicePlatform;
+  provider: DeviceProvider;
   token: string;
   createdAt: Date;
   updatedAt: Date;
@@ -26,8 +28,8 @@ export class DeviceTokensRepository extends BaseRepository<DeviceToken, DeviceTo
     return {
       id: row.id,
       userId: row.userId,
-      platform: row.platform,
-      provider: row.provider,
+      platform: row.platform as DevicePlatform,
+      provider: row.provider as DeviceProvider,
       token: row.token,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -44,19 +46,41 @@ export class DeviceTokensRepository extends BaseRepository<DeviceToken, DeviceTo
     provider: string;
     token: string;
   }): Promise<Result<DeviceToken, never>> {
-    const existing = await this.findOne({ userId: input.userId, token: input.token });
-    if (existing.isOk() && existing.value) {
-      const touched = await this.updateById(existing.value.id, { lastSeenAt: new Date() });
-      if (touched.isOk() && touched.value) return ok(touched.value);
-    }
-    return this.create({ ...input, lastSeenAt: new Date() });
+    const db = this.getDb();
+    const now = new Date();
+    await (
+      db as unknown as {
+        insert: (t: unknown) => {
+          values: (v: unknown) => {
+            onConflictDoNothing: (o: unknown) => Promise<void>;
+          };
+        };
+      }
+    )
+      .insert(deviceTokens)
+      .values({
+        id: randomUUID(),
+        userId: input.userId,
+        platform: input.platform,
+        provider: input.provider,
+        token: input.token,
+        lastSeenAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing({ target: [deviceTokens.userId, deviceTokens.token] });
+    const found = await this.findOne({ userId: input.userId, token: input.token });
+    if (found.isErr() || !found.value) return found as Result<DeviceToken, never>;
+    const touched = await this.updateById(found.value.id, { lastSeenAt: new Date() });
+    if (touched.isErr() || !touched.value) return ok(found.value);
+    return ok(touched.value);
   }
 
-  async deleteByToken(token: string): Promise<void> {
-    const db = this.getDb();
-    await (db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } })
-      .delete(deviceTokens)
-      .where(eq(deviceTokens.token, token));
+  async deleteByUserAndToken(userId: string, token: string): Promise<boolean> {
+    const found = await this.findOne({ userId, token });
+    if (found.isErr() || !found.value) return false;
+    const removed = await this.deleteById(found.value.id);
+    return removed.isOk() && removed.value;
   }
 
   async deleteByUserAndId(userId: string, id: string): Promise<boolean> {

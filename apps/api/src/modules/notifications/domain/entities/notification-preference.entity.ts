@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import {
   NOTIFICATION_CATEGORIES,
-  getNotificationType,
+  NOTIFICATION_TYPES,
   type NotificationCategory,
 } from "@repo/contracts";
 import type { DigestCadence, NotificationChannel } from "@repo/contracts";
@@ -27,10 +27,15 @@ export function defaultPreferencesForUser(userId: string): NotificationPreferenc
     inApp: true,
     email: true,
     push: true,
-    digestCadence: "realtime" as DigestCadence,
+    digestCadence: defaultCadenceForCategory(category),
     createdAt: now,
     updatedAt: now,
   }));
+}
+
+function defaultCadenceForCategory(category: string): DigestCadence {
+  const definition = NOTIFICATION_TYPES.find((type) => type.category === category);
+  return definition?.defaultCadence ?? "realtime";
 }
 
 export class NotificationPreference {
@@ -59,13 +64,4 @@ export class NotificationPreference {
 
 export function isKnownCategory(category: string): category is NotificationCategory {
   return (NOTIFICATION_CATEGORIES as string[]).includes(category);
-}
-
-export function channelsForType(
-  typeKey: string,
-  preference: NotificationPreferenceData,
-): NotificationChannel[] {
-  const definition = getNotificationType(typeKey);
-  if (!definition) return [];
-  return definition.defaultChannels.filter((channel) => preference[channel] === true);
 }

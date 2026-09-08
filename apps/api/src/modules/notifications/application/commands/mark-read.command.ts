@@ -23,7 +23,7 @@ export class MarkReadCommand {
       if (found.isErr() || !found.value)
         return err({ type: "NOTIFICATION_NOT_FOUND", notificationId: id });
       if (!found.value.isRead) {
-        const updated = await this.notifications.updateById(id, { readAt: new Date() });
+        const updated = await this.notifications.updateOne({ id, userId }, { readAt: new Date() });
         if (updated.isErr() || !updated.value) {
           return err({ type: "NOTIFICATION_NOT_FOUND", notificationId: id });
         }
@@ -36,9 +36,13 @@ export class MarkReadCommand {
     return this.database.withResultTransaction(operation);
   }
 
-  async markAllRead(userId: string): Promise<Result<void, NotificationError>> {
-    await this.notifications.markAllRead(userId);
-    await this.cache.invalidateGlobal(`notifications:unread:${userId}`);
-    return ok(undefined);
+  async markAllRead(userId: string): Promise<Result<void, NotificationError | TransactionError>> {
+    try {
+      await this.notifications.markAllRead(userId);
+      await this.cache.invalidateGlobal(`notifications:unread:${userId}`);
+      return ok(undefined);
+    } catch {
+      return err({ type: "TRANSACTION_FAILED" });
+    }
   }
 }

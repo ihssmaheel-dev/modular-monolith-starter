@@ -64,6 +64,7 @@ const payloadSchemas: Record<string, z.ZodType<Record<string, unknown>>> = {
     userId: z.string().min(1),
     type: z.string().min(1),
     count: z.number().int().nonnegative(),
+    tenantId: z.string().min(1).optional(),
   }),
 };
 

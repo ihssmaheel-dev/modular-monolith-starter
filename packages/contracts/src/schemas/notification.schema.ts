@@ -3,7 +3,8 @@ import { PaginationQuerySchema } from "./pagination.schema";
 
 export const NotificationChannelSchema = z.enum(["inApp", "email", "push"]);
 export const DigestCadenceSchema = z.enum(["realtime", "hourly", "daily"]);
-export const DsrNotificationStatusSchema = z.enum(["REQUESTED", "READY", "FULFILLED", "EXPIRED"]);
+export const DevicePlatformSchema = z.enum(["ios", "android", "web"]);
+export const DeviceProviderSchema = z.enum(["expo"]);
 
 export const NotificationIdParamSchema = z.object({
   id: z.string().min(1),
@@ -50,15 +51,15 @@ export const UpdatePreferencesSchema = z.object({
 });
 
 export const RegisterDeviceSchema = z.object({
-  platform: z.enum(["ios", "android", "web"]),
-  provider: z.enum(["expo", "fcm"]).default("expo"),
+  platform: DevicePlatformSchema,
+  provider: DeviceProviderSchema.default("expo"),
   token: z.string().min(1).max(1024),
 });
 
 export const DeviceResponseSchema = z.object({
   id: z.string(),
-  platform: z.string(),
-  provider: z.string(),
+  platform: DevicePlatformSchema,
+  provider: DeviceProviderSchema,
   createdAt: z.string().datetime(),
 });
 
@@ -68,6 +69,8 @@ export const DeviceIdParamSchema = z.object({
 
 export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
 export type DigestCadence = z.infer<typeof DigestCadenceSchema>;
+export type DevicePlatform = z.infer<typeof DevicePlatformSchema>;
+export type DeviceProvider = z.infer<typeof DeviceProviderSchema>;
 export type NotificationResponse = z.infer<typeof NotificationResponseSchema>;
 export type NotificationListResponse = z.infer<typeof NotificationListResponseSchema>;
 export type UnreadCountResponse = z.infer<typeof UnreadCountResponseSchema>;

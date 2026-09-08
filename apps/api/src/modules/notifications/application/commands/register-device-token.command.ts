@@ -1,12 +1,13 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import type { RegisterDeviceInput } from "@repo/contracts";
-import { DatabaseService } from "../../../../infrastructure/database";
+import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import type { NotificationError } from "../../domain/errors/notification.errors";
 import {
   DeviceTokensRepository,
   type DeviceToken,
 } from "../../infrastructure/device-tokens.repository";
+import { isExpoPushToken } from "../../infrastructure/push/push.driver";
 
 @Injectable()
 export class RegisterDeviceTokenCommand {
@@ -18,8 +19,8 @@ export class RegisterDeviceTokenCommand {
   async execute(
     userId: string,
     input: RegisterDeviceInput,
-  ): Promise<Result<DeviceToken, NotificationError>> {
-    if (!input.token.startsWith("ExponentPushToken[") && input.provider === "expo") {
+  ): Promise<Result<DeviceToken, NotificationError | TransactionError>> {
+    if (!isExpoPushToken(input.token)) {
       return err({ type: "DEVICE_TOKEN_INVALID" });
     }
     const operation = async () => {
@@ -34,7 +35,9 @@ export class RegisterDeviceTokenCommand {
     };
     if (!this.database) return operation();
     const result = await this.database.withResultTransaction(operation);
-    return result.mapErr(() => ({ type: "DEVICE_TOKEN_INVALID" as const }));
+    return result.mapErr((error) =>
+      error.type === "TRANSACTION_FAILED" ? error : { type: "DEVICE_TOKEN_INVALID" as const },
+    );
   }
 
   async deleteDevice(userId: string, id: string): Promise<Result<void, NotificationError>> {

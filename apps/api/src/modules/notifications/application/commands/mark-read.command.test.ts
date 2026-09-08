@@ -21,7 +21,7 @@ describe("MarkReadCommand", () => {
   beforeEach(() => {
     notifications = {
       findOne: vi.fn(),
-      updateById: vi.fn(),
+      updateOne: vi.fn(),
       markAllRead: vi.fn(),
     } as unknown as NotificationsRepository;
     cache = { invalidateGlobal: vi.fn() } as unknown as DistributedCacheService;
@@ -38,11 +38,15 @@ describe("MarkReadCommand", () => {
 
   it("should mark an unread notification and invalidate the count cache", async () => {
     vi.mocked(notifications.findOne).mockResolvedValue(ok(notification));
-    vi.mocked(notifications.updateById).mockResolvedValue(ok(notification));
+    vi.mocked(notifications.updateOne).mockResolvedValue(ok(notification));
 
     const result = await command.execute("note-1", "user-1");
 
     expect(result.isOk()).toBe(true);
+    expect(notifications.updateOne).toHaveBeenCalledWith(
+      { id: "note-1", userId: "user-1" },
+      expect.objectContaining({ readAt: expect.any(Date) }),
+    );
     expect(cache.invalidateGlobal).toHaveBeenCalledWith("notifications:unread:user-1");
   });
 
@@ -60,7 +64,7 @@ describe("MarkReadCommand", () => {
     const result = await command.execute("note-1", "user-1");
 
     expect(result.isOk()).toBe(true);
-    expect(notifications.updateById).not.toHaveBeenCalled();
+    expect(notifications.updateOne).not.toHaveBeenCalled();
   });
 
   it("should surface a missing row on update", async () => {
@@ -72,7 +76,7 @@ describe("MarkReadCommand", () => {
       channels: ["inApp"],
     });
     vi.mocked(notifications.findOne).mockResolvedValue(ok(unread));
-    vi.mocked(notifications.updateById).mockResolvedValue(ok(null));
+    vi.mocked(notifications.updateOne).mockResolvedValue(ok(null));
 
     const result = await command.execute("note-1", "user-1");
 

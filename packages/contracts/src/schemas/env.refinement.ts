@@ -39,6 +39,8 @@ export type EnvironmentForValidation = {
   SMTP_HOST: string;
   SMTP_PORT: number;
   AUDIT_RETENTION_DAYS: number;
+  PUSH_PROVIDER: "none" | "expo";
+  EXPO_ACCESS_TOKEN?: string;
 };
 
 export function validateEnvironment(env: EnvironmentForValidation, context: RefinementCtx): void {
@@ -68,6 +70,13 @@ export function validateEnvironment(env: EnvironmentForValidation, context: Refi
       code: "custom",
       path: ["FILE_AV_URL"],
       message: "FILE_AV_URL is required when scanning is enabled",
+    });
+  }
+  if (env.PUSH_PROVIDER === "expo" && !env.EXPO_ACCESS_TOKEN) {
+    context.addIssue({
+      code: "custom",
+      path: ["EXPO_ACCESS_TOKEN"],
+      message: "EXPO_ACCESS_TOKEN is required for Expo push (tokenless sends are rate-limited)",
     });
   }
   if (env.IDEMPOTENCY_STALE_AFTER_SECONDS >= env.IDEMPOTENCY_PROCESSING_TTL_SECONDS) {

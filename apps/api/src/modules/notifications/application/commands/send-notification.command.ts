@@ -2,7 +2,13 @@ import { Injectable, Optional } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { err, ok, Result } from "neverthrow";
 import { getNotificationType, type DigestCadence, type NotificationChannel } from "@repo/contracts";
-import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
+import { env } from "../../../../config/env";
+import {
+  DatabaseService,
+  TenantContextService,
+  type TransactionError,
+} from "../../../../infrastructure/database";
+import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { RealtimeService } from "../../../../infrastructure/realtime/realtime.service";
 import { EmailService } from "../../../../infrastructure/email/email.service";
@@ -63,6 +69,8 @@ export class SendNotificationCommand {
     private readonly events: EventEmitter2,
     logger: PinoLoggerService,
     @Optional() private readonly database?: DatabaseService,
+    @Optional() private readonly tenantContext?: TenantContextService,
+    @Optional() private readonly cache?: DistributedCacheService,
   ) {
     this.logger = logger.child({ module: "SendNotificationCommand" });
   }
@@ -71,15 +79,24 @@ export class SendNotificationCommand {
     input: SendNotificationInput,
   ): Promise<Result<Notification, NotificationError | TransactionError>> {
     const operation = () => this.persist(input);
-    if (!this.database) return operation();
-    return this.database.withResultTransaction(operation);
+    const result = this.database ? await this.database.withResultTransaction(operation) : await operation();
+    if (result.isErr()) return err(result.error);
+    // Channel delivery runs after commit: providers are slow, lossy, and must
+    // never roll back the persisted row. deliver() catches per channel.
+    await this.deliver(result.value.notification, result.value.wanted, input.tenantId);
+    return ok(result.value.notification);
   }
 
   private async persist(
     input: SendNotificationInput,
-  ): Promise<Result<Notification, NotificationError>> {
+  ): Promise<
+    Result<{ notification: Notification; wanted: NotificationChannel[] }, NotificationError | TransactionError>
+  > {
     const definition = getNotificationType(input.type);
     if (!definition) return err({ type: "UNKNOWN_NOTIFICATION_TYPE", key: input.type });
+
+    const recipient = await this.getUserById.execute(input.userId);
+    if (recipient.isErr() || !recipient.value) return err({ type: "NOTIFICATION_SEND_FAILED" });
 
     const prefs = await this.ensurePreferences(input.userId);
     const preference = prefs.find((p) => p.category === definition.category);
@@ -88,19 +105,24 @@ export class SendNotificationCommand {
     );
     if (wanted.length === 0) return err({ type: "NOTIFICATION_SEND_FAILED" });
 
+    // Window is the type's batching horizon capped by the user's cadence:
+    // a daily cadence never closes faster than the type allows, an hourly
+    // cadence never waits longer than an hour.
     const cadence = preference?.digestCadence ?? definition.defaultCadence;
     const windowMinutes = Math.min(
       definition.digestWindowMinutes,
       CADENCE_WINDOW_MINUTES[cadence] || 0,
     );
     if (!definition.critical && cadence !== "realtime" && windowMinutes > 0) {
-      await this.appendToBatch(input, definition.grouping, windowMinutes);
-      return this.createRow(input, definition.category, wanted, true);
+      const batched = await this.appendToBatch(input, definition.grouping, windowMinutes);
+      if (batched.isErr()) return err(batched.error);
+      const row = await this.createRow(input, definition.category, wanted, true);
+      if (row.isErr()) return err(row.error);
+      return ok({ notification: row.value, wanted });
     }
     const created = await this.createRow(input, definition.category, wanted, false);
     if (created.isErr()) return err(created.error);
-    await this.deliver(created.value, wanted, input.tenantId);
-    return ok(created.value);
+    return ok({ notification: created.value, wanted });
   }
 
   private async ensurePreferences(userId: string): Promise<NotificationPreferenceData[]> {
@@ -130,44 +152,55 @@ export class SendNotificationCommand {
       channels,
     });
     if (created.isErr()) return err({ type: "NOTIFICATION_SEND_FAILED" });
-    try {
-      await this.events.emitAsync("database.mutated", {
-        collectionName: "notifications",
-        documentId: created.value.id,
-        action: "CREATE",
-        actorId: undefined,
-        tenantId: input.tenantId,
-        before: null,
-        after: { id: created.value.id, type: input.type },
-      });
-    } catch {
-      return err({ type: "NOTIFICATION_DISPATCH_FAILED" });
-    }
+    await this.emitMutated({
+      collectionName: "notifications",
+      documentId: created.value.id,
+      action: "CREATE",
+      actorId: undefined,
+      tenantId: input.tenantId,
+      before: null,
+      after: { id: created.value.id, type: input.type },
+    });
     if (!batched) {
+      const event = new NotificationCreatedEvent(
+        created.value.id,
+        input.userId,
+        input.type,
+        input.tenantId,
+      );
       const dispatched = input.tenantId
-        ? await this.outbox.dispatchTenant(
-            "notification.created",
-            new NotificationCreatedEvent(
-              created.value.id,
-              input.userId,
-              input.type,
-              input.tenantId,
-            ),
+        ? await this.dispatchTenantScoped(input.tenantId, () =>
+            this.outbox.dispatchTenant("notification.created", event),
           )
-        : await this.outbox.dispatchGlobal(
-            "notification.created",
-            new NotificationCreatedEvent(created.value.id, input.userId, input.type),
-          );
+        : await this.outbox.dispatchGlobal("notification.created", event);
       if (dispatched.isErr()) return err({ type: "NOTIFICATION_DISPATCH_FAILED" });
     }
     return ok(created.value);
+  }
+
+  private async dispatchTenantScoped<T>(
+    tenantId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    if (this.tenantContext) {
+      return this.tenantContext.run({ mode: "multi", tenantId }, fn);
+    }
+    return fn();
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    if (this.database) {
+      await this.database.emitAfterCommit(this.events, "database.mutated", payload);
+      return;
+    }
+    await this.events.emitAsync("database.mutated", payload);
   }
 
   private async appendToBatch(
     input: SendNotificationInput,
     grouping: "entity" | "none",
     windowMinutes: number,
-  ): Promise<void> {
+  ): Promise<Result<void, TransactionError>> {
     const entityId =
       grouping === "entity" && typeof input.data?.entityId === "string"
         ? input.data.entityId
@@ -176,18 +209,33 @@ export class SendNotificationCommand {
     const existing = await this.batches.findOpenWindow(input.userId, groupingKey);
     const item = { titleKey: input.titleKey, titleParams: input.titleParams, data: input.data };
     if (existing.isOk() && existing.value) {
-      await this.batches.appendToWindow(existing.value.id, item, 20);
-      return;
+      await this.batches.appendToWindow(existing.value.id, item, env.NOTIFICATION_DIGEST_MAX_ITEMS);
+      return ok(undefined);
     }
-    await this.batches.create({
-      userId: input.userId,
-      tenantId: input.tenantId,
-      type: input.type,
-      groupingKey,
-      items: [item],
-      status: "open",
-      windowEndsAt: new Date(Date.now() + windowMinutes * 60 * 1000),
-    });
+    try {
+      await this.batches.create({
+        userId: input.userId,
+        tenantId: input.tenantId,
+        type: input.type,
+        groupingKey,
+        items: [item],
+        status: "open",
+        windowEndsAt: new Date(Date.now() + windowMinutes * 60 * 1000),
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) return err({ type: "TRANSACTION_FAILED" });
+      const reopened = await this.batches.findOpenWindow(input.userId, groupingKey);
+      if (reopened.isOk() && reopened.value) {
+        await this.batches.appendToWindow(
+          reopened.value.id,
+          item,
+          env.NOTIFICATION_DIGEST_MAX_ITEMS,
+        );
+        return ok(undefined);
+      }
+      return err({ type: "TRANSACTION_FAILED" });
+    }
+    return ok(undefined);
   }
 
   private async deliver(
@@ -196,6 +244,11 @@ export class SendNotificationCommand {
     tenantId?: string,
   ): Promise<void> {
     const data = notification.toJSON();
+    try {
+      await this.cache?.invalidateGlobal(`notifications:unread:${data.userId}`);
+    } catch (error) {
+      this.logger.error({ error, userId: data.userId }, "Unread cache invalidation failed");
+    }
     const payload = {
       id: data.id,
       type: data.type,
@@ -210,7 +263,7 @@ export class SendNotificationCommand {
         } else if (channel === "email") {
           await this.deliverEmail(data.userId, data.titleKey, data.titleParams ?? undefined);
         } else if (channel === "push") {
-          await this.deliverPush(data.userId, data.titleKey, tenantId);
+          await this.deliverPush(data.userId, data.titleKey, data.titleParams ?? undefined, tenantId);
         }
       } catch (error) {
         this.logger.error({ error, channel, notificationId: data.id }, "Channel delivery failed");
@@ -240,13 +293,22 @@ export class SendNotificationCommand {
     }
   }
 
-  private async deliverPush(userId: string, titleKey: string, tenantId?: string): Promise<void> {
+  private async deliverPush(
+    userId: string,
+    titleKey: string,
+    titleParams: Record<string, unknown> | undefined,
+    tenantId?: string,
+  ): Promise<void> {
     const tokens = await this.devices.findByUser(userId);
     if (tokens.isErr() || tokens.value.length === 0) return;
     const driver = this.push.get();
     const expoTokens = tokens.value.filter((token) => token.provider === driver.provider);
     if (expoTokens.length === 0) return;
-    const title = this.i18n.t(titleKey);
+    const title = this.i18n.t(
+      titleKey,
+      undefined,
+      titleParams as Record<string, string | number> | undefined,
+    );
     const results = await driver.send(
       expoTokens.map((token) => ({
         token: token.token,
@@ -257,7 +319,20 @@ export class SendNotificationCommand {
     );
     const dead = expoTokens.filter((_, index) => results[index]?.status === "invalid-token");
     for (const token of dead) {
-      await this.devices.deleteByToken(token.token);
+      await this.devices.deleteByUserAndToken(userId, token.token);
+    }
+    for (const result of results) {
+      if (result?.status === "failed") {
+        this.logger.warn({ userId, reason: result.reason }, "Notification push failed");
+      }
     }
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === "23505"
+  );
 }

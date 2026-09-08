@@ -54,7 +54,9 @@ export class DomainEventFanoutListener {
         type: "tenancy.invitation.received",
         titleKey: "notifications.types.invitationReceived",
         titleParams: { organization: event.organizationName },
-        data: { tenantId: event.tenantId, token: event.token },
+        // Never persist the raw invite token: the email remains the accept
+        // path, the inbox row links the tenant for context.
+        data: { tenantId: event.tenantId },
         channels: ["inApp", "push"],
       });
       if (result.isErr()) {

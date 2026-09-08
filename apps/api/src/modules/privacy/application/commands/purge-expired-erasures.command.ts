@@ -8,6 +8,7 @@ import { OutboxService } from "../../../../infrastructure/outbox/outbox.service"
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { DeleteUserCommand } from "../../../users/application/commands/delete-user.command";
 import { HardDeleteOrganizationCommand } from "../../../tenancy/application/commands/hard-delete-organization.command";
+import { PurgeUserNotificationsCommand } from "../../../notifications/application/commands/purge-user-notifications.command";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { AccountPurgedEvent, OrganizationPurgedEvent } from "../../domain/events/privacy.events";
 import { PrivacyRepository } from "../../infrastructure/privacy.repository";
@@ -27,6 +28,7 @@ export class PurgeExpiredErasuresCommand {
     private readonly requests: PrivacyRepository,
     private readonly deleteUser: DeleteUserCommand,
     private readonly hardDeleteOrganization: HardDeleteOrganizationCommand,
+    private readonly purgeNotifications: PurgeUserNotificationsCommand,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
     logger: PinoLoggerService,
@@ -94,6 +96,10 @@ export class PurgeExpiredErasuresCommand {
     subject: { subjectUserId: string; tenantId?: string },
   ): Promise<Result<void, PrivacyError>> {
     if (type === "ACCOUNT_ERASURE") {
+      const cleared = await this.purgeNotifications.execute(subject.subjectUserId);
+      if (cleared.isErr()) {
+        return err({ type: "PURGE_FAILED" });
+      }
       const deleted = await this.deleteUser.execute(subject.subjectUserId);
       if (deleted.isErr() && deleted.error.type !== "USER_NOT_FOUND") {
         return err({ type: "PURGE_FAILED" });

@@ -12,6 +12,7 @@ import { RegisterDeviceTokenCommand } from "./application/commands/register-devi
 import { PurgeUserNotificationsCommand } from "./application/commands/purge-user-notifications.command";
 import { ListNotificationsQuery } from "./application/queries/list-notifications.query";
 import { GetPreferencesQuery } from "./application/queries/get-preferences.query";
+import { ExportUserDataQuery } from "./application/queries/export-user-data.query";
 import { DomainEventFanoutListener } from "./application/listeners/domain-event-fanout.listener";
 import { DigestWorker } from "./application/workers/digest.worker";
 import { NotificationsRepository } from "./infrastructure/notifications.repository";
@@ -24,7 +25,6 @@ import { PushDriverFactory } from "./infrastructure/push/push.factory";
   imports: [EventEmitterModule, OutboxModule, DatabaseModule, UsersModule],
   controllers: [NotificationsController, NotificationsOrpcController],
   providers: [
-    NotificationsController,
     SendNotificationCommand,
     MarkReadCommand,
     UpdatePreferencesCommand,
@@ -32,6 +32,7 @@ import { PushDriverFactory } from "./infrastructure/push/push.factory";
     PurgeUserNotificationsCommand,
     ListNotificationsQuery,
     GetPreferencesQuery,
+    ExportUserDataQuery,
     DomainEventFanoutListener,
     DigestWorker,
     NotificationsRepository,
@@ -40,6 +41,11 @@ import { PushDriverFactory } from "./infrastructure/push/push.factory";
     BatchesRepository,
     PushDriverFactory,
   ],
-  exports: [SendNotificationCommand, PurgeUserNotificationsCommand, GetPreferencesQuery],
+  exports: [
+    SendNotificationCommand,
+    PurgeUserNotificationsCommand,
+    GetPreferencesQuery,
+    ExportUserDataQuery,
+  ],
 })
 export class NotificationsModule {}

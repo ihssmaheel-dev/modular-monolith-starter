@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { ok, type Result } from "neverthrow";
-import type { AuthenticatedUser, NotificationListResponse } from "@repo/contracts";
+import { err, ok, type Result } from "neverthrow";
+import type { AuthenticatedUser } from "@repo/contracts";
 import type { NotificationError } from "../../domain/errors/notification.errors";
-import { toNotificationResponse } from "../../presentation/notifications.mapper";
+import type { Notification } from "../../domain/entities/notification.entity";
 import { NotificationsRepository } from "../../infrastructure/notifications.repository";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
+import type { PaginatedResult } from "../../../../infrastructure/database";
 
 @Injectable()
 export class ListNotificationsQuery {
@@ -17,19 +18,12 @@ export class ListNotificationsQuery {
     actor: AuthenticatedUser,
     page: number,
     limit: number,
-  ): Promise<Result<NotificationListResponse, NotificationError>> {
+  ): Promise<Result<PaginatedResult<Notification>, NotificationError>> {
     const result = await this.notifications.paginate({ userId: actor.sub }, { page, limit });
     if (result.isErr()) {
-      return ok({ items: [], total: 0, page, limit, totalPages: 1 });
+      return err({ type: "NOTIFICATION_FETCH_FAILED" });
     }
-    const val = result.value;
-    return ok({
-      items: val.items.map(toNotificationResponse),
-      total: val.total,
-      page: val.page,
-      limit: val.limit,
-      totalPages: val.totalPages,
-    });
+    return ok(result.value);
   }
 
   async unreadCount(userId: string): Promise<number> {

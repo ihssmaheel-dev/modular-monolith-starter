@@ -13,8 +13,10 @@ import { MetricsService } from "../../../../infrastructure/metrics/metrics.servi
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { NotificationDigestReadyEvent } from "../../domain/events/notification.events";
 import { BatchesRepository } from "../../infrastructure/batches.repository";
+import { DeviceTokensRepository } from "../../infrastructure/device-tokens.repository";
 import { NotificationsRepository } from "../../infrastructure/notifications.repository";
 import { PreferencesRepository } from "../../infrastructure/preferences.repository";
+import { PushDriverFactory } from "../../infrastructure/push/push.factory";
 import { renderNotificationEmail } from "../commands/notification-email.renderer";
 
 const DIGEST_BATCH_LIMIT = 100;
@@ -22,8 +24,9 @@ const DIGEST_BATCH_LIMIT = 100;
 /**
  * Closes expired batch-on-write windows and delivers one digest per window:
  * a single center row, one email (tiered rendering), one count-only push.
- * Windows are claimed with an atomic status transition so concurrent
- * worker replicas never double-deliver.
+ * Exactly-once visibility: work happens first, then an atomic open→delivered
+ * claim; a replica that loses the claim deletes its duplicate row. A crash
+ * anywhere before the claim simply retries the open window next tick.
  */
 @Injectable()
 export class DigestWorker {
@@ -34,6 +37,8 @@ export class DigestWorker {
     private readonly batches: BatchesRepository,
     private readonly notifications: NotificationsRepository,
     private readonly preferences: PreferencesRepository,
+    private readonly devices: DeviceTokensRepository,
+    private readonly push: PushDriverFactory,
     private readonly getUserById: GetUserByIdQuery,
     private readonly realtime: RealtimeService,
     private readonly email: EmailService,
@@ -57,10 +62,6 @@ export class DigestWorker {
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
         const due = await this.batches.findDueWindows(DIGEST_BATCH_LIMIT);
         for (const window of due) {
-          const claimed = await this.database.runTransaction(() =>
-            this.batches.updateOne({ id: window.id, status: "open" }, { status: "delivered" }),
-          );
-          if (claimed.isErr() || !claimed.value) continue;
           try {
             if (await this.deliverWindow(window.id)) delivered += 1;
           } catch (error) {
@@ -88,6 +89,13 @@ export class DigestWorker {
     const found = await this.batches.findById(batchId);
     if (found.isErr() || !found.value || found.value.items.length === 0) return false;
     const window = found.value;
+
+    const duplicate = await this.notifications.findDigestByBatchId(batchId);
+    if (duplicate.isOk() && duplicate.value) {
+      await this.batches.updateOne({ id: batchId, status: "open" }, { status: "delivered" });
+      return true;
+    }
+
     const definition = getNotificationType(window.type);
     if (!definition) return false;
 
@@ -112,10 +120,19 @@ export class DigestWorker {
       category: definition.category,
       titleKey: "notifications.digestTitle",
       titleParams: { count: items.length },
-      data: { count: items.length, items },
+      data: { batchId: window.id, count: items.length, items },
       channels: enabled,
     });
     if (created.isErr()) return false;
+
+    const claimed = await this.batches.updateOne(
+      { id: batchId, status: "open" },
+      { status: "delivered" },
+    );
+    if (claimed.isErr() || !claimed.value) {
+      await this.notifications.deleteById(created.value.id);
+      return true;
+    }
 
     const translate = (key: string, params?: Record<string, unknown>) =>
       this.i18n.t(key, undefined, params as Record<string, string | number> | undefined);
@@ -124,7 +141,12 @@ export class DigestWorker {
       this.realtime.sendToUser(
         window.userId,
         "notification.created",
-        { id: created.value.id, type: window.type, titleKey: "notifications.digestTitle" },
+        {
+          id: created.value.id,
+          type: window.type,
+          titleKey: "notifications.digestTitle",
+          titleParams: { count: items.length },
+        },
         window.tenantId ?? undefined,
       );
     }
@@ -138,23 +160,32 @@ export class DigestWorker {
           count: items.length,
           translate,
         });
-        await this.email.send({ to: user.value.email, subject, html });
+        const sent = await this.email.send({ to: user.value.email, subject, html });
+        if (sent.isErr()) {
+          this.logger.warn({ batchId: window.id }, "Digest email failed");
+        }
       }
     }
+    if (enabled.includes("push")) {
+      await this.deliverDigestPush(window.userId, items.length);
+    }
+    const event = new NotificationDigestReadyEvent(
+      window.id,
+      window.userId,
+      window.type,
+      items.length,
+      window.tenantId ?? undefined,
+    );
     const dispatched = window.tenantId
-      ? await this.outbox.dispatchTenant(
-          "notification.digest.ready",
-          new NotificationDigestReadyEvent(window.id, window.userId, window.type, items.length),
+      ? await this.dispatchTenantScoped(window.tenantId, () =>
+          this.outbox.dispatchTenant("notification.digest.ready", event),
         )
-      : await this.outbox.dispatchGlobal(
-          "notification.digest.ready",
-          new NotificationDigestReadyEvent(window.id, window.userId, window.type, items.length),
-        );
+      : await this.outbox.dispatchGlobal("notification.digest.ready", event);
     if (dispatched.isErr()) {
       this.logger.warn({ batchId: window.id }, "Digest event dispatch failed");
       return false;
     }
-    await this.events.emitAsync("database.mutated", {
+    await this.emitMutated({
       collectionName: "notifications",
       documentId: created.value.id,
       action: "CREATE",
@@ -164,5 +195,42 @@ export class DigestWorker {
       after: { id: created.value.id, type: window.type, digest: true },
     });
     return true;
+  }
+
+  private async deliverDigestPush(userId: string, count: number): Promise<void> {
+    const tokens = await this.devices.findByUser(userId);
+    if (tokens.isErr() || tokens.value.length === 0) return;
+    const driver = this.push.get();
+    const expoTokens = tokens.value.filter((token) => token.provider === driver.provider);
+    if (expoTokens.length === 0) return;
+    const title = this.i18n.t("notifications.digestTitle", undefined, { count });
+    const results = await driver.send(
+      expoTokens.map((token) => ({
+        token: token.token,
+        title,
+        body: title,
+        data: { count },
+      })),
+    );
+    for (const [index, result] of results.entries()) {
+      const token = expoTokens[index];
+      if (!token) continue;
+      if (result?.status === "invalid-token") {
+        await this.devices.deleteByUserAndToken(userId, token.token);
+      } else if (result?.status === "failed") {
+        this.logger.warn({ userId, reason: result.reason }, "Digest push failed");
+      }
+    }
+  }
+
+  private async dispatchTenantScoped<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+    if (this.tenantContext) {
+      return this.tenantContext.run({ mode: "multi", tenantId }, fn);
+    }
+    return fn();
+  }
+
+  private async emitMutated(payload: Record<string, unknown>): Promise<void> {
+    await this.database.emitAfterCommit(this.events, "database.mutated", payload);
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../infrastructure/database";
 import { TenantContextService } from "../../../infrastructure/database";
 import { BaseRepository } from "../../../infrastructure/database";
@@ -41,17 +42,21 @@ export class NotificationsRepository extends BaseRepository<Notification, Notifi
 
   async countUnread(userId: string): Promise<number> {
     const db = this.getDb();
-    const rows = await (
-      db as unknown as {
-        select: () => {
-          from: (t: unknown) => { where: (c: unknown) => Promise<Array<{ id: string }>> };
-        };
-      }
-    )
-      .select()
-      .from(notifications)
-      .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
-    return rows.length;
+    const result = await (
+      db as unknown as { execute: (query: unknown) => Promise<{ rows: Array<{ count: string }> }> }
+    ).execute(
+      sql`select count(*) as count from notifications where user_id = ${userId} and read_at is null`,
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
+  async findDigestByBatchId(batchId: string): Promise<Result<Notification | null, never>> {
+    const db = this.getDb();
+    const result = await (
+      db as unknown as { execute: (query: unknown) => Promise<{ rows: NotificationRow[] }> }
+    ).execute(sql`select * from notifications where data->>'batchId' = ${batchId} limit 1`);
+    const row = result.rows[0];
+    return ok(row ? this.toDomain(row) : null);
   }
 
   async markAllRead(userId: string): Promise<void> {
