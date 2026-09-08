@@ -57,6 +57,13 @@
       "when": 1788843654517,
       "tag": "0007_notification_uniques_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788847520557,
+      "tag": "0008_notification_rls",
+      "breakpoints": true
     }
   ]
 }

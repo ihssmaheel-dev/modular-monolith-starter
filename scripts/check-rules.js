@@ -178,9 +178,7 @@ function checkTenantRepositories() {
   for (const entry of fs.readdirSync(modulesDirectory, { withFileTypes: true })) {
     // tenancy owns the tenant model; privacy DSRs are intentionally subject-scoped
     // globals (they must outlive the tenants they reference for the Art. 12 audit trail).
-    // notifications is an inbox: rows are subject-scoped globals readable across
-    // tenants (like memberships), with tenantId kept for display/audit context only.
-    if (!entry.isDirectory() || ["tenancy", "privacy", "notifications"].includes(entry.name)) {
+    if (!entry.isDirectory() || ["tenancy", "privacy"].includes(entry.name)) {
       continue;
     }
     const infrastructure = path.join(modulesDirectory, entry.name, "infrastructure");
@@ -197,10 +195,14 @@ function checkTenantRepositories() {
         /extends\s+TenantScopedRepository/.test(source) ||
         (/extends\s+(DrizzleBaseRepository|BaseRepository)/.test(source) &&
           /super\([^)]*,\s*true/.test(source));
-      if (!isTenantScoped) {
+      // subject-scoped: rows are filtered by userId in every query and backed by
+      // subject-isolation RLS at the database layer (see migrations). The marker
+      // documents the deliberate exception; tenantId stays display/audit context.
+      const isSubjectScoped = source.includes("subject-scoped:");
+      if (!isTenantScoped && !isSubjectScoped) {
         report(
           file,
-          "tenant-owned repositories must extend TenantScopedRepository or BaseRepository with tenantScoped=true",
+          "tenant-owned repositories must extend TenantScopedRepository or BaseRepository with tenantScoped=true (or document subject-scoped: isolation)",
         );
       }
     }

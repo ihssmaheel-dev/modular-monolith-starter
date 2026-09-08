@@ -19,6 +19,8 @@ import type { NotificationChannel } from "@repo/contracts";
 
 @Injectable()
 export class NotificationsRepository extends BaseRepository<Notification, NotificationRow> {
+  // subject-scoped: every query filters by userId and subject_isolation RLS
+  // backs it at the database layer. tenantId is display/audit context only.
   constructor(database: DatabaseService, tenantContext: TenantContextService) {
     super(notifications, database, tenantContext, false);
   }
@@ -89,6 +91,15 @@ export class NotificationsRepository extends BaseRepository<Notification, Notifi
     };
     await deleter.delete(notifications).where(eq(notifications.tenantId, tenantId));
     await deleter.delete(notificationBatches).where(eq(notificationBatches.tenantId, tenantId));
+  }
+
+  async deleteUnscoped(): Promise<void> {
+    const db = this.getDb();
+    const deleter = db as unknown as {
+      delete: (t: unknown) => { where: (c: unknown) => Promise<void> };
+    };
+    await deleter.delete(notifications).where(isNull(notifications.tenantId));
+    await deleter.delete(notificationBatches).where(isNull(notificationBatches.tenantId));
   }
 }
 

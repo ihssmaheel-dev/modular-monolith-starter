@@ -13,6 +13,8 @@ import type { DigestCadence } from "@repo/contracts";
 
 @Injectable()
 export class PreferencesRepository extends BaseRepository<NotificationPreference, PreferenceRow> {
+  // subject-scoped: every query filters by userId and subject_isolation RLS
+  // backs it at the database layer. Account-scoped by design (see PRIVACY.md).
   constructor(database: DatabaseService, tenantContext: TenantContextService) {
     super(notificationPreferences, database, tenantContext, false);
   }

@@ -25,6 +25,8 @@ export interface NotificationBatch {
 
 @Injectable()
 export class BatchesRepository extends BaseRepository<NotificationBatch, NotificationBatchRow> {
+  // subject-scoped: every query filters by userId and subject_isolation RLS
+  // backs it at the database layer. tenantId is display/audit context only.
   constructor(database: DatabaseService, tenantContext: TenantContextService) {
     super(notificationBatches, database, tenantContext, false);
   }

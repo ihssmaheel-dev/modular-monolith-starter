@@ -18,6 +18,10 @@ const HARDENED_TABLES = [
   "invitations",
   "organizations",
   "dsr_requests",
+  "notifications",
+  "notification_preferences",
+  "device_tokens",
+  "notification_batches",
 ] as const;
 const HARDENING_POLICIES = [
   "audit_system_scope",
@@ -28,6 +32,10 @@ const HARDENING_POLICIES = [
   "tenant_isolation_invitations",
   "tenant_isolation_organizations",
   "subject_isolation_dsr_requests",
+  "subject_isolation_notifications",
+  "subject_isolation_notification_preferences",
+  "subject_isolation_device_tokens",
+  "subject_isolation_notification_batches",
 ] as const;
 
 type MigrationEntry = { tag: string };
