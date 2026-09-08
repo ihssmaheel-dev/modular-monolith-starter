@@ -39,6 +39,14 @@ describe("mobile notes queries", () => {
     );
   });
 
+  it("throws fetchFailed for server errors on a single note", async () => {
+    client.notes.get.mockResolvedValue({ status: 500, body: null });
+
+    await expect(createTestQueryClient().fetchQuery(noteByIdQuery("n-1"))).rejects.toThrow(
+      "api.note.fetchFailed",
+    );
+  });
+
   it("fetches attachments through the parent-owned endpoint", async () => {
     const body = { items: [], total: 0, page: 1, limit: 100, totalPages: 0 };
     client.notes.listAttachments.mockResolvedValue({ status: 200, body });
