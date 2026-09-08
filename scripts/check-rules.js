@@ -277,35 +277,45 @@ function checkRoutePermissions() {
 }
 
 function checkWebTestCoverage() {
-  const featuresDirectory = path.join(ROOT, "apps/web/src/features");
-  if (!fs.existsSync(featuresDirectory)) return;
-  for (const file of walk(featuresDirectory)) {
-    if (isTest(file)) continue;
-    const match = /([^/]+)\.(queries|mutations)\.tsx?$/.exec(relative(file));
-    if (!match) continue;
-    const [, base, kind] = match;
-    const siblings = new Set(fs.readdirSync(path.dirname(file)));
-    if (!siblings.has(`${base}.${kind}.test.ts`) && !siblings.has(`${base}.${kind}.test.tsx`)) {
-      report(
-        file,
-        `web feature ${kind} module must have a co-located test file (${base}.${kind}.test.ts[x])`,
-      );
+  for (const app of ["apps/web", "apps/mobile"]) {
+    const featuresDirectory = path.join(ROOT, `${app}/src/features`);
+    if (!fs.existsSync(featuresDirectory)) continue;
+    for (const file of walk(featuresDirectory)) {
+      if (isTest(file)) continue;
+      const match = /([^/]+)\.(queries|mutations)\.tsx?$/.exec(relative(file));
+      if (!match) continue;
+      const [, base, kind] = match;
+      const siblings = new Set(fs.readdirSync(path.dirname(file)));
+      if (!siblings.has(`${base}.${kind}.test.ts`) && !siblings.has(`${base}.${kind}.test.tsx`)) {
+        report(
+          file,
+          `feature ${kind} module must have a co-located test file (${base}.${kind}.test.ts[x])`,
+        );
+      }
     }
   }
 }
 
 function checkWebFetchUsage() {
-  const srcDirectory = path.join(ROOT, "apps/web/src");
-  if (!fs.existsSync(srcDirectory)) return;
-  for (const file of walk(srcDirectory)) {
-    if (!CODE_EXTENSIONS.has(path.extname(file))) continue;
-    if (relative(file) === "apps/web/src/lib/api.ts") continue;
-    const source = fs.readFileSync(file, "utf8");
-    if (/\bfetch\s*\(/.test(source)) {
-      report(
-        file,
-        "web code must call getApiClient() instead of fetch() (only src/lib/api.ts may use fetch)",
-      );
+  // Presigned uploads PUT bytes directly; the only sanctioned raw-fetch site.
+  const fetchAllowlist = new Set([
+    "apps/web/src/lib/api.ts",
+    "apps/mobile/src/lib/api.ts",
+    "apps/mobile/src/features/files/files.mutations.ts",
+  ]);
+  for (const app of ["apps/web", "apps/mobile"]) {
+    const srcDirectory = path.join(ROOT, `${app}/src`);
+    if (!fs.existsSync(srcDirectory)) continue;
+    for (const file of walk(srcDirectory)) {
+      if (!CODE_EXTENSIONS.has(path.extname(file))) continue;
+      if (fetchAllowlist.has(relative(file))) continue;
+      const source = fs.readFileSync(file, "utf8");
+      if (/\bfetch\s*\(/.test(source)) {
+        report(
+          file,
+          "frontend code must call getApiClient() instead of fetch() (allowlisted transports only)",
+        );
+      }
     }
   }
 }

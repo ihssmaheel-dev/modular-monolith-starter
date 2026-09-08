@@ -13,6 +13,7 @@ Test contract for the codebase. Quality without ceremony.
 | `infrastructure/` | Integration | Vitest + real Postgres/Redis (testcontainers or local docker) | Repositories, adapters. Real Postgres/Redis. |
 | `presentation/` + full flows | E2E | Supertest (API), Playwright (web) | API endpoints, user journeys. |
 | `apps/web/src/**` | Unit | Vitest + Testing Library (jsdom) | Query/mutation option builders, lib, stores, hooks, components. Mock `getApiClient()`. |
+| `apps/mobile/src/**` (logic) | Unit | Vitest (node) | Query/mutation option builders, lib, stores. Mock `getApiClient()` + native modules. |
 
 ---
 
@@ -32,6 +33,15 @@ Test contract for the codebase. Quality without ceremony.
 - Every `src/features/*/*.{queries,mutations}.ts` module has a co-located test (enforced by `pnpm rules:check`).
 - Prefer `renderWithProviders` (Query client + i18n); use `renderWithApp` (memory router) only for components that need `Link`/`useNavigate`.
 - Assert translated output (interpolated strings, never raw keys), loading/error/empty tri-states, disabled-while-pending, and per-status error keys.
+
+### Unit Tests (mobile logic)
+- Run under `apps/mobile/vitest.config.ts` (node, globals). Never hit the network or native modules.
+- Native seams are mocked once in `src/test/setup.ts` (`expo-secure-store`, `expo-notifications`, `expo-device`, `expo-constants`, `expo-localization`, `expo-file-system`, `react-native`); tests drive them through `src/test/native-state.ts`, never by re-mocking.
+- Mock `@/lib/api` (`getApiClient`) and `uploadFile`; stub global `fetch` only for the presigned-PUT path (`putBytesNative`).
+- One test file per source file, co-located next to it (`*.test.ts`).
+- Every `src/features/*/*.{queries,mutations}.ts` module has a co-located test (enforced by `pnpm rules:check`).
+- Hooks run headless via `src/test/render-hook.tsx` (react-test-renderer + fresh QueryClient per test).
+- Coverage excludes the presentational layer (`src/components/**`, `src/features/**/components/**`, `src/theme/**`) until the component runner lands (deferred: needs architecture review per `PACKAGE_POLICY.md`).
 
 ### Integration Tests (infrastructure)
 - Use real PostgreSQL and Redis (via testcontainers or local docker).

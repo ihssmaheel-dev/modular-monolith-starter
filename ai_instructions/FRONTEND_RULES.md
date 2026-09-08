@@ -53,6 +53,13 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 - Forms: test the Zod guard — invalid drafts never call `mutate`; drafts survive background refetches.
 - Components: cover loading/error/empty tri-states and verify error branches offer retry (never a false empty state).
 
+## Testing (mobile)
+
+- Vitest (node) under `apps/mobile/vitest.config.ts`; co-located `*.test.ts` (see `TESTING_RULES.md`).
+- Native seams are mocked once in `src/test/setup.ts`; tests drive them via `src/test/native-state.ts`.
+- The only network transports are `getApiClient()` and the presigned-PUT in `features/files/files.mutations.ts` (enforced by `pnpm rules:check`).
+- Component tests are deferred until a Jest/RNTL exception passes architecture review (`PACKAGE_POLICY.md` rule 8); until then, coverage excludes the presentational layer.
+
 ## Shared invariants
 - Never call `fetch` directly from routes or features; use `getApiClient()`. Only `_app.tsx` may call it, for session bootstrap (`auth.me()`).
 - Pagination is mandatory (`page`, `limit`, `total`, `totalPages`) with shared limits from `@repo/contracts`.
