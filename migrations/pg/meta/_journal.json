@@ -5,64 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1788525464991,
+      "when": 1788889028470,
       "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1788707935287,
-      "tag": "0001_nostalgic_senator_kelly",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1788715982453,
-      "tag": "0002_curved_silver_surfer",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1788764391687,
-      "tag": "0003_medical_marrow",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1788776099748,
-      "tag": "0004_rls_organizations_dsr",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1788778690746,
-      "tag": "0005_perf_hot_path_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1788799816768,
-      "tag": "0006_familiar_baron_strucker",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1788843654517,
-      "tag": "0007_notification_uniques_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1788847520557,
-      "tag": "0008_notification_rls",
       "breakpoints": true
     }
   ]

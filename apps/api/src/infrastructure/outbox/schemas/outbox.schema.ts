@@ -25,6 +25,8 @@ export const outboxEvents = pgTable(
   },
   (t) => [
     index("outbox_status_next_attempt_idx").on(t.status, t.nextAttemptAt),
+    index("outbox_status_locked_idx").on(t.status, t.lockedAt),
+    index("outbox_status_updated_idx").on(t.status, t.updatedAt),
     index("outbox_tenant_id_idx").on(t.tenantId),
     index("outbox_topic_idx").on(t.topic),
   ],

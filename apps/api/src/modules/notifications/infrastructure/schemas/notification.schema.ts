@@ -1,4 +1,15 @@
-import { pgTable, text, timestamp, pgEnum, index, jsonb, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  pgEnum,
+  index,
+  jsonb,
+  boolean,
+  unique,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const notificationChannelEnum = pgEnum("notification_channel", ["inApp", "email", "push"]);
 export const digestCadenceEnum = pgEnum("digest_cadence", ["realtime", "hourly", "daily"]);
@@ -22,6 +33,10 @@ export const notifications = pgTable(
   },
   (t) => [
     index("notifications_user_read_idx").on(t.userId, t.readAt),
+    index("notifications_user_created_idx").on(t.userId, t.createdAt),
+    index("notifications_digest_batch_idx")
+      .on(sql`(("data" ->> 'batchId'))`)
+      .where(sql`(("data" ->> 'batchId')) IS NOT NULL`),
     index("notifications_tenant_idx").on(t.tenantId),
     index("notifications_type_idx").on(t.type),
   ],
@@ -40,7 +55,10 @@ export const notificationPreferences = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("notification_preferences_user_idx").on(t.userId)],
+  (t) => [
+    index("notification_preferences_user_idx").on(t.userId),
+    unique("notification_preferences_user_category_unique").on(t.userId, t.category),
+  ],
 );
 
 export const deviceTokens = pgTable(
@@ -58,6 +76,7 @@ export const deviceTokens = pgTable(
   (t) => [
     index("device_tokens_user_idx").on(t.userId),
     index("device_tokens_token_idx").on(t.token),
+    unique("device_tokens_user_token_unique").on(t.userId, t.token),
   ],
 );
 
@@ -78,6 +97,10 @@ export const notificationBatches = pgTable(
   (t) => [
     index("notification_batches_open_idx").on(t.status, t.windowEndsAt),
     index("notification_batches_user_idx").on(t.userId),
+    index("notification_batches_user_grouping_status_idx").on(t.userId, t.groupingKey, t.status),
+    uniqueIndex("notification_batches_open_grouping_unique")
+      .on(t.userId, t.groupingKey)
+      .where(sql`"status" = 'open'`),
   ],
 );
 

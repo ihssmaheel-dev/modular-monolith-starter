@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, integer, pgEnum, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const fileParentTypeEnum = pgEnum("file_parent_type", ["note", "user", "general"]);
 export const fileStatusEnum = pgEnum("file_status", [
@@ -32,6 +33,10 @@ export const files = pgTable(
     index("files_tenant_parent_idx").on(t.tenantId, t.parentType, t.parentId),
     index("files_parent_slot_idx").on(t.parentType, t.parentId, t.slot),
     index("files_uploaded_by_idx").on(t.uploadedBy),
+    index("files_status_created_idx").on(t.status, t.createdAt),
+    index("files_uploader_active_idx")
+      .on(t.uploadedBy)
+      .where(sql`"deleted_at" IS NULL`),
     index("files_key_idx").on(t.key),
     index("files_deleted_at_idx").on(t.deletedAt),
   ],
