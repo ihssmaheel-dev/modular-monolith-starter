@@ -58,7 +58,7 @@ return { status: 409, body: { message: "Email already taken" } };
 
 ---
 
-## Frontend Rules (`apps/web`)
+## Frontend Rules (`apps/web` + `apps/mobile`)
 
 ### Web (`apps/web` — TanStack Start)
 
@@ -82,6 +82,12 @@ function Dashboard() {
 return <h1>Dashboard</h1>;
 ```
 
+### Mobile (`apps/mobile` — Expo)
+
+- Same `react-i18next` + shared `@repo/i18n` resources, initialized in `apps/mobile/src/lib/i18n.ts`.
+- No browser detector: the device locale comes from `expo-localization` (`deviceLocale()`), and the persisted `useLocaleStore` choice wins after rehydrate.
+- Dynamic keys are banned by `pnpm rules:check` — use explicit key maps (e.g. `STATUS_LABELS`), never `` t(`files.status.${status}`) ``.
+
 ---
 
 ## Translation Key Structure
@@ -92,11 +98,21 @@ return <h1>Dashboard</h1>;
   "auth": { "login": "...", "register": "...", "logout": "...", "email": "...", "password": "..." },
   "dashboard": { "title": "...", "welcome": "...", "stats": "..." },
   "users": { "title": "...", "list": "...", "create": "...", "edit": "...", "delete": "..." },
+  "notes": { "title": "...", "createNote": "...", "deleteConfirm": "..." },
+  "files": { "dropFiles": "...", "uploading": "...", "attachments": "..." },
+  "privacy": { "title": "...", "exportTitle": "...", "eraseAccount": "..." },
+  "notifications": { "title": "...", "markAllRead": "...", "preferencesTitle": "..." },
+  "tenancy": { "activeOrganization": "...", "createOrganization": "..." },
   "settings": { "title": "...", "language": "...", "theme": "..." },
   "errors": { "notFound": "...", "unauthorized": "...", "forbidden": "...", "serverError": "..." },
+  "zod": { "errors": { "invalid_type": "...", "too_small": "..." } },
   "api": {
     "error": { "internal": "...", "notFound": "...", "unauthorized": "...", "badRequest": "...", "conflict": "..." },
-    "user": { "created": "...", "updated": "...", "deleted": "...", "notFound": "...", "emailTaken": "..." }
+    "user": { "created": "...", "updated": "...", "deleted": "...", "notFound": "...", "emailTaken": "..." },
+    "note": { "created": "...", "notFound": "..." },
+    "tenancy": { "slugTaken": "...", "lastOwner": "..." },
+    "privacy": { "exportFailed": "...", "erasureFailed": "..." },
+    "notifications": { "sendFailed": "...", "notFound": "..." }
   }
 }
 ```
@@ -107,10 +123,16 @@ return <h1>Dashboard</h1>;
 - `auth.*` — Authentication flows
 - `dashboard.*` — Dashboard screens
 - `users.*` — User management
+- `notes.*` — Notes screens
+- `files.*` — File upload + attachment UI
+- `privacy.*` — GDPR export/erasure screens
+- `notifications.*` — Center, preferences, device UI (titles render from `titleKey`)
+- `tenancy.*` — Organization screens
 - `settings.*` — Settings screens
 - `errors.*` — User-facing error pages
+- `zod.*` — Shared validation messages
 - `api.error.*` — Backend API error messages
-- `api.user.*` — User-related API messages
+- `api.user.*`, `api.note.*`, `api.tenancy.*`, `api.privacy.*`, `api.notifications.*`, `api.file.*` — Domain API messages
 
 ---
 
@@ -120,7 +142,8 @@ return <h1>Dashboard</h1>;
 2. Copy structure from `en.json`.
 3. Translate all values (not keys).
 4. Add locale to `SUPPORTED_LOCALES` in `packages/i18n/src/index.ts`.
-5. Add locale to `resources` in `apps/web/src/lib/i18n.tsx`.
+5. Add locale to `resources` in `apps/web/src/lib/i18n.tsx` and to `resources` + `SUPPORTED` in `apps/mobile/src/lib/i18n.ts`.
+6. Run `pnpm rules:check` — locale parity across all files is enforced.
 
 ---
 

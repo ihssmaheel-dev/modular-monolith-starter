@@ -55,6 +55,7 @@ pnpm dev
 │   ├── i18n/            # Multi-language locale dictionaries (en, es, fr) & config, react-i18next resources
 │   ├── api-client/      # Type-safe oRPC client + REST compatibility (auto-refresh + CSRF + tenant + locale + idempotency)
 │   ├── ui/              # Base UI + shadcn base-nova + Tailwind 4 (globals.css, components, hooks, lib)
+│   ├── design-tokens/   # Single token source (active.json → generated web/email/mobile themes)
 │   ├── email/           # Email templates (React Email)
 │   └── typescript-config/ # Base TypeScript configurations
 ├── scripts/             # Full-Stack Vertical Slice Generator (pnpm generate:feature)
@@ -73,6 +74,7 @@ pnpm dev              # Start all (api + web) in development mode (Turborepo)
 pnpm dev:api          # Build dependencies and start API (http://localhost:3000)
 pnpm dev:api:debug    # Start API with Node inspector on port 9229
 pnpm dev:web          # Create web env if needed, build dependencies, and start web (http://localhost:5173)
+pnpm dev:mobile       # Create mobile env if needed, build dependencies, and start Expo
 pnpm --filter web build # Build the production SSR web bundle
 pnpm --filter web start # Run the built SSR web bundle
 ```

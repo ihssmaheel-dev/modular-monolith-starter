@@ -53,13 +53,13 @@ export const env = loadEnv();
 - Use pure JWT from the locked stack.
 - Tokens expire. Short-lived access tokens + refresh tokens.
 - Access tokens signed with `JWT_SECRET`, refresh tokens with separate `JWT_REFRESH_SECRET`.
-- Store tokens in httpOnly cookies (not localStorage). Set `httpOnly: true`, `secure: true`, `sameSite: "strict"`.
+- Access/refresh tokens live in memory in the client (`useAuthStore` persists only the user profile; see `apps/web/src/stores/auth.store.ts`). The refresh credential that survives reloads is the API's httpOnly cookie (`httpOnly: true`, `secure: true`, `sameSite: "strict"`). Never persist tokens to localStorage.
 - Auth guard reads tokens from both Bearer header and cookies.
 - Logout clears cookies on the server via `POST /auth/logout`.
 - Never store passwords in plaintext. Hash with argon2.
 - Validate auth on every protected route via guard.
 - Apply account lockout after configurable failed attempts (default: 5 attempts, 15-minute lockout).
-- Use `SecurityModule` (global) for cross-cutting security concerns (rate limiting, WAF, session, lockout).
+- Use the global `SecurityModule` (`AccountLockoutService`, JWT keyring helpers) for cross-cutting security concerns. Rate limiting, WAF, and sessions live in their own dedicated modules (`infrastructure/rate-limit/`, `infrastructure/waf/`, `infrastructure/session/`).
 
 ### Input
 - Validate all input with Zod at the API boundary.
@@ -156,7 +156,7 @@ Tool: Pino (locked stack). Fast, structured, JSON output.
 
 ### Audit Logging (Compliance)
 - **Do NOT** use Pino for compliance or security tracking (e.g., password changes, permission grants, data exports).
-- Inject the `AuditService` and save structured audit logs directly to the database.
+- Emit `database.mutated` domain events from commands; the `AuditListener` (`infrastructure/audit/`) persists immutable, queryable rows. Never write audit rows directly from feature code.
 - Audit logs must be immutable and queryable by security teams.
 
 ### Rules

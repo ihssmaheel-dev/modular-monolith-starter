@@ -163,10 +163,10 @@ Now, let's explain each of those layers in simple English.
 Our web app lives in `apps/web` and is a **TanStack Start** app (the most modern full-stack React framework in 2026).
 
 - **Vite config:** `vite.config.ts` with `tanstackStart({ srcDirectory: 'src' }) + viteReact() + tailwindcss() + tsConfigPaths()`. Port 5173.
-- **Router:** `src/router.tsx` creates the router with `createRouter({ routeTree, context: { queryClient } })` + `setupRouterSsrQueryIntegration`, reusing the shared `getQueryClient()` singleton. Routes are thin composers under `src/routes/` (`__root.tsx` with html + providers + `Toaster` + globals.css, `_app.tsx` session bootstrap + guards, `_app.dashboard.tsx`, `_app.notes.tsx`, `_app.users.tsx`, `auth*.tsx`, `accept-invitation.tsx`): each holds `validateSearch`/`beforeLoad`/`loader`/`errorComponent` and renders one feature component from `src/features/[domain]/components/`.
+- **Router:** `src/router.tsx` creates the router with `createRouter({ routeTree, context: { queryClient } })` + `setupRouterSsrQueryIntegration`, reusing the shared `getQueryClient()` singleton. Routes are thin composers under `src/routes/` (`__root.tsx` with html + providers + `Toaster` + globals.css, `_app.tsx` session bootstrap + guards, `_app.dashboard.tsx`, `_app.notes.index.tsx`, `_app.notes.new.tsx`, `_app.notes.$noteId.tsx`, `_app.notifications.tsx`, `_app.users.tsx`, `_app.settings.tsx`, `auth*.tsx`, `accept-invitation.tsx`): each holds `validateSearch`/`beforeLoad`/`loader`/`errorComponent` and renders one feature component from `src/features/[domain]/components/`.
 - **Shadcn + Base UI:** `components.json` (RSC true, style base-nova, Tailwind 4, aliases). Primitives in `packages/ui/src/components/ui/*.tsx` are Base UI primitives (`ButtonPrimitive` from `@base-ui/react/button` + `cva`) — add more via `pnpm dlx shadcn@latest add <component> -c apps/web` (lands in `components/ui/`). Import them as `import { Button } from '@repo/ui/components/ui/button'`; reusable `DataTable`/`PageHeader`/`EmptyState`/`ConfirmDialog` come from `@repo/ui/components/composed/*`.
 - **Tailwind:** Single `packages/ui/src/styles/globals.css` with `@import "tailwindcss"` + tokens. Web imports `import '@repo/ui/globals.css'` once in `__root.tsx`.
-- **State:** `src/stores/auth.store.ts` (zustand persist localStorage), `locale.store.ts`, `tenant.store.ts`. Server state via TanStack Query (`src/features/notes/notes.queries.ts`).
+- **State:** `src/stores/auth.store.ts` (zustand; access/refresh tokens memory-only, only the user profile persists), `locale.store.ts`, `tenant.store.ts`. Server state via TanStack Query (`src/features/notes/notes.queries.ts`); query keys are tenant-scoped for notes/users/files and user-scoped for privacy/notifications.
 - **API:** `src/lib/api.ts` => `getApiClient()` wraps `createApiClient(VITE_API_URL, { getAccessToken, getLocale, getTenantId, onAuthRefreshed/onAuthFailure })`. Env validated in `src/lib/env.ts` (`VITE_API_URL` Zod).
 - **i18n:** `src/lib/i18n.tsx` with `resources` from `@repo/i18n` + `LanguageDetector` (localStorage). Every string via `const { t } = useTranslation()` and `t('auth.login')`.
 
@@ -174,8 +174,9 @@ Our web app lives in `apps/web` and is a **TanStack Start** app (the most modern
 
 - **No duplication:** Zod schemas live once in `@repo/contracts`, consumed by api (`ZodValidationPipe`) and web (`react-hook-form zodResolver`).
 - **No drift:** REST DTOs and Zod schemas are shared. Changing a route payload is a compile error in the API client and web.
-- **One auth story:** httpOnly cookies on web, with a short-lived Bearer fallback through the same `getApiClient` refresh + `x-tenant-id` + `idempotency-key` logic.
-- **One i18n story:** locales in `@repo/i18n`, consumed by the web through `react-i18next`.
+- **One auth story:** Bearer access/refresh tokens held memory-only on web (only the profile persists) and in SecureStore on mobile, through the same `getApiClient` refresh + `x-tenant-id` + `idempotency-key` logic.
+- **One i18n story:** locales in `@repo/i18n`, consumed by web and mobile through `react-i18next` (mobile seeds the device locale via `expo-localization`).
+- **One notification story:** modules emit domain events; the notifications module fans out (see `docs/NOTIFICATIONS.md`). Files upload-then-attach (see `docs/FILE_UPLOADS.md`); GDPR export/erasure lives in privacy (see `docs/PRIVACY.md`); orgs/invitations are tenant-scoped (see `docs/TENANCY.md`).
 
 ---
 
@@ -233,7 +234,10 @@ If you are asked to build a new feature (like "Invoices"), use this simple check
 - [ ] **AuthZ:** Did I add the action to `packages/authorization/src/permissions.ts` and policies in `application/invoices.policies.ts` (`OnModuleInit` register)?
 - [ ] **Text:** Did I put all the English text inside `packages/i18n/src/locales/en.json` (and `es.json`/`fr.json`)? Then use `I18nService.t()` (api) and `useTranslation().t()` (web).
 - [ ] **API Client:** Did I verify the generated `createInvoicesClient` registration and oRPC contract entry? Tip: `pnpm generate:feature invoices invoice` wires the slice.
-- [ ] **Web:** Did I add `apps/web/src/routes/invoices.tsx` + `apps/web/src/features/invoices/invoices.queries.ts` (queryOptions) + form with `zodResolver` + `@repo/ui` + `getApiClient()` + invalidate?
+- [ ] **Web:** Did I add `apps/web/src/routes/_app.invoices.index.tsx` (+ `.new.tsx` for create) + `apps/web/src/features/invoices/invoices.queries.ts` (queryOptions) + form with `zodResolver` + `@repo/ui` + `getApiClient()` + invalidate?
+- [ ] **Mobile:** Did I add the expo-router screen + `apps/mobile/src/features/invoices/` queries/mutations mirroring web, using `src/components/ui/` mirrors (never `@repo/ui`)?
+- [ ] **Notify:** If the feature has meaningful state changes, did I emit a domain event and add the fan-out handler + `NOTIFICATION_TYPES` entry + i18n titles (never send from the module)?
+- [ ] **Migrations:** Did schema changes ship a Drizzle migration (pre-production folded into `migrations/pg/0000_initial.sql`, `db:migrate:check` green)?
 - [ ] **UI:** If a new primitive was needed, did I add via `pnpm dlx shadcn@latest add <component> -c apps/web`?
 
 If you checked all those boxes, you have written **perfect, clean, enterprise-grade code**. Welcome to the team!

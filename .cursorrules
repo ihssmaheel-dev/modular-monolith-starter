@@ -1,17 +1,20 @@
 # SUPREME LAWS (AI Coding Guidelines)
 
-You are operating within a Strict Modular Monolith Architecture. 
+You are operating within a Strict Modular Monolith Architecture.
 Any code you generate MUST adhere to the following rules, without exception.
+File/function size limits live in exactly one place: `ai_instructions/CODE_QUALITY_RULES.md`
+(single-responsibility first; never restate numbers here).
 
 ## 1. Zero Tolerance Boundary Rules
 - **NEVER** import anything from `src/modules/*/infrastructure/**` into `src/modules/*/presentation/**`.
+- **NEVER** import another module's Drizzle schema or repository — call its commands/queries or emit domain events.
 - **NEVER** write Drizzle/Database logic in a Controller.
-- Controllers must ONLY call Application Services/Commands/Queries.
+- Controllers must ONLY call Application commands/queries (one use-case class per file — strict CQRS, no flat services).
 
 ## 2. Neverthrow & Error Handling
 - **ALWAYS** use `Result<T, E>` or `ResultAsync<T, E>` from `neverthrow` in Application and Domain layers.
 - **NEVER** use `throw new Error()` for business logic. Return an `err({ type: "...", message: "..." })`.
-- Controllers must map the `Result` to the appropriate HTTP response.
+- Controllers must map the `Result` to the appropriate HTTP response via `handleResult` + `I18nService`.
 
 ## 3. Contracts & Schemas
 - All Zod schemas, types, DTOs, and contracts MUST live in `packages/contracts` (`@repo/contracts`).
@@ -24,8 +27,8 @@ Any code you generate MUST adhere to the following rules, without exception.
 - Backend: Use `I18nService.t()` for API errors.
 - Consumers: Use locale keys from `@repo/i18n`.
 
-## 5. File Size Limits
-- Keep files under 150 lines. Split them if they get too large.
-- If a service has more than 5 methods, split it into `commands/` and `queries/`.
+## 5. Tests
+- Co-locate tests with source (`*.test.ts`, `*.integration.test.ts`, `*.e2e.test.ts`).
+- Backend, web (`vitest` + Testing Library), and mobile logic (`vitest`) all have unit harnesses; Playwright covers web journeys. See `ai_instructions/TESTING_RULES.md`.
 
 Violating these rules will cause CI/CD to fail immediately.

@@ -16,6 +16,7 @@ Our code is organized as a **Monorepo** using **Turborepo 2.10 + pnpm 10**. The 
 graph TD
     subgraph Frontend Apps
         Web[apps/web<br>TanStack Start + Router + Query + Zustand]
+        Mobile[apps/mobile<br>Expo 57 + Router + Query + Zustand]
     end
 
     subgraph Backend Apps
@@ -28,6 +29,7 @@ graph TD
         I18N[packages/i18n<br>Locales & Translations]
         Client[packages/api-client<br>Type-Safe oRPC Client + TanStack Query]
         UI[packages/ui<br>Base UI + shadcn base-nova + Tailwind 4]
+        Tokens[packages/design-tokens<br>Single token source]
         Email[packages/email<br>React Email Templates]
     end
 
@@ -36,16 +38,23 @@ graph TD
     A -->|Uses i18n & Locales| I18N
     A -->|Renders Templates| Email
     Client -->|Imports Contracts| S
+    UI -->|Consumes generated tokens| Tokens
+    Email -->|Consumes generated tokens| Tokens
     Web -->|Imports Contracts + api-client + i18n| S
     Web -->|Imports UI primitives| UI
     Web -->|Uses typed oRPC client| Client
+    Mobile -->|Imports Contracts + api-client + i18n| S
+    Mobile -->|Mirrors UI API with RN primitives| UI
+    Mobile -->|Consumes generated tokens| Tokens
+    Mobile -->|Uses typed oRPC client| Client
 
     Web -.->|HTTP + Cookies + x-tenant-id + idempotency-key| A
+    Mobile -.->|HTTP + Bearer + x-tenant-id + idempotency-key| A
 ```
 
 ### Why a Monorepo with Shared Contracts?
 
-By sharing capability packages (`@repo/contracts`, `@repo/authorization`, `@repo/i18n`, `@repo/api-client`, `@repo/ui`), **web and backend speak the exact same language**. If the backend changes an API rule or contract, the web compiler catches drift before the code is run.
+By sharing capability packages (`@repo/contracts`, `@repo/authorization`, `@repo/i18n`, `@repo/api-client`, `@repo/ui`, `@repo/design-tokens`, `@repo/email`), **web, mobile, and backend speak the exact same language**. If the backend changes an API rule or contract, the app compiler catches drift before the code is run.
 
 - oRPC procedures are the canonical runtime API under `/api/v1/rpc`. Web and mobile use `getApiClient()`
   from `@repo/api-client`, which centralizes credentials, refresh, CSRF, tenant, locale, idempotency,
@@ -55,7 +64,7 @@ By sharing capability packages (`@repo/contracts`, `@repo/authorization`, `@repo
 
 ---
 
-## 2. The Single Source of Truth (`packages/contracts`, `authorization`, `i18n`, `ui`)
+## 2. The Single Source of Truth (`packages/contracts`, `authorization`, `i18n`, `ui`, `design-tokens`, `email`)
 
 This is the most important layer. It holds all the rules for our data and design.
 
@@ -64,8 +73,10 @@ This is the most important layer. It holds all the rules for our data and design
   used by the canonical OpenAPI transport and generated documentation. REST compatibility routes
   implement the same use cases without duplicating business logic.
 - **Permissions & Evaluator (`@repo/authorization`)**: Action vocabulary (`notes:create`, `team:invite`) and pure FGA engine (RBAC + ReBAC + ABAC).
-- **Locales (`@repo/i18n`)**: All text shown to users (`en.json` containing `"api.user.notFound": "User not found"`). Consumed via backend `I18nService` and the web `react-i18next` integration.
-- **UI System (`@repo/ui`)**: Headless Base UI primitives (`@base-ui/react`) wrapped with `class-variance-authority` + `tailwind-merge` + shadcn base-nova tokens. Single Tailwind entry `src/styles/globals.css` with `@import "tailwindcss"` + design tokens + `@source` for `apps/web` and `packages/ui`. Web imports `import '@repo/ui/globals.css'` once in `routes/__root.tsx`.
+- **Locales (`@repo/i18n`)**: All text shown to users (`en.json` containing `"api.user.notFound": "User not found"`). Consumed via backend `I18nService` and the `react-i18next` integrations on web (`apps/web/src/lib/i18n.tsx`) and mobile (`apps/mobile/src/lib/i18n.ts`, device locale via `expo-localization`).
+- **UI System (`@repo/ui`)**: Headless Base UI primitives (`@base-ui/react`) wrapped with `class-variance-authority` + `tailwind-merge` + shadcn base-nova tokens. Single Tailwind entry `src/styles/globals.css` with `@import "tailwindcss"` + design tokens + `@source` for `apps/web` and `packages/ui`. Web imports `import '@repo/ui/globals.css'` once in `routes/__root.tsx`. Mobile never imports `@repo/ui` (DOM-only) — it mirrors the same `variant`/`size` API with RN primitives in `apps/mobile/src/components/ui/`.
+- **Design Tokens (`@repo/design-tokens`)**: The single hand-edited theme file is `src/presets/active.json`; `pnpm theme:generate` emits web CSS, email TS, and mobile RN/hex outputs (`pnpm theme:check` guards freshness in CI). Never hand-edit generated outputs.
+- **Email (`@repo/email`)**: React Email transactional templates in `src/emails/` (welcome, password-reset, invitation, digest) + generated `src/styles/tokens.ts`.
 
 ### The Rule
 
@@ -75,7 +86,7 @@ We never write validation logic twice. The backend uses these Zod schemas (via `
 
 ## 3. The Backend Modular Monolith (`apps/api`)
 
-We deploy as a single Node.js process using **NestJS 11** and **Fastify 5**. Internally, our codebase is split into **strictly isolated Modules** (e.g., `users`, `notes`, `tenancy`, `auth`, `files`).
+We deploy as a single Node.js process using **NestJS 11** and **Fastify 5**. Internally, our codebase is split into **strictly isolated Modules** (e.g., `auth`, `users`, `notes`, `tenancy`, `files`, `privacy`, `notifications`).
 
 - `auth` does not know how `users` works inside.
 - Modules communicate exclusively through Application-layer Commands/Queries or Domain Events.
@@ -187,13 +198,13 @@ The web client is **fully wired** to the modular monolith via `@repo/contracts` 
 
 ### 4.1 Web — TanStack Start (SSR + SPA)
 
-- **Stack:** TanStack Start 1 (Vite 8, TanStack Router 1 file-based, streaming SSR, server functions), TanStack Query 5, Zustand 5 (persist localStorage), react-i18next + i18next-browser-languagedetector, Tailwind CSS 4 + `@repo/ui`, react-hook-form + zodResolver.
-- **Entry:** `apps/web/vite.config.ts` => `tanstackStart({ srcDirectory: 'src' }) + viteReact() + tailwindcss() + tsConfigPaths()`. Router defined in `src/router.tsx` via `createRouter({ routeTree, context: { queryClient } })` + `setupRouterSsrQueryIntegration`, reusing the shared `getQueryClient()` singleton (one cache for loaders and components). Routes are thin composers under `src/routes/` (`__root.tsx`, `_app.tsx`, `_app.dashboard.tsx`, `_app.notes.tsx`, `_app.notes.new.tsx`, `_app.users.tsx`, `_app.settings.tsx`, `auth*.tsx`, `accept-invitation.tsx`): each holds `validateSearch`/`beforeLoad`/`loader`/`errorComponent` and renders one feature component. `routeTree.gen.ts` is generated.
+- **Stack:** TanStack Start 1 (Vite 8, TanStack Router 1 file-based, streaming SSR, server functions), TanStack Query 5, Zustand 5 (tokens memory-only; user profile/tenant/locale persisted), react-i18next + i18next-browser-languagedetector, Tailwind CSS 4 + `@repo/ui`, react-hook-form + zodResolver.
+- **Entry:** `apps/web/vite.config.ts` => `tanstackStart({ srcDirectory: 'src' }) + viteReact() + tailwindcss() + tsConfigPaths()`. Router defined in `src/router.tsx` via `createRouter({ routeTree, context: { queryClient } })` + `setupRouterSsrQueryIntegration`, reusing the shared `getQueryClient()` singleton (one cache for loaders and components). Routes are thin composers under `src/routes/` (`__root.tsx`, `_app.tsx`, `_app.dashboard.tsx`, `_app.notes.index.tsx`, `_app.notes.new.tsx`, `_app.notes.$noteId.tsx`, `_app.notifications.tsx`, `_app.users.tsx`, `_app.settings.tsx`, `auth*.tsx`, `accept-invitation.tsx`): each holds `validateSearch`/`beforeLoad`/`loader`/`errorComponent` and renders one feature component. `routeTree.gen.ts` is generated.
 - **Contracts:** Forms use `LoginSchema`, `RegisterSchema`, `CreateNoteSchema` directly from `@repo/contracts` via `zodResolver`. No duplicate schemas.
 - **API:** `src/lib/api.ts` => `getApiClient()` singleton: `createApiClient(getWebEnv().VITE_API_URL, { getAccessToken: () => useAuthStore.getState().accessToken, getLocale: () => useLocaleStore.getState().locale, getTenantId: () => useTenantStore.getState().tenantId, onAuthRefreshed: (r) => useAuthStore.getState().setAuth(r), onAuthFailure: () => clearAuth + redirect /auth })`. Automatically sends `accept-language`, `x-tenant-id`, `idempotency-key` and 401-refreshes via `requestRefresh`.
-- **State:** `src/stores/auth.store.ts` (zustand persist `auth-storage`), `locale.store.ts`, `tenant.store.ts`. Query keys come from `src/lib/query-keys.ts` (always tenant-scoped). Query/mutation helpers live in `src/features/[domain]/` with UI in `components/` subfolders; dates go through `src/lib/format.ts` (`date-fns`, locale-aware).
+- **State:** `src/stores/auth.store.ts` (zustand; access/refresh tokens memory-only, only the user profile persists), `locale.store.ts`, `tenant.store.ts`. Query keys come from `src/lib/query-keys.ts` (notes/users/files tenant-scoped; privacy/notifications user-scoped). Query/mutation helpers live in `src/features/[domain]/` with UI in `components/` subfolders; dates go through `src/lib/format.ts` (`date-fns`, locale-aware).
 - **UI:** `@repo/ui` primitives (`Button`, `Card`, `Input`, `Tabs`, `Badge`, `Dialog`, etc) + Tailwind + `ThemeProvider` (light/dark/system, localStorage, `d` toggles). shadcn CLI: `pnpm dlx shadcn@latest add <component> -c apps/web` writes to `packages/ui/src/components/ui`.
-- **Env:** `src/lib/env.ts` Zod `VITE_API_URL` from `import.meta.env` (default `http://localhost:3000/api/v1`). Validated, never raw `process.env` beyond that file.
+- **Env:** `src/lib/env.ts` Zod `VITE_API_URL` from `import.meta.env` (required; `ensure-web-env` writes the `/api` same-origin default). Validated, never raw `process.env` beyond that file.
 - **i18n:** `src/lib/i18n.tsx` `resources = { en: { translation: locales.en }, es, fr }` + `LanguageDetector`. Keys like `auth.login`, `dashboard.welcome`, `notes.createNote` shared with backend.
 
 ### 4.2 The Single UI Source (`packages/ui`)
@@ -202,6 +213,14 @@ The web client is **fully wired** to the modular monolith via `@repo/contracts` 
 - **Exports:** `exports: { "./globals.css": "./src/styles/globals.css", "./lib/*": "./src/lib/*.ts", "./components/*" + "./components/ui/*": "./src/components/ui/*.tsx", "./components/composed/*": "./src/components/composed/*.tsx", "./hooks/*": "./src/hooks/*.ts" }`. `components.json` (RSC true, Tailwind 4).
 - **Why?** One place for the design system. Web is `import { Button } from '@repo/ui/components/ui/button'` (or the backward-compatible `@repo/ui/components/button`) + `import '@repo/ui/globals.css'`, with reusable `DataTable`/`PageHeader`/`EmptyState`/`ConfirmDialog` from `@repo/ui/components/composed/*`. Changing a token updates the application globally.
 - **Shadcn + Base UI docs:** Follow [`ui.shadcn.com/docs/installation/tanstack`](https://ui.shadcn.com/docs/installation/tanstack) for TanStack Start ( `pnpm dlx shadcn@latest init -t start --preset ...` ) and [`base-ui.com/react/overview/quick-start`](https://base-ui.com/react/overview/quick-start) for headless composition. Components like `button.tsx` (`ButtonPrimitive` from `@base-ui/react/button` + `cva`) and `dialog.tsx` (`DialogPrimitive` + backdrop/portal) are canonical examples.
+
+### 4.3 Mobile — Expo (native)
+
+- **Stack:** Expo 57 + expo-router (file-based: `(auth)`/`(tabs)` groups, `notes/[id].tsx` params), TanStack Query 5, Zustand 5 (SecureStore persist), `expo-localization` device locale, NativeWind + Tailwind 3, `expo-notifications` + `expo-device` + `expo-constants` for push.
+- **Entry:** `app/_layout.tsx` is a thin shell (`QueryProvider` + `ThemeProvider` + `PushBootstrap` + `StatusBar` + `Stack`); screens stay thin and business UI lives in `src/features/[domain]/` mirroring web feature names. `tailwind.config.js` colors come from generated tokens; `global.css` is imported once in `app/_layout.tsx`.
+- **API:** `src/lib/api.ts` => the same `getApiClient()` singleton shape as web (Bearer tokens, `x-tenant-id`, `accept-language`, idempotency, shared `RefreshCoordinator`). Shared multi-step flows (e.g. `uploadFile`) are reused from `@repo/api-client` — the only exception to "never `fetch` outside `src/lib/api.ts`" is the presigned-PUT byte upload in `features/files/files.mutations.ts`, enforced by `pnpm rules:check`.
+- **Push:** tokens register via `notifications.registerDevice`; tap-through routing resolves in `src/lib/push.ts` (`resolveNotificationRoute`); realtime fan-in over SSE invalidates `["notifications"]`.
+- **Verify:** `pnpm --filter mobile build` runs `expo export --platform ios --platform android` in CI (no simulators). Logic tests are co-located (`*.test.ts`, node/vitest); native seams are mocked once in `src/test/setup.ts`.
 
 ---
 
@@ -237,6 +256,9 @@ When building a new feature (like "Invoices"), follow this flow:
 - [ ] **Text:** Put all user-facing English text inside `packages/i18n/src/locales/en.json` (and `es.json`/`fr.json`), use `I18nService.t()` (api) and `useTranslation().t()` (web).
 - [ ] **API Client:** Verify `packages/api-client/src/subclients` and the oRPC client are registered. `pnpm generate:feature invoices invoice` wires both transports automatically.
 - [ ] **Web:** Verify generated `_app.invoices.index.tsx`/`_app.invoices.new.tsx`, feature components, `zodResolver`, and query invalidation.
+- [ ] **Mobile:** Verify the expo-router screen, `src/features/invoices/` queries/mutations mirroring web, UI-mirror usage (never `@repo/ui`), and co-located logic tests.
+- [ ] **Notify:** If the feature has meaningful state changes, emit a past-tense domain event via the outbox and add a fan-out handler in `notifications/application/listeners/domain-event-fanout.listener.ts` (+ `NOTIFICATION_TYPES` entry and i18n title strings) — never send email/push/realtime from the module. See `docs/NOTIFICATIONS.md`.
+- [ ] **Migrations:** Schema changes ship a Drizzle migration (`pnpm --filter api db:generate`); pre-production the generated DDL folds into the single `migrations/pg/0000_initial.sql` baseline with `pnpm --filter api db:migrate:check` passing on fresh + upgrade paths. Never edit `0000_initial.sql` after the first production deploy.
 - [ ] **UI:** If a new primitive is needed, add via `pnpm dlx shadcn@latest add <component> -c apps/web` — it lands in `packages/ui`.
 
 ---

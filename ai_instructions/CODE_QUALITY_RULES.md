@@ -251,7 +251,7 @@ Before submitting a file, ask:
 
 1. Can I understand this file in under 2 minutes and describe its single responsibility in one sentence?
 2. Does this file do one thing well? (if two, split regardless of line count)
-3. Are all functions under 45 lines?
+3. Are all functions under 60 lines (helpers extracted beyond that)?
 4. Is there any duplication I can extract?
 5. Would a new developer understand this without comments?
 6. Does this file belong where I'm putting it?

@@ -42,6 +42,7 @@ Useful filtered runs:
 ```sh
 pnpm dev:api                  # api only
 pnpm dev:web                  # creates web env if needed, builds dependencies, then starts web -> http://localhost:5173
+pnpm dev:mobile               # creates mobile env if needed, builds dependencies, then starts Expo
 pnpm --filter web build && pnpm --filter web start # standalone production-like web -> http://localhost:3000
 ```
 
@@ -65,6 +66,19 @@ The web app is independently runnable, but it still needs `VITE_API_URL` to poin
 API. Set it before `build` because Vite embeds it in browser assets; the standalone SSR process also validates
 the same variable at startup.
 
+### Mobile local env
+
+Mobile reads `apps/mobile/.env` (copied from `.env.example` on `pnpm bootstrap`):
+
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3000/api/v1
+```
+
+`EXPO_PUBLIC_*` values are inlined at export time, so set the URL before `expo export`. iOS simulator
+can use `localhost`; the Android emulator needs `10.0.2.2`; physical devices need the machine's LAN IP
+(e.g. `http://192.168.1.10:3000/api/v1`). Verify native output with
+`pnpm --filter mobile build` (`expo export --platform ios --platform android`), not simulators.
+
 ## Database migrations
 
 The API reads `DATABASE_URL` from `apps/api/.env`. Migration files live in `migrations/pg/`.
@@ -74,6 +88,7 @@ pnpm --filter api db:migrate:status  # check schema status
 pnpm --filter api db:migrate         # apply every pending migration
 pnpm --filter api db:generate        # generate new migration from schemas
 pnpm --filter api db:migrate:dev     # push schema changes directly in dev
+pnpm --filter api db:migrate:check   # verify fresh + upgrade migration paths
 ```
 
 ## Database seeding

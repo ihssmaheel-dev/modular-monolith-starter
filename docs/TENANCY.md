@@ -58,8 +58,10 @@ X-Tenant-Id: 507f1f77bcf86cd799439011
 ```
 
 The API verifies active membership before permissions run. Tenant owners, admins, and members have
-separate shared permission maps. WebSockets and SSE also verify and retain the tenant selected at
-connection time.
+separate shared permission maps. WebSockets verify and retain the tenant selected at connection time.
+SSE (`GET /api/v1/realtime/events`) is `@TenantAgnostic()` and user-scoped instead: `EventSource`
+cannot send headers, so no tenant is resolved at connect time and per-user targeting happens at
+publish time via `RealtimeService.sendToUser(userId, event, payload, tenantId?)`.
 
 API client setup:
 

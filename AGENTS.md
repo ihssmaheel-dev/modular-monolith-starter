@@ -6,17 +6,20 @@ You are working in a modular monolith codebase. Before making any changes, read 
 
 ## Required Reading Order
 
+Same order as `ai_instructions/README.md` (the table there is the single source — do not reorder here):
+
 1. `ai_instructions/README.md` — Start here.
 2. `ai_instructions/CORE_RULES.md` — Supreme laws. Locked stack. Never/always.
 3. `ai_instructions/MODULE_RULES.md` — Backend module structure.
 4. `ai_instructions/FILE_PLACEMENT_RULES.md` — Where to create new files. Decision tree + directory map.
-5. `ai_instructions/PACKAGE_POLICY.md` — Before installing any package.
-6. `ai_instructions/EVENT_AND_ERROR_RULES.md` — Error handling and domain events.
-7. `ai_instructions/TESTING_RULES.md` — Test contract.
-8. `ai_instructions/I18N_RULES.md` — Internationalization. Translations, locale management.
-9. `ai_instructions/CODE_QUALITY_RULES.md` — Small files, clean code, no anti-patterns.
-10. `ai_instructions/SECURITY_AND_OPS_RULES.md` — Env vars, security, indexing, logging, git workflow.
-11. `ai_instructions/PERFORMANCE_RULES.md` — DB queries, caching, bundle size.
+5. `ai_instructions/EVENT_AND_ERROR_RULES.md` — Error handling and domain events.
+6. `ai_instructions/I18N_RULES.md` — Internationalization. Translations, locale management.
+7. `ai_instructions/FRONTEND_RULES.md` — Web (TanStack Start) + mobile (Expo) + UI system.
+8. `ai_instructions/CODE_QUALITY_RULES.md` — Small files, clean code, no anti-patterns.
+9. `ai_instructions/SECURITY_AND_OPS_RULES.md` — Env vars, security, indexing, logging, git workflow.
+10. `ai_instructions/TESTING_RULES.md` — Test contract.
+11. `ai_instructions/PACKAGE_POLICY.md` — Before installing any package.
+12. `ai_instructions/PERFORMANCE_RULES.md` — DB queries, caching, bundle size.
 
 ## Non-Negotiable
 

@@ -120,7 +120,9 @@ All shared infrastructure modules:
 | `tracing/` | OpenTelemetry distributed tracing |
 | `audit/` | Audit logging to database |
 | `outbox/` | Transactional outbox for reliable events |
-| `security/` | Account lockout, cross-cutting security |
+| `security/` | Account lockout, JWT keyring helpers, cross-cutting security |
+| `error-reporting/` | Provider-neutral async error sink (opt-in via env) |
+| `orpc/` | oRPC Nest adapter runtime + parity helpers |
 | `api-docs/` | Interactive Scalar API Reference & OpenAPI 3.1 setup |
 | `authorization/` | Fine-Grained Authorization engine (RBAC + ReBAC + ABAC) & policies |
 
@@ -136,11 +138,13 @@ Never put business logic in either infrastructure folder.
 
 ## Module Size Limits
 
-| Metric | Limit | Action if Exceeded |
-|--------|-------|-------------------|
-| Module files | 25 | Split into sub-domains or extract a new module |
-| Command/Query | 250 lines | Extract helper methods or split |
-| Repository methods | 15 | Consider if the module is doing too much |
+File/line limits live in exactly one place: `CODE_QUALITY_RULES.md` (single-responsibility first; never restate numbers here).
+
+| Metric | Action if Exceeded |
+|--------|-------------------|
+| Module files | Split into sub-domains or extract a new module |
+| Command/Query doing two jobs | Extract helper methods or split |
+| Repository growing beyond its aggregate | Consider if the module is doing too much |
 
 If a module exceeds these limits, ask: "Is this actually two modules?" Split by subdomain, not by technical layer.
 
@@ -171,7 +175,7 @@ export class AppModule {}
 7. Implement controller in `presentation/`.
 8. Register module, controllers, queries, and commands in `app.module.ts`.
 9. Write tests at the correct layers.
-10. Add migration if schema changes affect existing data.
+10. Add a migration for schema changes. `migrations/pg/0000_initial.sql` is the pre-production baseline — append new numbered migrations, never edit it (see `migrations/pg/README.md`).
 
 ---
 
