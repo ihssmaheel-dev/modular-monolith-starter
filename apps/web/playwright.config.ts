@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const apiUrl = process.env.VITE_API_URL ?? "http://127.0.0.1:3000/api/v1";
+const apiUrl = process.env.VITE_API_URL ?? "http://127.0.0.1:5156/api/v1";
 const parsedApiUrl = new URL(apiUrl);
 const apiOrigin = parsedApiUrl.origin;
 const apiBasePath = parsedApiUrl.pathname.replace(/\/+$/, "");
@@ -12,7 +12,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: "http://127.0.0.1:5155",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -26,7 +26,7 @@ export default defineConfig({
     },
     {
       command: "pnpm --filter web dev -- --host 127.0.0.1",
-      url: "http://127.0.0.1:5173",
+      url: "http://127.0.0.1:5155",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },

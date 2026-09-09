@@ -5,7 +5,7 @@ import { renderHookWithProviders } from "@/test/utils";
 import { useRealtimeNotifications } from "./use-realtime-notifications";
 
 const SSE_EVENT = "notification.created";
-const SSE_URL = "http://localhost:3000/api/v1/realtime/events";
+const SSE_URL = "http://localhost:5156/api/v1/realtime/events";
 
 type Handler = (event: { data: string }) => void;
 

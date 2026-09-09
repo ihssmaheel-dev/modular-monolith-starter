@@ -7,7 +7,7 @@ import { setupApiDocs } from "./api-docs";
 vi.mock("../../config/env", () => ({
   env: {
     NODE_ENV: "development",
-    API_URL: "http://localhost:3000",
+    API_URL: "http://localhost:5156",
   },
 }));
 

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "predev": "node ../../scripts/ensure-web-env.js",
-    "dev": "vite dev --port 5173",
+    "dev": "vite dev --port 5155",
     "build": "tsc --noEmit && vite build",
     "start": "srvx --prod --static=../client --entry=dist/server/server.js",
     "preview": "vite preview",

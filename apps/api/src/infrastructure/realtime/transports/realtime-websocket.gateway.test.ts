@@ -9,7 +9,7 @@ import type { RealtimeService } from "../realtime.service";
 import type { ResolveTenantAccessQuery } from "../../../modules/tenancy/application/queries/resolve-tenant-access.query";
 import { RealtimeWebsocketGateway } from "./realtime-websocket.gateway";
 
-vi.mock("../../../config/env", () => ({ env: { CLIENT_URL: "http://localhost:3000" } }));
+vi.mock("../../../config/env", () => ({ env: { CLIENT_URL: "http://localhost:5156" } }));
 vi.mock("../../../common/utils/access-token.utils", () => ({ verifyAccessToken: vi.fn() }));
 
 const WS_READY_STATE_OPEN = 1;

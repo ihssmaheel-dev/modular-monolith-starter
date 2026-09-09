@@ -71,9 +71,9 @@ pnpm dev
 
 ```bash
 pnpm dev              # Start all (api + web) in development mode (Turborepo)
-pnpm dev:api          # Build dependencies and start API (http://localhost:3000)
+pnpm dev:api          # Build dependencies and start API (http://localhost:5156)
 pnpm dev:api:debug    # Start API with Node inspector on port 9229
-pnpm dev:web          # Create web env if needed, build dependencies, and start web (http://localhost:5173)
+pnpm dev:web          # Create web env if needed, build dependencies, and start web (http://localhost:5155)
 pnpm dev:mobile       # Create mobile env if needed, build dependencies, and start Expo
 pnpm --filter web build # Build the production SSR web bundle
 pnpm --filter web start # Run the built SSR web bundle
@@ -146,9 +146,9 @@ pnpm observability:logs # Tail telemetry logs
 
 | Service                  | Local URL / Port                 | Credentials / Purpose                              |
 | :----------------------- | :------------------------------- | :------------------------------------------------- |
-| **API Backend**          | `http://localhost:3000`          | Fastify API Server (`/api/v1`, `/api/v1/health/*`) |
-| **Web (TanStack Start)** | `http://localhost:5173`          | Vite + SSR (dev) `pnpm --filter web dev`           |
-| **Scalar API Reference** | `http://localhost:3000/api/docs` | Interactive OpenAPI 3.1 Docs                       |
+| **API Backend**          | `http://localhost:5156`          | Fastify API Server (`/api/v1`, `/api/v1/health/*`) |
+| **Web (TanStack Start)** | `http://localhost:5155`          | Vite + SSR (dev) `pnpm --filter web dev`           |
+| **Scalar API Reference** | `http://localhost:5156/api/docs` | Interactive OpenAPI 3.1 Docs                       |
 | **Grafana Dashboard**    | `http://localhost:3001`          | `admin / admin` (API, DB, Redis metrics)           |
 | **Jaeger Trace Viewer**  | `http://localhost:16686`         | OpenTelemetry Distributed Traces                   |
 | **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                         |

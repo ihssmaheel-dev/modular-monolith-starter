@@ -42,13 +42,13 @@ export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PROCESS_ROLE: z.enum(["all", "api", "worker"]).default("all"),
-    PORT: z.coerce.number().int().min(1).max(MAX_PORT).default(3000),
+    PORT: z.coerce.number().int().min(1).max(MAX_PORT).default(5156),
     TRUST_PROXY: z.coerce.boolean().default(false),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
     TENANCY_MODE: z.enum(["single", "multi"]).default("single"),
+    CLIENT_URL: z.string().url().default("http://localhost:5155"),
 
-    CLIENT_URL: z.string().url().default("http://localhost:5173"),
-    API_URL: z.string().url().default("http://localhost:3000"),
+    API_URL: z.string().url().default("http://localhost:5156"),
 
     DATABASE_URL: z.string().url().default("postgres://postgres:postgres@localhost:5432/app"),
     TEST_DATABASE_URL: z.string().url().optional(),

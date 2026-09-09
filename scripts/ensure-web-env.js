@@ -11,10 +11,11 @@ if (!fs.existsSync(destination)) {
 } else {
   const content = fs.readFileSync(destination, "utf8");
   const hasLegacyLocalApiUrl = /^VITE_API_URL=http:\/\/localhost:3000\/api\s*$/m.test(content);
-  if (hasLegacyLocalApiUrl || !content.includes("VITE_API_URL=http")) {
+  const hasStalePortApiUrl = /^VITE_API_URL=http:\/\/localhost:3000\/api\/v1\s*$/m.test(content);
+  if (hasLegacyLocalApiUrl || hasStalePortApiUrl || !content.includes("VITE_API_URL=http")) {
     fs.copyFileSync(source, destination);
     process.stdout.write(
-      "Fixed apps/web/.env — restored VITE_API_URL=http://localhost:3000/api/v1\n",
+      "Fixed apps/web/.env — restored VITE_API_URL=http://localhost:5156/api/v1\n",
     );
   }
 }

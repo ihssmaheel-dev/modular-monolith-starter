@@ -1,6 +1,6 @@
 import { beforeEach, vi } from "vitest";
 
-vi.stubEnv("EXPO_PUBLIC_API_URL", "http://localhost:3000/api/v1");
+vi.stubEnv("EXPO_PUBLIC_API_URL", "http://localhost:5156/api/v1");
 vi.stubEnv("EXPO_PUBLIC_APP_NAME", "Workspace");
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;

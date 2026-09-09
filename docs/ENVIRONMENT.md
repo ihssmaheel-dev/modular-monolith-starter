@@ -6,7 +6,7 @@ Local setup copies the committed examples to ignored `.env` files (`pnpm bootstr
 
 | Variable        | Default / purpose                                                |
 | --------------- | ---------------------------------------------------------------- |
-| `VITE_API_URL`  | `http://localhost:3000/api/v1`; browser → versioned API base URL |
+| `VITE_API_URL`  | `http://localhost:5156/api/v1`; browser → versioned API base URL |
 | `VITE_APP_NAME` | `Workspace`; display name (optional)                             |
 
 Validated in `apps/web/src/lib/env.ts` (`z.string().url()`). Example in `apps/web/.env.example`.
@@ -33,12 +33,12 @@ the same checks. See `docker/.env.prod.example` for the compose-side pattern.
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `NODE_ENV`                          | `development`; one of `development`, `test`, `production`                                                      |
 | `PROCESS_ROLE`                      | `all` locally; use `api` for HTTP-only or `worker` for queue/scheduled workers                                 |
-| `PORT`                              | `3000`; API listener port                                                                                      |
+| `PORT`                              | `5156`; API listener port                                                                                      |
 | `TRUST_PROXY`                       | `false`; set `true` behind nginx/LB so `req.ip` rate-limiting works                                            |
 | `LOG_LEVEL`                         | `info`; Pino level from `fatal` through `trace`                                                                |
 | `TENANCY_MODE`                      | `single`; choose `single` or `multi` before production data exists                                             |
-| `CLIENT_URL`                        | `http://localhost:5173`; allowed browser origin                                                                |
-| `API_URL`                           | `http://localhost:3000`; externally reachable API origin                                                       |
+| `CLIENT_URL`                        | `http://localhost:5155`; allowed browser origin                                                                |
+| `API_URL`                           | `http://localhost:5156`; externally reachable API origin                                                       |
 | `DATABASE_URL`                      | Local PostgreSQL connection string; production requires TLS (`sslmode=require`, `verify-ca`, or `verify-full`) |
 | `DB_MAX_POOL_SIZE`                  | `10`; maximum PostgreSQL connections in pool                                                                   |
 | `DB_STATEMENT_TIMEOUT_MS`           | `30000`; maximum statement duration                                                                            |

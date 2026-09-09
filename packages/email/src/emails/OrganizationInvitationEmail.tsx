@@ -68,7 +68,7 @@ export function OrganizationInvitationEmail({
 
 export default Object.assign(OrganizationInvitationEmail, {
   PreviewProps: {
-    acceptUrl: "http://localhost:5173/accept-invitation?token=preview-token",
+    acceptUrl: "http://localhost:5155/accept-invitation?token=preview-token",
     preview: "Ada invited you to join Acme",
     heading: "Ada invited you to join Acme",
     body: "Accept the invitation to collaborate on notes, files, and digests.",

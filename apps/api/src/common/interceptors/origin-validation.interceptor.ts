@@ -27,7 +27,7 @@ export class OriginValidationInterceptor implements NestInterceptor {
         const allowedOrigins =
           env.NODE_ENV === "production"
             ? [env.CLIENT_URL]
-            : [env.CLIENT_URL, "http://localhost:3000", "http://localhost:5173"];
+            : [env.CLIENT_URL, "http://localhost:5156", "http://localhost:5155"];
 
         if (!allowedOrigins.includes(originUrl.origin)) {
           throw new ForbiddenException();
@@ -44,7 +44,7 @@ export class OriginValidationInterceptor implements NestInterceptor {
         const allowedHosts =
           env.NODE_ENV === "production"
             ? [new URL(env.CLIENT_URL).host]
-            : [new URL(env.CLIENT_URL).host, "localhost:3000", "localhost:5173"];
+            : [new URL(env.CLIENT_URL).host, "localhost:5156", "localhost:5155"];
 
         if (!allowedHosts.includes(refererUrl.host)) {
           throw new ForbiddenException();

@@ -41,14 +41,14 @@ or run `pnpm db:migrate` directly for an existing database.
 Start all applications after setup:
 
 ```sh
-pnpm dev                      # api (3000) + web (5173) via Turborepo
+pnpm dev                      # api (5156) + web (5155) via Turborepo
 ```
 
 Useful filtered runs:
 
 ```sh
 pnpm dev:api                  # api only
-pnpm dev:web                  # creates web env if needed, builds dependencies, then starts web -> http://localhost:5173
+pnpm dev:web                  # creates web env if needed, builds dependencies, then starts web -> http://localhost:5155
 pnpm dev:mobile               # creates mobile env if needed, builds dependencies, then starts Expo
 pnpm dev:email                # React Email preview workshop -> http://localhost:3002
 pnpm --filter web build && pnpm --filter web start # standalone production-like web -> http://localhost:3000
@@ -56,8 +56,8 @@ pnpm --filter web build && pnpm --filter web start # standalone production-like 
 
 Local endpoints:
 
-- API `http://localhost:3000/api/v1`, Scalar `http://localhost:3000/api/docs`
-- Web `http://localhost:5173`
+- API `http://localhost:5156/api/v1`, Scalar `http://localhost:5156/api/docs`
+- Web `http://localhost:5155`
 - MinIO console `http://localhost:9001`, Mailpit `http://localhost:8025`
 
 Stop infrastructure with `pnpm docker:down`.
@@ -67,7 +67,7 @@ Stop infrastructure with `pnpm docker:down`.
 Web reads `apps/web/.env` (copied from `.env.example` on `pnpm bootstrap`):
 
 ```env
-VITE_API_URL=http://localhost:3000/api/v1
+VITE_API_URL=http://localhost:5156/api/v1
 ```
 
 The web app is independently runnable, but it still needs `VITE_API_URL` to point to a separately running
@@ -79,7 +79,7 @@ the same variable at startup.
 Mobile reads `apps/mobile/.env` (copied from `.env.example` on `pnpm bootstrap`):
 
 ```env
-EXPO_PUBLIC_API_URL=http://localhost:3000/api/v1
+EXPO_PUBLIC_API_URL=http://localhost:5156/api/v1
 ```
 
 `EXPO_PUBLIC_*` values are inlined at export time, so set the URL before `expo export`. iOS simulator

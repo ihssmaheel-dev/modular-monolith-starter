@@ -63,7 +63,7 @@ export function WelcomeEmail({ loginUrl, preview, greeting, body, buttonText }: 
 
 export default Object.assign(WelcomeEmail, {
   PreviewProps: {
-    loginUrl: "http://localhost:5173/auth",
+    loginUrl: "http://localhost:5155/auth",
     preview: "Welcome to Workspace",
     greeting: "Hi Ada,",
     body: "Your workspace is ready. Sign in to capture your first note.",

@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 describe("mobile env", () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv("EXPO_PUBLIC_API_URL", "http://localhost:3000/api/v1");
+    vi.stubEnv("EXPO_PUBLIC_API_URL", "http://localhost:5156/api/v1");
     vi.stubEnv("EXPO_PUBLIC_APP_NAME", "Workspace");
   });
 
@@ -12,7 +12,7 @@ describe("mobile env", () => {
     const { getMobileEnv } = await import("./env");
 
     expect(getMobileEnv()).toMatchObject({
-      EXPO_PUBLIC_API_URL: "http://localhost:3000/api/v1",
+      EXPO_PUBLIC_API_URL: "http://localhost:5156/api/v1",
       EXPO_PUBLIC_APP_NAME: "Workspace",
     });
   });
