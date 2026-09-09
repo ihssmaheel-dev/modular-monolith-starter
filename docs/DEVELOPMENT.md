@@ -31,6 +31,13 @@ The command:
 
 It never overwrites an existing `.env` and does not create an administrator automatically.
 
+`pnpm bootstrap` is the setup command and `pnpm dev` is the run command —
+`pnpm dev bootstrap` is not a thing (turbo has no `bootstrap` task).
+Bootstrap expects a fresh database and stops early with instructions when
+the local database already contains tables; reset it with
+`docker compose -f docker/docker-compose.yml down -v` (deletes local data)
+or run `pnpm db:migrate` directly for an existing database.
+
 Start all applications after setup:
 
 ```sh

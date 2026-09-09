@@ -17,6 +17,7 @@ function main() {
     run("pnpm", ["install", "--frozen-lockfile"]);
     run("pnpm", ["docker:up"]);
     run("pnpm", ["docker:init"]);
+    verifyFreshDatabase();
     run("pnpm", ["db:migrate"]);
     run("pnpm", ["build"]);
     process.stdout.write("\nBootstrap complete. Run `pnpm dev` to start development.\n");
@@ -56,6 +57,40 @@ function generateSecret(bytes = 48) {
   return crypto.randomBytes(bytes).toString("base64url").slice(0, 64);
 }
 
+function verifyFreshDatabase() {
+  const result = execute(
+    "docker",
+    [
+      "compose",
+      "-f",
+      "docker/docker-compose.yml",
+      "exec",
+      "-T",
+      "postgres",
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      "app",
+      "-tAc",
+      "SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename <> '__drizzle_migrations'",
+    ],
+    "pipe",
+    false,
+  );
+  const count = Number(result.stdout?.toString().trim());
+  if (result.error || result.status !== 0 || Number.isNaN(count)) {
+    throw new Error("Could not verify the database is empty. Is Postgres running?");
+  }
+  if (count > 0) {
+    throw new Error(
+      "The local database already contains tables. Bootstrap expects a fresh database: " +
+        "run `docker compose -f docker/docker-compose.yml down -v` to reset local volumes " +
+        "and re-run `pnpm bootstrap`, or run `pnpm db:migrate` directly to migrate the existing database.",
+    );
+  }
+}
+
 function createEnvironmentFiles() {
   for (const [template, destination] of ENV_FILES) {
     const target = path.join(ROOT, destination);
@@ -86,11 +121,11 @@ function run(command, args) {
   if (result.status !== 0) throw new Error(`${command} exited with code ${result.status}.`);
 }
 
-function execute(command, args, stdio) {
+function execute(command, args, stdio, shell = process.platform === "win32") {
   return spawnSync(command, args, {
     cwd: ROOT,
     stdio,
-    shell: process.platform === "win32",
+    shell,
   });
 }
 
