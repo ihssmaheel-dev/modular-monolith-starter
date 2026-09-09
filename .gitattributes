@@ -1,0 +1,3 @@
+# Enforce LF everywhere: blobs stay LF and checkouts stay LF on every OS.
+# This keeps `prettier --check` (endOfLine: lf) deterministic on Windows/macOS/Linux.
+* text=auto eol=lf
