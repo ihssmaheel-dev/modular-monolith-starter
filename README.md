@@ -154,6 +154,7 @@ pnpm observability:logs # Tail telemetry logs
 | **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                         |
 | **Loki Log Engine**      | `http://localhost:3100`          | High-performance Log Aggregator                    |
 | **Mailpit Web UI**       | `http://localhost:8025`          | Local SMTP Email Inbox (`:1025`)                   |
+| **Email Preview**        | `http://localhost:3002`          | React Email workshop (`pnpm dev:email`)            |
 | **MinIO Console**        | `http://localhost:9001`          | `minioadmin / minioadmin` (S3: `:9000`)            |
 | **pgAdmin 4**            | `http://localhost:5050`          | `admin@example.com / admin`                        |
 

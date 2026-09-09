@@ -9,6 +9,7 @@
     "dev:api:debug": "pnpm build && pnpm --filter api dev:debug",
     "dev:web": "node scripts/ensure-web-env.js && pnpm build && pnpm --filter web dev",
     "dev:mobile": "node scripts/ensure-mobile-env.js && pnpm build && pnpm --filter mobile dev",
+    "dev:email": "pnpm --filter @repo/email dev",
     "storybook": "pnpm --filter @repo/ui storybook",
     "build": "turbo build",
     "build:api": "pnpm --filter api build",

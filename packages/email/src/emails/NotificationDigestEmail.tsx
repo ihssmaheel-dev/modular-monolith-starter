@@ -98,3 +98,20 @@ export function NotificationDigestEmail({
     </Html>
   );
 }
+
+export default Object.assign(NotificationDigestEmail, {
+  PreviewProps: {
+    preview: "12 new notifications in Acme",
+    heading: "12 new notifications",
+    items: [
+      { title: "Ada mentioned you in Launch checklist" },
+      { title: "Grace shared Ideas backlog with you" },
+      { title: "Your data export is ready" },
+      { title: "Weekly digest is available" },
+      { title: "New comment on Meeting notes" },
+    ],
+    count: 12,
+    overflowText: "+7 more notifications",
+    footer: "Manage notification preferences in Settings.",
+  } satisfies NotificationDigestEmailProps,
+});

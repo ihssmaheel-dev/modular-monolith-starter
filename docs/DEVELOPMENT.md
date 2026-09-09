@@ -43,6 +43,7 @@ Useful filtered runs:
 pnpm dev:api                  # api only
 pnpm dev:web                  # creates web env if needed, builds dependencies, then starts web -> http://localhost:5173
 pnpm dev:mobile               # creates mobile env if needed, builds dependencies, then starts Expo
+pnpm dev:email                # React Email preview workshop -> http://localhost:3002
 pnpm --filter web build && pnpm --filter web start # standalone production-like web -> http://localhost:3000
 ```
 
@@ -153,6 +154,10 @@ pnpm --filter api db:migrate:status
 - **API E2E tests fail before running:** set `E2E_USE_CONTAINERS=true` and start Docker.
 - **Emails do not appear:** keep `EMAIL_DRIVER=smtp`, `SMTP_HOST=localhost`, and `SMTP_PORT=1025`,
   then inspect Mailpit at `http://localhost:8025`.
+- **Iterating on an email template:** run `pnpm dev:email` and open `http://localhost:3002` —
+  every template renders with sample data and hot-reloads on save. Use the preview for
+  design; use Mailpit for verifying real sends. Template `PreviewProps` live next to each
+  template in `packages/email/src/emails/`.
 - **Local data must be reset:** `docker compose -f docker/docker-compose.yml down -v` permanently
   deletes the local Docker volumes; run it only when that data is disposable.
 

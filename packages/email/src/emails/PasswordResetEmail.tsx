@@ -66,4 +66,14 @@ export const PasswordResetEmail = ({
   );
 };
 
+Object.assign(PasswordResetEmail, {
+  PreviewProps: {
+    resetLink: "http://localhost:5173/auth/reset-password?token=preview-token",
+    preview: "Reset your Workspace password",
+    requestText: "We received a request to reset your password.",
+    instructionText: "The link below expires in 30 minutes. Ignore this email if that was not you.",
+    buttonText: "Reset password",
+  } satisfies PasswordResetEmailProps,
+});
+
 export default PasswordResetEmail;

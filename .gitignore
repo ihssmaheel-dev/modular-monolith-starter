@@ -8,6 +8,7 @@ node_modules/
 dist/
 build/
 storybook-static/
+.react-email/
 .turbo/
 .expo/
 *.tsbuildinfo
