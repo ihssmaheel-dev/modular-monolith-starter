@@ -9,7 +9,12 @@ function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const target = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (["dist", "node_modules", ".turbo", ".vite"].includes(entry.name)) return [];
+      if (
+        ["dist", "node_modules", ".turbo", ".vite", "storybook-static", "coverage"].includes(
+          entry.name,
+        )
+      )
+        return [];
       return walk(target);
     }
     return [target];
@@ -320,6 +325,23 @@ function checkWebFetchUsage() {
   }
 }
 
+function checkUiStories() {
+  const componentsDirectory = path.join(ROOT, "packages/ui/src/components");
+  if (!fs.existsSync(componentsDirectory)) return;
+  // Non-visual modules: a story cannot render them.
+  const exempt = new Set(["packages/ui/src/components/ui/direction.tsx"]);
+  for (const file of walk(componentsDirectory)) {
+    if (!file.endsWith(".tsx") || file.endsWith(".stories.tsx") || isTest(file)) continue;
+    if (exempt.has(relative(file))) continue;
+    const directory = path.dirname(file);
+    const base = path.basename(file, ".tsx");
+    const siblings = new Set(fs.readdirSync(directory));
+    if (!siblings.has(`${base}.stories.tsx`)) {
+      report(file, `ui component must have a co-located story file (${base}.stories.tsx)`);
+    }
+  }
+}
+
 for (const directory of ["apps", "packages"]) {
   for (const file of walk(path.join(ROOT, directory))) {
     if (CODE_EXTENSIONS.has(path.extname(file))) checkFile(file);
@@ -333,6 +355,7 @@ checkGeneratedTokensFresh();
 checkRoutePermissions();
 checkWebTestCoverage();
 checkWebFetchUsage();
+checkUiStories();
 
 if (failures.length) {
   process.stderr.write(

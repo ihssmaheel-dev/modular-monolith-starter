@@ -108,3 +108,19 @@ Use primitives from `@repo/ui/components/ui/*` and composed components from `@re
 - [ ] Mobile: Settings → Appearance `light/dark/system` screenshots, `useColorScheme` follows system.
 - [ ] No `slate-*`/`bg-white`/`@repo/ui` in `apps/mobile` (enforced by `pnpm rules:check`).
 - [ ] `pnpm theme:check && pnpm rules:check && pnpm --filter web build && pnpm --filter mobile build` green.
+
+## Storybook (web UI catalog)
+
+`packages/ui` ships a Storybook workshop (Storybook 10 + `@storybook/react-vite`, Tailwind 4 via the repo's own `@tailwindcss/vite` plugin, real `globals.css` + generated tokens, light/dark toggle matching the app's `.dark` variant):
+
+```bash
+pnpm --filter @repo/ui storybook         # workshop on http://localhost:6006
+pnpm --filter @repo/ui build-storybook   # static export (CI-verified, no paid services)
+```
+
+Contributor rules:
+
+- Every component under `packages/ui/src/components/**` has a co-located `*.stories.tsx` (enforced by `pnpm rules:check`; `direction.tsx` is exempt — hook-only re-export, no visual surface).
+- Stories use plain English strings, never `t("…")` keys; no `any`, no `console.*`.
+- Every `pnpm dlx shadcn@latest add <c> -c apps/web` ships with its story in the same slice.
+- Prefer uncontrolled defaults (`defaultOpen`, `defaultValue`, `defaultChecked`) and put required props in story `args` — components with required props (e.g. `ChartContainer.config`) fail typecheck otherwise.

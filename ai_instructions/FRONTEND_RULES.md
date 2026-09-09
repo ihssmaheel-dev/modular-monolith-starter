@@ -60,6 +60,13 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 - The only network transports are `getApiClient()` and the presigned-PUT in `features/files/files.mutations.ts` (enforced by `pnpm rules:check`).
 - Component tests are deferred until a Jest/RNTL exception passes architecture review (`PACKAGE_POLICY.md` rule 8); until then, coverage excludes the presentational layer.
 
+## Storybook (`packages/ui`)
+
+- Visual catalog under `packages/ui/.storybook`; co-located `*.stories.tsx` next to every component in `src/components/**` (enforced by `pnpm rules:check`).
+- Stories use plain English strings, never `t("…")` keys; no `any`, no `console.*`.
+- Run the workshop with `pnpm --filter @repo/ui storybook`; verify with `pnpm --filter @repo/ui build-storybook`.
+- Every `shadcn add` ships with its story in the same slice.
+
 ## Shared invariants
 - Never call `fetch` directly from routes or features; use `getApiClient()`. Only `_app.tsx` may call it, for session bootstrap (`auth.me()`).
 - Pagination is mandatory (`page`, `limit`, `total`, `totalPages`) with shared limits from `@repo/contracts`.
