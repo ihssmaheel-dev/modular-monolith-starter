@@ -3,6 +3,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 let client: QueryClient | null = null;
 
+// Inactive queries are garbage-collected after 30 minutes. Server state is
+// refetched on demand and invalidated by mutations, so a day-long cache only
+// costs memory (acute on mobile) without buying freshness.
+const GC_TIME_MS = 30 * 60 * 1000;
+
 function makeQueryClient() {
   const qc = new QueryClient({
     defaultOptions: {
@@ -10,7 +15,7 @@ function makeQueryClient() {
         staleTime: 60 * 1000,
         retry: 1,
         refetchOnWindowFocus: false,
-        gcTime: 1000 * 60 * 60 * 24,
+        gcTime: GC_TIME_MS,
       },
       mutations: {
         retry: 0,
