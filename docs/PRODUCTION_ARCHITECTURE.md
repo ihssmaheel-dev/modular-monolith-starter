@@ -96,7 +96,7 @@ Uploads are recorded as `pending`, confirmed as `uploading` quarantine records o
 
 ## Durable events and realtime
 
-The outbox relay claims rows briefly, validates a versioned envelope, and publishes to the BullMQ `domain-events` queue before marking the row `PUBLISHED`. Queue consumers validate envelopes, use the outbox ID as an idempotent job ID, and retain failed jobs for inspection. Dead-letter rows can be replayed through `OutboxService.replayDeadLetter`. Realtime uses the stable logical group `realtime-dispatchers`, unique process consumer names, `XAUTOCLAIM` for abandoned deliveries, and a stream dead-letter key; failed or malformed messages are never acknowledged until retry exhaustion.
+The outbox relay claims rows briefly, validates a versioned envelope, and publishes to the BullMQ `domain-events` queue before marking the row `PUBLISHED`. Queue consumers validate envelopes, use the outbox ID as an idempotent job ID, and retain failed jobs for inspection. Dead-letter rows can be replayed through `OutboxService.replayDeadLetter`. Realtime fans out through one consumer group per API replica (`realtime-dispatchers-<instance>`), so every replica receives every event and delivers to its local connections — a single shared group would load-balance events across replicas and silently drop user-targeted messages. Groups heartbeat every loop pass; `RealtimeStreamReaper` destroys groups whose heartbeat expired, and consumers recreate their group on `NOGROUP`. `XAUTOCLAIM`, per-group delivery budgets, and a stream dead-letter key are retained; failed or malformed messages are never acknowledged until retry exhaustion.
 
 ## Worker separation
 

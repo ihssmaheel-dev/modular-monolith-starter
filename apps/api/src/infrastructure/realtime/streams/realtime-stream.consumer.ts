@@ -4,6 +4,12 @@ import { RedisService } from "../../redis/redis.service";
 import { PinoLoggerService } from "../../logger/logger.service";
 import { MetricsService } from "../../metrics/metrics.service";
 import { RealtimeStreamRouter } from "./realtime-stream.router";
+import {
+  handleFailedDelivery,
+  type GroupedRedis,
+  type RedisStreamEntry,
+  type RedisStreamResult,
+} from "./realtime-stream.dead-letter";
 import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import { env } from "../../../config/env";
@@ -12,11 +18,9 @@ const STREAM_KEY = "realtime:events";
 const XREAD_BLOCK_MS = 5000;
 const RETRY_DELAY_MS = 2000;
 const CLAIM_IDLE_MS = 60_000;
-const MAX_DELIVERY_ATTEMPTS = 5;
-const DEAD_LETTER_STREAM_KEY = "realtime:events:dead-letter";
-
-type RedisStreamEntry = [id: string, fields: string[]];
-type RedisStreamResult = [stream: string, messages: RedisStreamEntry[]][] | null;
+const GROUP_PREFIX = "realtime-dispatchers-";
+const HEARTBEAT_KEY_PREFIX = "realtime:dispatchers:heartbeat:";
+const HEARTBEAT_TTL_SECONDS = 90;
 
 interface ParsedStreamMessage {
   target: string;
@@ -24,24 +28,22 @@ interface ParsedStreamMessage {
   payload: string;
 }
 
-type GroupedRedis = {
-  xreadgroup?: (...args: Array<string | number>) => Promise<RedisStreamResult>;
-  xack: (stream: string, group: string, id: string) => Promise<number>;
-  xautoclaim?: (...args: Array<string | number>) => Promise<unknown>;
-  incr?: (key: string) => Promise<number>;
-  expire?: (key: string, seconds: number) => Promise<number>;
-  xadd?: (...args: Array<string | number>) => Promise<string>;
-  del?: (key: string) => Promise<number>;
-};
-
 @Injectable()
 export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
   private subscriber: Redis | null = null;
   private logger: PinoLoggerService;
   private isShuttingDown = false;
   private lastId = "$";
-  private readonly groupName = "realtime-dispatchers";
-  private readonly consumerName = `api-${hostname()}-${process.pid}-${randomUUID()}`;
+  private readonly instanceId = `api-${hostname()}-${process.pid}-${randomUUID()}`;
+  /**
+   * Per-instance consumer group: every API replica receives every event (fan-out).
+   * A single shared group would load-balance events across replicas, silently
+   * dropping user-targeted messages on replicas without that local connection.
+   * New groups start at "$" (live events only); orphan groups of dead instances
+   * are reaped by RealtimeStreamReaper via the heartbeat key below.
+   */
+  readonly groupName = `${GROUP_PREFIX}${this.instanceId}`;
+  private readonly consumerName = this.instanceId;
 
   constructor(
     private readonly redis: RedisService,
@@ -84,6 +86,7 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
 
   private async readStreamLoop(): Promise<void> {
     if (!this.subscriber || this.isShuttingDown) return;
+    await this.beatHeartbeat();
 
     try {
       const grouped = this.subscriber as unknown as GroupedRedis;
@@ -109,12 +112,31 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
         grouped.xreadgroup ? grouped : null,
       );
     } catch (err) {
-      this.logger.error({ err }, "Redis XREAD error");
+      if (String(err).includes("NOGROUP")) {
+        // Our group was reaped while we were idle (or Redis lost it): recreate and continue.
+        await this.ensureConsumerGroup();
+      } else {
+        this.logger.error({ err }, "Redis XREAD error");
+      }
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
     }
 
     if (!this.isShuttingDown) {
       setImmediate(() => this.readStreamLoop());
+    }
+  }
+
+  private async beatHeartbeat(): Promise<void> {
+    const grouped = this.subscriber as unknown as GroupedRedis;
+    if (typeof grouped.setex !== "function") return;
+    try {
+      await grouped.setex(
+        `${HEARTBEAT_KEY_PREFIX}${this.groupName}`,
+        HEARTBEAT_TTL_SECONDS,
+        "alive",
+      );
+    } catch (error) {
+      this.logger.warn({ error }, "Realtime dispatcher heartbeat failed");
     }
   }
 
@@ -140,7 +162,7 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
     const routed = this.routeMessage(message, id);
     if (routed) return true;
     if (!grouped) return false;
-    return this.handleFailedDelivery(grouped, id, fields);
+    return handleFailedDelivery(grouped, this.groupName, id, fields, this.metrics);
   }
 
   private recordConsumerLag(id: string): void {
@@ -186,36 +208,6 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
     const entries =
       Array.isArray(result) && Array.isArray(result[1]) ? (result[1] as RedisStreamEntry[]) : [];
     await this.processStreamResult([[STREAM_KEY, entries]], grouped);
-  }
-
-  private async handleFailedDelivery(
-    redis: GroupedRedis,
-    id: string,
-    fields: string[],
-  ): Promise<boolean> {
-    const client = redis;
-    if (!client.incr) return false;
-    const attemptKey = `realtime:events:attempts:${id}`;
-    const attempts = await client.incr(attemptKey);
-    if (client.expire) await client.expire(attemptKey, 3600);
-    if (attempts < MAX_DELIVERY_ATTEMPTS) return false;
-    if (client.xadd) {
-      await client.xadd(
-        DEAD_LETTER_STREAM_KEY,
-        "*",
-        "sourceId",
-        id,
-        "fields",
-        JSON.stringify(fields),
-      );
-    }
-    if (client.del) await client.del(attemptKey);
-    this.metrics.incrementCounter(
-      "realtime_dead_letter_total",
-      "Realtime events moved to dead letter",
-      1,
-    );
-    return true;
   }
 
   async onModuleDestroy(): Promise<void> {
