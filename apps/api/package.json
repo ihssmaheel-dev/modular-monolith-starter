@@ -90,12 +90,12 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.24",
-    "@nestjs/testing": "^11.2.3",
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/testing": "^12.0.1",
     "@swc/cli": "^0.8.1",
-    "@swc/core": "^1.16.1",
+    "@swc/core": "^1.16.2",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.4.1",
     "@types/nodemailer": "^8.0.1",
     "@types/opossum": "^8.1.9",
     "@types/pg": "^8.23.1",
@@ -110,7 +110,7 @@
     "fast-check": "^4.9.0",
     "nodemon": "^3.1.14",
     "testcontainers": "^12.1.0",
-    "typescript": "~6.0.3",
+    "typescript": "~7.0.2",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^5.0.0"
   }

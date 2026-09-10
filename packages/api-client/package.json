@@ -21,7 +21,7 @@
     "@repo/contracts": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "~6.0.3",
+    "typescript": "~7.0.2",
     "vitest": "^5.0.0"
   }
 }
