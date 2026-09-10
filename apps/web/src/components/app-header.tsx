@@ -16,9 +16,8 @@ import {
 } from "@repo/ui/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@repo/ui/components/ui/sidebar";
 import { useAuthStore } from "@/stores/auth.store";
-import { useTenantStore } from "@/stores/tenant.store";
 import { getApiClient } from "@/lib/api";
-import { getQueryClient } from "@/lib/query-client";
+import { publishSignedOut, signOutLocally } from "@/lib/cross-tab/auth-sync";
 import { useTheme } from "@/components/theme-provider";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
@@ -29,20 +28,18 @@ export function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-  const clearTenant = useTenantStore((state) => state.setTenantId);
   const { theme, setTheme } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
   const initials = user?.name?.slice(0, 2).toUpperCase() ?? "U";
 
   const signOut = async () => {
     setSigningOut(true);
+    const signedOutUserId = user?.id ?? null;
     try {
       await getApiClient().auth.logout();
     } finally {
-      getQueryClient().clear();
-      clearTenant(null);
-      clearAuth();
+      signOutLocally();
+      publishSignedOut(signedOutUserId);
       navigate({ to: FRONTEND_ROUTES.auth });
       setSigningOut(false);
     }

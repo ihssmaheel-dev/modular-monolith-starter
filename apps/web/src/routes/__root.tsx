@@ -4,6 +4,7 @@ import {
   HeadContent,
   Scripts,
   Link,
+  useNavigate,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import type { QueryClient } from "@tanstack/react-query";
@@ -23,6 +24,8 @@ import { useTranslation } from "react-i18next";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 import { getWebEnv } from "@/lib/env";
 import { RouteErrorFallback } from "@/components/error-boundary";
+import { initAuthSync } from "@/lib/cross-tab/auth-sync";
+import { useEffect } from "react";
 import "@repo/ui/globals.css";
 
 export interface RouterContext {
@@ -93,6 +96,16 @@ function RootPending() {
 }
 
 function RootComponent() {
+  const navigate = useNavigate();
+  useEffect(
+    () =>
+      initAuthSync({
+        onSignedOut: () => {
+          void navigate({ to: FRONTEND_ROUTES.auth, replace: true });
+        },
+      }),
+    [navigate],
+  );
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
