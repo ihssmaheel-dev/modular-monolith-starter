@@ -45,6 +45,7 @@ the same checks. See `docker/.env.prod.example` for the compose-side pattern.
 | `DB_LOCK_TIMEOUT_MS`                | `5000`; maximum lock wait duration                                                                             |
 | `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `60000`; idle transaction guard                                                                                |
 | `AUDIT_RETENTION_DAYS`              | `365`; minimum 30 days before audit records are purged by the worker                                           |
+| `INVITATION_RETENTION_DAYS`         | `90`; minimum 7 days before settled invitations are purged by the worker                                       |
 | `REDIS_URL`                         | `redis://localhost:6379` locally; `rediss://` required in production                                           |
 | `FEATURE_FLAGS`                     | `{}`; JSON object mapping feature-flag keys to boolean values                                                  |
 | `TEST_DATABASE_URL`                 | Integration/E2E database; its name must contain `test`                                                         |

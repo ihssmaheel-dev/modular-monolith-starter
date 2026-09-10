@@ -57,6 +57,7 @@ export const envSchema = z
     DB_LOCK_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
     DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
     AUDIT_RETENTION_DAYS: z.coerce.number().int().min(30).max(3650).default(365),
+    INVITATION_RETENTION_DAYS: z.coerce.number().int().min(7).max(3650).default(90),
     REDIS_URL: z.string().url().optional(),
     FEATURE_FLAGS: z
       .string()

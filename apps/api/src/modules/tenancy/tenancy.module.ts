@@ -6,6 +6,8 @@ import { CreateOrganizationCommand } from "./application/commands/create-organiz
 import { InviteMemberCommand } from "./application/commands/invite-member.command";
 import { RemoveMemberCommand } from "./application/commands/remove-member.command";
 import { PurgeUserTenancyDataCommand } from "./application/commands/purge-user-tenancy-data.command";
+import { PurgeExpiredInvitationsCommand } from "./application/commands/purge-expired-invitations.command";
+import { InvitationRetentionWorker } from "./application/workers/invitation-retention.worker";
 import { DeleteOrganizationDataCommand } from "./application/commands/delete-organization-data.command";
 import { HardDeleteOrganizationCommand } from "./application/commands/hard-delete-organization.command";
 import { ListInvitationsByEmailQuery } from "./application/queries/list-invitations-by-email.query";
@@ -78,6 +80,8 @@ export class TenancyModule {
         ListOrganizationsQuery,
         ListInvitationsByEmailQuery,
         PurgeUserTenancyDataCommand,
+        PurgeExpiredInvitationsCommand,
+        InvitationRetentionWorker,
         DeleteOrganizationDataCommand,
         HardDeleteOrganizationCommand,
       ],

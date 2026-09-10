@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { eq, and, gt, lte } from "drizzle-orm";
+import { eq, and, gt, lte, lt, ne, or, inArray } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../infrastructure/database";
 import { TenantContextService } from "../../../infrastructure/database";
@@ -78,6 +78,43 @@ export class InvitationsRepository extends BaseRepository<Invitation, Invitation
     await (db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } })
       .delete(invitations)
       .where(eq(invitations.tenantId, tenantId));
+  }
+
+  /**
+   * Removes settled invitations past retention: accepted/revoked rows older
+   * than the cutoff, plus pending rows that already expired. Live pending
+   * invitations are never touched. Chunked by the caller via `limit`.
+   */
+  async deleteSettledBefore(cutoff: Date, limit: number): Promise<number> {
+    const db = this.getDb();
+    const stale = await (
+      db as unknown as {
+        select: (v: unknown) => {
+          from: (t: unknown) => {
+            where: (c: unknown) => { limit: (n: number) => Promise<Array<{ id: string }>> };
+          };
+        };
+      }
+    )
+      .select({ id: invitations.id })
+      .from(invitations)
+      .where(
+        and(
+          lt(invitations.updatedAt, cutoff),
+          or(ne(invitations.status, "pending"), lt(invitations.expiresAt, cutoff)),
+        ),
+      )
+      .limit(limit);
+    if (stale.length === 0) return 0;
+    await (db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } })
+      .delete(invitations)
+      .where(
+        inArray(
+          invitations.id,
+          stale.map((row) => row.id),
+        ),
+      );
+    return stale.length;
   }
 
   async findByTokenHash(tokenHash: string): Promise<Result<Invitation | null, never>> {
