@@ -50,6 +50,15 @@ bounded by a short timeout, and protected by a circuit breaker so an unavailable
 impact API requests. Keep logs as the baseline signal and adapt the neutral payload at the
 collector boundary for the chosen observability provider.
 
+### Error reference IDs and trace correlation
+
+When errors occur on the API or in the frontend, an 8-character error reference (e.g. `ref #a3f9c1e4`) is generated and displayed on user-facing error boundaries:
+
+- **Trace correlation**: On API failures with an active OpenTelemetry span, the reference is derived from the first 8 hex characters of the `trace_id`.
+- **Loki lookup**: Search Loki for `{application="api-service"} |= "a3f9c1e4"` to immediately locate the exact structured error log and stack trace.
+- **Jaeger link**: In Grafana Loki, the derived `TraceID` field links directly into Jaeger (`http://localhost:16686/trace/<traceId>`) to inspect the full distributed trace.
+- **Support copy**: Users or testers can click "Copy error details" on any error boundary (`RouteErrorFallback` or `RootError`) to copy a structured text payload containing the reference, trace ID, request ID, and timestamp.
+
 ## Workers and migrations
 
 - Prod compose runs three API-image roles: `api` (`PROCESS_ROLE=api`), `worker`

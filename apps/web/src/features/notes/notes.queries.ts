@@ -10,7 +10,7 @@ export function notesListQuery(page = 1, limit = 20) {
     queryFn: async () => {
       const client = getApiClient();
       const res = await client.notes.list({ page, limit });
-      if (res.status !== 200) throw new Error("api.note.fetchFailed");
+      if (res.status !== 200) throw new Error("api.note.fetchFailed", { cause: res.error });
       return res.body;
     },
   });
@@ -23,8 +23,8 @@ export function noteByIdQuery(id: string) {
     queryFn: async () => {
       const client = getApiClient();
       const res = await client.notes.get(id);
-      if (res.status === 404) throw new Error("api.note.notFound");
-      if (res.status !== 200) throw new Error("api.note.fetchFailed");
+      if (res.status === 404) throw new Error("api.note.notFound", { cause: res.error });
+      if (res.status !== 200) throw new Error("api.note.fetchFailed", { cause: res.error });
       return res.body;
     },
     enabled: !!id,
@@ -38,7 +38,7 @@ export function noteAttachmentsQuery(id: string) {
     queryFn: async () => {
       const client = getApiClient();
       const res = await client.notes.listAttachments(id, { limit: 100 });
-      if (res.status !== 200) throw new Error("api.note.notFound");
+      if (res.status !== 200) throw new Error("api.note.notFound", { cause: res.error });
       return res.body;
     },
     enabled: !!id,

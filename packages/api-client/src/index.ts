@@ -66,7 +66,11 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
         } catch {
           body = null;
         }
-        return { status: res.status, body: body as T, error: parseError(body) };
+        return {
+          status: res.status,
+          body: body as T,
+          error: parseError(body, res.headers, res.status),
+        };
       }
 
       coordinator.handleSuccess(refreshed);
@@ -86,10 +90,11 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     if (res.ok && res.status !== 204 && schema) {
       const parsed = schema.safeParse(body);
       if (!parsed.success) {
+        const reqId = res.headers.get("x-request-id") ?? "client";
         return {
           status: 502,
           body: null as T,
-          error: invalidResponseError(),
+          error: invalidResponseError(reqId),
         };
       }
       body = parsed.data;
@@ -98,7 +103,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     return {
       status: res.status,
       body: body as T,
-      ...(res.ok ? {} : { error: parseError(body) }),
+      ...(res.ok ? {} : { error: parseError(body, res.headers, res.status) }),
     };
   };
 

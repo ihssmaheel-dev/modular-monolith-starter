@@ -22,6 +22,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 import { getWebEnv } from "@/lib/env";
+import { RouteErrorFallback } from "@/components/error-boundary";
 import "@repo/ui/globals.css";
 
 export interface RouterContext {
@@ -62,24 +63,22 @@ function NotFound() {
   );
 }
 
-function RootError() {
+function RootError({ error, reset }: { error?: unknown; reset?: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="flex min-h-svh items-center justify-center p-6 bg-muted/20">
-      <Card className="max-w-md w-full border-destructive/30">
-        <CardHeader>
-          <CardTitle className="text-destructive">{t("errors.unexpected")}</CardTitle>
-          <CardDescription>{t("errors.serverError")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => window.location.reload()}>
-            {t("common.retry")}
-          </Button>
-          <Button className="flex-1" render={<Link to={FRONTEND_ROUTES.home} />}>
-            {t("common.back")}
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="max-w-md w-full space-y-3">
+        <RouteErrorFallback
+          error={error}
+          reset={() => {
+            if (reset) reset();
+            else window.location.reload();
+          }}
+        />
+        <Button variant="outline" className="w-full" render={<Link to={FRONTEND_ROUTES.home} />}>
+          {t("common.back")}
+        </Button>
+      </div>
     </div>
   );
 }

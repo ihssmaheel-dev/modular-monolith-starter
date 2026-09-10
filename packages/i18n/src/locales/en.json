@@ -116,7 +116,10 @@
     "serverError": "Server error. Please try again later.",
     "networkError": "Network error. Check your connection.",
     "unexpected": "Something went wrong",
-    "unknown": "Unknown error"
+    "unknown": "Unknown error",
+    "ref": "Reference: #{{ref}}",
+    "copyDetails": "Copy error details",
+    "copiedDetails": "Error details copied"
   },
   "navigation": {
     "workspace": "Workspace",

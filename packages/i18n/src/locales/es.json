@@ -179,7 +179,10 @@
     "serverError": "Error del servidor. Inténtalo más tarde.",
     "networkError": "Error de red. Verifica tu conexión.",
     "unexpected": "Algo salió mal",
-    "unknown": "Error desconocido"
+    "unknown": "Error desconocido",
+    "ref": "Referencia: #{{ref}}",
+    "copyDetails": "Copiar detalles del error",
+    "copiedDetails": "Detalles del error copiados"
   },
   "api": {
     "error": {

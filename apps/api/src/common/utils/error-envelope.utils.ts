@@ -1,5 +1,10 @@
 import { HttpException, HttpStatus } from "@nestjs/common";
-import { ApiErrorEnvelopeSchema, type ApiErrorEnvelope, type FieldErrors } from "@repo/contracts";
+import {
+  ApiErrorEnvelopeSchema,
+  formatErrorRef,
+  type ApiErrorEnvelope,
+  type FieldErrors,
+} from "@repo/contracts";
 import { I18nService } from "../../infrastructure/i18n/i18n.service";
 import { ZodValidationException } from "../exceptions/zod-validation.exception";
 import { resolveRequestId } from "./request-id.utils";
@@ -32,9 +37,11 @@ export function createApiErrorEnvelope(
   language: string | undefined,
   requestId: string,
   i18n: I18nService,
+  traceId?: string,
 ): ApiErrorEnvelope {
   const safeStatus = normalizeStatus(status);
   const safeRequestId = resolveRequestId(requestId);
+  const errorRef = formatErrorRef(traceId, safeRequestId);
   if (exception instanceof ZodValidationException) {
     return ApiErrorEnvelopeSchema.parse({
       code: "VALIDATION_FAILED",
@@ -42,6 +49,8 @@ export function createApiErrorEnvelope(
       message: i18n.t("api.error.validationFailed", language),
       status: HttpStatus.BAD_REQUEST,
       requestId: safeRequestId,
+      ...(traceId ? { traceId } : {}),
+      errorRef,
       fieldErrors: zodFieldErrors(exception, language, i18n),
     });
   }
@@ -54,6 +63,8 @@ export function createApiErrorEnvelope(
     message: i18n.t(i18nKey, language),
     status: safeStatus,
     requestId: safeRequestId,
+    ...(traceId ? { traceId } : {}),
+    errorRef,
     fieldErrors: fieldErrorsOf(payload, language, i18n),
     ...(retry ? { retry } : {}),
   });

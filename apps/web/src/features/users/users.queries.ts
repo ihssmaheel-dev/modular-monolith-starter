@@ -10,7 +10,7 @@ export function usersListQuery(page = 1, limit = 20) {
     queryFn: async () => {
       const client = getApiClient();
       const res = await client.users.list({ query: { page, limit } });
-      if (res.status !== 200) throw new Error("errors.networkError");
+      if (res.status !== 200) throw new Error("errors.networkError", { cause: res.error });
       return res.body;
     },
   });

@@ -14,6 +14,8 @@ import { PushBootstrap } from "@/components/push-bootstrap";
 import { Toaster } from "@/components/ui/toast";
 import "../global.css";
 
+export { ErrorBoundary } from "@/components/error-boundary";
+
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const status = useAuthStore((s) => s.status);
