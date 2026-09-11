@@ -50,6 +50,8 @@ const providers = [
   InvitationEmailListener,
   MembershipUserListener,
   CanDeleteUserQuery,
+  PurgeExpiredInvitationsCommand,
+  InvitationRetentionWorker,
 ];
 
 @Global()
