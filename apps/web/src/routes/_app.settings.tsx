@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from "@/stores/auth.store";
 import { useTheme } from "@/components/theme-provider";
 import { ExportCard } from "@/features/privacy/components/export-card";
+import { EmailChangeCard } from "@/features/users/components/email-change-card";
 import { EraseAccountCard } from "@/features/privacy/components/erase-account-card";
 import { EraseOrganizationCard } from "@/features/privacy/components/erase-organization-card";
 import { PreferencesCard } from "@/features/notifications/components/preferences-card";
@@ -81,6 +82,7 @@ function SettingsPage() {
         </Card>
       </div>
       <PreferencesCard />
+      <EmailChangeCard />
       <ExportCard />
       <EraseAccountCard />
       <EraseOrganizationCard />

@@ -3,6 +3,7 @@ export type EmailTaken = { type: "EMAIL_TAKEN"; email: string };
 export type InvalidUserData = { type: "INVALID_USER_DATA"; field: string; reason: string };
 export type InvalidPasswordResetToken = { type: "INVALID_PASSWORD_RESET_TOKEN" };
 export type InvalidVerificationToken = { type: "INVALID_VERIFICATION_TOKEN" };
+export type InvalidEmailChangeToken = { type: "INVALID_EMAIL_CHANGE_TOKEN" };
 export type UserOwnsOrganization = { type: "USER_OWNS_ORGANIZATION" };
 export type UserForbidden = { type: "USER_FORBIDDEN"; userId: string };
 export type InvalidAvatarFile = { type: "INVALID_AVATAR_FILE" };
@@ -14,6 +15,7 @@ export type UserError =
   | InvalidUserData
   | InvalidPasswordResetToken
   | InvalidVerificationToken
+  | InvalidEmailChangeToken
   | UserOwnsOrganization
   | UserForbidden
   | InvalidAvatarFile
@@ -31,6 +33,8 @@ export function formatUserError(error: UserError): string {
       return "Invalid password reset token";
     case "INVALID_VERIFICATION_TOKEN":
       return "Invalid email verification token";
+    case "INVALID_EMAIL_CHANGE_TOKEN":
+      return "Invalid email change token";
     case "USER_OWNS_ORGANIZATION":
       return "User owns an organization";
     case "USER_FORBIDDEN":

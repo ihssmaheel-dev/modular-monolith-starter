@@ -15,18 +15,22 @@ import { VerifyUserEmailCommand } from "./application/commands/verify-user-email
 import { IncrementAuthVersionCommand } from "./application/commands/increment-auth-version.command";
 import { AttachUserAvatarCommand } from "./application/commands/attach-user-avatar.command";
 import { RemoveUserAvatarCommand } from "./application/commands/remove-user-avatar.command";
+import { RequestEmailChangeCommand } from "./application/commands/request-email-change.command";
+import { VerifyEmailChangeCommand } from "./application/commands/verify-email-change.command";
 import { UsersRepository } from "./infrastructure/users.repository";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { WelcomeEmailListener } from "./application/listeners/welcome-email.listener";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { FilesModule } from "../files/files.module";
 import { UsersOrpcController } from "./presentation/users.orpc.controller";
+import { UsersEmailChangeController } from "./presentation/users-email-change.controller";
 
 @Module({
   imports: [EventEmitterModule, OutboxModule, FilesModule],
-  controllers: [UsersController, UsersOrpcController],
+  controllers: [UsersController, UsersEmailChangeController, UsersOrpcController],
   providers: [
     UsersController,
+    UsersEmailChangeController,
     GetUsersQuery,
     GetUserByIdQuery,
     GetUserByEmailQuery,
@@ -42,6 +46,8 @@ import { UsersOrpcController } from "./presentation/users.orpc.controller";
     IncrementAuthVersionCommand,
     AttachUserAvatarCommand,
     RemoveUserAvatarCommand,
+    RequestEmailChangeCommand,
+    VerifyEmailChangeCommand,
     UsersRepository,
     WelcomeEmailListener,
   ],

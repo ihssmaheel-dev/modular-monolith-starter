@@ -23,6 +23,7 @@ import { FilesOrpcController } from "../../modules/files/presentation/files.orpc
 import { NotesController } from "../../modules/notes/presentation/notes.controller";
 import { NotesOrpcController } from "../../modules/notes/presentation/notes.orpc.controller";
 import { UsersController } from "../../modules/users/presentation/users.controller";
+import { UsersEmailChangeController } from "../../modules/users/presentation/users-email-change.controller";
 import { UsersOrpcController } from "../../modules/users/presentation/users.orpc.controller";
 import { MembershipsController } from "../../modules/tenancy/presentation/memberships.controller";
 import { MembershipsOrpcController } from "../../modules/tenancy/presentation/memberships.orpc.controller";
@@ -135,15 +136,22 @@ function filesRoutes(): RoutePair[] {
   ]);
 }
 function usersRoutes(): RoutePair[] {
-  return routePairs(usersContract, UsersOrpcController, UsersController, [
-    ["list", "list", "list"],
-    ["getById", "getById", "getById"],
-    ["create", "create", "create"],
-    ["update", "update", "update"],
-    ["delete", "delete", "delete"],
-    ["attachAvatar", "attachAvatar", "attachAvatar"],
-    ["removeAvatar", "removeAvatar", "removeAvatar"],
-  ]);
+  return [
+    ...routePairs(usersContract, UsersOrpcController, UsersController, [
+      ["list", "list", "list"],
+      ["getById", "getById", "getById"],
+      ["create", "create", "create"],
+      ["update", "update", "update"],
+      ["updateMe", "updateMe", "updateMe"],
+      ["delete", "delete", "delete"],
+      ["attachAvatar", "attachAvatar", "attachAvatar"],
+      ["removeAvatar", "removeAvatar", "removeAvatar"],
+    ]),
+    ...routePairs(usersContract, UsersOrpcController, UsersEmailChangeController, [
+      ["requestEmailChange", "requestEmailChange", "requestEmailChange"],
+      ["verifyEmailChange", "verifyEmailChange", "verifyEmailChange"],
+    ]),
+  ];
 }
 function organizationRoutes(): RoutePair[] {
   return routePairs(organizationsContract, OrganizationsOrpcController, OrganizationsController, [
@@ -206,6 +214,7 @@ const REST_CONTROLLERS: Array<[object, string]> = [
   [NotesController, "NotesController"],
   [FilesController, "FilesController"],
   [UsersController, "UsersController"],
+  [UsersEmailChangeController, "UsersEmailChangeController"],
   [OrganizationsController, "OrganizationsController"],
   [MembershipsController, "MembershipsController"],
   [PrivacyController, "PrivacyController"],

@@ -130,6 +130,13 @@
       "heading": "Vérifiez votre adresse e-mail",
       "body": "Cliquez sur le bouton ci-dessous pour vérifier votre adresse e-mail. Ce lien expire dans 24 heures.",
       "buttonText": "Vérifier l’e-mail"
+    },
+    "changeEmail": {
+      "subject": "Confirmez votre nouvelle adresse e-mail",
+      "preview": "Confirmez votre nouvelle adresse e-mail",
+      "heading": "Confirmez votre nouvelle adresse e-mail",
+      "body": "Cliquez sur le bouton ci-dessous pour confirmer cette adresse pour votre compte. Ce lien expire dans 24 heures. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.",
+      "buttonText": "Confirmer l’e-mail"
     }
   },
   "dashboard": {
@@ -161,7 +168,15 @@
     "avatarRemove": "Supprimer la photo",
     "avatarUpdated": "Photo de profil mise à jour",
     "avatarRemoved": "Photo de profil supprimée",
-    "avatarHint": "JPEG, PNG, GIF ou WebP jusqu’à 5 Mo"
+    "avatarHint": "JPEG, PNG, GIF ou WebP jusqu’à 5 Mo",
+    "changeEmailTitle": "Changer d’adresse e-mail",
+    "changeEmailDescription": "Nous enverrons un lien de confirmation à la nouvelle adresse. La confirmation vous déconnectera partout.",
+    "changeEmailSubmit": "Envoyer la confirmation",
+    "changeEmailSent": "E-mail de confirmation envoyé. Vérifiez la nouvelle boîte pour terminer.",
+    "confirmEmail": "Confirmer l’e-mail",
+    "confirmingEmail": "Confirmation…",
+    "emailChanged": "Votre e-mail est mis à jour. Veuillez vous reconnecter.",
+    "changeEmailFailed": "Cette demande a échoué. Vérifiez l’adresse et réessayez."
   },
   "settings": {
     "eyebrow": "Préférences et Système",
@@ -286,6 +301,8 @@
       "deleted": "Utilisateur supprimé avec succès",
       "notFound": "Utilisateur non trouvé",
       "emailTaken": "L'e-mail est déjà pris",
+      "invalidEmailChangeToken": "Le lien de changement d’e-mail est invalide ou a expiré",
+      "emailChangeRequested": "E-mail de confirmation envoyé à la nouvelle adresse",
       "invalidAvatar": "L'avatar doit être une image JPEG, PNG, GIF ou WebP de 5 Mo maximum",
       "ownsOrganization": "Transférez ou supprimez la propriété des organisations de cet utilisateur avant de le supprimer"
     },

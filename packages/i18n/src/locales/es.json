@@ -130,6 +130,13 @@
       "heading": "Verifica tu dirección de correo electrónico",
       "body": "Haz clic en el botón siguiente para verificar tu dirección de correo electrónico. Este enlace caduca en 24 horas.",
       "buttonText": "Verificar correo electrónico"
+    },
+    "changeEmail": {
+      "subject": "Confirma tu nueva dirección de correo electrónico",
+      "preview": "Confirma tu nueva dirección de correo electrónico",
+      "heading": "Confirma tu nueva dirección de correo electrónico",
+      "body": "Haz clic en el botón siguiente para confirmar esta dirección en tu cuenta. Este enlace caduca en 24 horas. Si no solicitaste esto, puedes ignorar este correo.",
+      "buttonText": "Confirmar correo"
     }
   },
   "dashboard": {
@@ -161,7 +168,15 @@
     "avatarRemove": "Eliminar foto",
     "avatarUpdated": "Foto de perfil actualizada",
     "avatarRemoved": "Foto de perfil eliminada",
-    "avatarHint": "JPEG, PNG, GIF o WebP hasta 5 MB"
+    "avatarHint": "JPEG, PNG, GIF o WebP hasta 5 MB",
+    "changeEmailTitle": "Cambiar dirección de correo",
+    "changeEmailDescription": "Enviaremos un enlace de confirmación a la nueva dirección. Al confirmar se cerrará tu sesión en todas partes.",
+    "changeEmailSubmit": "Enviar confirmación",
+    "changeEmailSent": "Correo de confirmación enviado. Revisa la nueva bandeja para terminar.",
+    "confirmEmail": "Confirmar correo",
+    "confirmingEmail": "Confirmando…",
+    "emailChanged": "Tu correo se actualizó. Inicia sesión de nuevo.",
+    "changeEmailFailed": "Esta solicitud falló. Revisa la dirección e inténtalo de nuevo."
   },
   "settings": {
     "eyebrow": "Preferencias y Sistema",
@@ -286,6 +301,8 @@
       "deleted": "Usuario eliminado exitosamente",
       "notFound": "Usuario no encontrado",
       "emailTaken": "El correo electrónico ya está en uso",
+      "invalidEmailChangeToken": "El enlace de cambio de correo no es válido o ha caducado",
+      "emailChangeRequested": "Correo de confirmación enviado a la nueva dirección",
       "invalidAvatar": "El avatar debe ser una imagen JPEG, PNG, GIF o WebP de hasta 5 MB",
       "ownsOrganization": "Transfiere o elimina la propiedad de las organizaciones de este usuario antes de eliminarlo"
     },

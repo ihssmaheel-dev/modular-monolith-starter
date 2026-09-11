@@ -144,6 +144,62 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
     return ok(rows[0] ? this.toDomain(rows[0]) : null);
   }
 
+  async setEmailChangeRequest(
+    userId: string,
+    pendingEmail: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<Result<boolean, never>> {
+    const db = this.getDb();
+    await (
+      db as unknown as {
+        update: (t: unknown) => {
+          set: (v: unknown) => { where: (c: unknown) => Promise<unknown[]> };
+        };
+      }
+    )
+      .update(users)
+      .set({
+        pendingEmail,
+        emailChangeTokenHash: tokenHash,
+        emailChangeExpiresAt: expiresAt,
+        updatedAt: new Date(),
+      } as unknown as Record<string, unknown>)
+      .where(eq(users.id, userId));
+    return ok(true);
+  }
+
+  /**
+   * Atomically applies a pending email change: the address is proven by
+   * token possession, so it is marked verified, sessions are revoked via
+   * the version bump, and the one-time token is cleared in the same UPDATE.
+   */
+  async applyEmailChangeByToken(tokenHash: string): Promise<Result<User | null, never>> {
+    const db = this.getDb();
+    const rows = await (
+      db as unknown as {
+        update: (t: unknown) => {
+          set: (v: unknown) => { where: (c: unknown) => { returning: () => Promise<UserRow[]> } };
+        };
+      }
+    )
+      .update(users)
+      .set({
+        email: sql`pending_email`,
+        emailVerifiedAt: new Date(),
+        authVersion: sql`auth_version + 1`,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        updatedAt: new Date(),
+      } as unknown as Record<string, unknown>)
+      .where(
+        and(eq(users.emailChangeTokenHash, tokenHash), gt(users.emailChangeExpiresAt, new Date())),
+      )
+      .returning();
+    return ok(rows[0] ? this.toDomain(rows[0]) : null);
+  }
+
   async incrementAuthVersion(userId: string): Promise<Result<User | null, never>> {
     const db = this.getDb();
     const rows = await (

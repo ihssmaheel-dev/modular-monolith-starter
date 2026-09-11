@@ -2,6 +2,8 @@ import { oc } from "@orpc/contract";
 import {
   CreateUserSchema,
   UpdateUserSchema,
+  RequestEmailChangeSchema,
+  VerifyEmailChangeSchema,
   UserResponseSchema,
   UserListResponseSchema,
   UserIdParamSchema,
@@ -9,6 +11,7 @@ import {
 import { AttachAvatarSchema } from "../schemas/file.schema";
 import { PaginationQuerySchema } from "../schemas/pagination.schema";
 import { EmptyResponseSchema } from "../schemas/common.schema";
+import { MessageResponseSchema } from "../schemas/auth.schema";
 
 export const usersContract = oc.prefix("/users").router({
   list: oc
@@ -31,6 +34,23 @@ export const usersContract = oc.prefix("/users").router({
     .route({ method: "DELETE", path: "/{id}", summary: "Delete user", successStatus: 204 })
     .input(UserIdParamSchema)
     .output(EmptyResponseSchema),
+  updateMe: oc
+    .route({ method: "PATCH", path: "/me", summary: "Update my profile" })
+    .input(UpdateUserSchema)
+    .output(UserResponseSchema),
+  requestEmailChange: oc
+    .route({
+      method: "POST",
+      path: "/me/email-change/request",
+      summary: "Request email change",
+      successStatus: 201,
+    })
+    .input(RequestEmailChangeSchema)
+    .output(MessageResponseSchema),
+  verifyEmailChange: oc
+    .route({ method: "POST", path: "/email-change/verify", summary: "Verify email change" })
+    .input(VerifyEmailChangeSchema)
+    .output(UserResponseSchema),
   attachAvatar: oc
     .route({
       method: "POST",

@@ -15,6 +15,13 @@
       "when": 1789120405415,
       "tag": "0001_thankful_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789151241196,
+      "tag": "0002_bouncy_blockbuster",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,20 @@
 import type {
   AttachAvatarInput,
   CreateUserInput,
+  MessageResponse,
   PaginationQuery,
+  RequestEmailChangeInput,
   UpdateUserInput,
   UserListResponse,
   UserResponse,
+  VerifyEmailChangeInput,
 } from "@repo/contracts";
-import { EmptyResponseSchema, UserListResponseSchema, UserResponseSchema } from "@repo/contracts";
+import {
+  EmptyResponseSchema,
+  MessageResponseSchema,
+  UserListResponseSchema,
+  UserResponseSchema,
+} from "@repo/contracts";
 import type { FetchFn } from "../types";
 import { orpcResponse, type OrpcClient } from "../orpc";
 import { normalizePagination } from "../utils";
@@ -65,6 +73,39 @@ export function createUsersClient(fetchFn: FetchFn, orpc?: OrpcClient) {
       orpc
         ? orpcResponse(() => orpc.users.delete({ id: req.params.id }), 204, EmptyResponseSchema)
         : fetchFn<void>(`/users/${encodeURIComponent(req.params.id)}`, { method: "DELETE" }),
+    updateMe: (req: { body: UpdateUserInput }) =>
+      orpc
+        ? orpcResponse(() => orpc.users.updateMe(req.body), 200, UserResponseSchema)
+        : fetchFn<UserResponse>(
+            "/users/me",
+            {
+              method: "PATCH",
+              body: JSON.stringify(req.body),
+            },
+            UserResponseSchema,
+          ),
+    requestEmailChange: (req: { body: RequestEmailChangeInput }) =>
+      orpc
+        ? orpcResponse(() => orpc.users.requestEmailChange(req.body), 201, MessageResponseSchema)
+        : fetchFn<MessageResponse>(
+            "/users/me/email-change/request",
+            {
+              method: "POST",
+              body: JSON.stringify(req.body),
+            },
+            MessageResponseSchema,
+          ),
+    verifyEmailChange: (req: { body: VerifyEmailChangeInput }) =>
+      orpc
+        ? orpcResponse(() => orpc.users.verifyEmailChange(req.body), 200, UserResponseSchema)
+        : fetchFn<UserResponse>(
+            "/users/email-change/verify",
+            {
+              method: "POST",
+              body: JSON.stringify(req.body),
+            },
+            UserResponseSchema,
+          ),
     attachAvatar: (body: AttachAvatarInput) =>
       orpc
         ? orpcResponse(() => orpc.users.attachAvatar(body), 201, UserResponseSchema)

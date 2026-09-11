@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ConfirmEmailChangeRouteImport } from './routes/confirm-email-change'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
@@ -42,6 +43,11 @@ const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmEmailChangeRoute = ConfirmEmailChangeRouteImport.update({
+  id: '/confirm-email-change',
+  path: '/confirm-email-change',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AppDashboardRoute
   '/notifications': typeof AppNotificationsRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
+  '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AppDashboardRoute
   '/notifications': typeof AppNotificationsRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invitation'
     | '/auth'
+    | '/confirm-email-change'
     | '/verify-email'
     | '/dashboard'
     | '/notifications'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accept-invitation'
+    | '/confirm-email-change'
     | '/verify-email'
     | '/dashboard'
     | '/notifications'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/accept-invitation'
     | '/auth'
+    | '/confirm-email-change'
     | '/verify-email'
     | '/_app/dashboard'
     | '/_app/notifications'
@@ -205,6 +217,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   AuthRoute: typeof AuthRouteWithChildren
+  ConfirmEmailChangeRoute: typeof ConfirmEmailChangeRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
 }
 
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirm-email-change': {
+      id: '/confirm-email-change'
+      path: '/confirm-email-change'
+      fullPath: '/confirm-email-change'
+      preLoaderRoute: typeof ConfirmEmailChangeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify-email': {
@@ -359,6 +379,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AcceptInvitationRoute: AcceptInvitationRoute,
   AuthRoute: AuthRouteWithChildren,
+  ConfirmEmailChangeRoute: ConfirmEmailChangeRoute,
   VerifyEmailRoute: VerifyEmailRoute,
 }
 export const routeTree = rootRouteImport

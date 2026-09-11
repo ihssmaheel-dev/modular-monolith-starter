@@ -10,6 +10,7 @@ export const API_DOCS_PATH = `${API_ROOT_PATH}/docs`;
 
 export const PASSWORD_RESET_TTL_MINUTES = 30;
 export const EMAIL_VERIFICATION_TTL_HOURS = 24;
+export const EMAIL_CHANGE_TTL_HOURS = 24;
 export const MILLISECONDS_PER_MINUTE = 60_000;
 export const MILLISECONDS_PER_HOUR = 3_600_000;
 
