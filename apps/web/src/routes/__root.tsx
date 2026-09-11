@@ -25,6 +25,7 @@ import { FRONTEND_ROUTES } from "@repo/contracts";
 import { getWebEnv } from "@/lib/env";
 import { RouteErrorFallback } from "@/components/error-boundary";
 import { initAuthSync } from "@/lib/cross-tab/auth-sync";
+import { QueryBroadcaster } from "@/lib/cross-tab/query-sync";
 import { useEffect } from "react";
 import "@repo/ui/globals.css";
 
@@ -114,6 +115,7 @@ function RootComponent() {
       </head>
       <body className="min-h-svh bg-background font-sans antialiased isolation-auto">
         <QueryProvider>
+          <QueryBroadcaster />
           <I18nProvider>
             <ThemeProvider defaultTheme="system" storageKey="theme">
               <div id="root">

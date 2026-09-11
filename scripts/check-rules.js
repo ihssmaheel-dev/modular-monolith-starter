@@ -342,6 +342,26 @@ function checkUiStories() {
   }
 }
 
+function checkCrossTabBoundaries() {
+  const channelOwner = "apps/web/src/lib/cross-tab/channel.ts";
+  const querySyncOwner = "apps/web/src/lib/cross-tab/query-sync.tsx";
+  for (const file of walk(path.join(ROOT, "apps/web/src"))) {
+    if (!CODE_EXTENSIONS.has(path.extname(file))) continue;
+    const name = relative(file);
+    if (name === channelOwner || name === querySyncOwner || isTest(file)) continue;
+    const source = fs.readFileSync(file, "utf8");
+    if (/\bnew\s+BroadcastChannel\s*\(/.test(source)) {
+      report(file, "BroadcastChannel must only be constructed in lib/cross-tab/channel.ts");
+    }
+    if (
+      /from\s+["']@tanstack\/query-broadcast-client-experimental["']/.test(source) &&
+      name !== querySyncOwner
+    ) {
+      report(file, "the query broadcast client must only be wired in lib/cross-tab/query-sync.tsx");
+    }
+  }
+}
+
 for (const directory of ["apps", "packages"]) {
   for (const file of walk(path.join(ROOT, directory))) {
     if (CODE_EXTENSIONS.has(path.extname(file))) checkFile(file);
@@ -356,6 +376,7 @@ checkRoutePermissions();
 checkWebTestCoverage();
 checkWebFetchUsage();
 checkUiStories();
+checkCrossTabBoundaries();
 
 if (failures.length) {
   process.stderr.write(

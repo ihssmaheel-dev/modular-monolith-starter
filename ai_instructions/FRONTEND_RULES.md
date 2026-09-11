@@ -60,6 +60,13 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 - The only network transports are `getApiClient()` and the presigned-PUT in `features/files/files.mutations.ts` (enforced by `pnpm rules:check`).
 - Component tests are deferred until a Jest/RNTL exception passes architecture review (`PACKAGE_POLICY.md` rule 8); until then, coverage excludes the presentational layer.
 
+## Cross-tab sync (web)
+
+- `BroadcastChannel` is constructed only in `src/lib/cross-tab/channel.ts`; the query broadcast client is wired only in `src/lib/cross-tab/query-sync.tsx` (both enforced by `pnpm rules:check`).
+- Channel scope table: `app:auth`, `app:theme`, `app:locale` are global (last-write-wins; receivers guard by user id); `tanstack-query:{userId}:{tenantId}` is identity-scoped — different users can never share a channel, logged-out tabs never subscribe.
+- New adapters reuse `createBroadcastChannel()` plus `scopedChannel()` and `isSyncMessage()` from `src/lib/cross-tab/`; every adapter ships co-located tests proving delivery, isolation, and cleanup.
+- This is not leader election: simultaneous mounts may still fetch twice. That is documented in code, not a bug.
+
 ## Storybook (`packages/ui`)
 
 - Visual catalog under `packages/ui/.storybook`; co-located `*.stories.tsx` next to every component in `src/components/**` (enforced by `pnpm rules:check`).
