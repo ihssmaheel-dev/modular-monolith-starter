@@ -37,7 +37,7 @@ the same checks. See `docker/.env.prod.example` for the compose-side pattern.
 | `TRUST_PROXY`                       | `false`; set `true` behind nginx/LB so `req.ip` rate-limiting works                                            |
 | `LOG_LEVEL`                         | `info`; Pino level from `fatal` through `trace`                                                                |
 | `TENANCY_MODE`                      | `single`; choose `single` or `multi` before production data exists                                             |
-| `CLIENT_URL`                        | `http://localhost:5155`; allowed browser origin                                                                |
+| `CLIENT_URL`                        | `http://localhost:5155`; allowed browser origin (comma-separated for several)                                  |
 | `API_URL`                           | `http://localhost:5156`; externally reachable API origin                                                       |
 | `DATABASE_URL`                      | Local PostgreSQL connection string; production requires TLS (`sslmode=require`, `verify-ca`, or `verify-full`) |
 | `DB_DIRECT_URL`                     | Optional direct Postgres URL bypassing PgBouncer (migrations, advisory locks); falls back to `DATABASE_URL`    |

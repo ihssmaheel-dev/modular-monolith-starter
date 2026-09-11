@@ -10,7 +10,7 @@ import { Optional } from "@nestjs/common";
 import { Server, WebSocket } from "ws";
 import { RealtimeService } from "../realtime.service";
 import { PinoLoggerService } from "../../../infrastructure/logger/logger.service";
-import { env } from "../../../config/env";
+import { clientOrigins } from "../../../common/utils/origin.utils";
 import { verifyAccessToken } from "../../../common/utils/access-token.utils";
 import { ResolveTenantAccessQuery } from "../../../modules/tenancy/application/queries/resolve-tenant-access.query";
 import { GetUserByIdQuery } from "../../../modules/users/application/queries/get-user-by-id.query";
@@ -28,7 +28,9 @@ interface SocketIdentity {
   tenantId?: string;
 }
 
-@WebSocketGateway({ cors: { origin: env.CLIENT_URL.split(",") } })
+// Declared handshake origins come from the same trust source as HTTP
+// CORS. Explicit per-handshake Origin enforcement is H16 follow-up work.
+@WebSocketGateway({ cors: { origin: clientOrigins() } })
 export class RealtimeWebsocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;

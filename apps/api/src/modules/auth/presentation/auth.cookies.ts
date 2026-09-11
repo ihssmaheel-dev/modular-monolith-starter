@@ -13,7 +13,11 @@ const AUTH_COOKIE_PATH = API_ROOT_PATH;
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
-  sameSite: "strict" as const,
+  // Lax (not Strict): session cookies must be present on top-level
+  // navigation (email links, same-site subdomains) so the app boots
+  // authenticated; cross-site mutation CSRF is still blocked by the
+  // double-submit CsrfGuard.
+  sameSite: "lax" as const,
 };
 
 export function setAccessTokenCookie(reply: FastifyReply, token: string): void {

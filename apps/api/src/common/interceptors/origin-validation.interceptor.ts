@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { Observable } from "rxjs";
-import { env } from "../../config/env";
+import { isTrustedHost, isTrustedOrigin } from "../utils/origin.utils";
 
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -21,32 +21,17 @@ export class OriginValidationInterceptor implements NestInterceptor {
 
     const origin = request.headers["origin"];
 
-    if (origin) {
-      try {
-        const originUrl = new URL(origin);
-        const allowedOrigins =
-          env.NODE_ENV === "production"
-            ? [env.CLIENT_URL]
-            : [env.CLIENT_URL, "http://localhost:5156", "http://localhost:5155"];
-
-        if (!allowedOrigins.includes(originUrl.origin)) {
-          throw new ForbiddenException();
-        }
-      } catch {
-        throw new ForbiddenException();
-      }
+    // One trust rule shared with CORS (see common/utils/origin.utils):
+    // configured origins plus loopback outside production. Absent
+    // Origin/Referer (curl, mobile apps) is not a browser request.
+    if (origin && !isTrustedOrigin(origin)) {
+      throw new ForbiddenException();
     }
 
     const referer = request.headers["referer"];
     if (!origin && referer) {
       try {
-        const refererUrl = new URL(referer);
-        const allowedHosts =
-          env.NODE_ENV === "production"
-            ? [new URL(env.CLIENT_URL).host]
-            : [new URL(env.CLIENT_URL).host, "localhost:5156", "localhost:5155"];
-
-        if (!allowedHosts.includes(refererUrl.host)) {
+        if (!isTrustedHost(new URL(referer).host)) {
           throw new ForbiddenException();
         }
       } catch {

@@ -71,4 +71,22 @@ describe("CsrfGuard", () => {
     });
     expect(guard.canActivate(context)).toBe(true);
   });
+
+  it("accepts the alternate cookie and header names (H08)", () => {
+    const context = createMockContext({
+      method: "POST",
+      cookies: { xsrf_token: "token-123", refresh_token: "jwt" },
+      headers: { "x-csrf-token": "token-123" },
+    });
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it("requires tokens on public routes once auth cookies are present (H08)", () => {
+    vi.mocked(mockReflector.getAllAndOverride).mockReturnValue(true);
+    const context = createMockContext({
+      method: "POST",
+      cookies: { access_token: "jwt" },
+    });
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
 });

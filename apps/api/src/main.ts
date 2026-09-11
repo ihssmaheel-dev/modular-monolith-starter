@@ -15,6 +15,7 @@ import { I18nService } from "./infrastructure/i18n/i18n.service";
 import { env } from "./config/env";
 import { setupApiDocs } from "./infrastructure/api-docs";
 import { printStartupBanner } from "./common/utils/startup-banner.util";
+import { isTrustedOrigin } from "./common/utils/origin.utils";
 import {
   API_BASE_PATH,
   API_DOCS_PATH,
@@ -111,7 +112,11 @@ async function bootstrap() {
         replyWithCookies.setCookie("XSRF-TOKEN", randomUUID(), {
           httpOnly: false,
           secure: env.NODE_ENV === "production",
-          sameSite: "strict",
+          // Lax (not Strict): the token must ride along on top-level
+          // navigation from email links and across same-site subdomains,
+          // while cross-site POSTs still omit it. Mutations additionally
+          // require the double-submit header (see CsrfGuard).
+          sameSite: "lax",
           path: "/",
           maxAge: 24 * 60 * 60,
         });
@@ -162,20 +167,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix(API_GLOBAL_PREFIX, { exclude: ["metrics", "docs", "api/docs"] });
   app.enableCors({
-    origin:
-      env.NODE_ENV === "production"
-        ? [env.CLIENT_URL]
-        : (origin, callback) => {
-            if (
-              !origin ||
-              /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
-              origin === env.CLIENT_URL
-            ) {
-              callback(null, true);
-            } else {
-              callback(null, false);
-            }
-          },
+    origin: (origin, callback) => {
+      // One trust rule (see common/utils/origin.utils): configured origins
+      // always, plus any loopback origin outside production. Absent Origin
+      // (curl, mobile apps) is not a browser cross-origin request.
+      callback(null, !origin || isTrustedOrigin(origin));
+    },
     credentials: true,
     allowedHeaders:
       "authorization,content-type,accept,origin,x-requested-with,x-tenant-id,idempotency-key,accept-language,x-xsrf-token,x-csrf-token,scalar-origin",

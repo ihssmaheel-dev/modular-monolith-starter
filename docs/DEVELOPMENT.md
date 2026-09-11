@@ -62,6 +62,16 @@ Local endpoints:
 
 Stop infrastructure with `pnpm docker:down`.
 
+Browser topology: web and API are same-origin in production (nginx serves
+the app and proxies `/api/`), and same-host across ports locally
+(`localhost:5155` → `localhost:5156`). Cookie authentication (HttpOnly
+session cookies plus the readable `XSRF-TOKEN` double-submit pair)
+depends on that: split-host deployments cannot share the host-only CSRF
+cookie, so they are unsupported for cookie auth. Bearer-token clients
+(mobile, scripts) are unaffected by topology. All CORS/Origin/WebSocket
+checks derive from `CLIENT_URL` (comma-separated for several origins);
+loopback origins are additionally accepted outside production.
+
 ## Staging environment
 
 Staging mirrors production shape (nginx + web + api + worker, migrate gate) against
