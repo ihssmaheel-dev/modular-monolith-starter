@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Inject, Injectable, OnModuleDestroy, Optional } from "@nestjs/common";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -100,23 +101,16 @@ export class DatabaseService implements OnModuleDestroy {
     fn: () => Promise<Result<T, E>>,
   ): Promise<Result<T, E | TransactionError>> {
     if (this.getTx()) {
-      try {
-        return await fn();
-      } catch {
-        return err({ type: "TRANSACTION_FAILED" });
-      }
+      return this.withSavepointResult(fn);
     }
 
     try {
-      const result = await this.db.transaction(async (tx: DrizzleDb) => {
-        const run = async () => {
-          const inner = await fn();
-          if (inner.isErr()) {
-            throw inner.error;
-          }
-          return inner.value;
-        };
-        return this.runWithTransactionContext(tx, run);
+      const result = await this.openTransaction(async () => {
+        const inner = await fn();
+        if (inner.isErr()) {
+          throw inner.error;
+        }
+        return inner.value;
       });
       return ok(result as T);
     } catch (error) {
@@ -131,9 +125,10 @@ export class DatabaseService implements OnModuleDestroy {
 
   /** Runs an HTTP or worker operation in one transaction and preserves thrown failures. */
   async runTransaction<T>(fn: () => Promise<T>): Promise<T> {
-    const existing = this.getTx();
-    if (existing) return fn();
-    return this.db.transaction((tx: DrizzleDb) => this.runWithTransactionContext(tx, fn));
+    if (this.getTx()) {
+      return this.withSavepoint(fn);
+    }
+    return this.openTransaction(fn);
   }
 
   /** Changes the tenant scope inside the active transaction for invitation/system workflows. */
@@ -193,23 +188,105 @@ export class DatabaseService implements OnModuleDestroy {
     this.logger.info({}, "Postgres pool closed");
   }
 
-  private async runWithTransactionContext<T>(tx: DrizzleDb, fn: () => Promise<T>): Promise<T> {
-    await this.configureTransactionContext(tx);
-    const current = this.cls?.isActive() ? this.cls.get() : {};
-    if (!this.cls) return fn();
+  /**
+   * Opens the outermost transaction. After-commit callbacks drain only after
+   * the Drizzle transaction promise resolves (i.e. after COMMIT) — never
+   * before. On rollback the queued callbacks are discarded with the array.
+   */
+  private async openTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    if (!this.cls) {
+      return this.db.transaction(async (tx: DrizzleDb) => {
+        await this.configureTransactionContext(tx);
+        return fn();
+      });
+    }
+    const current = (this.cls.isActive() ? this.cls.get() : {}) as Record<string, unknown>;
     const afterCommit: Array<() => Promise<void>> = [];
     const result = await this.cls.runWith(
-      { ...current, databaseTx: tx, afterCommit } as unknown as Record<string, unknown>,
-      fn,
+      { ...current, afterCommit } as unknown as Record<string, unknown>,
+      async () =>
+        this.db.transaction(async (tx: DrizzleDb) => {
+          this.cls?.set("databaseTx", tx);
+          this.cls?.set("afterCommit", afterCommit);
+          await this.configureTransactionContext(tx);
+          return fn();
+        }),
     );
-    for (const callback of afterCommit) {
+    await this.drainAfterCommit(afterCommit);
+    return result;
+  }
+
+  private async drainAfterCommit(callbacks: Array<() => Promise<void>>): Promise<void> {
+    for (const callback of callbacks) {
       try {
         await callback();
       } catch (error) {
         this.logger.error({ error: String(error) }, "After-commit callback failed");
       }
     }
-    return result;
+  }
+
+  /**
+   * Nested Result transaction: isolates the unit in a savepoint. An Err rolls
+   * back to the savepoint and is returned, so the outer transaction stays
+   * healthy and may continue or abort on the Err by its own policy. A throw
+   * rolls back to the savepoint and propagates as TRANSACTION_FAILED without
+   * poisoning the outer transaction.
+   */
+  private async withSavepointResult<T, E>(
+    fn: () => Promise<Result<T, E>>,
+  ): Promise<Result<T, E | TransactionError>> {
+    const name = this.nextSavepointName();
+    try {
+      await this.runTxCommand(`SAVEPOINT "${name}"`);
+      const inner = await fn();
+      if (inner.isErr()) {
+        await this.runTxCommand(`ROLLBACK TO SAVEPOINT "${name}"`);
+        return inner;
+      }
+      await this.runTxCommand(`RELEASE SAVEPOINT "${name}"`);
+      return inner;
+    } catch {
+      await this.safeRollbackToSavepoint(name);
+      return err({ type: "TRANSACTION_FAILED" } as TransactionError);
+    }
+  }
+
+  /**
+   * Nested throwing transaction: isolates the unit in a savepoint. A throw
+   * rolls back to the savepoint and propagates, leaving the outer
+   * transaction healthy for the caller to handle.
+   */
+  private async withSavepoint<T>(fn: () => Promise<T>): Promise<T> {
+    const name = this.nextSavepointName();
+    await this.runTxCommand(`SAVEPOINT "${name}"`);
+    try {
+      const value = await fn();
+      await this.runTxCommand(`RELEASE SAVEPOINT "${name}"`);
+      return value;
+    } catch (error) {
+      await this.safeRollbackToSavepoint(name);
+      throw error;
+    }
+  }
+
+  private nextSavepointName(): string {
+    return `sp_${randomUUID().replace(/-/g, "")}`;
+  }
+
+  private async runTxCommand(command: string): Promise<void> {
+    const tx = this.getTx();
+    const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> })?.execute;
+    if (typeof execute !== "function" || !tx) return;
+    await execute.call(tx, sql.raw(command));
+  }
+
+  private async safeRollbackToSavepoint(name: string): Promise<void> {
+    try {
+      await this.runTxCommand(`ROLLBACK TO SAVEPOINT "${name}"`);
+    } catch (error) {
+      this.logger.error({ error: String(error) }, "Savepoint rollback failed");
+    }
   }
 
   private async configureTransactionContext(tx: DrizzleDb): Promise<void> {

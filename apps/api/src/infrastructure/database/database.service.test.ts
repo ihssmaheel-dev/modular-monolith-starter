@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PinoLoggerService } from "../logger/logger.service";
 import { DatabaseService } from "./database.service";
-import { err } from "neverthrow";
+import { err, ok } from "neverthrow";
 
 vi.mock("pg", () => {
   return {
@@ -30,11 +30,38 @@ describe("DatabaseService", () => {
     const mockCls = {
       isActive: vi.fn().mockReturnValue(false),
       get: vi.fn(),
+      set: vi.fn(),
       runWith: vi.fn(async (_ctx, fn) => await (fn as () => Promise<unknown>)()),
     } as unknown as never;
 
     service = new DatabaseService(mockLogger as never, mockCls as never);
   });
+
+  function scopedService(context: Record<string, unknown> = {}) {
+    const mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as PinoLoggerService;
+    let current: Record<string, unknown> = { ...context };
+    const mockCls = {
+      isActive: vi.fn().mockReturnValue(true),
+      get: vi.fn((key?: string) => (key === undefined ? current : current[key])),
+      set: vi.fn((key: string, value: unknown) => {
+        current[key] = value;
+      }),
+      runWith: vi.fn(async (ctx: Record<string, unknown>, fn: () => Promise<unknown>) => {
+        const previous = current;
+        current = { ...ctx };
+        try {
+          return await fn();
+        } finally {
+          current = previous;
+        }
+      }),
+    } as unknown as never;
+    return new DatabaseService(mockLogger as never, mockCls as never);
+  }
 
   it("should report connection status", () => {
     expect(service.isConnected()).toBe(true);
@@ -76,30 +103,107 @@ describe("DatabaseService", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("should defer emission until the ambient transaction commits", async () => {
-    const callbacks: Array<() => Promise<void>> = [];
-    const mockCls = {
-      isActive: vi.fn().mockReturnValue(true),
-      get: vi.fn((key?: string) => {
-        if (key === "databaseTx") return {};
-        if (key === "afterCommit") return callbacks;
-        return undefined;
+  it("should run after-commit effects only after COMMIT, never before", async () => {
+    const order: string[] = [];
+    const scoped = scopedService();
+    const db = scoped.getDb() as unknown as {
+      transaction: ReturnType<typeof vi.fn>;
+    };
+    db.transaction = vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => {
+      const value = await cb({});
+      order.push("commit");
+      return value;
+    });
+    const emitter = {
+      emitAsync: vi.fn().mockImplementation(async () => {
+        order.push("effect");
+        return [];
       }),
-      set: vi.fn(),
-      runWith: vi.fn(async (_ctx, fn) => await (fn as () => Promise<unknown>)()),
-    } as unknown as never;
-    const mockLogger = {
-      info: vi.fn(),
-      error: vi.fn(),
-      child: vi.fn().mockReturnThis(),
-    } as unknown as PinoLoggerService;
-    const scoped = new DatabaseService(mockLogger as never, mockCls);
+    };
+
+    const result = await scoped.withResultTransaction(async () => {
+      await scoped.emitAfterCommit(emitter as never, "test.event", {});
+      expect(emitter.emitAsync).not.toHaveBeenCalled();
+      return ok(1);
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(order).toEqual(["commit", "effect"]);
+    expect(emitter.emitAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("should discard after-commit effects when the transaction rolls back", async () => {
+    const scoped = scopedService();
+    const db = scoped.getDb() as unknown as {
+      transaction: ReturnType<typeof vi.fn>;
+    };
+    db.transaction = vi.fn(async () => {
+      throw new Error("commit failed");
+    });
     const emitter = { emitAsync: vi.fn().mockResolvedValue([]) };
 
-    await scoped.emitAfterCommit(emitter as never, "test.event", {});
-    expect(emitter.emitAsync).not.toHaveBeenCalled();
+    const result = await scoped.withResultTransaction(async () => {
+      await scoped.emitAfterCommit(emitter as never, "test.event", {});
+      return ok(1);
+    });
 
-    for (const callback of callbacks) await callback();
-    expect(emitter.emitAsync).toHaveBeenCalledTimes(1);
+    expect(result.isErr()).toBe(true);
+    expect(emitter.emitAsync).not.toHaveBeenCalled();
+  });
+
+  it("should roll back a nested Err to a savepoint and keep the outer transaction usable", async () => {
+    const executed: string[] = [];
+    const tx = {
+      execute: vi.fn().mockImplementation(async (query: unknown) => {
+        executed.push(JSON.stringify(query));
+        return [];
+      }),
+    };
+    const scoped = scopedService({ databaseTx: tx });
+
+    const result = await scoped.withResultTransaction(async () =>
+      err({ type: "EXPECTED" } as never),
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(executed.some((sql) => sql.includes("SAVEPOINT"))).toBe(true);
+    expect(executed.some((sql) => sql.includes("ROLLBACK TO SAVEPOINT"))).toBe(true);
+    expect(executed.some((sql) => sql.includes("RELEASE"))).toBe(false);
+  });
+
+  it("should release the savepoint when nested work succeeds", async () => {
+    const executed: string[] = [];
+    const tx = {
+      execute: vi.fn().mockImplementation(async (query: unknown) => {
+        executed.push(JSON.stringify(query));
+        return [];
+      }),
+    };
+    const scoped = scopedService({ databaseTx: tx });
+
+    const result = await scoped.withResultTransaction(async () => ok(1));
+
+    expect(result.isOk()).toBe(true);
+    expect(executed.some((sql) => sql.includes("SAVEPOINT"))).toBe(true);
+    expect(executed.some((sql) => sql.includes("RELEASE SAVEPOINT"))).toBe(true);
+  });
+
+  it("should roll back the savepoint and rethrow when nested work throws", async () => {
+    const executed: string[] = [];
+    const tx = {
+      execute: vi.fn().mockImplementation(async (query: unknown) => {
+        executed.push(JSON.stringify(query));
+        return [];
+      }),
+    };
+    const scoped = scopedService({ databaseTx: tx });
+
+    await expect(
+      scoped.runTransaction(async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+    expect(executed.some((sql) => sql.includes("SAVEPOINT"))).toBe(true);
+    expect(executed.some((sql) => sql.includes("ROLLBACK TO SAVEPOINT"))).toBe(true);
   });
 });
