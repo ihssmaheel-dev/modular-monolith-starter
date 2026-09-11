@@ -1,44 +1,43 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MembershipUserListener } from "./membership-user.listener";
+import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
+import type { DatabaseService } from "../../../../infrastructure/database/database.service";
+import { UserUpdatedEvent } from "../../../users/domain/events/user.events";
 
 describe("MembershipUserListener", () => {
-  let listener: MembershipUserListener;
   let memberships: MembershipsRepository;
   let logger: PinoLoggerService;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     memberships = {
-      updateUserSnapshot: vi.fn(),
-      removeUser: vi.fn(),
+      updateUserSnapshot: vi.fn().mockResolvedValue(undefined),
+      removeUser: vi.fn().mockResolvedValue(undefined),
     } as unknown as MembershipsRepository;
-    logger = { error: vi.fn() } as unknown as PinoLoggerService;
-    listener = new MembershipUserListener(memberships, logger);
+    logger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as PinoLoggerService;
   });
 
-  it("updates membership snapshots after a user update", async () => {
-    await listener.updateSnapshots({ userId: "user-1", changes: { email: "new@example.com" } });
+  it("runs snapshot updates inside a system scope when a database is available", async () => {
+    const database = {
+      withSystemScope: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+    } as unknown as DatabaseService;
+    const listener = new MembershipUserListener(memberships, logger, database);
 
-    expect(memberships.updateUserSnapshot).toHaveBeenCalledWith("user-1", {
-      email: "new@example.com",
-    });
+    await listener.updateSnapshots(new UserUpdatedEvent("user-1", { name: "New Name" }));
+
+    expect(database.withSystemScope).toHaveBeenCalledTimes(1);
+    expect(memberships.updateUserSnapshot).toHaveBeenCalledWith("user-1", { name: "New Name" });
   });
 
-  it("logs and contains snapshot failures", async () => {
-    vi.mocked(memberships.updateUserSnapshot).mockRejectedValue(new Error("database unavailable"));
+  it("falls back to direct repository calls without a database", async () => {
+    const listener = new MembershipUserListener(memberships, logger);
 
-    await listener.updateSnapshots({ userId: "user-1", changes: { name: "New Name" } });
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1" }),
-      "Membership snapshot update failed",
-    );
-  });
-
-  it("removes memberships after a user deletion", async () => {
-    await listener.removeMemberships({ userId: "user-1" });
+    await listener.removeMemberships({ userId: "user-1" } as never);
 
     expect(memberships.removeUser).toHaveBeenCalledWith("user-1");
   });

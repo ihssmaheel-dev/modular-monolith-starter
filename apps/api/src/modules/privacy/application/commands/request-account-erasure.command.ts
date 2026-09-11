@@ -148,11 +148,15 @@ export class RequestAccountErasureCommand {
     userId: string,
     tenantId: string | undefined,
   ): Promise<Result<void, PrivacyError>> {
-    const run =
-      tenantId !== undefined && env.TENANCY_MODE === "multi"
-        ? () => this.tenantContext.run({ mode: "multi", tenantId }, () => this.purgeScope(userId))
-        : () => this.purgeScope(userId);
-    return run();
+    if (tenantId === undefined || env.TENANCY_MODE !== "multi") {
+      return this.purgeScope(userId);
+    }
+    // Bind SQL scope as well as CLS: the ambient transaction fixed its
+    // PostgreSQL settings when it opened, so a CLS-only switch would purge
+    // under the wrong tenant (or no rows at all under enforced RLS).
+    const run = () => this.purgeScope(userId);
+    if (this.database) return this.database.withTenantScope(tenantId, run);
+    return this.tenantContext.run({ mode: "multi", tenantId }, run);
   }
 
   private async purgeScope(userId: string): Promise<Result<void, PrivacyError>> {

@@ -110,19 +110,17 @@ export class RequestOrganizationErasureCommand {
   }
 
   private async purgeTenantScope(tenantId: string): Promise<Result<void, PrivacyError>> {
-    if (env.TENANCY_MODE !== "multi") {
+    const run = async (): Promise<Result<void, PrivacyError>> => {
       const notes = await this.purgeNotes.execute();
       if (notes.isErr()) return err({ type: "ERASURE_FAILED" });
       const files = await this.purgeFiles.execute();
       if (files.isErr()) return err({ type: "ERASURE_FAILED" });
       return ok(undefined);
-    }
-    return this.tenantContext.run({ mode: "multi", tenantId }, async () => {
-      const notes = await this.purgeNotes.execute();
-      if (notes.isErr()) return err({ type: "ERASURE_FAILED" });
-      const files = await this.purgeFiles.execute();
-      if (files.isErr()) return err({ type: "ERASURE_FAILED" });
-      return ok(undefined);
-    });
+    };
+    if (env.TENANCY_MODE !== "multi") return run();
+    // Bind SQL scope as well as CLS: purge queries run inside the ambient
+    // transaction, whose PostgreSQL settings no CLS-only switch can change.
+    if (this.database) return this.database.withTenantScope(tenantId, run);
+    return this.tenantContext.run({ mode: "multi", tenantId }, run);
   }
 }

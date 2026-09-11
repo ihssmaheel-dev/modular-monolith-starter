@@ -139,6 +139,16 @@ export class RequestExportCommand {
     await this.events.emitAsync("database.mutated", payload);
   }
 
+  /**
+   * Runs a per-tenant collection step with matching CLS + SQL scope.
+   * A CLS-only switch would read under the ambient transaction's stale
+   * PostgreSQL settings (or no rows at all under enforced RLS).
+   */
+  private async withTenantScope<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+    if (this.database) return this.database.withTenantScope(tenantId, fn);
+    return this.tenantContext.run({ mode: "multi", tenantId }, fn);
+  }
+
   private async collectAccesses(
     actor: AuthenticatedUser,
   ): Promise<Array<{ organization: { data: { id: string; name: string } }; role: string }>> {
@@ -172,7 +182,7 @@ export class RequestExportCommand {
         const run =
           tenantId !== undefined
             ? () =>
-                this.tenantContext.run({ mode: "multi", tenantId }, () =>
+                this.withTenantScope(tenantId, () =>
                   this.getNotes.execute(
                     { page, limit: EXPORT_PAGE_LIMIT, createdBy: actor.sub },
                     actor,
@@ -215,7 +225,7 @@ export class RequestExportCommand {
       const run =
         tenantId !== undefined
           ? () =>
-              this.tenantContext.run({ mode: "multi", tenantId }, () =>
+              this.withTenantScope(tenantId, () =>
                 this.listFilesByUploader.execute(userId, EXPORT_MAX_ITEMS),
               )
           : () => this.listFilesByUploader.execute(userId, EXPORT_MAX_ITEMS);

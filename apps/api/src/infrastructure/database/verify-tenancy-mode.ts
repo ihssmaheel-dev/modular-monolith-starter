@@ -14,9 +14,12 @@ export async function verifyTenancyMode(
 ): Promise<void> {
   if (env.TENANCY_MODE !== "single") return;
   const count = await database.withSystemScope(async () => {
-    const db = database.getDb();
+    // Read through the ambient transaction: getDb() would run outside the
+    // system scope established above and can incorrectly count zero.
+    const tx = database.getTx();
+    if (!tx) throw new Error("TENANCY_MODE_CHECK_REQUIRES_TRANSACTION");
     const rows = (await (
-      db as unknown as {
+      tx as unknown as {
         execute: (query: unknown) => Promise<{ rows: Array<{ count: string }> }>;
       }
     ).execute(sql`select count(*) as count from organizations`)) as {

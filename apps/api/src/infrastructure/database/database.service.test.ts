@@ -188,6 +188,59 @@ describe("DatabaseService", () => {
     expect(executed.some((sql) => sql.includes("RELEASE SAVEPOINT"))).toBe(true);
   });
 
+  it("should switch and restore SQL scope around ambient work", async () => {
+    const configured: string[] = [];
+    const tx = {
+      execute: vi.fn().mockImplementation(async (query: { sql: string }) => {
+        configured.push(JSON.stringify(query));
+        return [];
+      }),
+    };
+    const scoped = scopedService({ databaseTx: tx, tenantId: "tenant-before" });
+
+    await scoped.withTenantScope("tenant-next", async () => undefined);
+
+    const setConfigs = configured.filter((sql) => sql.includes("app.current_tenant"));
+    expect(setConfigs.length).toBe(2);
+    expect(setConfigs[0]).toContain("tenant-next");
+    expect(setConfigs[1]).toContain("tenant-before");
+  });
+
+  it("should open a transaction from matching CLS scope when none is active", async () => {
+    const configured: string[] = [];
+    const scoped = scopedService({ tenantId: "tenant-next" });
+    const db = scoped.getDb() as unknown as {
+      transaction: ReturnType<typeof vi.fn>;
+    };
+    db.transaction = vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        execute: vi.fn().mockImplementation(async (query: { sql: string }) => {
+          configured.push(JSON.stringify(query));
+          return [];
+        }),
+      };
+      return cb(tx);
+    });
+    const result = await scoped.withTenantScope("tenant-next", async () => ok(1));
+
+    expect(result.isOk() && result.value).toBe(1);
+    expect(db.transaction).toHaveBeenCalledTimes(1);
+    expect(configured.some((sql) => sql.includes("tenant-next"))).toBe(true);
+  });
+
+  it("should run fn unchanged without CLS", async () => {
+    const mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as PinoLoggerService;
+    const noCls = new DatabaseService(mockLogger as never);
+    const fn = vi.fn(async () => "value");
+
+    await expect(noCls.withTenantScope("tenant-x", fn)).resolves.toBe("value");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it("should roll back the savepoint and rethrow when nested work throws", async () => {
     const executed: string[] = [];
     const tx = {

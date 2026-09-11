@@ -139,6 +139,40 @@ export class DatabaseService implements OnModuleDestroy {
     this.cls?.set("tenantId", tenantId);
   }
 
+  /**
+   * Binds CLS + SQL scope to one tenant for the duration of fn.
+   * - Inside an ambient transaction: switches app.current_tenant and
+   *   restores the previous scope afterwards, so later steps in the same
+   *   unit of work keep their scope. CLS-only scope changes are not
+   *   enough: PostgreSQL settings are fixed when the transaction opens.
+   * - Without one: establishes CLS scope first, then opens a transaction
+   *   so SQL settings are derived from matching context.
+   * - Without CLS (tests): runs fn unchanged.
+   */
+  async withTenantScope<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+    if (this.getTx()) {
+      const previous =
+        this.cls?.isActive() && typeof this.cls.get("tenantId") === "string"
+          ? (this.cls.get("tenantId") as string)
+          : "";
+      await this.setTenantContext(tenantId);
+      try {
+        return await fn();
+      } finally {
+        try {
+          await this.setTenantContext(previous);
+        } catch (error) {
+          this.logger.error({ error: String(error) }, "Tenant scope restore failed");
+        }
+      }
+    }
+    if (!this.cls) return fn();
+    const current = (this.cls.isActive() ? this.cls.get() : {}) as Record<string, unknown>;
+    return this.cls.runWith({ ...current, tenantId } as unknown as Record<string, unknown>, () =>
+      this.runTransaction(fn),
+    );
+  }
+
   /** Elevates one internal operation and opens a transaction when none is active. */
   async withSystemScope<T>(fn: () => Promise<T>): Promise<T> {
     if (!this.cls) return fn();

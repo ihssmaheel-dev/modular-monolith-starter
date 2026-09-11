@@ -59,8 +59,14 @@ export class DigestWorker {
     this.isRunning = true;
     let delivered = 0;
     try {
+      // Open the transaction inside the system CLS scope so SQL settings
+      // (app.system_scope) are established from matching context. Reading
+      // through the pool handle without a transaction would run outside any
+      // scope and return no rows under enforced RLS.
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        const due = await this.batches.findDueWindows(DIGEST_BATCH_LIMIT);
+        const due = await this.database.runTransaction(async () =>
+          this.batches.findDueWindows(DIGEST_BATCH_LIMIT),
+        );
         for (const window of due) {
           try {
             if (await this.deliverWindow(window.id)) delivered += 1;
