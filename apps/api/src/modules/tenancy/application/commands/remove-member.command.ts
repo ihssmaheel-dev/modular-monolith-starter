@@ -30,15 +30,33 @@ export class RemoveMemberCommand {
     if (target.value.data.role === "owner" && tenant.role !== "owner") {
       return err({ type: "TENANT_FORBIDDEN" });
     }
+    // Owner removals change the last-owner invariant: serialize them per
+    // organization so concurrent removals cannot each observe two owners.
+    if (target.value.data.role === "owner" && this.database) {
+      return this.database.withAdvisoryLock(`tenancy:owners:${tenant.tenantId}`, () =>
+        this.removePersisted(tenant.tenantId!, userId, tenant.role),
+      );
+    }
+    return this.removePersisted(tenant.tenantId!, userId, tenant.role);
+  }
+
+  private async removePersisted(
+    tenantId: string,
+    userId: string,
+    actorRole: string | undefined,
+  ): Promise<Result<void, TenancyError>> {
+    const target = await this.memberships.findMembership(tenantId, userId);
+    if (target.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
+    if (!target.value) return err({ type: "MEMBERSHIP_NOT_FOUND" });
     if (target.value.data.role === "owner") {
-      const owners = await this.memberships.countOwners(tenant.tenantId);
+      const owners = await this.memberships.countOwners(tenantId);
       if (owners.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
       if (owners.value <= 1) return err({ type: "LAST_OWNER" });
     }
-    if (tenant.role !== "owner" && tenant.role !== "admin") {
+    if (actorRole !== "owner" && actorRole !== "admin") {
       return err({ type: "TENANT_FORBIDDEN" });
     }
-    const removed = await this.memberships.remove(tenant.tenantId, userId);
+    const removed = await this.memberships.remove(tenantId, userId);
     if (removed.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
     if (!removed.value) return err({ type: "MEMBERSHIP_NOT_FOUND" });
     return ok(undefined);

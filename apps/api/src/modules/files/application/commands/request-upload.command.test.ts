@@ -4,11 +4,15 @@ import { StorageService } from "../../../../infrastructure/storage/storage.servi
 import { FilesRepository } from "../../infrastructure/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok, err } from "neverthrow";
-import type { TenantContextService } from "../../../../infrastructure/database";
+import type { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import type { AuthenticatedUser } from "@repo/contracts";
 
 vi.mock("../../../../config/env", () => ({
-  env: { S3_BUCKET: "test-bucket", API_URL: "http://localhost:3001" },
+  env: {
+    S3_BUCKET: "test-bucket",
+    API_URL: "http://localhost:3001",
+    FILE_USER_QUOTA_BYTES: 10_000_000,
+  },
 }));
 
 const ACTOR = { sub: "user-1", email: "u@example.com", role: "user" } as AuthenticatedUser;
@@ -169,6 +173,42 @@ describe("RequestUploadCommand", () => {
     if (result.isOk()) {
       expect(result.value.fileKey).not.toContain(" ");
     }
+  });
+
+  it("serializes quota check and reservation on a per-user lock", async () => {
+    const order: string[] = [];
+    const database = {
+      withResultTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+      withAdvisoryLock: vi.fn(async (key: string, fn: () => Promise<unknown>) => {
+        order.push(`lock:${key}`);
+        return fn();
+      }),
+    } as unknown as DatabaseService;
+    const tenantContext = {
+      get: vi.fn().mockReturnValue({ mode: "single" }),
+    } as unknown as TenantContextService;
+    const quotaRepo = {
+      create: vi.fn().mockResolvedValue(ok(defaultFile())),
+      sumActiveBytes: vi.fn().mockImplementation(async () => {
+        order.push("sum");
+        return 0;
+      }),
+    } as unknown as FilesRepository;
+    const locked = new RequestUploadCommand(storage, quotaRepo, tenantContext, database);
+    vi.mocked(storage.getPresignedUploadUrl).mockResolvedValue(ok("https://s3.example.com/upload"));
+
+    const result = await locked.execute(
+      { fileName: "test.pdf", contentType: "application/pdf", fileSize: 1024 },
+      ACTOR,
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(database.withAdvisoryLock).toHaveBeenCalledWith(
+      "upload-quota:user-1",
+      expect.any(Function),
+    );
+    expect(order).toEqual(["lock:upload-quota:user-1", "sum"]);
+    expect(quotaRepo.create).toHaveBeenCalledTimes(1);
   });
 });
 

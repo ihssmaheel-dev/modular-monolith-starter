@@ -228,6 +228,31 @@ describe("DatabaseService", () => {
     expect(configured.some((sql) => sql.includes("tenant-next"))).toBe(true);
   });
 
+  it("should hold an advisory lock for the critical section", async () => {
+    const executed: string[] = [];
+    const tx = {
+      execute: vi.fn().mockImplementation(async (query: { sql: string }) => {
+        executed.push(JSON.stringify(query));
+        return [];
+      }),
+    };
+    const scoped = scopedService({ databaseTx: tx });
+    const fn = vi.fn(async () => "value");
+
+    await expect(scoped.withAdvisoryLock("tenancy:owners:org-1", fn)).resolves.toBe("value");
+    expect(fn).toHaveBeenCalledTimes(1);
+    const lockCall = executed.find((sql) => sql.includes("pg_advisory_xact_lock"));
+    expect(lockCall).toContain("tenancy:owners:org-1");
+  });
+
+  it("should run fn directly without a transaction to serialize against", async () => {
+    const scoped = scopedService();
+    const fn = vi.fn(async () => "value");
+
+    await expect(scoped.withAdvisoryLock("tenancy:owners:org-1", fn)).resolves.toBe("value");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it("should run fn unchanged without CLS", async () => {
     const mockLogger = {
       info: vi.fn(),

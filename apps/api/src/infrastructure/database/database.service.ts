@@ -16,6 +16,14 @@ export type DrizzleDb = Database;
 /** Machine code for internal control flow — never user-facing, never an i18n key. */
 export const TENANT_CONTEXT_REQUIRES_TRANSACTION = "TENANT_CONTEXT_REQUIRES_TRANSACTION";
 
+/**
+ * Advisory-lock namespace for all withAdvisoryLock critical sections.
+ * Call sites prefix keys per invariant ("tenancy:owners:<id>",
+ * "upload-quota:<userId>"). Single-bigint session locks (e.g. the
+ * migration lock) live in a different overload space.
+ */
+export const ADVISORY_LOCK_NAMESPACE = 12100;
+
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   private readonly pool: Pool;
@@ -306,6 +314,25 @@ export class DatabaseService implements OnModuleDestroy {
 
   private nextSavepointName(): string {
     return `sp_${randomUUID().replace(/-/g, "")}`;
+  }
+
+  /**
+   * Serializes a critical section per key with a transaction-scoped advisory
+   * lock (pg_advisory_xact_lock). The lock releases automatically at COMMIT
+   * or ROLLBACK, so it cannot leak. Callers must hold a unit of work: without
+   * an ambient transaction there is nothing to serialize against, so fn runs
+   * directly. Use sparingly for check-then-write invariants (last owner,
+   * quota reservations) — never as a general mutation lock.
+   */
+  async withAdvisoryLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const tx = this.getTx();
+    const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> })?.execute;
+    if (!tx || typeof execute !== "function") return fn();
+    await execute.call(
+      tx,
+      sql`select pg_advisory_xact_lock(${ADVISORY_LOCK_NAMESPACE}, hashtext(${key}))`,
+    );
+    return fn();
   }
 
   private async runTxCommand(command: string): Promise<void> {

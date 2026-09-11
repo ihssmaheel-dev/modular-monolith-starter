@@ -69,18 +69,26 @@ export class RequestUploadCommand {
     userId: string,
   ): Promise<Result<{ id: string }, FileError | TransactionError>> {
     const create = async (): Promise<Result<FileEntity, FileError>> => {
-      const quota = await this.checkQuota(input.fileSize, userId);
-      if (!quota) return err({ type: "QUOTA_EXCEEDED", message: "api.error.quotaExceeded" });
-      return this.filesRepo.create({
-        key: fileKey,
-        fileName: input.fileName,
-        contentType: input.contentType,
-        fileSize: input.fileSize,
-        bucket: env.S3_BUCKET,
-        parentType: "general",
-        uploadedBy: userId,
-        status: "pending",
-      });
+      const reserve = async (): Promise<Result<FileEntity, FileError>> => {
+        const quota = await this.checkQuota(input.fileSize, userId);
+        if (!quota) return err({ type: "QUOTA_EXCEEDED", message: "api.error.quotaExceeded" });
+        return this.filesRepo.create({
+          key: fileKey,
+          fileName: input.fileName,
+          contentType: input.contentType,
+          fileSize: input.fileSize,
+          bucket: env.S3_BUCKET,
+          parentType: "general",
+          uploadedBy: userId,
+          status: "pending",
+        });
+      };
+      // Serialize quota check + reservation per user so concurrent uploads
+      // cannot each observe headroom and jointly exceed the quota.
+      if (this.database) {
+        return this.database.withAdvisoryLock(`upload-quota:${userId}`, reserve);
+      }
+      return reserve();
     };
     return this.database ? this.database.withResultTransaction(create) : create();
   }
@@ -104,9 +112,9 @@ export class RequestUploadCommand {
       sumActiveBytes?: (uploadedBy: string) => Promise<number>;
     };
     if (!repository.sumActiveBytes) return true;
-    const current = this.database
-      ? await this.database.runTransaction(() => repository.sumActiveBytes!(userId))
-      : await repository.sumActiveBytes(userId);
+    // Runs inside the caller's unit of work (under the quota lock), so the
+    // sum and the subsequent insert observe the same serialized state.
+    const current = await repository.sumActiveBytes(userId);
     return current + fileSize <= runtimeEnv.FILE_USER_QUOTA_BYTES;
   }
 

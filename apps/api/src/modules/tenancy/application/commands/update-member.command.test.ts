@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { err, ok } from "neverthrow";
 
-import { TenantContextService } from "../../../../infrastructure/database";
+import { TenantContextService, type DatabaseService } from "../../../../infrastructure/database";
 import { Membership } from "../../domain/entities/tenancy.entity";
 import { MembershipsRepository } from "../../infrastructure/memberships.repository";
 import { UpdateMemberCommand } from "./update-member.command";
@@ -60,6 +60,49 @@ describe("UpdateMemberCommand", () => {
     const result = await command.execute("user-2", "admin");
 
     expect(result).toMatchObject({ error: { type: "MEMBERSHIP_NOT_FOUND" } });
+  });
+
+  it("serializes owner demotion on the organization lock before counting owners", async () => {
+    const order: string[] = [];
+    const database = {
+      withResultTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+      withAdvisoryLock: vi.fn(async (key: string, fn: () => Promise<unknown>) => {
+        order.push(`lock:${key}`);
+        return fn();
+      }),
+    } as unknown as DatabaseService;
+    const locked = new UpdateMemberCommand(memberships, context, database);
+    vi.mocked(context.get).mockReturnValue({ mode: "multi", tenantId: "org-1", role: "owner" });
+    vi.mocked(memberships.findMembership).mockResolvedValue(ok(member("owner")));
+    vi.mocked(memberships.countOwners).mockImplementation(async () => {
+      order.push("count");
+      return ok(2);
+    });
+    vi.mocked(memberships.updateRole).mockResolvedValue(ok(member("member")));
+
+    const result = await locked.execute("user-2", "member");
+
+    expect(result.isOk()).toBe(true);
+    expect(database.withAdvisoryLock).toHaveBeenCalledWith(
+      "tenancy:owners:org-1",
+      expect.any(Function),
+    );
+    expect(order).toEqual(["lock:tenancy:owners:org-1", "count"]);
+  });
+
+  it("skips the lock when the change cannot remove the last owner", async () => {
+    const database = {
+      withResultTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+      withAdvisoryLock: vi.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
+    } as unknown as DatabaseService;
+    const locked = new UpdateMemberCommand(memberships, context, database);
+    vi.mocked(memberships.findMembership).mockResolvedValue(ok(member("member")));
+    vi.mocked(memberships.updateRole).mockResolvedValue(ok(member("admin")));
+
+    const result = await locked.execute("user-2", "admin");
+
+    expect(result.isOk()).toBe(true);
+    expect(database.withAdvisoryLock).not.toHaveBeenCalled();
   });
 });
 
