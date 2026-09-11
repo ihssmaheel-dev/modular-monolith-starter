@@ -33,6 +33,8 @@ export function recordMatches(record: IdempotencyRecord, fingerprint: RequestFin
     record.fingerprint === fingerprint.digest &&
     record.method === fingerprint.method &&
     record.route === fingerprint.route &&
+    record.path === fingerprint.path &&
+    record.queryHash === fingerprint.queryHash &&
     record.bodyHash === fingerprint.bodyHash
   );
 }
@@ -63,9 +65,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function hasFingerprint(value: Record<string, unknown>): boolean {
-  return [value.fingerprint, value.method, value.route, value.bodyHash].every(
-    (item) => typeof item === "string" && item.length > 0,
-  );
+  return [
+    value.fingerprint,
+    value.method,
+    value.route,
+    value.path,
+    value.queryHash,
+    value.bodyHash,
+  ].every((item) => typeof item === "string" && item.length > 0);
 }
 
 function isTimestamp(value: unknown): value is number {

@@ -43,6 +43,8 @@ export class IdempotencyStore {
       fingerprint: fingerprint.digest,
       method: fingerprint.method,
       route: fingerprint.route,
+      path: fingerprint.path,
+      queryHash: fingerprint.queryHash,
       bodyHash: fingerprint.bodyHash,
       startedAt: now,
     };
@@ -108,6 +110,8 @@ export class IdempotencyStore {
       fingerprint: fingerprint.digest,
       method: fingerprint.method,
       route: fingerprint.route,
+      path: fingerprint.path,
+      queryHash: fingerprint.queryHash,
       bodyHash: fingerprint.bodyHash,
       body: body === undefined ? null : body,
       bodyBytes,

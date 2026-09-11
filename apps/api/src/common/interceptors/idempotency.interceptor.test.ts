@@ -159,6 +159,8 @@ describe("IdempotencyInterceptor", () => {
     const fingerprint = redisClient.eval.mock.calls[0]![3] as string;
     const completed = JSON.parse(redisClient.eval.mock.calls[0]![4] as string) as {
       bodyHash: string;
+      path: string;
+      queryHash: string;
     };
     redisClient.set.mockReset();
     redisClient.get.mockReset();
@@ -170,6 +172,8 @@ describe("IdempotencyInterceptor", () => {
         fingerprint,
         method: "POST",
         route: "/notes",
+        path: "/notes",
+        queryHash: completed.queryHash,
         bodyHash: completed.bodyHash,
         startedAt: Date.now() - 120_000,
       }),

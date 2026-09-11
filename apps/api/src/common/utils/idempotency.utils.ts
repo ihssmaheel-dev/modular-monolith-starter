@@ -31,7 +31,12 @@ export const RECOVER_IDEMPOTENCY_SCRIPT = `
 export type RequestFingerprint = {
   digest: string;
   method: string;
+  /** Route template (grouping label, e.g. /notes/:id). */
   route: string;
+  /** Resolved request path without the query string (e.g. /api/v1/notes/one). */
+  path: string;
+  /** sha256 of the stable-serialized query parameters. */
+  queryHash: string;
   bodyHash: string;
 };
 
@@ -40,6 +45,8 @@ export type ProcessingRecord = {
   fingerprint: string;
   method: string;
   route: string;
+  path: string;
+  queryHash: string;
   bodyHash: string;
   startedAt: number;
 };
@@ -49,6 +56,8 @@ export type CompletedRecord = {
   fingerprint: string;
   method: string;
   route: string;
+  path: string;
+  queryHash: string;
   bodyHash: string;
   body: unknown;
   bodyBytes: number;
@@ -60,11 +69,21 @@ export type IdempotencyRecord = ProcessingRecord | CompletedRecord;
 export function requestFingerprint(request: FastifyRequest): RequestFingerprint {
   const method = (request.method ?? "GET").toUpperCase();
   const route = request.routeOptions?.url ?? request.url?.split("?")[0] ?? "/";
+  // The resolved path (not the template) identifies the resource: two
+  // DELETEs to /notes/one and /notes/two must never share a fingerprint.
+  const path = request.url?.split("?")[0] ?? route;
+  const queryHash = createHash("sha256")
+    .update(stableSerialize((request.query as unknown) ?? {}))
+    .digest("hex");
   const bodyHash = createHash("sha256").update(stableSerialize(request.body)).digest("hex");
   return {
-    digest: createHash("sha256").update(`${method}\n${route}\n${bodyHash}`).digest("hex"),
+    digest: createHash("sha256")
+      .update(`${method}\n${route}\n${path}\n${queryHash}\n${bodyHash}`)
+      .digest("hex"),
     method,
     route,
+    path,
+    queryHash,
     bodyHash,
   };
 }
