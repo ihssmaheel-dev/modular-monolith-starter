@@ -1,6 +1,6 @@
 import * as React from "react";
 
-type Theme = "dark" | "light" | "system";
+export type Theme = "dark" | "light" | "system";
 type ResolvedTheme = "dark" | "light";
 
 type ThemeProviderProps = {
@@ -22,7 +22,7 @@ export const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var key="theme";var value
 
 const ThemeProviderContext = React.createContext<ThemeProviderState | undefined>(undefined);
 
-function isTheme(value: string | null): value is Theme {
+export function isTheme(value: string | null): value is Theme {
   if (value === null) return false;
   return THEME_VALUES.includes(value as Theme);
 }

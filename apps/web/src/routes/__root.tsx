@@ -26,6 +26,7 @@ import { getWebEnv } from "@/lib/env";
 import { RouteErrorFallback } from "@/components/error-boundary";
 import { initAuthSync } from "@/lib/cross-tab/auth-sync";
 import { QueryBroadcaster } from "@/lib/cross-tab/query-sync";
+import { ThemeSync } from "@/lib/cross-tab/theme-sync";
 import { useEffect } from "react";
 import "@repo/ui/globals.css";
 
@@ -118,6 +119,7 @@ function RootComponent() {
           <QueryBroadcaster />
           <I18nProvider>
             <ThemeProvider defaultTheme="system" storageKey="theme">
+              <ThemeSync />
               <div id="root">
                 <Outlet />
               </div>
