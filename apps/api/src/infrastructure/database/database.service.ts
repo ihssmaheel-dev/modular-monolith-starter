@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Inject, Injectable, OnModuleDestroy, Optional } from "@nestjs/common";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -9,6 +8,7 @@ import { ClsService } from "nestjs-cls";
 import { PinoLoggerService } from "../logger/logger.service";
 import { env } from "../../config/env";
 import type { TransactionError } from "./database.types";
+import { TransactionScopes } from "./transaction-scopes";
 
 export type Database = NodePgDatabase;
 export type DrizzleDb = Database;
@@ -16,25 +16,21 @@ export type DrizzleDb = Database;
 /** Machine code for internal control flow — never user-facing, never an i18n key. */
 export const TENANT_CONTEXT_REQUIRES_TRANSACTION = "TENANT_CONTEXT_REQUIRES_TRANSACTION";
 
-/**
- * Advisory-lock namespace for all withAdvisoryLock critical sections.
- * Call sites prefix keys per invariant ("tenancy:owners:<id>",
- * "upload-quota:<userId>"). Single-bigint session locks (e.g. the
- * migration lock) live in a different overload space.
- */
-export const ADVISORY_LOCK_NAMESPACE = 12100;
+export { ADVISORY_LOCK_NAMESPACE } from "./transaction-scopes";
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   private readonly pool: Pool;
   private readonly db: DrizzleDb;
   private readonly logger: PinoLoggerService;
+  private readonly scopes: TransactionScopes;
 
   constructor(
     @Inject(PinoLoggerService) logger: PinoLoggerService,
     @Optional() @Inject(ClsService) private readonly cls?: ClsService,
   ) {
     this.logger = logger.child({ module: "DatabaseService" });
+    this.scopes = new TransactionScopes(() => this.getTx(), this.logger);
     this.pool = new Pool({
       connectionString: env.DATABASE_URL,
       max: env.DB_MAX_POOL_SIZE,
@@ -109,7 +105,7 @@ export class DatabaseService implements OnModuleDestroy {
     fn: () => Promise<Result<T, E>>,
   ): Promise<Result<T, E | TransactionError>> {
     if (this.getTx()) {
-      return this.withSavepointResult(fn);
+      return this.scopes.withSavepointResult(fn);
     }
 
     try {
@@ -134,7 +130,7 @@ export class DatabaseService implements OnModuleDestroy {
   /** Runs an HTTP or worker operation in one transaction and preserves thrown failures. */
   async runTransaction<T>(fn: () => Promise<T>): Promise<T> {
     if (this.getTx()) {
-      return this.withSavepoint(fn);
+      return this.scopes.withSavepoint(fn);
     }
     return this.openTransaction(fn);
   }
@@ -254,100 +250,16 @@ export class DatabaseService implements OnModuleDestroy {
           return fn();
         }),
     );
-    await this.drainAfterCommit(afterCommit);
+    await this.scopes.drainAfterCommit(afterCommit);
     return result;
-  }
-
-  private async drainAfterCommit(callbacks: Array<() => Promise<void>>): Promise<void> {
-    for (const callback of callbacks) {
-      try {
-        await callback();
-      } catch (error) {
-        this.logger.error({ error: String(error) }, "After-commit callback failed");
-      }
-    }
-  }
-
-  /**
-   * Nested Result transaction: isolates the unit in a savepoint. An Err rolls
-   * back to the savepoint and is returned, so the outer transaction stays
-   * healthy and may continue or abort on the Err by its own policy. A throw
-   * rolls back to the savepoint and propagates as TRANSACTION_FAILED without
-   * poisoning the outer transaction.
-   */
-  private async withSavepointResult<T, E>(
-    fn: () => Promise<Result<T, E>>,
-  ): Promise<Result<T, E | TransactionError>> {
-    const name = this.nextSavepointName();
-    try {
-      await this.runTxCommand(`SAVEPOINT "${name}"`);
-      const inner = await fn();
-      if (inner.isErr()) {
-        await this.runTxCommand(`ROLLBACK TO SAVEPOINT "${name}"`);
-        return inner;
-      }
-      await this.runTxCommand(`RELEASE SAVEPOINT "${name}"`);
-      return inner;
-    } catch {
-      await this.safeRollbackToSavepoint(name);
-      return err({ type: "TRANSACTION_FAILED" } as TransactionError);
-    }
-  }
-
-  /**
-   * Nested throwing transaction: isolates the unit in a savepoint. A throw
-   * rolls back to the savepoint and propagates, leaving the outer
-   * transaction healthy for the caller to handle.
-   */
-  private async withSavepoint<T>(fn: () => Promise<T>): Promise<T> {
-    const name = this.nextSavepointName();
-    await this.runTxCommand(`SAVEPOINT "${name}"`);
-    try {
-      const value = await fn();
-      await this.runTxCommand(`RELEASE SAVEPOINT "${name}"`);
-      return value;
-    } catch (error) {
-      await this.safeRollbackToSavepoint(name);
-      throw error;
-    }
-  }
-
-  private nextSavepointName(): string {
-    return `sp_${randomUUID().replace(/-/g, "")}`;
   }
 
   /**
    * Serializes a critical section per key with a transaction-scoped advisory
-   * lock (pg_advisory_xact_lock). The lock releases automatically at COMMIT
-   * or ROLLBACK, so it cannot leak. Callers must hold a unit of work: without
-   * an ambient transaction there is nothing to serialize against, so fn runs
-   * directly. Use sparingly for check-then-write invariants (last owner,
-   * quota reservations) — never as a general mutation lock.
+   * lock (see TransactionScopes). Callers must hold a unit of work.
    */
   async withAdvisoryLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    const tx = this.getTx();
-    const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> })?.execute;
-    if (!tx || typeof execute !== "function") return fn();
-    await execute.call(
-      tx,
-      sql`select pg_advisory_xact_lock(${ADVISORY_LOCK_NAMESPACE}, hashtext(${key}))`,
-    );
-    return fn();
-  }
-
-  private async runTxCommand(command: string): Promise<void> {
-    const tx = this.getTx();
-    const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> })?.execute;
-    if (typeof execute !== "function" || !tx) return;
-    await execute.call(tx, sql.raw(command));
-  }
-
-  private async safeRollbackToSavepoint(name: string): Promise<void> {
-    try {
-      await this.runTxCommand(`ROLLBACK TO SAVEPOINT "${name}"`);
-    } catch (error) {
-      this.logger.error({ error: String(error) }, "Savepoint rollback failed");
-    }
+    return this.scopes.withAdvisoryLock(key, fn);
   }
 
   private async configureTransactionContext(tx: DrizzleDb): Promise<void> {

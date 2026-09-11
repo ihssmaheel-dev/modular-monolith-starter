@@ -3,6 +3,9 @@ import { env } from "../../config/env";
 import type { DatabaseService } from "./database.service";
 import type { PinoLoggerService } from "../logger/logger.service";
 
+/** Machine code for internal control flow — never user-facing, never an i18n key. */
+export const TENANCY_MODE_CHECK_REQUIRES_TRANSACTION = "TENANCY_MODE_CHECK_REQUIRES_TRANSACTION";
+
 /**
  * Fail fast on tenancy-mode vs data mismatch: booting `single` against a
  * database that already holds organizations means multi-tenant data would be
@@ -17,7 +20,7 @@ export async function verifyTenancyMode(
     // Read through the ambient transaction: getDb() would run outside the
     // system scope established above and can incorrectly count zero.
     const tx = database.getTx();
-    if (!tx) throw new Error("TENANCY_MODE_CHECK_REQUIRES_TRANSACTION");
+    if (!tx) throw new Error(TENANCY_MODE_CHECK_REQUIRES_TRANSACTION);
     const rows = (await (
       tx as unknown as {
         execute: (query: unknown) => Promise<{ rows: Array<{ count: string }> }>;

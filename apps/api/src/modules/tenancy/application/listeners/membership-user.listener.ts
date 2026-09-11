@@ -1,7 +1,7 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
-import { DatabaseService } from "../../../../infrastructure/database/database.service";
+import { DatabaseService } from "../../../../infrastructure/database";
 import { UserDeletedEvent, UserUpdatedEvent } from "../../../users/domain/events/user.events";
 import { MembershipsRepository } from "../../infrastructure/memberships.repository";
 

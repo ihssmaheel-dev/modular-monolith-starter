@@ -46,7 +46,13 @@ import { RemoveUserAvatarCommand } from "../application/commands/remove-user-ava
 import { I18nService } from "../../../infrastructure/i18n/i18n.service";
 import { handleResult } from "../../../common/utils/presentation.utils";
 import { toUserResponse } from "./users.mapper";
-import { AVATAR_ERRORS } from "./users.error-maps";
+import {
+  AVATAR_ERRORS,
+  CREATE_USER_ERROR_MAP,
+  DELETE_USER_ERROR_MAP,
+  GET_USER_ERROR_MAP,
+  UPDATE_USER_ERROR_MAP,
+} from "./users.error-maps";
 
 @Controller("users")
 @TenantAgnostic()
@@ -71,10 +77,14 @@ export class UsersController {
   ): Promise<UserListResponse> {
     const page = Number(query.page ?? 1);
     const limit = Number(query.limit ?? 20);
-    const lang = req?.headers["accept-language"];
     const result = await this.getUsersQuery.execute(page, limit);
-    const val = handleResult(result, {}, this.i18n, lang);
-    const { users, total, page: p, limit: l, totalPages } = val;
+    const {
+      users,
+      total,
+      page: p,
+      limit: l,
+      totalPages,
+    } = handleResult(result, {}, this.i18n, this.requestLang(req));
     return { users: users.map(toUserResponse), total, page: p, limit: l, totalPages };
   }
 
@@ -85,16 +95,8 @@ export class UsersController {
     @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
     @Req() req: FastifyRequest,
   ): Promise<UserResponse> {
-    const lang = req?.headers["accept-language"];
     const result = await this.getUserByIdQuery.execute(id);
-    const user = handleResult(
-      result,
-      {
-        USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
-      },
-      this.i18n,
-      lang,
-    );
+    const user = handleResult(result, GET_USER_ERROR_MAP, this.i18n, this.requestLang(req));
     return toUserResponse(user);
   }
 
@@ -107,26 +109,13 @@ export class UsersController {
     @Body(new ZodValidationPipe(CreateUserSchema)) body: CreateUserInput,
     @Req() req: FastifyRequest,
   ): Promise<UserResponse> {
-    const lang = req?.headers["accept-language"];
-    const locale = this.i18n.getLocale(req.headers["accept-language"]);
-    const result = await this.createUserCommand.execute(body, locale);
-    const user = handleResult(
-      result,
-      {
-        EMAIL_TAKEN: { status: HttpStatus.CONFLICT, i18nKey: "api.user.emailTaken" },
-        USER_EVENT_DISPATCH_FAILED: {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          i18nKey: "api.error.eventDispatchFailed",
-        },
-        TRANSACTION_FAILED: {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          i18nKey: "api.error.transactionFailed",
-        },
-      },
-      this.i18n,
-      lang,
+    const result = await this.createUserCommand.execute(
+      body,
+      this.i18n.getLocale(req.headers["accept-language"]),
     );
-    return toUserResponse(user);
+    return toUserResponse(
+      handleResult(result, CREATE_USER_ERROR_MAP, this.i18n, this.requestLang(req)),
+    );
   }
 
   @Patch("me")
@@ -136,22 +125,11 @@ export class UsersController {
     @Body(new ZodValidationPipe(UpdateUserSchema)) body: UpdateUserInput,
     @Req() req: FastifyRequest,
   ): Promise<UserResponse> {
-    // No permission decorator: any authenticated user may edit their own
+    // No permission decorator: every authenticated user may edit their own
     // profile. Self-scope is enforced inside UpdateUserCommand (name only).
-    const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.updateUserCommand.execute(actor.sub, body, actor);
-    const user = handleResult(
-      result,
-      {
-        USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
-        EMAIL_TAKEN: { status: HttpStatus.CONFLICT, i18nKey: "api.user.emailTaken" },
-        USER_FORBIDDEN: { status: HttpStatus.FORBIDDEN, i18nKey: "api.error.forbidden" },
-      },
-      this.i18n,
-      lang,
-    );
-    return toUserResponse(user);
+    return this.toUpdatedUser(result, req?.headers["accept-language"]);
   }
 
   @Patch(":id")
@@ -163,19 +141,16 @@ export class UsersController {
     @Body(new ZodValidationPipe(UpdateUserSchema)) body: UpdateUserInput,
     @Req() req: FastifyRequest,
   ): Promise<UserResponse> {
-    const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.updateUserCommand.execute(id, body, actor);
-    const user = handleResult(
-      result,
-      {
-        USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
-        EMAIL_TAKEN: { status: HttpStatus.CONFLICT, i18nKey: "api.user.emailTaken" },
-        USER_FORBIDDEN: { status: HttpStatus.FORBIDDEN, i18nKey: "api.error.forbidden" },
-      },
-      this.i18n,
-      lang,
-    );
+    return this.toUpdatedUser(result, req?.headers["accept-language"]);
+  }
+
+  private toUpdatedUser(
+    result: Awaited<ReturnType<UpdateUserCommand["execute"]>>,
+    lang: string | undefined,
+  ): UserResponse {
+    const user = handleResult(result, UPDATE_USER_ERROR_MAP, this.i18n, lang);
     return toUserResponse(user);
   }
 
@@ -188,24 +163,8 @@ export class UsersController {
     @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
     @Req() req: FastifyRequest,
   ): Promise<void> {
-    const lang = req?.headers["accept-language"];
     const result = await this.deleteUserCommand.execute(id);
-    handleResult(
-      result,
-      {
-        USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
-        USER_OWNS_ORGANIZATION: {
-          status: HttpStatus.CONFLICT,
-          i18nKey: "api.user.ownsOrganization",
-        },
-        USER_EVENT_DISPATCH_FAILED: {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          i18nKey: "api.error.eventDispatchFailed",
-        },
-      },
-      this.i18n,
-      lang,
-    );
+    handleResult(result, DELETE_USER_ERROR_MAP, this.i18n, this.requestLang(req));
   }
 
   @Post("me/avatar")
@@ -217,10 +176,9 @@ export class UsersController {
     @Body(new ZodValidationPipe(AttachAvatarSchema)) body: AttachAvatarInput,
     @Req() req: FastifyRequest,
   ): Promise<UserResponse> {
-    const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.attachAvatarCommand.execute(actor, body.fileId);
-    const user = handleResult(result, AVATAR_ERRORS, this.i18n, lang);
+    const user = handleResult(result, AVATAR_ERRORS, this.i18n, this.requestLang(req));
     return toUserResponse(user);
   }
 
@@ -229,10 +187,13 @@ export class UsersController {
   @RequirePermission("users:write")
   @ResponseSchema(UserResponseSchema)
   async removeAvatar(@Req() req: FastifyRequest): Promise<UserResponse> {
-    const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.removeAvatarCommand.execute(actor);
-    const user = handleResult(result, AVATAR_ERRORS, this.i18n, lang);
+    const user = handleResult(result, AVATAR_ERRORS, this.i18n, this.requestLang(req));
     return toUserResponse(user);
+  }
+
+  private requestLang(req: FastifyRequest): string | undefined {
+    return req?.headers["accept-language"];
   }
 }
