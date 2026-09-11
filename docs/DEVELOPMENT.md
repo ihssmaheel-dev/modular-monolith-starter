@@ -140,6 +140,7 @@ existing administrator. Remove the credentials from `.env` after use.
 ## Testing and quality checks
 
 ```sh
+pnpm build              # required first: tests resolve workspace packages via built dist
 pnpm test:unit          # fast unit tests across the workspace
 pnpm test:integration   # real infrastructure tests
 pnpm test:e2e           # API/application flows (Supertest)

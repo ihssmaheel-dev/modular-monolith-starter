@@ -95,6 +95,11 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Build workspace packages
+        # Unit tests resolve workspace packages via built dist: build first
+        # so source changes (contracts, email templates) cannot test stale.
+        run: pnpm build
+
       - name: Unit Tests
         run: pnpm test:unit
 
