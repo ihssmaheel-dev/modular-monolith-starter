@@ -30,7 +30,9 @@ export class InvitationEmailListener {
     if (queue) {
       try {
         await queue.add("organization-invitation", data, {
-          jobId: `invitation-email:${invitationKey(event.token)}`,
+          // BullMQ prohibits colons in custom job IDs; hyphens keep the
+          // id stable and retryable instead of failing into the fallback.
+          jobId: `invitation-email-${invitationKey(event.token)}`,
           attempts: EMAIL_RETRY_ATTEMPTS,
           backoff: { type: "exponential", delay: EMAIL_RETRY_DELAY_MS },
           removeOnComplete: 100,

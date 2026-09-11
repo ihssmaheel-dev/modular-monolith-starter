@@ -60,15 +60,26 @@ export class SendVerificationEmailCommand {
       }),
     );
 
+    // send() returns a Result instead of throwing: an unchecked Err would
+    // silently lose the verification mail and prevent activation with no
+    // operator signal. Delivery failures stay non-fatal (the endpoint must
+    // not reveal account existence) but are always logged.
+    let delivered = false;
     try {
-      await this.emailService.send({
+      const sent = await this.emailService.send({
         to: email,
         subject: this.i18n.t("email.verifyEmail.subject", lang),
         html,
       });
+      if (sent.isErr()) {
+        this.logger.warn({ code: sent.error.code, email }, "Verification email failed");
+      } else {
+        delivered = true;
+      }
     } catch (error) {
       this.logger.warn({ error, email }, "Verification email failed");
     }
+    this.logger.info({ email, delivered }, "Verification email processed");
 
     return ok(undefined);
   }

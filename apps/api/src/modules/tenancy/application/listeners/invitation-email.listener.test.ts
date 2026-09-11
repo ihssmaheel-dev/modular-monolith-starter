@@ -42,7 +42,7 @@ describe("InvitationEmailListener", () => {
       expect.objectContaining({ to: "invitee@example.com", subject: "email.invitation.subject" }),
       expect.objectContaining({
         attempts: 5,
-        jobId: expect.stringMatching(/^invitation-email:[0-9a-f]{32}$/),
+        jobId: expect.stringMatching(/^invitation-email-[0-9a-f]{32}$/),
         removeOnComplete: 100,
         removeOnFail: 1000,
       }),

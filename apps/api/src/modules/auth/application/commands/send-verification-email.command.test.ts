@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 import { SendVerificationEmailCommand } from "./send-verification-email.command";
 import { GetUserByEmailQuery } from "../../../users/application/queries/get-user-by-email.query";
 import { SetEmailVerificationTokenCommand } from "../../../users/application/commands/set-email-verification-token.command";
@@ -41,7 +41,7 @@ describe("SendVerificationEmailCommand", () => {
     const i18n = { t: vi.fn((key: string) => key) } as unknown as I18nService;
     loggerWarn = vi.fn();
     const logger = {
-      child: vi.fn().mockReturnValue({ warn: loggerWarn }),
+      child: vi.fn().mockReturnValue({ warn: loggerWarn, info: vi.fn() }),
     } as unknown as PinoLoggerService;
     command = new SendVerificationEmailCommand(
       getUserByEmail,
@@ -104,6 +104,22 @@ describe("SendVerificationEmailCommand", () => {
     expect(result.isOk()).toBe(true);
     expect(loggerWarn).toHaveBeenCalledWith(
       expect.objectContaining({ email: "grace@example.com" }),
+      "Verification email failed",
+    );
+  });
+
+  it("logs returned delivery failures instead of swallowing them (H06)", async () => {
+    vi.mocked(getUserByEmail.execute).mockResolvedValue(ok(unverifiedUser));
+    vi.mocked(setToken.execute).mockResolvedValue(ok(undefined));
+    vi.mocked(emailService.send).mockResolvedValue(
+      err({ code: "PROVIDER_ERROR", message: "down" }) as never,
+    );
+
+    const result = await command.execute("grace@example.com");
+
+    expect(result.isOk()).toBe(true);
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { code: "PROVIDER_ERROR", email: "grace@example.com" },
       "Verification email failed",
     );
   });
