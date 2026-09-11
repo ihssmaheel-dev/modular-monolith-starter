@@ -40,7 +40,10 @@ export class AuthVerificationController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<AuthResponse> {
-    const result = await this.verifyEmailCmd.execute(body.token);
+    const result = await this.verifyEmailCmd.execute(body.token, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
     const value = handleResult(
       result,
       INVALID_TOKEN_ERRORS,

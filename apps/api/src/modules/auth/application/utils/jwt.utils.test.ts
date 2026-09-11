@@ -66,7 +66,7 @@ describe("jwt.utils", () => {
       const version = 2;
       vi.mocked(jwt.sign).mockImplementation(() => "mock-refresh-token");
 
-      const token = signRefreshToken(userId, version);
+      const token = signRefreshToken(userId, version, "session-1", "jti-1");
 
       expect(token).toBe("mock-refresh-token");
       const [payload] = vi.mocked(jwt.sign).mock.calls[0] ?? [];
@@ -74,7 +74,8 @@ describe("jwt.utils", () => {
         sub: userId,
         type: "refresh",
         version,
-        jti: expect.any(String),
+        jti: "jti-1",
+        sid: "session-1",
       });
       expect(jwt.sign).toHaveBeenCalledWith(
         expect.objectContaining({ sub: userId, type: "refresh", version }),

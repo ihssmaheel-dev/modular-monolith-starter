@@ -3,6 +3,7 @@ import { ok } from "neverthrow";
 import { VerifyEmailCommand } from "./verify-email.command";
 import { VerifyUserEmailCommand } from "../../../users/application/commands/verify-user-email.command";
 import { User } from "../../../users/domain/entities/user.entity";
+import { SessionService } from "../../../../infrastructure/session/session.service";
 import * as jwtUtils from "../utils/jwt.utils";
 
 vi.mock("../utils/jwt.utils", () => ({
@@ -13,11 +14,15 @@ vi.mock("../utils/jwt.utils", () => ({
 describe("VerifyEmailCommand", () => {
   let command: VerifyEmailCommand;
   let users: VerifyUserEmailCommand;
+  let sessions: SessionService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     users = { execute: vi.fn() } as unknown as VerifyUserEmailCommand;
-    command = new VerifyEmailCommand(users);
+    sessions = {
+      create: vi.fn().mockResolvedValue({ id: "session-9", userId: "u-2" }),
+    } as unknown as SessionService;
+    command = new VerifyEmailCommand(users, sessions);
   });
 
   it("returns a session when the token consumes", async () => {

@@ -1,153 +1,130 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { ok } from "neverthrow";
 import { RefreshTokensCommand } from "./refresh-tokens.command";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
-import { ok, err } from "neverthrow";
+import { SessionService } from "../../../../infrastructure/session/session.service";
 import * as jwtUtils from "../utils/jwt.utils";
-import { User } from "../../../users/domain/entities/user.entity";
 
-vi.mock("../utils/jwt.utils", () => ({
-  signAccessToken: vi.fn(),
-  signRefreshToken: vi.fn(),
-  verifyRefreshToken: vi.fn(),
-}));
+vi.mock("../utils/jwt.utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof jwtUtils>();
+  return {
+    ...actual,
+    signAccessToken: vi.fn(() => "access-token"),
+    signRefreshToken: vi.fn(() => "refresh-token"),
+    verifyRefreshToken: vi.fn(),
+  };
+});
+
+const user = {
+  id: "user-1",
+  email: "user@example.com",
+  name: "User",
+  role: "user",
+  authVersion: 3,
+  avatarFileId: null,
+} as const;
+
+const session = {
+  id: "session-1",
+  userId: "user-1",
+  ip: "127.0.0.1",
+  userAgent: "test",
+  deviceName: "test",
+  createdAt: Date.now(),
+  lastAccessedAt: Date.now(),
+};
+
+function decoded(overrides: Record<string, unknown> = {}) {
+  return {
+    sub: "user-1",
+    type: "refresh",
+    version: 3,
+    jti: "jti-old",
+    sid: "session-1",
+    ...overrides,
+  };
+}
 
 describe("RefreshTokensCommand", () => {
   let command: RefreshTokensCommand;
   let getUserById: GetUserByIdQuery;
+  let sessions: SessionService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-
     getUserById = {
-      execute: vi.fn(),
-      executeFresh: vi.fn(),
+      executeFresh: vi.fn().mockResolvedValue(ok({ ...user } as never)),
     } as unknown as GetUserByIdQuery;
-
-    command = new RefreshTokensCommand(getUserById);
+    sessions = {
+      getRefreshSession: vi.fn().mockResolvedValue(session),
+      rotateSessionRefresh: vi.fn().mockResolvedValue("rotated"),
+      revoke: vi.fn().mockResolvedValue(undefined),
+    } as unknown as SessionService;
+    command = new RefreshTokensCommand(getUserById, sessions);
+    vi.mocked(jwtUtils.verifyRefreshToken).mockReturnValue(decoded() as never);
   });
 
-  it("should return err INVALID_TOKEN if token is invalid", async () => {
+  it("rotates the session chain and issues tokens bound to the same session", async () => {
+    const result = await command.execute("refresh-token");
+
+    expect(result.isOk()).toBe(true);
+    expect(sessions.rotateSessionRefresh).toHaveBeenCalledWith(
+      "user-1",
+      "session-1",
+      "jti-old",
+      expect.any(String),
+    );
+    const [, , , issuedJti] = vi.mocked(sessions.rotateSessionRefresh).mock.calls[0]!;
+    expect(jwtUtils.signRefreshToken).toHaveBeenCalledWith("user-1", 3, "session-1", issuedJti);
+    expect(sessions.revoke).not.toHaveBeenCalled();
+  });
+
+  it("rejects tokens without a token id or session", async () => {
     vi.mocked(jwtUtils.verifyRefreshToken).mockReturnValue(null);
 
-    const result = await command.execute("invalid-token");
+    const result = await command.execute("legacy-or-forged-token");
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toEqual({ type: "INVALID_TOKEN" });
-    }
+    expect(sessions.rotateSessionRefresh).not.toHaveBeenCalled();
   });
 
-  it("should return err USER_NOT_FOUND if user does not exist", async () => {
-    vi.mocked(jwtUtils.verifyRefreshToken).mockReturnValue({
-      sub: "user-123",
-      type: "refresh",
-      version: 0,
-    });
-    vi.mocked(getUserById.executeFresh).mockResolvedValue(
-      err({ type: "USER_NOT_FOUND", userId: "user-123" }),
-    );
+  it("rejects refresh for a missing or foreign session", async () => {
+    vi.mocked(sessions.getRefreshSession).mockResolvedValue(null);
 
-    const result = await command.execute("valid-refresh-token");
+    const missing = await command.execute("refresh-token");
+    expect(missing.isErr()).toBe(true);
+
+    vi.mocked(sessions.getRefreshSession).mockResolvedValue({ ...session, userId: "user-2" });
+    const foreign = await command.execute("refresh-token");
+    expect(foreign.isErr()).toBe(true);
+    expect(sessions.rotateSessionRefresh).not.toHaveBeenCalled();
+  });
+
+  it("revokes the session when a superseded token is replayed", async () => {
+    vi.mocked(sessions.rotateSessionRefresh).mockResolvedValue("reused");
+
+    const result = await command.execute("refresh-token");
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toEqual({ type: "USER_NOT_FOUND" });
-    }
+    expect(sessions.revoke).toHaveBeenCalledWith("session-1");
+    expect(jwtUtils.signRefreshToken).not.toHaveBeenCalled();
   });
 
-  it("should return ok with new tokens if token is valid and user exists", async () => {
-    vi.mocked(jwtUtils.verifyRefreshToken).mockReturnValue({
-      sub: "user-123",
-      type: "refresh",
-      version: 0,
-    });
+  it("fails closed when rotation state is unavailable", async () => {
+    vi.mocked(sessions.rotateSessionRefresh).mockResolvedValue("unavailable");
 
-    const user = User.fromPersistence({
-      id: "user-123",
-      email: "test@example.com",
-      name: "Test",
-      role: "user",
-      authVersion: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok(user));
-    vi.mocked(jwtUtils.signAccessToken).mockReturnValue("new-access");
-    vi.mocked(jwtUtils.signRefreshToken).mockReturnValue("new-refresh");
-
-    const result = await command.execute("valid-refresh-token");
-
-    expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value).toEqual({
-        accessToken: "new-access",
-        refreshToken: "new-refresh",
-        user: {
-          id: "user-123",
-          email: "test@example.com",
-          name: "Test",
-          role: "user",
-          avatarFileId: null,
-        },
-      });
-    }
-    expect(jwtUtils.verifyRefreshToken).toHaveBeenCalledWith("valid-refresh-token");
-    expect(jwtUtils.signAccessToken).toHaveBeenCalledWith(
-      "user-123",
-      "test@example.com",
-      "Test",
-      "user",
-      0,
-    );
-    expect(jwtUtils.signRefreshToken).toHaveBeenCalledWith("user-123", 0);
-  });
-
-  it("rejects a refresh token issued before a password change", async () => {
-    vi.mocked(jwtUtils.verifyRefreshToken).mockReturnValue({
-      sub: "user-123",
-      type: "refresh",
-      version: 1,
-    });
-    const user = User.fromPersistence({
-      id: "user-123",
-      email: "test@example.com",
-      name: "Test",
-      role: "user",
-      authVersion: 2,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok(user));
-
-    const result = await command.execute("old-refresh-token");
+    const result = await command.execute("refresh-token");
 
     expect(result.isErr()).toBe(true);
-    if (result.isErr()) expect(result.error.type).toBe("INVALID_TOKEN");
+    expect(sessions.revoke).not.toHaveBeenCalled();
   });
 
-  it("reads the current auth version, never a cached one", async () => {
-    vi.mocked(jwtUtils.verifyRefreshToken).mockReturnValue({
-      sub: "user-123",
-      type: "refresh",
-      version: 0,
-    });
-    const user = User.fromPersistence({
-      id: "user-123",
-      email: "test@example.com",
-      name: "Test",
-      role: "user",
-      authVersion: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok(user));
-    vi.mocked(jwtUtils.signAccessToken).mockReturnValue("new-access");
-    vi.mocked(jwtUtils.signRefreshToken).mockReturnValue("new-refresh");
+  it("checks the user and version before consuming the token", async () => {
+    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok({ ...user, authVersion: 4 } as never));
 
-    const result = await command.execute("valid-refresh-token");
+    const result = await command.execute("refresh-token");
 
-    expect(result.isOk()).toBe(true);
-    expect(getUserById.executeFresh).toHaveBeenCalledWith("user-123");
-    expect(getUserById.execute).not.toHaveBeenCalled();
+    expect(result.isErr()).toBe(true);
+    expect(sessions.rotateSessionRefresh).not.toHaveBeenCalled();
   });
 });

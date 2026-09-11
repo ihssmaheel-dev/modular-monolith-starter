@@ -6,6 +6,7 @@ import * as jwtUtils from "../utils/jwt.utils";
 import { User } from "../../../users/domain/entities/user.entity";
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 import { AccountLockoutService } from "../../../../infrastructure/security/account-lockout.service";
+import { SessionService } from "../../../../infrastructure/session/session.service";
 
 vi.mock("../utils/jwt.utils", () => ({
   signAccessToken: vi.fn(),
@@ -17,6 +18,7 @@ describe("LoginCommand", () => {
   let verifyCredentials: VerifyUserCredentialsQuery;
   let metricsService: MetricsService;
   let lockoutService: AccountLockoutService;
+  let sessions: SessionService;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -35,7 +37,10 @@ describe("LoginCommand", () => {
       resetAttempts: vi.fn(),
     } as unknown as AccountLockoutService;
 
-    command = new LoginCommand(verifyCredentials, metricsService, lockoutService);
+    sessions = {
+      create: vi.fn().mockResolvedValue({ id: "session-1", userId: "user-123" }),
+    } as unknown as SessionService;
+    command = new LoginCommand(verifyCredentials, metricsService, lockoutService, sessions);
   });
 
   it("should return ok with tokens and user data when credentials are valid", async () => {
@@ -81,7 +86,8 @@ describe("LoginCommand", () => {
       "user",
       0,
     );
-    expect(jwtUtils.signRefreshToken).toHaveBeenCalledWith("user-123", 0);
+    expect(jwtUtils.signRefreshToken).toHaveBeenCalledWith("user-123", 0, "session-1");
+    expect(sessions.create).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-123" }));
     expect(metricsService.incrementCounter).toHaveBeenCalledWith(
       "auth_successful_logins_total",
       "Total number of successful logins",

@@ -10,7 +10,10 @@ interface RefreshTokenPayload {
   sub: string;
   type: "refresh";
   version: number;
-  jti?: string;
+  /** Unique token id — required so every rotation is single-use. */
+  jti: string;
+  /** Owning session id — required so rotation is tracked per device. */
+  sid: string;
 }
 
 export function signAccessToken(
@@ -28,10 +31,15 @@ export function signAccessToken(
   );
 }
 
-export function signRefreshToken(userId: string, version: number): string {
+export function signRefreshToken(
+  userId: string,
+  version: number,
+  sessionId: string,
+  jti: string = crypto.randomUUID(),
+): string {
   const keyring = getJwtKeyring("refresh");
   return jwt.sign(
-    { sub: userId, type: "refresh", version, jti: crypto.randomUUID() },
+    { sub: userId, type: "refresh", version, jti, sid: sessionId },
     keyring.keys[keyring.activeKeyId] ?? env.JWT_REFRESH_SECRET,
     tokenOptions(env.JWT_REFRESH_EXPIRES_IN, env.JWT_ISSUER, env.JWT_AUDIENCE, keyring.activeKeyId),
   );
@@ -67,6 +75,7 @@ function isRefreshTokenPayload(value: unknown): value is RefreshTokenPayload {
     payload.type === "refresh" &&
     typeof payload.sub === "string" &&
     typeof payload.version === "number" &&
-    (payload.jti === undefined || typeof payload.jti === "string")
+    typeof payload.jti === "string" &&
+    typeof payload.sid === "string"
   );
 }

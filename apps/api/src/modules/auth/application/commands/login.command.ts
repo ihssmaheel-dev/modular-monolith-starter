@@ -8,6 +8,13 @@ import { VerifyUserCredentialsQuery } from "../../../users/application/queries/v
 import { signAccessToken, signRefreshToken } from "../utils/jwt.utils";
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 import { AccountLockoutService } from "../../../../infrastructure/security/account-lockout.service";
+import { SessionService } from "../../../../infrastructure/session/session.service";
+
+export interface LoginDeviceContext {
+  ip?: string;
+  userAgent?: string;
+  deviceName?: string;
+}
 
 @Injectable()
 export class LoginCommand {
@@ -15,9 +22,13 @@ export class LoginCommand {
     private readonly verifyCredentials: VerifyUserCredentialsQuery,
     private readonly metricsService: MetricsService,
     private readonly lockoutService: AccountLockoutService,
+    private readonly sessions: SessionService,
   ) {}
 
-  async execute(data: z.infer<typeof LoginSchema>): Promise<Result<AuthResponse, AuthError>> {
+  async execute(
+    data: z.infer<typeof LoginSchema>,
+    device: LoginDeviceContext = {},
+  ): Promise<Result<AuthResponse, AuthError>> {
     if (await this.lockoutService.isLockedOut(data.email)) {
       this.metricsService.incrementCounter(
         "auth_lockout_rejected_total",
@@ -44,6 +55,12 @@ export class LoginCommand {
       // and no lockout increment (this is not a credential failure).
       return err({ type: "EMAIL_NOT_VERIFIED" });
     }
+    const session = await this.sessions.create({
+      userId: user.id,
+      ip: device.ip ?? "unknown",
+      userAgent: device.userAgent ?? "unknown",
+      deviceName: device.deviceName ?? "unknown",
+    });
     const accessToken = signAccessToken(
       user.id,
       user.email,
@@ -51,7 +68,7 @@ export class LoginCommand {
       user.role,
       user.authVersion,
     );
-    const refreshToken = signRefreshToken(user.id, user.authVersion);
+    const refreshToken = signRefreshToken(user.id, user.authVersion, session.id);
 
     this.metricsService.incrementCounter(
       "auth_successful_logins_total",

@@ -1,13 +1,29 @@
 import { Injectable } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
 import { PinoLoggerService } from "../logger/logger.service";
-import {
-  SessionData,
-  CreateSessionInput,
-  SESSION_TTL_SECONDS,
-  TOKEN_REVOCATION_TTL_SECONDS,
-} from "./session.types";
+import { SessionData, CreateSessionInput, TOKEN_REVOCATION_TTL_SECONDS } from "./session.types";
+
+/** Session records live as long as the refresh tokens issued against them. */
+function sessionTtlSeconds(): number {
+  return parseDurationToSeconds(env.JWT_REFRESH_EXPIRES_IN);
+}
 import { sessionKey, tokenRevocationKey, generateSessionId, isRevoked } from "./session.utils";
+import { parseDurationToSeconds } from "../../common/utils/duration.utils";
+import { env } from "../../config/env";
+
+export type RefreshRotation = "rotated" | "reused" | "unavailable";
+
+const REFRESH_FAMILY_PREFIX = "auth:refresh:family:";
+const REFRESH_USED_PREFIX = "auth:refresh:used:";
+
+const ROTATE_REFRESH_SCRIPT = `
+  if redis.call('EXISTS', KEYS[2]) == 1 then return 'reused' end
+  local current = redis.call('GET', KEYS[1])
+  if current and current ~= ARGV[1] then return 'reused' end
+  redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+  redis.call('SET', KEYS[2], '1', 'EX', ARGV[3])
+  return 'rotated'
+`;
 
 @Injectable()
 export class SessionService {
@@ -38,7 +54,7 @@ export class SessionService {
 
     if (client) {
       const key = sessionKey(sessionId);
-      await client.setex(key, SESSION_TTL_SECONDS, JSON.stringify(session));
+      await client.setex(key, sessionTtlSeconds(), JSON.stringify(session));
       await client.sadd(`user:${input.userId}:sessions`, sessionId);
       this.logger.info({ sessionId, userId: input.userId }, "Session created");
     } else {
@@ -51,12 +67,44 @@ export class SessionService {
     return session;
   }
 
-  async consumeRefreshToken(jti: string, userId: string, ttlSeconds: number): Promise<boolean> {
+  /**
+   * Atomically rotates one session's refresh chain. Returns "rotated" when
+   * the presented token was the family's current head, "reused" when it was
+   * already consumed or belongs to a superseded chain (possible theft), and
+   * "unavailable" when Redis cannot be reached (fail closed).
+   */
+  async rotateSessionRefresh(
+    userId: string,
+    sessionId: string,
+    presentedJti: string,
+    newJti: string,
+  ): Promise<RefreshRotation> {
     const client = this.redis.getClient();
-    if (!client) return false;
-    const key = `auth:refresh:used:${userId}:${jti}`;
-    const stored = await client.set(key, "1", "EX", ttlSeconds, "NX");
-    return stored === "OK";
+    if (!client) return "unavailable";
+    const ttl = parseDurationToSeconds(env.JWT_REFRESH_EXPIRES_IN);
+    const result = (await client.eval(
+      ROTATE_REFRESH_SCRIPT,
+      2,
+      `${REFRESH_FAMILY_PREFIX}${userId}:${sessionId}`,
+      `${REFRESH_USED_PREFIX}${userId}:${sessionId}:${presentedJti}`,
+      presentedJti,
+      newJti,
+      ttl.toString(),
+    )) as string | null;
+    if (result === "rotated" || result === "reused") return result;
+    this.logger.error({ userId, sessionId }, "Unexpected refresh rotation outcome");
+    return "unavailable";
+  }
+
+  /**
+   * Loads the session a refresh token belongs to. Returns null when the
+   * session is missing or revoked — callers treat that as an invalid token.
+   */
+  async getRefreshSession(sessionId: string): Promise<SessionData | null> {
+    const client = this.redis.getClient();
+    if (!client) return null;
+    if (await isRevoked(this.redis, sessionId)) return null;
+    return this.getById(sessionId);
   }
 
   async getById(sessionId: string): Promise<SessionData | null> {
@@ -84,7 +132,7 @@ export class SessionService {
     }
 
     session.lastAccessedAt = Date.now();
-    await client.setex(sessionKey(sessionId), SESSION_TTL_SECONDS, JSON.stringify(session));
+    await client.setex(sessionKey(sessionId), sessionTtlSeconds(), JSON.stringify(session));
 
     return session;
   }

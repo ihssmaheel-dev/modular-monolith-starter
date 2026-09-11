@@ -21,3 +21,4 @@ export * from "./utils/request-user.utils";
 export * from "./utils/access-token.utils";
 export * from "./utils/magic-bytes.utils";
 export * from "./utils/request-id.utils";
+export * from "./utils/duration.utils";

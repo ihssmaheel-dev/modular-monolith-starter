@@ -103,7 +103,10 @@ export class AuthController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<AuthResponse> {
-    const result = await this.loginCmd.execute(body);
+    const result = await this.loginCmd.execute(body, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
     const value = handleResult(result, LOGIN_ERRORS, this.i18n, req.headers["accept-language"]);
     setAuthCookies(reply, value.accessToken, value.refreshToken);
     return value;
