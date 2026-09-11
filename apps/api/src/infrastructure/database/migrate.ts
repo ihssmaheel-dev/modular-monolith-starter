@@ -7,8 +7,9 @@ import { env } from "../../config/env";
 const MIGRATION_LOCK_ID = 884729104;
 
 export async function runMigrations(): Promise<void> {
+  // Advisory locks need a direct connection: never run migrations through PgBouncer.
   const pool = new Pool({
-    connectionString: env.DATABASE_URL,
+    connectionString: env.DB_DIRECT_URL ?? env.DATABASE_URL,
     max: 1,
   });
 

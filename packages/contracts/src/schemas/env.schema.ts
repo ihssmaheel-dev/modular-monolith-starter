@@ -51,6 +51,13 @@ export const envSchema = z
     API_URL: z.string().url().default("http://localhost:5156"),
 
     DATABASE_URL: z.string().url().default("postgres://postgres:postgres@localhost:5432/app"),
+    DB_DIRECT_URL: z
+      .string()
+      .url()
+      .optional()
+      .describe(
+        "Direct Postgres URL bypassing the pooler, for advisory locks and DDL. Falls back to DATABASE_URL.",
+      ),
     TEST_DATABASE_URL: z.string().url().optional(),
     DB_MAX_POOL_SIZE: z.coerce.number().int().min(1).max(MAX_POOL_SIZE).default(10),
     DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),

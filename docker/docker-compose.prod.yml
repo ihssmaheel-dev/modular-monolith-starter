@@ -170,6 +170,31 @@ services:
     networks:
       - app-network
 
+  # Optional connection pooling. Enable with `--profile pooling` and point the
+  # app/worker DATABASE_URL at the pooler; keep migrate/seed on DB_DIRECT_URL
+  # (advisory locks need direct connections). See docs/DATABASE.md.
+  pgbouncer:
+    image: pgbouncer/pgbouncer:1.25.2
+    container_name: monorepo-pgbouncer
+    profiles: [pooling]
+    environment:
+      PGBOUNCER_DB_HOST: ${PGBOUNCER_DB_HOST:?set PGBOUNCER_DB_HOST to use the pooling profile}
+      PGBOUNCER_DB_PORT: ${PGBOUNCER_DB_PORT:-5432}
+      PGBOUNCER_DB_NAME: ${PGBOUNCER_DB_NAME:?set PGBOUNCER_DB_NAME to use the pooling profile}
+      PGBOUNCER_DB_USER: ${PGBOUNCER_DB_USER:?set PGBOUNCER_DB_USER to use the pooling profile}
+      PGBOUNCER_DB_PASSWORD: ${PGBOUNCER_DB_PASSWORD:?set PGBOUNCER_DB_PASSWORD to use the pooling profile}
+      PGBOUNCER_POOL_SIZE: ${PGBOUNCER_POOL_SIZE:-25}
+      PGBOUNCER_MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-200}
+      PGBOUNCER_MAX_PREPARED_STATEMENTS: ${PGBOUNCER_MAX_PREPARED_STATEMENTS:-100}
+    volumes:
+      - ./pgbouncer-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    expose:
+      - "6432"
+    networks:
+      - app-network
+    restart: unless-stopped
+
   migrate:
     build:
       context: ..

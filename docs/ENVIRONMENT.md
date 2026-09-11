@@ -40,6 +40,7 @@ the same checks. See `docker/.env.prod.example` for the compose-side pattern.
 | `CLIENT_URL`                        | `http://localhost:5155`; allowed browser origin                                                                |
 | `API_URL`                           | `http://localhost:5156`; externally reachable API origin                                                       |
 | `DATABASE_URL`                      | Local PostgreSQL connection string; production requires TLS (`sslmode=require`, `verify-ca`, or `verify-full`) |
+| `DB_DIRECT_URL`                     | Optional direct Postgres URL bypassing PgBouncer (migrations, advisory locks); falls back to `DATABASE_URL`    |
 | `DB_MAX_POOL_SIZE`                  | `10`; maximum PostgreSQL connections in pool                                                                   |
 | `DB_STATEMENT_TIMEOUT_MS`           | `30000`; maximum statement duration                                                                            |
 | `DB_LOCK_TIMEOUT_MS`                | `5000`; maximum lock wait duration                                                                             |

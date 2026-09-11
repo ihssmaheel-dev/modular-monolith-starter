@@ -10,6 +10,9 @@
 # Host port map (dev port -> staging port):
 #   nginx 80/443 -> 8080/8443 | postgres 5432 -> 5433 | redis 6379 -> 6380
 #   minio 9000/9001 -> 9002/9003 | mailpit 1025/8025 -> 1026/8026
+#   pgbouncer 6432 -> 6433 (direct pooler access for verification)
+# Traffic shape: nginx -> api/web -> pgbouncer -> postgres. Migrations and seed
+# bypass the pooler via DB_DIRECT_URL (advisory locks need direct connections).
 services:
   nginx:
     image: nginx:1.27-alpine
@@ -115,6 +118,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      pgbouncer:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test:
@@ -178,6 +183,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      pgbouncer:
+        condition: service_started
     # Worker has no HTTP port. Process liveness proves the outbox relay /
     # queue consumers are running. Do not disable this.
     healthcheck:
@@ -197,10 +204,31 @@ services:
     container_name: monorepo-staging-migrate
     command: ["node", "apps/api/dist/apps/api/src/infrastructure/database/migrate.js"]
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      DATABASE_URL: ${DB_DIRECT_URL:?set DB_DIRECT_URL (direct Postgres, bypasses the pooler)}
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - app-network
+
+  pgbouncer:
+    image: pgbouncer/pgbouncer:1.25.2
+    container_name: monorepo-staging-pgbouncer
+    environment:
+      PGBOUNCER_DB_HOST: postgres
+      PGBOUNCER_DB_PORT: 5432
+      PGBOUNCER_DB_NAME: app
+      PGBOUNCER_DB_USER: postgres
+      PGBOUNCER_DB_PASSWORD: postgres
+    volumes:
+      - ./pgbouncer-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "6433:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - app-network
 

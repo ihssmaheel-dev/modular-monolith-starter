@@ -9,7 +9,11 @@ export default defineConfig({
   out: "../../migrations/pg",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/app",
+    // Dev tooling talks to Postgres directly, never through a pooler.
+    url:
+      process.env.DB_DIRECT_URL ??
+      process.env.DATABASE_URL ??
+      "postgres://postgres:postgres@localhost:5432/app",
   },
   verbose: true,
   strict: true,
