@@ -8,6 +8,7 @@ export interface UserData {
   role: UserRole;
   avatarFileId?: string | null;
   authVersion?: number;
+  emailVerifiedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +50,12 @@ export class User {
   }
   get authVersion() {
     return this.data.authVersion ?? 0;
+  }
+  get emailVerifiedAt() {
+    return this.data.emailVerifiedAt ?? null;
+  }
+  get isEmailVerified() {
+    return this.data.emailVerifiedAt != null;
   }
   get createdAt() {
     return this.data.createdAt;

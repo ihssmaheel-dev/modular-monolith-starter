@@ -13,7 +13,10 @@ export function loginMutationOptions() {
     mutationFn: async (data: LoginInput) => {
       const client = getApiClient();
       const res = await client.auth.login({ body: data });
-      if (res.status !== 200) throw new Error("auth.loginFailed");
+      if (res.status !== 200) {
+        if (res.error?.code === "EMAIL_NOT_VERIFIED") throw new Error("auth.emailNotVerified");
+        throw new Error("auth.loginFailed");
+      }
       return res.body;
     },
   });
@@ -50,6 +53,30 @@ export function resetPasswordMutationOptions() {
       const client = getApiClient();
       const res = await client.auth.resetPassword({ body: data });
       if (res.status !== 200) throw new Error("auth.resetFailed");
+      return res.body;
+    },
+  });
+}
+
+export function verifyEmailMutationOptions() {
+  return mutationOptions({
+    mutationKey: ["auth", "verify-email"] as const,
+    mutationFn: async (token: string) => {
+      const client = getApiClient();
+      const res = await client.auth.verifyEmail({ body: { token } });
+      if (res.status !== 200) throw new Error("auth.invalidToken");
+      return res.body;
+    },
+  });
+}
+
+export function resendVerificationMutationOptions() {
+  return mutationOptions({
+    mutationKey: ["auth", "resend-verification"] as const,
+    mutationFn: async (email: string) => {
+      const client = getApiClient();
+      const res = await client.auth.resendVerification({ body: { email } });
+      if (res.status !== 200) throw new Error("auth.requestFailed");
       return res.body;
     },
   });

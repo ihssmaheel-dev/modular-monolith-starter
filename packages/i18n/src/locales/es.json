@@ -87,6 +87,16 @@
     "emailNotFound": "Correo electrónico no encontrado",
     "resetLinkSent": "Si el correo existe, se ha enviado un enlace de restablecimiento",
     "passwordResetSuccess": "La contraseña se ha restablecido correctamente",
+    "emailNotVerified": "Verifica tu correo electrónico antes de iniciar sesión",
+    "verificationSent": "Correo de verificación enviado",
+    "verifyTitle": "Verifica tu correo electrónico",
+    "verifyDescription": "Haz clic en el botón para verificar tu dirección de correo electrónico.",
+    "verifyButton": "Verificar correo electrónico",
+    "verifying": "Verificando...",
+    "checkInboxTitle": "Revisa tu bandeja de entrada",
+    "checkInboxDescription": "Te enviamos un enlace de verificación. Haz clic en el enlace e inicia sesión.",
+    "resendVerification": "Reenviar correo de verificación",
+    "emailVerified": "Correo verificado. ¡Bienvenido!",
     "accountLocked": "Cuenta bloqueada temporalmente por demasiados intentos fallidos. Inténtelo de nuevo más tarde.",
     "termsNotice": "Al continuar, aceptas nuestros Términos de servicio y Política de privacidad.",
     "heroTagline": "Monolito modular empresarial",
@@ -113,6 +123,13 @@
       "heading": "Únete a {{organization}}",
       "body": "Te han invitado a colaborar en {{organization}}. Esta invitación caduca en siete días.",
       "buttonText": "Aceptar invitación"
+    },
+    "verifyEmail": {
+      "subject": "Verifica tu dirección de correo electrónico",
+      "preview": "Verifica tu dirección de correo electrónico",
+      "heading": "Verifica tu dirección de correo electrónico",
+      "body": "Haz clic en el botón siguiente para verificar tu dirección de correo electrónico. Este enlace caduca en 24 horas.",
+      "buttonText": "Verificar correo electrónico"
     }
   },
   "dashboard": {

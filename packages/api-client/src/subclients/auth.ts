@@ -6,12 +6,16 @@ import type {
   MessageResponse,
   RefreshTokenInput,
   RegisterInput,
+  RegisterResponse,
+  ResendVerificationInput,
   ResetPasswordInput,
+  VerifyEmailInput,
 } from "@repo/contracts";
 import {
   AuthResponseSchema,
   CurrentUserResponseSchema,
   MessageResponseSchema,
+  RegisterResponseSchema,
 } from "@repo/contracts";
 import type { FetchFn } from "../types";
 import { orpcResponse, type OrpcClient } from "../orpc";
@@ -20,14 +24,14 @@ export function createAuthClient(fetchFn: FetchFn, orpc?: OrpcClient) {
   return {
     register: (req: { body: RegisterInput }) =>
       orpc
-        ? orpcResponse(() => orpc.auth.register(req.body), 201, AuthResponseSchema)
-        : fetchFn<AuthResponse>(
+        ? orpcResponse(() => orpc.auth.register(req.body), 201, RegisterResponseSchema)
+        : fetchFn<RegisterResponse>(
             "/auth/register",
             {
               method: "POST",
               body: JSON.stringify(req.body),
             },
-            AuthResponseSchema,
+            RegisterResponseSchema,
           ),
     login: (req: { body: LoginInput }) =>
       orpc
@@ -75,6 +79,28 @@ export function createAuthClient(fetchFn: FetchFn, orpc?: OrpcClient) {
         ? orpcResponse(() => orpc.auth.resetPassword(req.body), 200, MessageResponseSchema)
         : fetchFn<MessageResponse>(
             "/auth/reset-password",
+            {
+              method: "POST",
+              body: JSON.stringify(req.body),
+            },
+            MessageResponseSchema,
+          ),
+    verifyEmail: (req: { body: VerifyEmailInput }) =>
+      orpc
+        ? orpcResponse(() => orpc.auth.verifyEmail(req.body), 200, AuthResponseSchema)
+        : fetchFn<AuthResponse>(
+            "/auth/verify-email",
+            {
+              method: "POST",
+              body: JSON.stringify(req.body),
+            },
+            AuthResponseSchema,
+          ),
+    resendVerification: (req: { body: ResendVerificationInput }) =>
+      orpc
+        ? orpcResponse(() => orpc.auth.resendVerification(req.body), 200, MessageResponseSchema)
+        : fetchFn<MessageResponse>(
+            "/auth/resend-verification",
             {
               method: "POST",
               body: JSON.stringify(req.body),

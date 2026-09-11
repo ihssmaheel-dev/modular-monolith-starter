@@ -5,9 +5,12 @@ import {
   ForgotPasswordSchema,
   ResetPasswordSchema,
   RefreshTokenSchema,
+  VerifyEmailSchema,
+  ResendVerificationSchema,
   AuthResponseSchema,
   CurrentUserResponseSchema,
   MessageResponseSchema,
+  RegisterResponseSchema,
 } from "../schemas/auth.schema";
 
 export const authContract = oc.prefix("/auth").router({
@@ -19,7 +22,7 @@ export const authContract = oc.prefix("/auth").router({
       successStatus: 201,
     })
     .input(RegisterSchema)
-    .output(AuthResponseSchema),
+    .output(RegisterResponseSchema),
   login: oc
     .route({ method: "POST", path: "/login", summary: "Log in an existing user" })
     .input(LoginSchema)
@@ -41,5 +44,13 @@ export const authContract = oc.prefix("/auth").router({
   resetPassword: oc
     .route({ method: "POST", path: "/reset-password", summary: "Reset user password" })
     .input(ResetPasswordSchema)
+    .output(MessageResponseSchema),
+  verifyEmail: oc
+    .route({ method: "POST", path: "/verify-email", summary: "Verify email address" })
+    .input(VerifyEmailSchema)
+    .output(AuthResponseSchema),
+  resendVerification: oc
+    .route({ method: "POST", path: "/resend-verification", summary: "Resend verification email" })
+    .input(ResendVerificationSchema)
     .output(MessageResponseSchema),
 });

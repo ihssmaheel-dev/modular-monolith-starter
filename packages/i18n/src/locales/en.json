@@ -50,6 +50,13 @@
       "heading": "Join {{organization}}",
       "body": "You have been invited to collaborate in {{organization}}. This invitation expires in seven days.",
       "buttonText": "Accept invitation"
+    },
+    "verifyEmail": {
+      "subject": "Verify your email address",
+      "preview": "Verify your email address",
+      "heading": "Verify your email address",
+      "body": "Click the button below to verify your email address. This link expires in 24 hours.",
+      "buttonText": "Verify email"
     }
   },
   "dashboard": {
@@ -185,6 +192,16 @@
     "emailNotFound": "Email not found",
     "resetLinkSent": "If the email exists, a reset link has been sent",
     "passwordResetSuccess": "Password has been reset successfully",
+    "emailNotVerified": "Please verify your email before signing in",
+    "verificationSent": "Verification email sent",
+    "verifyTitle": "Verify your email",
+    "verifyDescription": "Click the button below to verify your email address.",
+    "verifyButton": "Verify email",
+    "verifying": "Verifying...",
+    "checkInboxTitle": "Check your inbox",
+    "checkInboxDescription": "We sent a verification link to your email. Click the link, then sign in.",
+    "resendVerification": "Resend verification email",
+    "emailVerified": "Email verified. Welcome!",
     "accountLocked": "Account temporarily locked due to too many failed attempts. Please try again later.",
     "termsNotice": "By continuing, you agree to our Terms of Service and Privacy Policy.",
     "heroTagline": "Enterprise Modular Monolith",

@@ -1,10 +1,22 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { getApiClient } from "@/lib/api";
-import { loginMutationOptions, registerMutationOptions } from "./auth.mutations";
+import {
+  loginMutationOptions,
+  registerMutationOptions,
+  resendVerificationMutationOptions,
+  verifyEmailMutationOptions,
+} from "./auth.mutations";
 
 vi.mock("@/lib/api", () => ({ getApiClient: vi.fn() }));
 
-const client = { auth: { login: vi.fn(), register: vi.fn() } };
+const client = {
+  auth: {
+    login: vi.fn(),
+    register: vi.fn(),
+    verifyEmail: vi.fn(),
+    resendVerification: vi.fn(),
+  },
+};
 
 describe("auth mutations", () => {
   beforeEach(() => {
@@ -39,5 +51,41 @@ describe("auth mutations", () => {
     await expect(
       loginMutationOptions().mutationFn({ email: "u@e.test", password: "Password123!" }),
     ).resolves.toBe(body);
+  });
+
+  it("throws emailNotVerified for unverified accounts", async () => {
+    client.auth.login.mockResolvedValue({
+      status: 403,
+      body: null,
+      error: { code: "EMAIL_NOT_VERIFIED" },
+    });
+
+    await expect(
+      loginMutationOptions().mutationFn({ email: "u@e.test", password: "Password123!" }),
+    ).rejects.toThrow("auth.emailNotVerified");
+  });
+
+  it("verifies the email and returns the session", async () => {
+    const body = { accessToken: "a", refreshToken: "r", user: { id: "u-1" } };
+    client.auth.verifyEmail.mockResolvedValue({ status: 200, body });
+
+    await expect(verifyEmailMutationOptions().mutationFn("t".repeat(32))).resolves.toBe(body);
+    expect(client.auth.verifyEmail).toHaveBeenCalledWith({ body: { token: "t".repeat(32) } });
+  });
+
+  it("throws invalidToken when verification fails", async () => {
+    client.auth.verifyEmail.mockResolvedValue({ status: 401, body: null });
+
+    await expect(verifyEmailMutationOptions().mutationFn("stale")).rejects.toThrow(
+      "auth.invalidToken",
+    );
+  });
+
+  it("resends the verification email", async () => {
+    const body = { message: "ok" };
+    client.auth.resendVerification.mockResolvedValue({ status: 200, body });
+
+    await expect(resendVerificationMutationOptions().mutationFn("u@e.test")).resolves.toBe(body);
+    expect(client.auth.resendVerification).toHaveBeenCalledWith({ body: { email: "u@e.test" } });
   });
 });

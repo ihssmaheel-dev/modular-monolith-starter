@@ -2,19 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RegisterCommand } from "./register.command";
 import { GetUserByEmailQuery } from "../../../users/application/queries/get-user-by-email.query";
 import { CreateUserCommand } from "../../../users/application/commands/create-user.command";
+import { SendVerificationEmailCommand } from "./send-verification-email.command";
 import { ok } from "neverthrow";
-import * as jwtUtils from "../utils/jwt.utils";
 import { User } from "../../../users/domain/entities/user.entity";
-
-vi.mock("../utils/jwt.utils", () => ({
-  signAccessToken: vi.fn(),
-  signRefreshToken: vi.fn(),
-}));
 
 describe("RegisterCommand", () => {
   let command: RegisterCommand;
   let getUserByEmail: GetUserByEmailQuery;
   let createUser: CreateUserCommand;
+  let sendVerificationEmail: SendVerificationEmailCommand;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,7 +23,11 @@ describe("RegisterCommand", () => {
       execute: vi.fn(),
     } as unknown as CreateUserCommand;
 
-    command = new RegisterCommand(getUserByEmail, createUser);
+    sendVerificationEmail = {
+      execute: vi.fn().mockResolvedValue(ok(undefined)),
+    } as unknown as SendVerificationEmailCommand;
+
+    command = new RegisterCommand(getUserByEmail, createUser, sendVerificationEmail);
   });
 
   it("should return EMAIL_TAKEN if user already exists", async () => {
@@ -55,9 +55,10 @@ describe("RegisterCommand", () => {
       expect(result.error).toEqual({ type: "EMAIL_TAKEN" });
     }
     expect(createUser.execute).not.toHaveBeenCalled();
+    expect(sendVerificationEmail.execute).not.toHaveBeenCalled();
   });
 
-  it("should create user and return tokens when email is unique", async () => {
+  it("should create user without session and send verification email", async () => {
     // Arrange
     vi.mocked(getUserByEmail.execute).mockResolvedValue(ok(null));
 
@@ -70,8 +71,6 @@ describe("RegisterCommand", () => {
       updatedAt: new Date(),
     });
     vi.mocked(createUser.execute).mockResolvedValue(ok(newUser));
-    vi.mocked(jwtUtils.signAccessToken).mockReturnValue("access-token");
-    vi.mocked(jwtUtils.signRefreshToken).mockReturnValue("refresh-token");
 
     // Act
     const result = await command.execute({
@@ -84,8 +83,6 @@ describe("RegisterCommand", () => {
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
       expect(result.value).toEqual({
-        accessToken: "access-token",
-        refreshToken: "refresh-token",
         user: {
           id: "user-123",
           email: "test@example.com",
@@ -93,18 +90,42 @@ describe("RegisterCommand", () => {
           role: "user",
           avatarFileId: null,
         },
+        requiresEmailVerification: true,
       });
+      expect("accessToken" in result.value).toBe(false);
     }
     expect(createUser.execute).toHaveBeenCalledWith(
       { email: "test@example.com", name: "Test", password: "password123" },
       "en",
     );
-    expect(jwtUtils.signAccessToken).toHaveBeenCalledWith(
-      "user-123",
-      "test@example.com",
-      "Test",
-      "user",
-      0,
+    expect(sendVerificationEmail.execute).toHaveBeenCalledWith("test@example.com", "en");
+  });
+
+  it("should pass the request locale to the verification email", async () => {
+    // Arrange
+    vi.mocked(getUserByEmail.execute).mockResolvedValue(ok(null));
+    const newUser = User.fromPersistence({
+      id: "user-123",
+      email: "test@example.com",
+      name: "Test",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(createUser.execute).mockResolvedValue(ok(newUser));
+
+    // Act
+    const result = await command.execute(
+      {
+        name: "Test",
+        email: "test@example.com",
+        password: "password123",
+      },
+      "es",
     );
+
+    // Assert
+    expect(result.isOk()).toBe(true);
+    expect(sendVerificationEmail.execute).toHaveBeenCalledWith("test@example.com", "es");
   });
 });

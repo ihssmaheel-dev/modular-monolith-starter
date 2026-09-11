@@ -16,6 +16,7 @@ import {
 import type { AnyContractProcedure } from "@orpc/contract" with { "resolution-mode": "import" };
 import { describe, expect, it } from "vitest";
 import { AuthController } from "../../modules/auth/presentation/auth.controller";
+import { AuthVerificationController } from "../../modules/auth/presentation/auth-verification.controller";
 import { AuthOrpcController } from "../../modules/auth/presentation/auth.orpc.controller";
 import { FilesController } from "../../modules/files/presentation/files.controller";
 import { FilesOrpcController } from "../../modules/files/presentation/files.orpc.controller";
@@ -40,6 +41,7 @@ type RoutePair = {
 };
 const ROUTES: RoutePair[] = [
   ...authRoutes(),
+  ...authVerificationRoutes(),
   ...notesRoutes(),
   ...filesRoutes(),
   ...usersRoutes(),
@@ -103,6 +105,12 @@ function authRoutes(): RoutePair[] {
     ["refresh", "refresh", "refresh"],
     ["forgotPassword", "forgotPassword", "forgotPassword"],
     ["resetPassword", "resetPassword", "resetPassword"],
+  ]);
+}
+function authVerificationRoutes(): RoutePair[] {
+  return routePairs(authContract, AuthOrpcController, AuthVerificationController, [
+    ["verifyEmail", "verifyEmail", "verifyEmail"],
+    ["resendVerification", "resendVerification", "resendVerification"],
   ]);
 }
 function notesRoutes(): RoutePair[] {

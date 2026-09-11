@@ -8,6 +8,13 @@
       "when": 1788889028470,
       "tag": "0000_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789120405415,
+      "tag": "0001_thankful_dreadnoughts",
+      "breakpoints": true
     }
   ]
 }

@@ -7,22 +7,24 @@ import { AuthRateLimit } from "./auth-rate-limit.decorator";
 import { invokeOrpc } from "../../../infrastructure/orpc";
 import { I18nService } from "../../../infrastructure/i18n/i18n.service";
 import { AuthController } from "./auth.controller";
+import { AuthVerificationController } from "./auth-verification.controller";
 
 @Controller("rpc")
 @TenantAgnostic()
 export class AuthOrpcController {
   constructor(
     private readonly authController: AuthController,
+    private readonly authVerificationController: AuthVerificationController,
     private readonly i18n: I18nService,
   ) {}
 
   @Implement(authContract.register)
   @Public()
   @AuthRateLimit("register")
-  register(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  register(@Req() request: FastifyRequest) {
     return implement(authContract.register).handler(({ input }) =>
       invokeOrpc(
-        () => this.authController.register(input, request, reply),
+        () => this.authController.register(input, request),
         this.i18n,
         request.headers["accept-language"],
       ),
@@ -101,6 +103,34 @@ export class AuthOrpcController {
     return implement(authContract.resetPassword).handler(({ input }) =>
       invokeOrpc(
         () => this.authController.resetPassword(input, request),
+        this.i18n,
+        request.headers["accept-language"],
+      ),
+    );
+  }
+
+  @Implement(authContract.verifyEmail)
+  @Public()
+  @NoDatabaseTransaction()
+  @AuthRateLimit("verifyEmail")
+  verifyEmail(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+    return implement(authContract.verifyEmail).handler(({ input }) =>
+      invokeOrpc(
+        () => this.authVerificationController.verifyEmail(input, request, reply),
+        this.i18n,
+        request.headers["accept-language"],
+      ),
+    );
+  }
+
+  @Implement(authContract.resendVerification)
+  @Public()
+  @NoDatabaseTransaction()
+  @AuthRateLimit("resendVerification")
+  resendVerification(@Req() request: FastifyRequest) {
+    return implement(authContract.resendVerification).handler(({ input }) =>
+      invokeOrpc(
+        () => this.authVerificationController.resendVerification(input, request),
         this.i18n,
         request.headers["accept-language"],
       ),

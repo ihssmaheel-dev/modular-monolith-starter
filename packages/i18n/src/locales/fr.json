@@ -87,6 +87,16 @@
     "emailNotFound": "E-mail non trouvé",
     "resetLinkSent": "Si l'e-mail existe, un lien de réinitialisation a été envoyé",
     "passwordResetSuccess": "Le mot de passe a été réinitialisé avec succès",
+    "emailNotVerified": "Veuillez vérifier votre adresse e-mail avant de vous connecter",
+    "verificationSent": "E-mail de vérification envoyé",
+    "verifyTitle": "Vérifiez votre e-mail",
+    "verifyDescription": "Cliquez sur le bouton ci-dessous pour vérifier votre adresse e-mail.",
+    "verifyButton": "Vérifier l'e-mail",
+    "verifying": "Vérification...",
+    "checkInboxTitle": "Vérifiez votre boîte de réception",
+    "checkInboxDescription": "Nous vous avons envoyé un lien de vérification. Cliquez dessus, puis connectez-vous.",
+    "resendVerification": "Renvoyer l'e-mail de vérification",
+    "emailVerified": "E-mail vérifié. Bienvenue !",
     "accountLocked": "Compte temporairement bloqué en raison de trop de tentatives échouées. Veuillez réessayer plus tard.",
     "termsNotice": "En continuant, vous acceptez nos Conditions d'utilisation et notre Politique de confidentialité.",
     "heroTagline": "Monolithe modulaire d'entreprise",
@@ -113,6 +123,13 @@
       "heading": "Rejoignez {{organization}}",
       "body": "Vous êtes invité à collaborer dans {{organization}}. Cette invitation expire dans sept jours.",
       "buttonText": "Accepter l’invitation"
+    },
+    "verifyEmail": {
+      "subject": "Vérifiez votre adresse e-mail",
+      "preview": "Vérifiez votre adresse e-mail",
+      "heading": "Vérifiez votre adresse e-mail",
+      "body": "Cliquez sur le bouton ci-dessous pour vérifier votre adresse e-mail. Ce lien expire dans 24 heures.",
+      "buttonText": "Vérifier l’e-mail"
     }
   },
   "dashboard": {

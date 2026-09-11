@@ -106,17 +106,28 @@ describe("API liveness", () => {
 
   it("bootstraps a session from the refresh cookie after access expiry", async () => {
     const instance = app.getHttpAdapter().getInstance();
+    const email = `cookie-${crypto.randomUUID()}@example.com`;
     const registration = await instance.inject({
       method: "POST",
       url: "/api/v1/auth/register",
       payload: {
         name: "Cookie Owner",
-        email: `cookie-${crypto.randomUUID()}@example.com`,
+        email,
         password: "Password123!",
       },
     });
     expect(registration.statusCode).toBe(201);
-    const setCookies = registration.headers["set-cookie"];
+    expect(registration.json()).toMatchObject({ requiresEmailVerification: true });
+    await pool!.query("UPDATE public.users SET email_verified_at = now() WHERE email = $1", [
+      email,
+    ]);
+    const login = await instance.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email, password: "Password123!" },
+    });
+    expect(login.statusCode).toBe(200);
+    const setCookies = login.headers["set-cookie"];
     const cookies: string[] = Array.isArray(setCookies)
       ? setCookies
       : setCookies
@@ -150,7 +161,14 @@ describe("API liveness", () => {
       payload: { name: "Organization Owner", email, password: "Password123!" },
     });
     expect(registration.statusCode).toBe(201);
-    const token = (registration.json() as { accessToken: string }).accessToken;
+    await pool.query("UPDATE public.users SET email_verified_at = now() WHERE email = $1", [email]);
+    const login = await instance.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email, password: "Password123!" },
+    });
+    expect(login.statusCode).toBe(200);
+    const token = (login.json() as { accessToken: string }).accessToken;
     const headers = {
       authorization: `Bearer ${token}`,
       "idempotency-key": crypto.randomUUID(),
@@ -221,6 +239,8 @@ describe("API liveness", () => {
 
       expect(response.statusCode).toBe(201);
       expect(response.json().user.email).toBe(email);
+      expect(response.json().requiresEmailVerification).toBe(true);
+      expect(response.json()).not.toHaveProperty("accessToken");
       const events = await pool.query(
         "SELECT tenant_id, payload FROM public.outbox_events WHERE topic = $1 AND payload->>'email' = $2 ORDER BY created_at DESC LIMIT 1",
         ["user.created", email],
@@ -230,6 +250,60 @@ describe("API liveness", () => {
       expect(events.rows[0].payload.email).toBe(email);
     },
   );
+
+  it.each([
+    ["/api/v1/auth/verify-email", { token: "0".repeat(64) }],
+    ["/api/v1/rpc/auth/verifyEmail", { token: "0".repeat(64) }],
+  ])("rejects unknown verification tokens on %s", async (url, payload) => {
+    if (!pool) throw new Error("E2E database pool was not initialized.");
+    const response = await app.getHttpAdapter().getInstance().inject({
+      method: "POST",
+      url,
+      payload,
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("blocks login until the email is verified, then allows it", async () => {
+    if (!pool) throw new Error("E2E database pool was not initialized.");
+    const instance = app.getHttpAdapter().getInstance();
+    const email = `gate-${crypto.randomUUID()}@example.com`;
+    const registration = await instance.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: { name: "Gate User", email, password: "Password123!" },
+    });
+    expect(registration.statusCode).toBe(201);
+
+    const blocked = await instance.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email, password: "Password123!" },
+    });
+    expect(blocked.statusCode).toBe(403);
+
+    await pool.query("UPDATE public.users SET email_verified_at = now() WHERE email = $1", [email]);
+    const allowed = await instance.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email, password: "Password123!" },
+    });
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.json()).toHaveProperty("accessToken");
+  });
+
+  it("accepts resend requests without revealing account existence", async () => {
+    const instance = app.getHttpAdapter().getInstance();
+    for (const url of ["/api/v1/auth/resend-verification", "/api/v1/rpc/auth/resendVerification"]) {
+      const response = await instance.inject({
+        method: "POST",
+        url,
+        payload: { email: `nobody-${crypto.randomUUID()}@example.com` },
+      });
+      expect(response.statusCode).toBe(200);
+    }
+  });
 });
 
 function protectedParityRoutes(): Array<

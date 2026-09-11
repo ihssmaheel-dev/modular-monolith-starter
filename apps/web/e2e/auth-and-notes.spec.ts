@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { registerAndVerify } from "./helpers";
 
 test("signed-out visitors are sent to authentication", async ({ page }) => {
   await page.goto("/");
@@ -9,12 +10,7 @@ test("signed-out visitors are sent to authentication", async ({ page }) => {
 
 test("a new user can register, create a note, and sign out", async ({ page }) => {
   const email = `e2e-${Date.now()}@example.test`;
-  await page.goto("/auth");
-  await page.getByRole("tab", { name: /sign up|register/i }).click();
-  await page.locator("#reg-name").fill("E2E User");
-  await page.locator("#reg-email").fill(email);
-  await page.locator("#reg-password").fill("Password123!");
-  await page.getByRole("button", { name: /create account/i }).click();
+  await registerAndVerify(page, email, "E2E User");
 
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.reload();
@@ -34,12 +30,8 @@ test("a new user can register, create a note, and sign out", async ({ page }) =>
 
 test("a note attachment can be uploaded and listed", async ({ page }) => {
   const email = `e2e-files-${Date.now()}@example.test`;
-  await page.goto("/auth");
-  await page.getByRole("tab", { name: /sign up|register/i }).click();
-  await page.locator("#reg-name").fill("E2E Files");
-  await page.locator("#reg-email").fill(email);
-  await page.locator("#reg-password").fill("Password123!");
-  await page.getByRole("button", { name: /create account/i }).click();
+  await registerAndVerify(page, email, "E2E Files");
+
   await expect(page).toHaveURL(/\/dashboard$/);
 
   await page.goto("/notes/new");

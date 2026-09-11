@@ -14,7 +14,10 @@ import {
 } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
-import { loginMutationOptions } from "@/features/auth/auth.mutations";
+import {
+  loginMutationOptions,
+  resendVerificationMutationOptions,
+} from "@/features/auth/auth.mutations";
 import { useAuthSuccess } from "@/features/auth/hooks/use-auth-success";
 import { FieldError } from "@/features/auth/components/field-error";
 import { PasswordInput } from "@/features/auth/components/password-input";
@@ -27,6 +30,8 @@ export function LoginForm({ inviteToken }: { inviteToken?: string }) {
     defaultValues: { email: "", password: "" },
   });
   const mutation = useMutation({ ...loginMutationOptions(), onSuccess });
+  const resendMutation = useMutation(resendVerificationMutationOptions());
+  const needsVerification = mutation.error?.message === "auth.emailNotVerified";
 
   return (
     <Card>
@@ -70,6 +75,20 @@ export function LoginForm({ inviteToken }: { inviteToken?: string }) {
           {mutation.isError && (
             <p className="text-sm text-destructive">{t(mutation.error.message)}</p>
           )}
+          {needsVerification &&
+            (resendMutation.isSuccess ? (
+              <p className="text-sm text-muted-foreground">{t("auth.verificationSent")}</p>
+            ) : (
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-sm"
+                disabled={resendMutation.isPending}
+                onClick={() => resendMutation.mutate(form.getValues("email"))}
+              >
+                {t("auth.resendVerification")}
+              </Button>
+            ))}
           <Button type="submit" className="w-full" disabled={mutation.isPending}>
             {mutation.isPending ? t("auth.signingIn") : t("auth.signIn")}
           </Button>

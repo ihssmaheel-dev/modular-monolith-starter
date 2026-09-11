@@ -1,8 +1,11 @@
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { RegisterSchema, type RegisterInput } from "@repo/contracts";
+import { CheckCircle2 } from "lucide-react";
+import { FRONTEND_ROUTES, RegisterSchema, type RegisterInput } from "@repo/contracts";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -13,19 +16,58 @@ import {
 } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
-import { registerMutationOptions } from "@/features/auth/auth.mutations";
-import { useAuthSuccess } from "@/features/auth/hooks/use-auth-success";
+import {
+  registerMutationOptions,
+  resendVerificationMutationOptions,
+} from "@/features/auth/auth.mutations";
+import { stashPendingInviteToken } from "@/features/auth/components/verify-email-form";
 import { FieldError } from "@/features/auth/components/field-error";
 import { PasswordInput } from "@/features/auth/components/password-input";
 
 export function RegisterForm({ inviteToken }: { inviteToken?: string }) {
   const { t } = useTranslation();
-  const onSuccess = useAuthSuccess(inviteToken);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const form = useForm<RegisterInput>({
     resolver: zodResolver(RegisterSchema),
     defaultValues: { name: "", email: "", password: "" },
   });
-  const mutation = useMutation({ ...registerMutationOptions(), onSuccess });
+  const mutation = useMutation({
+    ...registerMutationOptions(),
+    onSuccess: (_data, variables) => {
+      if (inviteToken) stashPendingInviteToken(inviteToken);
+      setRegisteredEmail(variables.email);
+    },
+  });
+  const resendMutation = useMutation(resendVerificationMutationOptions());
+
+  if (registeredEmail) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("auth.checkInboxTitle")}</CardTitle>
+          <CardDescription>{t("auth.checkInboxDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-center">
+          <CheckCircle2 className="mx-auto size-10 text-primary" />
+          {resendMutation.isSuccess ? (
+            <p className="text-sm text-muted-foreground">{t("auth.verificationSent")}</p>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={resendMutation.isPending}
+              onClick={() => resendMutation.mutate(registeredEmail)}
+            >
+              {t("auth.resendVerification")}
+            </Button>
+          )}
+          <Button variant="ghost" className="w-full" render={<Link to={FRONTEND_ROUTES.auth} />}>
+            {t("auth.backToLogin")}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

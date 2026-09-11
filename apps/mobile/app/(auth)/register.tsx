@@ -2,22 +2,23 @@ import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { useTheme } from "@/theme/theme-provider";
 import { mobileTokens } from "@/theme/tokens.generated";
-import { Link, router, useLocalSearchParams } from "expo-router";
+import { Link } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { RegisterSchema, type RegisterInput } from "@repo/contracts";
-import { registerMutationOptions } from "@/features/auth/auth.mutations";
-import { useAuthStore } from "@/stores/auth.store";
+import {
+  registerMutationOptions,
+  resendVerificationMutationOptions,
+} from "@/features/auth/auth.mutations";
 import { AuthScreen } from "@/components/auth-screen";
 
 export default function Register() {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const colors = mobileTokens[resolvedTheme];
-  const { inviteToken } = useLocalSearchParams<{ inviteToken?: string }>();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const form = useForm<RegisterInput>({
     resolver: zodResolver(RegisterSchema),
@@ -25,15 +26,38 @@ export default function Register() {
   });
   const mutation = useMutation({
     ...registerMutationOptions(),
-    onSuccess: (data) => {
-      setAuth(data);
-      router.replace(
-        inviteToken
-          ? { pathname: "/accept-invitation", params: { token: inviteToken } }
-          : "/(tabs)",
-      );
-    },
+    // No session is issued before verification; invitation links stay valid
+    // server-side, so the user verifies, signs in, then follows the invite.
+    onSuccess: (_data, variables) => setRegisteredEmail(variables.email),
   });
+  const resendMutation = useMutation(resendVerificationMutationOptions());
+
+  if (registeredEmail) {
+    return (
+      <AuthScreen title={t("auth.checkInboxTitle")} description={t("auth.checkInboxDescription")}>
+        <View style={{ backgroundColor: colors.card }} className="gap-4 rounded-2xl p-5 shadow-sm">
+          {resendMutation.isSuccess ? (
+            <Text className="text-center text-sm text-muted-foreground">
+              {t("auth.verificationSent")}
+            </Text>
+          ) : (
+            <Pressable
+              className="rounded-lg border border-border py-3 disabled:opacity-50"
+              disabled={resendMutation.isPending}
+              onPress={() => resendMutation.mutate(registeredEmail)}
+            >
+              <Text className="text-center font-semibold text-foreground">
+                {t("auth.resendVerification")}
+              </Text>
+            </Pressable>
+          )}
+          <Link href="/(auth)/login" className="text-center text-sm text-muted-foreground">
+            {t("auth.backToLogin")}
+          </Link>
+        </View>
+      </AuthScreen>
+    );
+  }
 
   return (
     <AuthScreen title={t("auth.createAccountTitle")} description={t("auth.registerDescription")}>

@@ -28,6 +28,7 @@ async function bootstrap(): Promise<void> {
       name: "System Admin",
       passwordHash,
       role: "admin",
+      emailVerifiedAt: new Date(),
     });
     if (result.isErr()) {
       process.exitCode = 1;

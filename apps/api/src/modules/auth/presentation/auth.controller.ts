@@ -20,6 +20,7 @@ import {
   type AuthResponse,
   type CurrentUserResponse,
   type MessageResponse,
+  type RegisterResponse,
   RegisterSchema,
   LoginSchema,
   RefreshTokenSchema,
@@ -28,6 +29,7 @@ import {
   AuthResponseSchema,
   CurrentUserResponseSchema,
   MessageResponseSchema,
+  RegisterResponseSchema,
 } from "@repo/contracts";
 import { ForgotPasswordCommand } from "../application/commands/forgot-password.command";
 import { LoginCommand } from "../application/commands/login.command";
@@ -81,22 +83,14 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @Public()
   @AuthRateLimit("register")
-  @ResponseSchema(AuthResponseSchema)
+  @ResponseSchema(RegisterResponseSchema)
   async register(
     @Body(new ZodValidationPipe(RegisterSchema)) body: RegisterInput,
     @Req() req: FastifyRequest,
-    @Res({ passthrough: true }) reply: FastifyReply,
-  ): Promise<AuthResponse> {
+  ): Promise<RegisterResponse> {
     const locale = this.i18n.getLocale(req.headers["accept-language"]);
     const result = await this.registerCmd.execute(body, locale);
-    const value = handleResult(
-      result,
-      EMAIL_TAKEN_ERRORS,
-      this.i18n,
-      req.headers["accept-language"],
-    );
-    setAuthCookies(reply, value.accessToken, value.refreshToken);
-    return value;
+    return handleResult(result, EMAIL_TAKEN_ERRORS, this.i18n, req.headers["accept-language"]);
   }
 
   @Post("login")

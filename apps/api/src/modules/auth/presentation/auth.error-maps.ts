@@ -18,6 +18,10 @@ export const LOGIN_ERRORS: ErrorMap = {
     status: HttpStatus.TOO_MANY_REQUESTS,
     i18nKey: "auth.accountLocked",
   },
+  EMAIL_NOT_VERIFIED: {
+    status: HttpStatus.FORBIDDEN,
+    i18nKey: "auth.emailNotVerified",
+  },
 };
 
 export const INVALID_TOKEN_ERRORS: ErrorMap = {

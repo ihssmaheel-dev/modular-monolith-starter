@@ -39,6 +39,11 @@ export class LoginCommand {
     await this.lockoutService.resetAttempts(data.email);
 
     const user = result.value;
+    if (!user.isEmailVerified) {
+      // Correct password but unverified address: no tokens, no success metric,
+      // and no lockout increment (this is not a credential failure).
+      return err({ type: "EMAIL_NOT_VERIFIED" });
+    }
     const accessToken = signAccessToken(
       user.id,
       user.email,

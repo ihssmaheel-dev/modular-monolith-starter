@@ -6,13 +6,22 @@ import {
   forgotPasswordMutationOptions,
   loginMutationOptions,
   registerMutationOptions,
+  resendVerificationMutationOptions,
   resetPasswordMutationOptions,
+  verifyEmailMutationOptions,
 } from "./auth.mutations";
 
 vi.mock("@/lib/api", () => ({ getApiClient: vi.fn() }));
 
 const client = {
-  auth: { login: vi.fn(), register: vi.fn(), forgotPassword: vi.fn(), resetPassword: vi.fn() },
+  auth: {
+    login: vi.fn(),
+    register: vi.fn(),
+    forgotPassword: vi.fn(),
+    resetPassword: vi.fn(),
+    verifyEmail: vi.fn(),
+    resendVerification: vi.fn(),
+  },
 };
 
 const credentials = { email: "u@e.test", password: "Password123!" };
@@ -92,5 +101,43 @@ describe("mobile auth mutations", () => {
     await expect(
       result.current.mutateAsync({ token: "stale", password: "NewPassword123!" }),
     ).rejects.toThrow("auth.resetFailed");
+  });
+
+  it("throws emailNotVerified when the account is unverified", async () => {
+    client.auth.login.mockResolvedValue({
+      status: 403,
+      body: null,
+      error: { code: "EMAIL_NOT_VERIFIED" },
+    });
+    const { result } = renderHookWithProviders(() => useMutation(loginMutationOptions()));
+
+    await expect(result.current.mutateAsync(credentials)).rejects.toThrow("auth.emailNotVerified");
+  });
+
+  it("verifies the email and returns the session", async () => {
+    const session = { accessToken: "a" };
+    client.auth.verifyEmail.mockResolvedValue({ status: 200, body: session });
+    const { result } = renderHookWithProviders(() => useMutation(verifyEmailMutationOptions()));
+
+    await expect(result.current.mutateAsync("t".repeat(32))).resolves.toBe(session);
+    expect(client.auth.verifyEmail).toHaveBeenCalledWith({ body: { token: "t".repeat(32) } });
+  });
+
+  it("throws invalidToken when verification fails", async () => {
+    client.auth.verifyEmail.mockResolvedValue({ status: 401, body: null });
+    const { result } = renderHookWithProviders(() => useMutation(verifyEmailMutationOptions()));
+
+    await expect(result.current.mutateAsync("stale")).rejects.toThrow("auth.invalidToken");
+  });
+
+  it("resends the verification email", async () => {
+    client.auth.resendVerification.mockResolvedValue({ status: 200, body: { ok: true } });
+    const { result } = renderHookWithProviders(() =>
+      useMutation(resendVerificationMutationOptions()),
+    );
+
+    await result.current.mutateAsync("u@e.test");
+
+    expect(client.auth.resendVerification).toHaveBeenCalledWith({ body: { email: "u@e.test" } });
   });
 });

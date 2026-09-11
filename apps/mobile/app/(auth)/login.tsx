@@ -6,7 +6,10 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { LoginSchema, type LoginInput } from "@repo/contracts";
-import { loginMutationOptions } from "@/features/auth/auth.mutations";
+import {
+  loginMutationOptions,
+  resendVerificationMutationOptions,
+} from "@/features/auth/auth.mutations";
 import { useAuthStore } from "@/stores/auth.store";
 import { AuthScreen } from "@/components/auth-screen";
 import { Card } from "@/components/ui/card";
@@ -35,6 +38,8 @@ export default function Login() {
       );
     },
   });
+  const resendMutation = useMutation(resendVerificationMutationOptions());
+  const needsVerification = mutation.isError && mutation.error.message === "auth.emailNotVerified";
 
   return (
     <AuthScreen title={t("auth.login")} description={t("auth.loginDescription")}>
@@ -91,6 +96,19 @@ export default function Login() {
         {mutation.isError && (
           <Text className="text-sm text-destructive">{t(mutation.error.message)}</Text>
         )}
+        {needsVerification &&
+          (resendMutation.isSuccess ? (
+            <Text className="text-sm text-muted-foreground">{t("auth.verificationSent")}</Text>
+          ) : (
+            <Pressable
+              disabled={resendMutation.isPending}
+              onPress={() => resendMutation.mutate(form.getValues("email"))}
+            >
+              <Text className="text-center text-sm text-primary">
+                {t("auth.resendVerification")}
+              </Text>
+            </Pressable>
+          ))}
         <Button
           loading={mutation.isPending}
           onPress={form.handleSubmit((data) => mutation.mutate(data))}

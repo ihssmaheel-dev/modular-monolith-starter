@@ -21,6 +21,7 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
       role: row.role as "user" | "admin",
       avatarFileId: row.avatarFileId ?? null,
       authVersion: row.authVersion,
+      emailVerifiedAt: row.emailVerifiedAt ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });
@@ -88,6 +89,55 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
         and(
           eq(users.passwordResetTokenHash, tokenHash),
           gt(users.passwordResetExpiresAt, new Date()),
+        ),
+      )
+      .returning();
+    return ok(rows[0] ? this.toDomain(rows[0]) : null);
+  }
+
+  async setEmailVerificationToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<Result<boolean, never>> {
+    const db = this.getDb();
+    await (
+      db as unknown as {
+        update: (t: unknown) => {
+          set: (v: unknown) => { where: (c: unknown) => Promise<unknown[]> };
+        };
+      }
+    )
+      .update(users)
+      .set({
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationExpiresAt: expiresAt,
+        updatedAt: new Date(),
+      } as unknown as Record<string, unknown>)
+      .where(eq(users.id, userId));
+    return ok(true);
+  }
+
+  async verifyEmailByToken(tokenHash: string): Promise<Result<User | null, never>> {
+    const db = this.getDb();
+    const rows = await (
+      db as unknown as {
+        update: (t: unknown) => {
+          set: (v: unknown) => { where: (c: unknown) => { returning: () => Promise<UserRow[]> } };
+        };
+      }
+    )
+      .update(users)
+      .set({
+        emailVerifiedAt: new Date(),
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        updatedAt: new Date(),
+      } as unknown as Record<string, unknown>)
+      .where(
+        and(
+          eq(users.emailVerificationTokenHash, tokenHash),
+          gt(users.emailVerificationExpiresAt, new Date()),
         ),
       )
       .returning();

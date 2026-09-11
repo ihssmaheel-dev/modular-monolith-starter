@@ -1,13 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { registerAndVerify } from "./helpers";
 
 async function register(page: Page, email: string) {
-  await page.goto("/auth");
-  await page.getByRole("tab", { name: /sign up|register/i }).click();
-  await page.locator("#reg-name").fill("Notify User");
-  await page.locator("#reg-email").fill(email);
-  await page.locator("#reg-password").fill("Password123!");
-  await page.getByRole("button", { name: /create account/i }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await registerAndVerify(page, email, "Notify User");
 }
 
 test("a new user sees an empty notification center", async ({ page }) => {

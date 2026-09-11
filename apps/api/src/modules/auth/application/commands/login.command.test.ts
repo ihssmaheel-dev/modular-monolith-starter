@@ -45,6 +45,7 @@ describe("LoginCommand", () => {
       email: "test@example.com",
       name: "Test User",
       role: "user",
+      emailVerifiedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -118,5 +119,33 @@ describe("LoginCommand", () => {
       expect(result.error).toEqual({ type: "ACCOUNT_LOCKED" });
     }
     expect(verifyCredentials.execute).not.toHaveBeenCalled();
+  });
+
+  it("should return err EMAIL_NOT_VERIFIED for correct credentials on unverified accounts", async () => {
+    // Arrange
+    const user = User.fromPersistence({
+      id: "user-123",
+      email: "test@example.com",
+      name: "Test User",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(verifyCredentials.execute).mockResolvedValue(ok(user));
+
+    // Act
+    const result = await command.execute({ email: "test@example.com", password: "password123" });
+
+    // Assert
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toEqual({ type: "EMAIL_NOT_VERIFIED" });
+    }
+    expect(jwtUtils.signAccessToken).not.toHaveBeenCalled();
+    expect(lockoutService.recordFailedAttempt).not.toHaveBeenCalled();
+    expect(metricsService.incrementCounter).not.toHaveBeenCalledWith(
+      "auth_successful_logins_total",
+      expect.anything(),
+    );
   });
 });
