@@ -4,6 +4,7 @@ export type InvalidUserData = { type: "INVALID_USER_DATA"; field: string; reason
 export type InvalidPasswordResetToken = { type: "INVALID_PASSWORD_RESET_TOKEN" };
 export type InvalidVerificationToken = { type: "INVALID_VERIFICATION_TOKEN" };
 export type UserOwnsOrganization = { type: "USER_OWNS_ORGANIZATION" };
+export type UserForbidden = { type: "USER_FORBIDDEN"; userId: string };
 export type InvalidAvatarFile = { type: "INVALID_AVATAR_FILE" };
 export type UserEventDispatchFailed = { type: "USER_EVENT_DISPATCH_FAILED" };
 
@@ -14,6 +15,7 @@ export type UserError =
   | InvalidPasswordResetToken
   | InvalidVerificationToken
   | UserOwnsOrganization
+  | UserForbidden
   | InvalidAvatarFile
   | UserEventDispatchFailed;
 
@@ -31,6 +33,8 @@ export function formatUserError(error: UserError): string {
       return "Invalid email verification token";
     case "USER_OWNS_ORGANIZATION":
       return "User owns an organization";
+    case "USER_FORBIDDEN":
+      return `Not allowed to modify user: ${error.userId}`;
     case "INVALID_AVATAR_FILE":
       return "Invalid avatar file";
     case "USER_EVENT_DISPATCH_FAILED":

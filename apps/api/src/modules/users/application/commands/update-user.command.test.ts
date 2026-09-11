@@ -6,6 +6,7 @@ import { GetUserByEmailQuery } from "../queries/get-user-by-email.query";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { User } from "../../domain/entities/user.entity";
 import { ok, err } from "neverthrow";
+import type { AuthenticatedUser } from "@repo/contracts";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import type { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { ok as resultOk } from "neverthrow";
@@ -54,6 +55,22 @@ describe("UpdateUserCommand", () => {
     );
   });
 
+  const admin: AuthenticatedUser = {
+    sub: "admin-1",
+    email: "admin@example.com",
+    role: "admin",
+  };
+  const self: AuthenticatedUser = {
+    sub: "123",
+    email: "old@example.com",
+    role: "user",
+  };
+  const stranger: AuthenticatedUser = {
+    sub: "999",
+    email: "other@example.com",
+    role: "user",
+  };
+
   it("should return USER_NOT_FOUND if user does not exist", async () => {
     // Arrange
     vi.mocked(getUserById.execute).mockResolvedValue(
@@ -61,7 +78,7 @@ describe("UpdateUserCommand", () => {
     );
 
     // Act
-    const result = await command.execute("123", { name: "New Name" });
+    const result = await command.execute("123", { name: "New Name" }, admin);
 
     // Assert
     expect(result.isErr()).toBe(true);
@@ -90,7 +107,7 @@ describe("UpdateUserCommand", () => {
     vi.mocked(getUserByEmail.execute).mockResolvedValue(ok(otherUser));
 
     // Act
-    const result = await command.execute("123", { email: "new@example.com" });
+    const result = await command.execute("123", { email: "new@example.com" }, admin);
 
     // Assert
     expect(result.isErr()).toBe(true);
@@ -113,7 +130,7 @@ describe("UpdateUserCommand", () => {
     vi.mocked(repository.updateById).mockResolvedValue(ok(user));
 
     // Act
-    const result = await command.execute("123", { name: "New Name" });
+    const result = await command.execute("123", { name: "New Name" }, admin);
 
     // Assert
     expect(result.isOk()).toBe(true);
@@ -123,5 +140,66 @@ describe("UpdateUserCommand", () => {
       role: "user",
     });
     expect(outbox.dispatchGlobal).toHaveBeenCalledWith("user.updated", expect.anything());
+  });
+
+  it("should forbid a non-admin editing another user (C01)", async () => {
+    // Act
+    const result = await command.execute("123", { name: "Hacked" }, stranger);
+
+    // Assert
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toEqual({ type: "USER_FORBIDDEN", userId: "123" });
+    }
+    expect(repository.updateById).not.toHaveBeenCalled();
+  });
+
+  it("should let users change their own name but not their email", async () => {
+    // Arrange
+    const user = User.fromPersistence({
+      id: "123",
+      email: "old@example.com",
+      name: "Old",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
+    vi.mocked(repository.updateById).mockResolvedValue(ok(user));
+
+    // Act
+    const renamed = await command.execute("123", { name: "New Name" }, self);
+    const emailChange = await command.execute("123", { email: "new@example.com" }, self);
+
+    // Assert
+    expect(renamed.isOk()).toBe(true);
+    expect(emailChange.isErr()).toBe(true);
+    if (emailChange.isErr()) {
+      expect(emailChange.error).toEqual({ type: "USER_FORBIDDEN", userId: "123" });
+    }
+  });
+
+  it("should record the acting principal as the audit actor", async () => {
+    // Arrange
+    const user = User.fromPersistence({
+      id: "123",
+      email: "old@example.com",
+      name: "Old",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
+    vi.mocked(repository.updateById).mockResolvedValue(ok(user));
+
+    // Act
+    const result = await command.execute("123", { name: "New Name" }, admin);
+
+    // Assert
+    expect(result.isOk()).toBe(true);
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
+      "database.mutated",
+      expect.objectContaining({ actorId: "admin-1", documentId: "123" }),
+    );
   });
 });

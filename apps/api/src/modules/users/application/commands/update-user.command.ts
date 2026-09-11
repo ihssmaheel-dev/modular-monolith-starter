@@ -2,9 +2,9 @@ import { Injectable, Optional } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { ok, err, Result } from "neverthrow";
 import { z } from "zod";
-import { UpdateUserSchema } from "@repo/contracts";
+import { UpdateUserSchema, type AuthenticatedUser } from "@repo/contracts";
 import { User } from "../../domain/entities/user.entity";
-import { EmailTaken, UserNotFound } from "../../domain/errors/user.errors";
+import { EmailTaken, UserForbidden, UserNotFound } from "../../domain/errors/user.errors";
 import { UserUpdatedEvent } from "../../domain/events/user.events";
 import { UsersRepository } from "../../infrastructure/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
@@ -29,8 +29,11 @@ export class UpdateUserCommand {
   async execute(
     id: string,
     data: z.infer<typeof UpdateUserSchema>,
-  ): Promise<Result<User, UserNotFound | EmailTaken | UserEventDispatchFailed>> {
-    const operation = () => this.persist(id, data);
+    actor: AuthenticatedUser,
+  ): Promise<Result<User, UserNotFound | EmailTaken | UserForbidden | UserEventDispatchFailed>> {
+    const scoped = this.scopeToActor(id, data, actor);
+    if (scoped.isErr()) return err(scoped.error);
+    const operation = () => this.persist(id, scoped.value, actor);
     if (!this.database) {
       const result = await operation();
       if (result.isOk()) await this.cacheService.invalidateGlobal(`user:${id}`);
@@ -46,9 +49,27 @@ export class UpdateUserCommand {
     return ok(result.value);
   }
 
+  /**
+   * Separate administrative user management from own-profile edits.
+   * Platform admins may change any field; anyone else may only change
+   * their own name. Email changes require the dedicated verification
+   * flow, so self-service email updates are rejected, never stripped.
+   */
+  private scopeToActor(
+    id: string,
+    data: z.infer<typeof UpdateUserSchema>,
+    actor: AuthenticatedUser,
+  ): Result<z.infer<typeof UpdateUserSchema>, UserForbidden> {
+    if (actor.role === "admin") return ok(data);
+    if (actor.sub !== id) return err({ type: "USER_FORBIDDEN", userId: id });
+    if (data.email !== undefined) return err({ type: "USER_FORBIDDEN", userId: id });
+    return ok({ name: data.name });
+  }
+
   private async persist(
     id: string,
     data: z.infer<typeof UpdateUserSchema>,
+    actor: AuthenticatedUser,
   ): Promise<Result<User, UserNotFound | EmailTaken | UserEventDispatchFailed>> {
     const existing = await this.getUserById.execute(id);
     if (existing.isErr()) return err(existing.error);
@@ -77,7 +98,7 @@ export class UpdateUserCommand {
       collectionName: "users",
       documentId: saved.value.id,
       action: "UPDATE",
-      actorId: saved.value.id,
+      actorId: actor.sub,
       tenantId: undefined,
       before: { id: existing.value.id },
       after: { id: saved.value.id, email: saved.value.email, name: saved.value.name },

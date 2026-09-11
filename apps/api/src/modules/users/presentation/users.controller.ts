@@ -129,6 +129,31 @@ export class UsersController {
     return toUserResponse(user);
   }
 
+  @Patch("me")
+  @Idempotent()
+  @ResponseSchema(UserResponseSchema)
+  async updateMe(
+    @Body(new ZodValidationPipe(UpdateUserSchema)) body: UpdateUserInput,
+    @Req() req: FastifyRequest,
+  ): Promise<UserResponse> {
+    // No permission decorator: any authenticated user may edit their own
+    // profile. Self-scope is enforced inside UpdateUserCommand (name only).
+    const lang = req?.headers["accept-language"];
+    const actor = requireAuthenticatedUser(req);
+    const result = await this.updateUserCommand.execute(actor.sub, body, actor);
+    const user = handleResult(
+      result,
+      {
+        USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
+        EMAIL_TAKEN: { status: HttpStatus.CONFLICT, i18nKey: "api.user.emailTaken" },
+        USER_FORBIDDEN: { status: HttpStatus.FORBIDDEN, i18nKey: "api.error.forbidden" },
+      },
+      this.i18n,
+      lang,
+    );
+    return toUserResponse(user);
+  }
+
   @Patch(":id")
   @Idempotent()
   @RequirePermission("users:write")
@@ -139,12 +164,14 @@ export class UsersController {
     @Req() req: FastifyRequest,
   ): Promise<UserResponse> {
     const lang = req?.headers["accept-language"];
-    const result = await this.updateUserCommand.execute(id, body);
+    const actor = requireAuthenticatedUser(req);
+    const result = await this.updateUserCommand.execute(id, body, actor);
     const user = handleResult(
       result,
       {
         USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
         EMAIL_TAKEN: { status: HttpStatus.CONFLICT, i18nKey: "api.user.emailTaken" },
+        USER_FORBIDDEN: { status: HttpStatus.FORBIDDEN, i18nKey: "api.error.forbidden" },
       },
       this.i18n,
       lang,

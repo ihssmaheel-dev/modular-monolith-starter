@@ -5,8 +5,12 @@ import { PermissionsGuard } from "./permissions.guard";
 import { Permissions } from "@repo/authorization";
 import { AuthorizationService } from "../../infrastructure/authorization";
 
-function createMockContext(user?: { role: string }, tenant?: { role?: string }) {
-  const request = { user, tenant };
+function createMockContext(
+  user?: { role: string; sub?: string },
+  tenant?: { role?: string },
+  requestInit?: { params?: Record<string, unknown>; body?: Record<string, unknown> },
+) {
+  const request = { user, tenant, params: requestInit?.params, body: requestInit?.body };
   return {
     getHandler: vi.fn(),
     getClass: vi.fn(),
@@ -85,5 +89,21 @@ describe("PermissionsGuard", () => {
     const ctx = createMockContext({ role: "user" }, { role: "admin" });
 
     expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it("denies forged ownership claims from the request body (C01)", () => {
+    const reflector = {
+      getAllAndOverride: vi
+        .fn()
+        .mockReturnValue({ permissions: [Permissions.USERS_WRITE], mode: "all" }),
+    } as unknown as Reflector;
+    const guard = new PermissionsGuard(reflector, new AuthorizationService());
+    const ctx = createMockContext({ role: "user", sub: "attacker" }, undefined, {
+      params: { id: "victim" },
+      body: { ownerId: "attacker", email: "takeover@example.test" },
+    });
+
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+    expect(reflector.getAllAndOverride).toHaveBeenCalled();
   });
 });

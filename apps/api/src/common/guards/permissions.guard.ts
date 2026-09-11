@@ -45,9 +45,10 @@ export class PermissionsGuard implements CanActivate {
       tenantId: tenant?.tenantId,
       tenantRole: tenant?.role,
     };
-    // Coarse guard check: RBAC + tenant scope from trusted context.
-    // Full object-level checks (ownerId, parent) must use
-    // AuthorizationService.assert() inside commands with the loaded entity.
+    // Coarse guard check: RBAC + tenant scope from trusted context only.
+    // Never trust request-supplied ownership or attributes here: body and
+    // query values are attacker-controlled. Full object-level checks must
+    // use AuthorizationService.assert() inside commands with the loaded entity.
     const resource = resolveRequestResource(request, tenant?.tenantId);
     const allowed = requirement.permissions
       ? requirement.mode === "any"
@@ -72,20 +73,11 @@ function resolveRequestResource(
   tenantId?: string,
 ): Record<string, unknown> | undefined {
   const params = (request.params as Record<string, unknown> | undefined) ?? {};
-  const body = (request.body as Record<string, unknown> | undefined) ?? {};
   const id = typeof params.id === "string" ? params.id : undefined;
-  const ownerId =
-    typeof body.ownerId === "string"
-      ? body.ownerId
-      : typeof params.ownerId === "string"
-        ? params.ownerId
-        : undefined;
-  if (!id && !ownerId && !tenantId) return undefined;
+  if (!id && !tenantId) return undefined;
   return {
     type: "request",
     ...(id ? { id } : {}),
-    ...(ownerId ? { ownerId } : {}),
     ...(tenantId ? { tenantId } : {}),
-    attributes: { ...params, ...body },
   };
 }
