@@ -6,6 +6,10 @@ Our architecture strictly follows **Modular Monolith**, **Clean Architecture**, 
 
 This document will explain **what** we use, **why** we use it, and **how** it all connects perfectly.
 
+> **Decisions, not just descriptions:** the _why_ behind the big choices lives in
+> [docs/adr/](docs/adr/) (Architecture Decision Records) — start there when this
+> document tells you _what_ and you need to know _why_.
+
 ---
 
 ## 1. The Big Picture (System Map)

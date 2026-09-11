@@ -367,6 +367,22 @@ for (const directory of ["apps", "packages"]) {
     if (CODE_EXTENSIONS.has(path.extname(file))) checkFile(file);
   }
 }
+function checkAdrIndex() {
+  const adrDirectory = path.join(ROOT, "docs/adr");
+  const indexFile = path.join(adrDirectory, "README.md");
+  if (!fs.existsSync(adrDirectory) || !fs.existsSync(indexFile)) return;
+  const index = fs.readFileSync(indexFile, "utf8");
+  for (const file of walk(adrDirectory)) {
+    if (!/^\d{4}-.+\.md$/.test(path.basename(file)) || path.basename(file) === "0000-template.md") {
+      continue;
+    }
+    const number = path.basename(file).slice(0, 4);
+    if (!index.includes(`| ${number} `)) {
+      report(file, `ADR ${number} must be listed in the docs/adr/README.md index table`);
+    }
+  }
+}
+
 checkLocaleParity();
 checkTranslationUsage();
 checkTenantRepositories();
@@ -377,6 +393,7 @@ checkWebTestCoverage();
 checkWebFetchUsage();
 checkUiStories();
 checkCrossTabBoundaries();
+checkAdrIndex();
 
 if (failures.length) {
   process.stderr.write(
