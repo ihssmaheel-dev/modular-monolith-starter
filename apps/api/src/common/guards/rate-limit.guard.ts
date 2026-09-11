@@ -38,7 +38,9 @@ export class RateLimitGuard implements CanActivate {
     const windowSeconds = metadata?.windowSeconds ?? DEFAULT_WINDOW_SECONDS;
 
     const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
-    const route = req.routeOptions?.url ?? req.url;
+    // Prefer the route template: raw URLs carry resource IDs and would
+    // explode both Redis key and metric cardinality on random paths.
+    const route = req.routeOptions?.url ?? "unmatched";
     const lang = req.headers["accept-language"] as string | undefined;
 
     const result = await this.rateLimitService.check(`ip:${ip}:route:${route}`, {

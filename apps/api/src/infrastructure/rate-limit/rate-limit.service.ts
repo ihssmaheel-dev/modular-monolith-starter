@@ -7,6 +7,12 @@ const SLIDING_WINDOW_LOG_PREFIX = "ratelimit:";
 const DEFAULT_MAX_REQUESTS = 100;
 const DEFAULT_WINDOW_SECONDS = 60;
 const MS_PER_SECOND = 1000;
+/**
+ * Headroom above the limit retained in the sliding-window log. Counting
+ * stays exact until maxRequests + headroom; beyond that every request is
+ * rejected anyway, so trimming the oldest entries only bounds memory.
+ */
+const WINDOW_LOG_HEADROOM = 100;
 
 export interface RateLimitConfig {
   windowSeconds?: number;
@@ -40,11 +46,15 @@ export class RateLimitService {
 
     const client = this.redis.getClient();
     if (!client) {
+      // Bounded labels only: the raw key carries client IPs/identities and
+      // would explode metric cardinality precisely during an outage.
+      const scope = key.includes("/auth/") || key.includes("auth:") ? "auth" : "api";
+      const route = key.includes(":route:") ? (key.split(":route:")[1] ?? "unknown") : "unknown";
       this.metrics.incrementCounter(
         "rate_limit_redis_unavailable",
         "Redis unavailable for rate limiting",
         1,
-        { key },
+        { scope, route },
       );
       this.logger.warn({ key }, "Rate limit Redis unavailable");
       const isAuth = key.includes("/auth/") || key.includes("auth:");
@@ -62,9 +72,11 @@ export class RateLimitService {
       };
     }
 
+    const keepNewest = maxRequests + WINDOW_LOG_HEADROOM;
     const script = `
       redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])
       redis.call('ZADD', KEYS[1], ARGV[2], ARGV[3])
+      redis.call('ZREMRANGEBYRANK', KEYS[1], 0, -tonumber(ARGV[5]) - 1)
       local count = redis.call('ZCARD', KEYS[1])
       redis.call('EXPIRE', KEYS[1], ARGV[4])
       return count
@@ -78,6 +90,7 @@ export class RateLimitService {
       now.toString(),
       `${now}:${crypto.randomUUID()}`,
       windowSeconds.toString(),
+      keepNewest.toString(),
     )) as number;
 
     const remaining = Math.max(0, maxRequests - count);

@@ -88,6 +88,12 @@ import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
+    // Rate limiting runs before any expensive work (tenant resolution,
+    // permission evaluation) so unauthenticated floods are shed cheaply.
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: CsrfGuard,
@@ -99,10 +105,6 @@ import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RateLimitGuard,
     },
     {
       provide: APP_INTERCEPTOR,
