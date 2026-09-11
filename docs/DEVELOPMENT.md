@@ -62,6 +62,32 @@ Local endpoints:
 
 Stop infrastructure with `pnpm docker:down`.
 
+## Staging environment
+
+Staging mirrors production shape (nginx + web + api + worker, migrate gate) against
+self-hosted dependencies, so it is the last place migrations, images, and config
+break before production. Host ports are shifted so staging runs side by side with dev.
+
+```sh
+pnpm staging:up    # build images, migrate, start everything -> http://localhost:8080
+pnpm staging:seed  # idempotent admin seed into the staging database only (never dev)
+pnpm staging:logs  # follow all staging services
+pnpm staging:down  # stop everything (add -v via docker compose to wipe staging data)
+```
+
+Verify a fresh stack:
+
+```sh
+curl http://localhost:8080/api/v1/health/live
+curl http://localhost:8080/
+```
+
+Mailpit captures staging email at `http://localhost:8026`, MinIO console at
+`http://localhost:9003`. Differences from prod, all deliberate: no TLS (plain HTTP
+on `:8080`), local Postgres/Redis/MinIO instead of managed services, weak committed
+secrets in `docker/.env.staging.example` (copy to gitignored `docker/.env.staging`
+for custom values — never production secrets).
+
 ### Web local env
 
 Web reads `apps/web/.env` (copied from `.env.example` on `pnpm bootstrap`):

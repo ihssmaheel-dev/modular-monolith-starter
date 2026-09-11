@@ -22,6 +22,7 @@ web-build/
 .env
 .env.local
 .env.*.local
+docker/.env.staging
 
 # IDE
 .vscode/

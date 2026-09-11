@@ -105,6 +105,10 @@ jobs:
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
           docker compose -f docker/docker-compose.prod.yml config
 
+      - name: Validate staging compose
+        run: |
+          docker compose -f docker/docker-compose.staging.yml --env-file docker/.env.staging.example config
+
       - name: Deploy instructions
         run: |
           echo "Images published with tag ${GITHUB_SHA::12}."
