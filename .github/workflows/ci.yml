@@ -157,3 +157,6 @@ jobs:
 
       - name: Build production web image
         run: docker build --file apps/web/Dockerfile --build-arg VITE_API_URL=http://localhost:5156/api/v1 --tag modular-monolith-web:ci .
+
+      - name: Build Storybook catalog
+        run: pnpm turbo build-storybook --filter=@repo/ui
