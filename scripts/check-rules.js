@@ -362,6 +362,23 @@ function checkCrossTabBoundaries() {
   }
 }
 
+function checkAlertRunbookMapping() {
+  const alertsFile = path.join(ROOT, "docker/observability/prometheus/alerts.yml");
+  const runbooksDirectory = path.join(ROOT, "docs/runbooks");
+  if (!fs.existsSync(alertsFile) || !fs.existsSync(runbooksDirectory)) return;
+  const alertsSource = fs.readFileSync(alertsFile, "utf8");
+  const alertNames = [...alertsSource.matchAll(/-\s*alert:\s*([A-Za-z0-9_]+)/g)].map((m) => m[1]);
+  const runbookSources = walk(runbooksDirectory)
+    .filter((file) => file.endsWith(".md"))
+    .map((file) => fs.readFileSync(file, "utf8"))
+    .join("\n");
+  for (const alert of alertNames) {
+    if (!runbookSources.includes(alert)) {
+      report(alertsFile, `alert ${alert} has no runbook referencing it in docs/runbooks/`);
+    }
+  }
+}
+
 for (const directory of ["apps", "packages"]) {
   for (const file of walk(path.join(ROOT, directory))) {
     if (CODE_EXTENSIONS.has(path.extname(file))) checkFile(file);
@@ -394,6 +411,7 @@ checkWebFetchUsage();
 checkUiStories();
 checkCrossTabBoundaries();
 checkAdrIndex();
+checkAlertRunbookMapping();
 
 if (failures.length) {
   process.stderr.write(

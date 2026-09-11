@@ -78,6 +78,12 @@ When errors occur on the API or in the frontend, an 8-character error reference 
   `SLACK_WEBHOOK_URL`, run Alertmanager alongside Prometheus, and uncomment the block.
   Local `observability:up` intentionally runs without Alertmanager.
 
+## Incident runbooks (`docs/runbooks/`)
+
+When an alert fires, start in `docs/runbooks/` (index in `README.md`), not here — each
+runbook names its alert, triage commands, fix paths, and escalation triggers. Every
+Prometheus alert must map to exactly one runbook; `pnpm rules:check` enforces the mapping.
+
 ## Backups (`scripts/db-backup.sh`, `scripts/db-restore.sh`, `scripts/db-restore-verify.sh`)
 
 ```bash
