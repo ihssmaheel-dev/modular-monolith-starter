@@ -20,8 +20,7 @@ export function NoteCreateForm() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const goBack = () => navigate({ to: FRONTEND_ROUTES.notes });
-  const goToDetail = (id: string) =>
-    navigate({ to: "/_app/notes/$noteId", params: { noteId: id } });
+  const goToDetail = (id: string) => navigate({ to: "/notes/$noteId", params: { noteId: id } });
   const form = useForm<CreateNoteDto>({
     resolver: zodResolver(CreateNoteSchema),
     defaultValues: { title: "", content: "" },

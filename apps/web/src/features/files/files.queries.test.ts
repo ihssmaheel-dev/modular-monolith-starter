@@ -16,7 +16,7 @@ describe("files queries", () => {
     const body = { items: [], total: 0, page: 1, limit: 100, totalPages: 0 };
     client.files.listByParent.mockResolvedValue({ status: 200, body });
 
-    await expect(filesListQuery("note", "n-1").queryFn()).resolves.toBe(body);
+    await expect(filesListQuery("note", "n-1").queryFn!({} as never)).resolves.toBe(body);
     expect(client.files.listByParent).toHaveBeenCalledWith({
       query: { parentType: "note", parentId: "n-1", limit: 100 },
     });
@@ -25,6 +25,8 @@ describe("files queries", () => {
   it("throws internal when the listing fails", async () => {
     client.files.listByParent.mockResolvedValue({ status: 500, body: null });
 
-    await expect(filesListQuery("general").queryFn()).rejects.toThrow("api.error.internal");
+    await expect(filesListQuery("general").queryFn!({} as never)).rejects.toThrow(
+      "api.error.internal",
+    );
   });
 });

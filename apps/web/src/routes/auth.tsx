@@ -3,7 +3,7 @@ import { FRONTEND_ROUTES } from "@repo/contracts";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { inviteToken?: string } => ({
     inviteToken: typeof search.inviteToken === "string" ? search.inviteToken : undefined,
   }),
   beforeLoad: () => {

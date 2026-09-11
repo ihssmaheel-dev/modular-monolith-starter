@@ -17,7 +17,7 @@ export function getNotesColumns(
       header: t("notes.noteTitle"),
       cell: (row) => (
         <Link
-          to="/_app/notes/$noteId"
+          to="/notes/$noteId"
           params={{ noteId: row.id }}
           className="font-medium hover:underline"
         >

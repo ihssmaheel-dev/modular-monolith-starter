@@ -22,14 +22,14 @@ describe("notifications queries", () => {
     const body = { items: [], total: 0, page: 1, limit: 5, totalPages: 0 };
     client.notifications.list.mockResolvedValue({ status: 200, body });
 
-    await expect(notificationsListQuery(1, 5).queryFn()).resolves.toBe(body);
+    await expect(notificationsListQuery(1, 5).queryFn!({} as never)).resolves.toBe(body);
     expect(client.notifications.list).toHaveBeenCalledWith({ query: { page: 1, limit: 5 } });
   });
 
   it("throws fetchFailed when the list request fails", async () => {
     client.notifications.list.mockResolvedValue({ status: 500, body: null });
 
-    await expect(notificationsListQuery(1, 5).queryFn()).rejects.toThrow(
+    await expect(notificationsListQuery(1, 5).queryFn!({} as never)).rejects.toThrow(
       "api.notifications.fetchFailed",
     );
   });
@@ -37,13 +37,13 @@ describe("notifications queries", () => {
   it("unwraps the unread count", async () => {
     client.notifications.unreadCount.mockResolvedValue({ status: 200, body: { count: 3 } });
 
-    await expect(unreadCountQuery().queryFn()).resolves.toBe(3);
+    await expect(unreadCountQuery().queryFn!({} as never)).resolves.toBe(3);
   });
 
   it("unwraps the preferences array", async () => {
     const preferences = [{ category: "account" }];
     client.notifications.getPreferences.mockResolvedValue({ status: 200, body: { preferences } });
 
-    await expect(preferencesQuery().queryFn()).resolves.toBe(preferences);
+    await expect(preferencesQuery().queryFn!({} as never)).resolves.toBe(preferences);
   });
 });

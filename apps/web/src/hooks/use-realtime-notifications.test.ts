@@ -40,7 +40,7 @@ class MockEventSource {
   }
 }
 
-const user = { id: "u-1", email: "u@e.test", name: "U", role: "user" } as const;
+const user = { id: "u-1", email: "u@e.test", name: "U", role: "user", avatarFileId: null } as const;
 
 describe("useRealtimeNotifications", () => {
   beforeEach(() => {

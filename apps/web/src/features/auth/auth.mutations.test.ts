@@ -28,7 +28,10 @@ describe("auth mutations", () => {
     client.auth.login.mockResolvedValue({ status: 401, body: null });
 
     await expect(
-      loginMutationOptions().mutationFn({ email: "u@e.test", password: "wrong" }),
+      loginMutationOptions().mutationFn!(
+        { email: "u@e.test", password: "wrong" },
+        undefined as never,
+      ),
     ).rejects.toThrow("auth.loginFailed");
   });
 
@@ -36,11 +39,14 @@ describe("auth mutations", () => {
     client.auth.register.mockResolvedValue({ status: 409, body: null });
 
     await expect(
-      registerMutationOptions().mutationFn({
-        name: "U",
-        email: "u@e.test",
-        password: "Password123!",
-      }),
+      registerMutationOptions().mutationFn!(
+        {
+          name: "U",
+          email: "u@e.test",
+          password: "Password123!",
+        },
+        undefined as never,
+      ),
     ).rejects.toThrow("auth.registrationFailed");
   });
 
@@ -49,7 +55,10 @@ describe("auth mutations", () => {
     client.auth.login.mockResolvedValue({ status: 200, body });
 
     await expect(
-      loginMutationOptions().mutationFn({ email: "u@e.test", password: "Password123!" }),
+      loginMutationOptions().mutationFn!(
+        { email: "u@e.test", password: "Password123!" },
+        undefined as never,
+      ),
     ).resolves.toBe(body);
   });
 
@@ -61,7 +70,10 @@ describe("auth mutations", () => {
     });
 
     await expect(
-      loginMutationOptions().mutationFn({ email: "u@e.test", password: "Password123!" }),
+      loginMutationOptions().mutationFn!(
+        { email: "u@e.test", password: "Password123!" },
+        undefined as never,
+      ),
     ).rejects.toThrow("auth.emailNotVerified");
   });
 
@@ -69,23 +81,27 @@ describe("auth mutations", () => {
     const body = { accessToken: "a", refreshToken: "r", user: { id: "u-1" } };
     client.auth.verifyEmail.mockResolvedValue({ status: 200, body });
 
-    await expect(verifyEmailMutationOptions().mutationFn("t".repeat(32))).resolves.toBe(body);
+    await expect(
+      verifyEmailMutationOptions().mutationFn!("t".repeat(32), undefined as never),
+    ).resolves.toBe(body);
     expect(client.auth.verifyEmail).toHaveBeenCalledWith({ body: { token: "t".repeat(32) } });
   });
 
   it("throws invalidToken when verification fails", async () => {
     client.auth.verifyEmail.mockResolvedValue({ status: 401, body: null });
 
-    await expect(verifyEmailMutationOptions().mutationFn("stale")).rejects.toThrow(
-      "auth.invalidToken",
-    );
+    await expect(
+      verifyEmailMutationOptions().mutationFn!("stale", undefined as never),
+    ).rejects.toThrow("auth.invalidToken");
   });
 
   it("resends the verification email", async () => {
     const body = { message: "ok" };
     client.auth.resendVerification.mockResolvedValue({ status: 200, body });
 
-    await expect(resendVerificationMutationOptions().mutationFn("u@e.test")).resolves.toBe(body);
+    await expect(
+      resendVerificationMutationOptions().mutationFn!("u@e.test", undefined as never),
+    ).resolves.toBe(body);
     expect(client.auth.resendVerification).toHaveBeenCalledWith({ body: { email: "u@e.test" } });
   });
 });

@@ -15,7 +15,13 @@ describe("auth store", () => {
 
   it("transitions loading -> authenticated on setAuth", () => {
     useAuthStore.setState({ ...signedOut, status: "loading" });
-    const user = { id: "u-1", email: "u@e.test", name: "U", role: "user" } as const;
+    const user = {
+      id: "u-1",
+      email: "u@e.test",
+      name: "U",
+      role: "user",
+      avatarFileId: null,
+    } as const;
 
     useAuthStore.getState().setAuth({ accessToken: "a", refreshToken: "r", user });
 
@@ -30,7 +36,7 @@ describe("auth store", () => {
     useAuthStore.getState().setAuth({
       accessToken: "a",
       refreshToken: "r",
-      user: { id: "u-1", email: "u@e.test", name: "U", role: "user" },
+      user: { id: "u-1", email: "u@e.test", name: "U", role: "user", avatarFileId: null },
     });
 
     useAuthStore.getState().clearAuth();
@@ -42,9 +48,15 @@ describe("auth store", () => {
     useAuthStore.getState().setAuth({
       accessToken: "a",
       refreshToken: "r",
-      user: { id: "u-1", email: "u@e.test", name: "U", role: "user" },
+      user: { id: "u-1", email: "u@e.test", name: "U", role: "user", avatarFileId: null },
     });
-    const next = { id: "u-1", email: "u@e.test", name: "Renamed", role: "user" } as const;
+    const next = {
+      id: "u-1",
+      email: "u@e.test",
+      name: "Renamed",
+      role: "user",
+      avatarFileId: null,
+    } as const;
 
     useAuthStore.getState().setUser(next);
 

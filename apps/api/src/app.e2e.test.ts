@@ -143,7 +143,7 @@ describe("API liveness", () => {
       url: "/api/v1/rpc/auth/refresh",
       headers: {
         cookie: `${refreshCookie.split(";", 1)[0]}; ${xsrf}`,
-        "x-xsrf-token": xsrf.split("=", 1)[1] ?? "",
+        "x-xsrf-token": xsrf.slice(xsrf.indexOf("=") + 1),
       },
       payload: {},
     });

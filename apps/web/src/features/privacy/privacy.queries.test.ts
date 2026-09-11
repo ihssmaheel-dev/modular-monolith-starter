@@ -20,14 +20,16 @@ describe("privacy queries", () => {
     const body = { requests: [], total: 0, page: 1, limit: 20, totalPages: 0 };
     client.privacy.listRequests.mockResolvedValue({ status: 200, body });
 
-    await expect(privacyRequestsQuery(1, 20).queryFn()).resolves.toBe(body);
+    await expect(privacyRequestsQuery(1, 20).queryFn!({} as never)).resolves.toBe(body);
     expect(client.privacy.listRequests).toHaveBeenCalledWith({ page: 1, limit: 20 });
   });
 
   it("throws exportFailed when the request listing fails", async () => {
     client.privacy.listRequests.mockResolvedValue({ status: 500, body: null });
 
-    await expect(privacyRequestsQuery(1, 20).queryFn()).rejects.toThrow("api.privacy.exportFailed");
+    await expect(privacyRequestsQuery(1, 20).queryFn!({} as never)).rejects.toThrow(
+      "api.privacy.exportFailed",
+    );
   });
 
   it("downloads the export snapshot and reports truncation", async () => {

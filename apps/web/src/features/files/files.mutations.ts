@@ -6,10 +6,14 @@ import { getApiClient } from "@/lib/api";
 
 export function putBytesWithProgress(
   url: string,
-  body: UploadBody,
+  body: UploadBody | undefined,
   contentType: string,
   onProgress: (ratio: number) => void,
 ): Promise<void> {
+  if (!body) return Promise.reject(new Error("api.error.invalidRequest"));
+  // Normalize to XHR-sendable bytes: a generic Uint8Array is not an
+  // ArrayBufferView<ArrayBuffer>, so copy it into ArrayBuffer backing.
+  const payload = body instanceof Blob || body instanceof ArrayBuffer ? body : new Uint8Array(body);
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
@@ -26,7 +30,7 @@ export function putBytesWithProgress(
       }
     };
     xhr.onerror = () => reject(new Error("PUT network error"));
-    xhr.send(body as BodyInit);
+    xhr.send(payload);
   });
 }
 

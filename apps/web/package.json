@@ -6,7 +6,7 @@
   "scripts": {
     "predev": "node ../../scripts/ensure-web-env.js",
     "dev": "vite dev --port 5155",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vite build",
     "start": "srvx --prod --static=../client --entry=dist/server/server.js",
     "preview": "vite preview",
     "test": "vitest run",
@@ -16,7 +16,7 @@
     "test:e2e": "playwright test",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

@@ -65,7 +65,9 @@ export function EraseAccountCard() {
           variant="destructive"
           open={open}
           onOpenChange={setOpen}
-          onConfirm={() => eraseMutation.mutateAsync(password)}
+          onConfirm={() => {
+            void eraseMutation.mutateAsync(password);
+          }}
           trigger={
             <Button variant="destructive" disabled={!password || eraseMutation.isPending}>
               {t("privacy.eraseAccount")}

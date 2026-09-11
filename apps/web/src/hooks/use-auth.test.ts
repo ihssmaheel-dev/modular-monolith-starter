@@ -3,7 +3,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { renderHookWithProviders } from "@/test/utils";
 import { useAuth } from "./use-auth";
 
-const user = { id: "u-1", email: "u@e.test", name: "U", role: "user" } as const;
+const user = { id: "u-1", email: "u@e.test", name: "U", role: "user", avatarFileId: null } as const;
 
 describe("useAuth", () => {
   beforeEach(() => {

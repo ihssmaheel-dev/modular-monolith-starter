@@ -16,13 +16,15 @@ describe("users queries", () => {
     const body = { items: [], total: 0, page: 1, limit: 20, totalPages: 0 };
     client.users.list.mockResolvedValue({ status: 200, body });
 
-    await expect(usersListQuery(1, 20).queryFn()).resolves.toBe(body);
+    await expect(usersListQuery(1, 20).queryFn!({} as never)).resolves.toBe(body);
     expect(client.users.list).toHaveBeenCalledWith({ query: { page: 1, limit: 20 } });
   });
 
   it("throws networkError when the listing fails", async () => {
     client.users.list.mockResolvedValue({ status: 500, body: null });
 
-    await expect(usersListQuery(1, 20).queryFn()).rejects.toThrow("errors.networkError");
+    await expect(usersListQuery(1, 20).queryFn!({} as never)).rejects.toThrow(
+      "errors.networkError",
+    );
   });
 });
