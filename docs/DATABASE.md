@@ -63,14 +63,21 @@ no code changes for it, by design:
   inside `runWithTransactionContext`), so nothing leaks across pooled sessions. No app code
   uses `LISTEN`/`NOTIFY`, session-level `SET`, or explicit `.prepare()` calls.
 - **Drizzle prepared statements** work in transaction mode because the pooler runs
-  `max_prepared_statements = 100` (PgBouncer ≥ 1.21 tracks them per protocol). Never lower
+  `max_prepared_statements = 100` (PgBouncer >= 1.21 tracks them per protocol). Never lower
   it without re-verifying; `prepared statement does not exist` errors mean exactly this.
-- **Bypass list (direct connections only):** migrations (advisory locks), `drizzle-kit`
-  commands, and seed scripts use `DB_DIRECT_URL`, falling back to `DATABASE_URL`.
-- **Sizing:** `(replicas × DB_MAX_POOL_SIZE 5–10) → pgbouncer pool 25–50 → Postgres
+  `server_reset_query` stays at the transaction-mode default (`DISCARD ALL`), so no
+  session state survives across pooled checkouts.
+- **Bypass list (direct connections only):** migrations (advisory locks) and `drizzle-kit`
+  commands use `DB_DIRECT_URL`, falling back to `DATABASE_URL`. Seed scripts are plain
+  CRUD with no locks or `LISTEN`, so they are pooler-safe; `staging-seed` still pins the
+  direct URL by construction.
+- **Sizing:** `(replicas x DB_MAX_POOL_SIZE 5-10) -> pgbouncer pool 25-50 -> Postgres
 max_connections`. Start small; grow on pool-wait metrics, not guesses.
-- **Health story:** the pooler has no healthcheck by design — the API readiness probe runs
+- **Health story:** the pooler has no healthcheck by design - the API readiness probe runs
   through it, so a dead pooler surfaces as API-unhealthy and nginx stops routing there.
+- Session mode is a documented fallback only, not built: transaction mode is correct here
+  because all RLS context is transaction-local; revisit only if a future workload needs
+  session-pinned features.
 - Enable in prod with `--profile pooling` and point app/worker `DATABASE_URL` at the pooler;
   staging always pools so the path is exercised before production.
 

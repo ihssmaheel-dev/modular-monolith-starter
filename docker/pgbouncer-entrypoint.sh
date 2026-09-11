@@ -30,7 +30,7 @@ cat > "${CONFIG_DIR}/pgbouncer.ini" <<EOF
 listen_addr = *
 listen_port = 6432
 auth_type = scram-sha-256
-auth_file = /etc/pgbouncer/userlist.txt
+auth_file = ${CONFIG_DIR}/userlist.txt
 pool_mode = transaction
 max_client_conn = ${PGBOUNCER_MAX_CLIENT_CONN:-200}
 default_pool_size = ${PGBOUNCER_POOL_SIZE:-25}
