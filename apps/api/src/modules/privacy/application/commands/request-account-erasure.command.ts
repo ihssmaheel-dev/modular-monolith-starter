@@ -2,8 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { err, ok, Result } from "neverthrow";
 import type { AuthenticatedUser } from "@repo/contracts";
-import { env } from "../../../../config/env";
-import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
+import { DatabaseService } from "../../../../infrastructure/database";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { SessionService } from "../../../../infrastructure/session/session.service";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
@@ -15,8 +14,6 @@ import { ListOrganizationsQuery } from "../../../tenancy/application/queries/lis
 import { CanDeleteUserQuery } from "../../../tenancy/application/queries/can-delete-user.query";
 import { PurgeUserTenancyDataCommand } from "../../../tenancy/application/commands/purge-user-tenancy-data.command";
 import { PurgeUserNotificationsCommand } from "../../../notifications/application/commands/purge-user-notifications.command";
-import { PurgeUserNotesCommand } from "../../../notes/application/commands/purge-user-notes.command";
-import { PurgeUserFilesCommand } from "../../../files/application/commands/purge-user-files.command";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { AccountErasureRequestedEvent } from "../../domain/events/privacy.events";
@@ -26,8 +23,11 @@ const GRACE_DAYS = 30;
 const EXPORT_PAGE_LIMIT = 100;
 
 /**
- * GDPR Art. 17: revoke access now, anonymize identifiers now, hard-delete
- * after a 30-day grace period (see PurgeExpiredErasuresCommand).
+ * GDPR Art. 17 in two phases (C03): this request revokes access, anonymizes
+ * identifiers, and commits an erasure PLAN (tenant scope list) — all
+ * transaction-safe row work. Notes/files bytes are destroyed later by
+ * PurgeExpiredErasuresCommand, because S3 deletions cannot roll back with
+ * the database transaction. Hard delete follows the 30-day grace period.
  */
 @Injectable()
 export class RequestAccountErasureCommand {
@@ -42,9 +42,6 @@ export class RequestAccountErasureCommand {
     private readonly canDeleteUser: CanDeleteUserQuery,
     private readonly purgeTenancy: PurgeUserTenancyDataCommand,
     private readonly purgeNotifications: PurgeUserNotificationsCommand,
-    private readonly purgeNotes: PurgeUserNotesCommand,
-    private readonly purgeFiles: PurgeUserFilesCommand,
-    private readonly tenantContext: TenantContextService,
     private readonly cache: DistributedCacheService,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
@@ -81,10 +78,9 @@ export class RequestAccountErasureCommand {
     const deletable = await this.canDeleteUser.execute(actor.sub);
     if (deletable.isErr()) return err({ type: "LAST_OWNER_BLOCKED" });
 
-    const orgsResult = await this.listOrganizations.execute(actor, 1, EXPORT_PAGE_LIMIT);
-    const tenantIds = orgsResult.isOk()
-      ? [...new Set(orgsResult.value.items.map((a) => a.organization.data.id))]
-      : [];
+    // Keyset-page every membership: capping at the first page would leave
+    // later organizations unpurged at fulfill time.
+    const tenantIds = await this.collectTenantIds(actor);
 
     await this.sessions.revokeAllForUser(actor.sub);
     await this.incrementAuthVersion.execute(actor.sub);
@@ -98,15 +94,6 @@ export class RequestAccountErasureCommand {
     const notificationsPurged = await this.purgeNotifications.execute(actor.sub);
     if (notificationsPurged.isErr()) return err({ type: "ERASURE_FAILED" });
 
-    for (const tenantId of tenantIds) {
-      const purged = await this.purgeTenantData(actor.sub, tenantId);
-      if (purged.isErr()) return err({ type: "ERASURE_FAILED" });
-    }
-    if (env.TENANCY_MODE === "single") {
-      const purged = await this.purgeTenantData(actor.sub, undefined);
-      if (purged.isErr()) return err({ type: "ERASURE_FAILED" });
-    }
-
     await this.cache.invalidateGlobal(`user:${actor.sub}`);
 
     const expiresAt = new Date(Date.now() + GRACE_DAYS * 24 * 60 * 60 * 1000);
@@ -114,6 +101,7 @@ export class RequestAccountErasureCommand {
       type: "ACCOUNT_ERASURE",
       status: "REQUESTED",
       subjectUserId: actor.sub,
+      payload: { tenantIds },
       expiresAt,
     });
     if (created.isErr()) return err({ type: "ERASURE_FAILED" });
@@ -144,26 +132,23 @@ export class RequestAccountErasureCommand {
     await this.events.emitAsync("database.mutated", payload);
   }
 
-  private async purgeTenantData(
-    userId: string,
-    tenantId: string | undefined,
-  ): Promise<Result<void, PrivacyError>> {
-    if (tenantId === undefined || env.TENANCY_MODE !== "multi") {
-      return this.purgeScope(userId);
+  /**
+   * Collects every organization scope for the erasure plan. A single first
+   * page is not enough: members past the page limit would otherwise keep
+   * their data at fulfill time.
+   */
+  private async collectTenantIds(actor: AuthenticatedUser): Promise<string[]> {
+    const tenantIds = new Set<string>();
+    let page = 1;
+    for (;;) {
+      const orgsResult = await this.listOrganizations.execute(actor, page, EXPORT_PAGE_LIMIT);
+      if (orgsResult.isErr()) break;
+      for (const access of orgsResult.value.items) {
+        tenantIds.add(access.organization.data.id);
+      }
+      if (page >= orgsResult.value.totalPages) break;
+      page += 1;
     }
-    // Bind SQL scope as well as CLS: the ambient transaction fixed its
-    // PostgreSQL settings when it opened, so a CLS-only switch would purge
-    // under the wrong tenant (or no rows at all under enforced RLS).
-    const run = () => this.purgeScope(userId);
-    if (this.database) return this.database.withTenantScope(tenantId, run);
-    return this.tenantContext.run({ mode: "multi", tenantId }, run);
-  }
-
-  private async purgeScope(userId: string): Promise<Result<void, PrivacyError>> {
-    const notes = await this.purgeNotes.execute(userId);
-    if (notes.isErr()) return err({ type: "ERASURE_FAILED" });
-    const files = await this.purgeFiles.execute(userId);
-    if (files.isErr()) return err({ type: "ERASURE_FAILED" });
-    return ok(undefined);
+    return [...tenantIds];
   }
 }

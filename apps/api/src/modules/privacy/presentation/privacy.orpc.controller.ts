@@ -66,8 +66,10 @@ export class PrivacyOrpcController {
 
   @Implement(privacyContract.requestOrganizationErasure)
   @Idempotent()
-  @RequirePermission("privacy:erase:tenant")
   requestOrganizationErasure(@Req() request: FastifyRequest) {
+    // No coarse permission: TenantAgnostic routes carry no tenant role, so
+    // owners could never satisfy privacy:erase:tenant at the guard. The
+    // command enforces organization ownership on trusted membership reads.
     return implement(privacyContract.requestOrganizationErasure).handler(({ input }) =>
       invokeOrpc(
         () => this.privacyController.eraseOrganization(input.organizationId, input, request),

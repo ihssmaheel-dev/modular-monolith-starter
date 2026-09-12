@@ -73,9 +73,19 @@ export class RequestExportCommand {
       ? notificationData.value
       : { notifications: [], devices: [], batches: [], truncated: false };
 
+    // A dependency failure must never masquerade as a complete export:
+    // label it in the payload instead of serving silent gaps as READY data.
+    const incomplete =
+      invitationsResult.isErr() ||
+      preferencesResult.isErr() ||
+      notificationData.isErr() ||
+      notes.incomplete ||
+      files.incomplete;
+
     const payload = {
       exportedAt: new Date().toISOString(),
       truncated: notes.truncated || files.truncated || inbox.truncated,
+      incomplete,
       profile: {
         id: user.id,
         email: user.email,
@@ -175,6 +185,7 @@ export class RequestExportCommand {
   private async collectNotes(actor: AuthenticatedUser, tenantIds: string[]) {
     const items: Array<Record<string, unknown>> = [];
     let truncated = false;
+    let incomplete = false;
     const scopes = env.TENANCY_MODE === "multi" && tenantIds.length > 0 ? tenantIds : [undefined];
     for (const tenantId of scopes) {
       let page = 1;
@@ -194,7 +205,12 @@ export class RequestExportCommand {
                   actor,
                 );
         const result = await run();
-        if (result.isErr()) break;
+        // A failed scope must not silently shrink the export: mark it and
+        // keep the scopes that did load.
+        if (result.isErr()) {
+          incomplete = true;
+          break;
+        }
         for (const note of result.value.items) {
           if (items.length >= EXPORT_MAX_ITEMS) {
             truncated = true;
@@ -214,12 +230,13 @@ export class RequestExportCommand {
       }
       if (truncated) break;
     }
-    return { items, truncated };
+    return { items, truncated, incomplete };
   }
 
   private async collectFiles(userId: string, tenantIds: string[]) {
     const items: Array<Record<string, unknown>> = [];
     let truncated = false;
+    let incomplete = false;
     const scopes = env.TENANCY_MODE === "multi" && tenantIds.length > 0 ? tenantIds : [undefined];
     for (const tenantId of scopes) {
       const run =
@@ -230,7 +247,10 @@ export class RequestExportCommand {
               )
           : () => this.listFilesByUploader.execute(userId, EXPORT_MAX_ITEMS);
       const result = await run();
-      if (result.isErr()) continue;
+      if (result.isErr()) {
+        incomplete = true;
+        continue;
+      }
       for (const file of result.value) {
         if (items.length >= EXPORT_MAX_ITEMS) {
           truncated = true;
@@ -248,6 +268,6 @@ export class RequestExportCommand {
       }
       if (truncated) break;
     }
-    return { items, truncated };
+    return { items, truncated, incomplete };
   }
 }

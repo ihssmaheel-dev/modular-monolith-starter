@@ -6,7 +6,13 @@ export const dsrTypeEnum = pgEnum("dsr_type", [
   "ORGANIZATION_ERASURE",
 ]);
 
-export const dsrStatusEnum = pgEnum("dsr_status", ["REQUESTED", "READY", "FULFILLED", "EXPIRED"]);
+export const dsrStatusEnum = pgEnum("dsr_status", [
+  "REQUESTED",
+  "READY",
+  "FULFILLED",
+  "EXPIRED",
+  "FAILED",
+]);
 
 export const dsrRequests = pgTable(
   "dsr_requests",

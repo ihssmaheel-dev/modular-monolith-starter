@@ -3,7 +3,7 @@ import { PaginationQuerySchema } from "./pagination.schema";
 import { DigestCadenceSchema } from "./notification.schema";
 
 export const DsrTypeSchema = z.enum(["EXPORT", "ACCOUNT_ERASURE", "ORGANIZATION_ERASURE"]);
-export const DsrStatusSchema = z.enum(["REQUESTED", "READY", "FULFILLED", "EXPIRED"]);
+export const DsrStatusSchema = z.enum(["REQUESTED", "READY", "FULFILLED", "EXPIRED", "FAILED"]);
 
 export const RequestAccountErasureSchema = z.object({
   password: z.string().min(1).max(128),

@@ -37,6 +37,10 @@ describe("PurgeExpiredErasuresCommand", () => {
     deleteUser = deleteUserMock;
     const hardDeleteOrganization = {} as HardDeleteOrganizationCommand;
     purgeNotifications = { execute: vi.fn().mockResolvedValue(ok(undefined)) };
+    const purgeUserNotes = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
+    const purgeUserFiles = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
+    const purgeTenantNotes = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
+    const purgeTenantFiles = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
     const outbox = {
       dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as OutboxService;
@@ -49,6 +53,10 @@ describe("PurgeExpiredErasuresCommand", () => {
       deleteUser as never,
       hardDeleteOrganization,
       purgeNotifications as never,
+      purgeUserNotes as never,
+      purgeUserFiles as never,
+      purgeTenantNotes as never,
+      purgeTenantFiles as never,
       outbox,
       events,
       logger,

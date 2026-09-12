@@ -122,11 +122,13 @@ export class PrivacyController {
     return toDsrResponse(request);
   }
 
+  // No coarse permission: TenantAgnostic routes carry no tenant role, so
+  // owners could never satisfy privacy:erase:tenant at the guard. Ownership
+  // is enforced in the command on trusted membership reads instead.
   @Post("organizations/:organizationId/erase")
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
   @RateLimit(5, 900)
-  @RequirePermission("privacy:erase:tenant")
   @ResponseSchema(DsrResponseSchema)
   async eraseOrganization(
     @Param("organizationId", new ZodValidationPipe(z.string().min(1))) organizationId: string,

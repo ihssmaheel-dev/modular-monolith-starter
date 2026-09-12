@@ -8,12 +8,9 @@ import { VerifyUserCredentialsQuery } from "../../../users/application/queries/v
 import { AnonymizeUserCommand } from "../../../users/application/commands/anonymize-user.command";
 import { IncrementAuthVersionCommand } from "../../../users/application/commands/increment-auth-version.command";
 import { SessionService } from "../../../../infrastructure/session/session.service";
-import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
+import type { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
 import { CanDeleteUserQuery } from "../../../tenancy/application/queries/can-delete-user.query";
 import { PurgeUserTenancyDataCommand } from "../../../tenancy/application/commands/purge-user-tenancy-data.command";
-import { PurgeUserNotesCommand } from "../../../notes/application/commands/purge-user-notes.command";
-import { PurgeUserFilesCommand } from "../../../files/application/commands/purge-user-files.command";
-import { TenantContextService } from "../../../../infrastructure/database";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { User } from "../../../users/domain/entities/user.entity";
@@ -68,13 +65,6 @@ describe("RequestAccountErasureCommand", () => {
     const purgeNotifications = {
       execute: vi.fn().mockResolvedValue(ok(undefined)),
     } as never;
-    const purgeNotes = {
-      execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })),
-    } as unknown as PurgeUserNotesCommand;
-    const purgeFiles = {
-      execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })),
-    } as unknown as PurgeUserFilesCommand;
-    const tenantContext = {} as TenantContextService;
     const cache = { invalidateGlobal: vi.fn() } as unknown as DistributedCacheService;
     outbox = {
       dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)),
@@ -92,9 +82,6 @@ describe("RequestAccountErasureCommand", () => {
       canDeleteUser,
       purgeTenancy,
       purgeNotifications,
-      purgeNotes,
-      purgeFiles,
-      tenantContext,
       cache,
       outbox,
       events,
@@ -133,6 +120,51 @@ describe("RequestAccountErasureCommand", () => {
     );
   });
 
+  it("collects every organization page into the erasure plan (H24)", async () => {
+    const org = (id: string) => ({
+      organization: { data: { id, name: id } },
+      role: "member",
+    });
+    const pagedList = {
+      execute: vi
+        .fn()
+        .mockResolvedValueOnce(
+          ok({ items: [org("org-1")], total: 2, page: 1, limit: 1, totalPages: 2 }),
+        )
+        .mockResolvedValueOnce(
+          ok({ items: [org("org-2")], total: 2, page: 2, limit: 1, totalPages: 2 }),
+        ),
+    } as unknown as ListOrganizationsQuery;
+    const planned = new RequestAccountErasureCommand(
+      requests,
+      { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
+      verifyCredentials,
+      { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
+      { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
+      { revokeAllForUser: vi.fn() } as never,
+      pagedList,
+      { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
+      { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
+      { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
+      { invalidateGlobal: vi.fn() } as never,
+      outbox,
+      { emitAsync: vi.fn().mockResolvedValue([]) } as never,
+    );
+    vi.mocked(requests.create).mockResolvedValue(ok({ id: "dsr-plan" }) as never);
+    const dispatchGlobal = vi.mocked(outbox.dispatchGlobal);
+
+    const result = await planned.execute(ACTOR, "secret123");
+
+    expect(result.isOk()).toBe(true);
+    expect(pagedList.execute).toHaveBeenCalledTimes(2);
+    expect(requests.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: { tenantIds: ["org-1", "org-2"] },
+      }),
+    );
+    expect(dispatchGlobal).toHaveBeenCalled();
+  });
+
   it("should block erasure while the user solely owns an organization", async () => {
     const blocked = new RequestAccountErasureCommand(
       requests,
@@ -145,9 +177,6 @@ describe("RequestAccountErasureCommand", () => {
       {
         execute: vi.fn().mockResolvedValue(err({ type: "USER_OWNS_ORGANIZATION" })),
       } as never,
-      {} as never,
-      {} as never,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,
@@ -166,9 +195,6 @@ describe("RequestAccountErasureCommand", () => {
       requests,
       { execute: vi.fn().mockResolvedValue(err({ type: "USER_NOT_FOUND", userId: "x" })) } as never,
       verifyCredentials,
-      {} as never,
-      {} as never,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,
