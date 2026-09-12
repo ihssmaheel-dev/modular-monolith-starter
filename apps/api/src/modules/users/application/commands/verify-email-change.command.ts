@@ -2,7 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import { User } from "../../domain/entities/user.entity";
 import { UsersRepository } from "../../infrastructure/users.repository";
-import { hashPasswordResetToken } from "../../../auth/application/utils/password.utils";
+import { hashSha256Token } from "../../../../infrastructure/security/token.utils";
+
 import type { InvalidEmailChangeToken } from "../../domain/errors/user.errors";
 
 /**
@@ -17,7 +18,7 @@ export class VerifyEmailChangeCommand {
   constructor(private readonly repository: UsersRepository) {}
 
   async execute(token: string): Promise<Result<User, InvalidEmailChangeToken>> {
-    const user = await this.repository.applyEmailChangeByToken(hashPasswordResetToken(token));
+    const user = await this.repository.applyEmailChangeByToken(hashSha256Token(token));
     if (user.isErr()) return err(user.error);
     if (!user.value) return err({ type: "INVALID_EMAIL_CHANGE_TOKEN" });
     return ok(user.value);

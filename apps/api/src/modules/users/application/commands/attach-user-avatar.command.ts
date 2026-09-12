@@ -5,13 +5,14 @@ import {
   AVATAR_MIME_TYPES,
   AVATAR_SLOT,
   type AuthenticatedUser,
+  type FileErrorType as FileError,
+  type FileRecord as FileEntity,
 } from "@repo/contracts";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { DeleteFileCommand } from "../../../files/application/commands/delete-file.command";
 import { GetFileByIdQuery } from "../../../files/application/queries/get-file-by-id.query";
 import { LinkFileCommand } from "../../../files/application/commands/link-file.command";
-import type { FileEntity } from "../../../files/domain/entities/file.entity";
-import type { FileError } from "../../../files/domain/errors/file.errors";
+
 import { User } from "../../domain/entities/user.entity";
 import { InvalidAvatarFile, UserNotFound } from "../../domain/errors/user.errors";
 import { UsersRepository } from "../../infrastructure/users.repository";

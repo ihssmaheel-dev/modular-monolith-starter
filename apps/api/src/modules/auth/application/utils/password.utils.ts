@@ -1,15 +1,12 @@
-import { createHash, randomBytes } from "crypto";
+import {
+  generateSecureToken,
+  hashSha256Token,
+} from "../../../../infrastructure/security/token.utils";
+
+export { generateSecureToken, hashSha256Token };
 
 /**
- * Generates a secure random token, typically used for password resets or email verification.
- * @param length The length of the token in bytes (default 32)
- * @returns A hexadecimal string representation of the secure token
+ * Hash password reset or verification token via SHA-256.
+ * Alias for shared hashSha256Token utility.
  */
-export function generateSecureToken(length = 32): string {
-  const tokenBytes = randomBytes(length);
-  return tokenBytes.toString("hex");
-}
-
-export function hashPasswordResetToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
+export const hashPasswordResetToken = hashSha256Token;

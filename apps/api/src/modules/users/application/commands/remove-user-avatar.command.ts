@@ -1,9 +1,9 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
-import type { AuthenticatedUser } from "@repo/contracts";
+import type { AuthenticatedUser, FileErrorType as FileError } from "@repo/contracts";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { DeleteFileCommand } from "../../../files/application/commands/delete-file.command";
-import type { FileError } from "../../../files/domain/errors/file.errors";
+
 import { User } from "../../domain/entities/user.entity";
 import { UserNotFound } from "../../domain/errors/user.errors";
 import { UsersRepository } from "../../infrastructure/users.repository";

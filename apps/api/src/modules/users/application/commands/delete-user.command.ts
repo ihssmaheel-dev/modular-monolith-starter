@@ -20,8 +20,8 @@ export class DeleteUserCommand {
     private readonly getUserById: GetUserByIdQuery,
     private readonly eventEmitter: EventEmitter2,
     private readonly cacheService: DistributedCacheService,
-    private readonly canDeleteUser: CanDeleteUserQuery,
     private readonly outbox: OutboxService,
+    @Optional() private readonly canDeleteUser?: CanDeleteUserQuery,
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly sessions?: SessionService,
     @Optional() private readonly incrementAuthVersion?: IncrementAuthVersionCommand,
@@ -51,8 +51,10 @@ export class DeleteUserCommand {
   ): Promise<Result<void, UserNotFound | UserOwnsOrganization | UserEventDispatchFailed>> {
     const existing = await this.getUserById.execute(id);
     if (existing.isErr()) return err(existing.error);
-    const allowed = await this.canDeleteUser.execute(id);
-    if (allowed.isErr()) return err(allowed.error);
+    if (this.canDeleteUser) {
+      const allowed = await this.canDeleteUser.execute(id);
+      if (allowed.isErr()) return err(allowed.error);
+    }
 
     if (this.incrementAuthVersion) await this.incrementAuthVersion.execute(id);
     if (this.sessions) await this.sessions.revokeAllForUser(id);

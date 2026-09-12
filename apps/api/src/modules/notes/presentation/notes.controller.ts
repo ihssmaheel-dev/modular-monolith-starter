@@ -50,7 +50,10 @@ import { GetNoteByIdQuery } from "../application/queries/get-note-by-id.query";
 import { ListNoteAttachmentsQuery } from "../application/queries/list-note-attachments.query";
 import { toNoteListResponse, toNoteResponse } from "./notes.mapper";
 import { ATTACH_FILE_ERRORS, NOTE_NOT_FOUND_ERRORS } from "./notes.error-maps";
-import { toFileResponse, toFileListResponse } from "../../files/presentation/files.mapper";
+import {
+  toFileResponse,
+  toFileListResponse,
+} from "../../../common/file-access/file-response.mapper";
 import { I18nService } from "../../../infrastructure/i18n/i18n.service";
 import { handleResult } from "../../../common/utils/presentation.utils";
 

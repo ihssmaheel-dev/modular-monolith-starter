@@ -1,8 +1,10 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
-import type { AuthenticatedUser } from "@repo/contracts";
-import type { FileEntity } from "../../../files/domain/entities/file.entity";
-import type { FileError } from "../../../files/domain/errors/file.errors";
+import type {
+  AuthenticatedUser,
+  FileErrorType as FileError,
+  FileRecord as FileEntity,
+} from "@repo/contracts";
 import { DeleteFileCommand } from "../../../files/application/commands/delete-file.command";
 import { LinkFileCommand } from "../../../files/application/commands/link-file.command";
 import { ListFilesByParentQuery } from "../../../files/application/queries/list-files-by-parent.query";

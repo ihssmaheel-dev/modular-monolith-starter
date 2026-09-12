@@ -18,8 +18,9 @@ import { env } from "../../../../config/env";
 import * as React from "react";
 import {
   generateSecureToken,
-  hashPasswordResetToken,
-} from "../../../auth/application/utils/password.utils";
+  hashSha256Token,
+} from "../../../../infrastructure/security/token.utils";
+
 import type { EmailTaken, UserNotFound } from "../../domain/errors/user.errors";
 
 /**
@@ -67,7 +68,7 @@ export class RequestEmailChangeCommand {
     const stored = await this.repository.setEmailChangeRequest(
       actor.sub,
       email,
-      hashPasswordResetToken(token),
+      hashSha256Token(token),
       expiresAt,
     );
     if (stored.isErr()) return err({ type: "EMAIL_TAKEN", email });

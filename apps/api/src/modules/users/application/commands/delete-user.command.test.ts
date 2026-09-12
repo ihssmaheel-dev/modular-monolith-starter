@@ -45,8 +45,8 @@ describe("DeleteUserCommand", () => {
       getUserById,
       eventEmitter,
       cacheService,
-      canDeleteUser,
       outbox,
+      canDeleteUser,
     );
   });
 

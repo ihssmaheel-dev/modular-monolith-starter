@@ -3,7 +3,6 @@ import { MembershipUserListener } from "./membership-user.listener";
 import { MembershipsRepository } from "../../infrastructure/memberships.repository";
 import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { DatabaseService } from "../../../../infrastructure/database/database.service";
-import { UserUpdatedEvent } from "../../../users/domain/events/user.events";
 
 describe("MembershipUserListener", () => {
   let memberships: MembershipsRepository;
@@ -28,7 +27,7 @@ describe("MembershipUserListener", () => {
     } as unknown as DatabaseService;
     const listener = new MembershipUserListener(memberships, logger, database);
 
-    await listener.updateSnapshots(new UserUpdatedEvent("user-1", { name: "New Name" }));
+    await listener.updateSnapshots({ userId: "user-1", changes: { name: "New Name" } });
 
     expect(database.withSystemScope).toHaveBeenCalledTimes(1);
     expect(memberships.updateUserSnapshot).toHaveBeenCalledWith("user-1", { name: "New Name" });

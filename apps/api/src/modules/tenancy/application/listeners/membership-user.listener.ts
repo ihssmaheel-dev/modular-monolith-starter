@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { DatabaseService } from "../../../../infrastructure/database";
-import { UserDeletedEvent, UserUpdatedEvent } from "../../../users/domain/events/user.events";
+import type { UserDeletedEventPayload, UserUpdatedEventPayload } from "@repo/contracts";
 import { MembershipsRepository } from "../../infrastructure/memberships.repository";
 
 @Injectable()
@@ -14,7 +14,7 @@ export class MembershipUserListener {
   ) {}
 
   @OnEvent("user.updated")
-  async updateSnapshots(event: UserUpdatedEvent): Promise<void> {
+  async updateSnapshots(event: UserUpdatedEventPayload): Promise<void> {
     try {
       await this.scoped(() => this.memberships.updateUserSnapshot(event.userId, event.changes));
     } catch (error) {
@@ -23,7 +23,7 @@ export class MembershipUserListener {
   }
 
   @OnEvent("user.deleted")
-  async removeMemberships(event: UserDeletedEvent): Promise<void> {
+  async removeMemberships(event: UserDeletedEventPayload): Promise<void> {
     try {
       await this.scoped(() => this.memberships.removeUser(event.userId));
     } catch (error) {

@@ -27,6 +27,21 @@ const crossModuleRules = modules.flatMap((name) => {
       from: { path: `${MODULE_PATH}/${escapedName}/` },
       to: { path: `${otherModules}/infrastructure/schemas/` },
     },
+    {
+      name: `no-${name}-to-other-module-domain`,
+      comment:
+        "Domain entities and errors are private to their owning module. Cross-module communication uses @repo/contracts.",
+      severity: "error",
+      from: { path: `${MODULE_PATH}/${escapedName}/(?!.*\\.(test|spec)\\.ts$)` },
+      to: { path: `${otherModules}/domain/` },
+    },
+    {
+      name: `no-${name}-to-other-module-presentation`,
+      comment: "Presentation mappers and controllers are private to their owning module.",
+      severity: "error",
+      from: { path: `${MODULE_PATH}/${escapedName}/` },
+      to: { path: `${otherModules}/presentation/` },
+    },
   ];
 });
 

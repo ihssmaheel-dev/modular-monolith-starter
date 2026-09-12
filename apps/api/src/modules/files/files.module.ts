@@ -55,7 +55,6 @@ import { FilesOrpcController } from "./presentation/files.orpc.controller";
     FileCleanupWorker,
     FileScanWorker,
     FileReconciliationWorker,
-    FilesRepository,
     FileAccessRegistry,
   ],
 })

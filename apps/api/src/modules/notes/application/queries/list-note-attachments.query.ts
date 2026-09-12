@@ -1,7 +1,6 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { err, Result } from "neverthrow";
-import type { AuthenticatedUser } from "@repo/contracts";
-import type { FileEntity } from "../../../files/domain/entities/file.entity";
+import type { AuthenticatedUser, FileRecord as FileEntity } from "@repo/contracts";
 import { ListFilesByParentQuery } from "../../../files/application/queries/list-files-by-parent.query";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import type { PaginatedResult } from "../../../../infrastructure/database";
