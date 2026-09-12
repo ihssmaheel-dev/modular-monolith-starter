@@ -49,20 +49,33 @@ export class OutboxRelayDelivery {
           removeOnComplete: 1000,
           removeOnFail: 1000,
         });
+        // Enqueued is NOT processed: hold PROCESSING with a fresh lock so
+        // the row is neither re-claimed next tick nor pruned as published.
+        // Only the worker marks PUBLISHED after listeners complete. A lost
+        // job surfaces via stale-lock recovery (see OutboxRelayWorker).
+        await this.database.runTransaction(() =>
+          this.repository.updateById(event.id, {
+            lockedAt: new Date(),
+            nextAttemptAt: null,
+            error: null,
+          }),
+        );
       } else {
         if (env.NODE_ENV === "production") {
           throw new Error(OUTBOX_DURABLE_QUEUE_UNAVAILABLE);
         }
+        // No durable queue (local/test): the awaited fan-out below IS the
+        // processing, so marking PUBLISHED here is accurate.
         await this.eventEmitter.emitAsync(event.topic, event.payload);
+        await this.database.runTransaction(() =>
+          this.repository.updateById(event.id, {
+            status: "PUBLISHED",
+            lockedAt: null,
+            nextAttemptAt: null,
+            error: null,
+          }),
+        );
       }
-      await this.database.runTransaction(() =>
-        this.repository.updateById(event.id, {
-          status: "PUBLISHED",
-          lockedAt: null,
-          nextAttemptAt: null,
-          error: null,
-        }),
-      );
       this.recordLatency(event);
     } catch (error) {
       await this.scheduleRetry(event, error);
@@ -109,7 +122,7 @@ export class OutboxRelayDelivery {
       }
       this.metrics.recordHistogram(
         "outbox_processing_latency_ms",
-        "Latency between outbox event creation and processing",
+        "Latency between outbox event creation and queue handoff",
         Date.now() - event.createdAt.getTime(),
       );
     } catch (error) {

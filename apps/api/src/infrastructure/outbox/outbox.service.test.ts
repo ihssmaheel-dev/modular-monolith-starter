@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { OutboxService } from "./outbox.service";
 import { OutboxRepository, type OutboxEvent } from "./outbox.repository";
+import type { OutboxEventWorker } from "./outbox-event.worker";
 import { ok } from "neverthrow";
 import type { DatabaseService, TenantContextService } from "../database";
 import { env } from "../../config/env";
@@ -101,5 +102,26 @@ describe("OutboxService", () => {
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "tenant-1", topic: "note.created" }),
     );
+  });
+
+  it("delegates dead-letter replay to the worker when available (H11)", async () => {
+    const eventWorker = {
+      replayDeadLetter: vi.fn().mockResolvedValue(true),
+    } as unknown as OutboxEventWorker;
+    const delegated = new OutboxService(repository, tenantContext, database, eventWorker);
+
+    const result = await delegated.replayDeadLetter("event-1");
+
+    expect(result.isOk()).toBe(true);
+    expect(eventWorker.replayDeadLetter).toHaveBeenCalledWith("event-1");
+  });
+
+  it("falls back to row requeue without a worker", async () => {
+    repository.requeueDeadLetter = vi.fn().mockResolvedValue(true);
+
+    const result = await service.replayDeadLetter("event-1");
+
+    expect(result.isOk()).toBe(true);
+    expect(repository.requeueDeadLetter).toHaveBeenCalledWith("event-1");
   });
 });

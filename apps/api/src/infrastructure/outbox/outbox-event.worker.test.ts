@@ -128,6 +128,80 @@ describe("OutboxEventWorker", () => {
     expect(events.emitAsync).toHaveBeenCalledTimes(1);
   });
 
+  it("resets marker, retained job, and row on dead-letter replay (H11)", async () => {
+    const removed: string[] = [];
+    const queues = {
+      addWorker: vi.fn(),
+      getQueue: vi.fn().mockReturnValue({
+        getJob: vi.fn().mockResolvedValue({ remove: vi.fn(async () => removed.push("event-1")) }),
+      }),
+    } as unknown as QueueService;
+    const events = { emitAsync: vi.fn() } as unknown as EventEmitter2;
+    const client = { del: vi.fn().mockResolvedValue(1) };
+    const redis = { getClient: vi.fn().mockReturnValue(client) } as unknown as RedisService;
+    const repository = {
+      requeueDeadLetter: vi.fn().mockResolvedValue(true),
+    } as unknown as OutboxRepository;
+    const database = {
+      withSystemScope: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+    } as unknown as DatabaseService;
+    const logger = {
+      child: vi.fn().mockReturnThis(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+    } as unknown as PinoLoggerService;
+    const worker = new OutboxEventWorker(
+      queues,
+      events,
+      logger,
+      database,
+      repository,
+      undefined,
+      redis,
+    );
+
+    const replayed = await worker.replayDeadLetter("event-1");
+
+    expect(replayed).toBe(true);
+    expect(client.del).toHaveBeenCalledWith("outbox:consumer:v1:event-1");
+    expect(removed).toEqual(["event-1"]);
+    expect(repository.requeueDeadLetter).toHaveBeenCalledWith("event-1");
+  });
+
+  it("still requeues when no retained job exists", async () => {
+    const queues = {
+      addWorker: vi.fn(),
+      getQueue: vi.fn().mockReturnValue({ getJob: vi.fn().mockResolvedValue(null) }),
+    } as unknown as QueueService;
+    const events = { emitAsync: vi.fn() } as unknown as EventEmitter2;
+    const redis = {
+      getClient: vi.fn().mockReturnValue({ del: vi.fn().mockResolvedValue(0) }),
+    } as unknown as RedisService;
+    const repository = {
+      requeueDeadLetter: vi.fn().mockResolvedValue(true),
+    } as unknown as OutboxRepository;
+    const database = {
+      withSystemScope: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+    } as unknown as DatabaseService;
+    const logger = {
+      child: vi.fn().mockReturnThis(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+    } as unknown as PinoLoggerService;
+    const worker = new OutboxEventWorker(
+      queues,
+      events,
+      logger,
+      database,
+      repository,
+      undefined,
+      redis,
+    );
+
+    await expect(worker.replayDeadLetter("event-1")).resolves.toBe(true);
+    expect(repository.requeueDeadLetter).toHaveBeenCalledWith("event-1");
+  });
+
   it("dead-letters a malformed envelope after the final retry", async () => {
     let handler: ((job: { data: unknown; attemptsMade?: number }) => Promise<void>) | undefined;
     const queues = {

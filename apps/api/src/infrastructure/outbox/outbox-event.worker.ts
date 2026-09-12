@@ -20,6 +20,14 @@ import {
 } from "./outbox.constants";
 import { RedisService } from "../redis/redis.service";
 
+/**
+ * At-least-once delivery contract: a job may be redelivered after crashes,
+ * so listeners must tolerate repeats for effects that require it. The
+ * event-wide Redis marker prevents concurrent double-consume; per-consumer
+ * durable idempotency belongs to effects that need it, not to this fan-out.
+ * PUBLISHED is written only here, after listeners complete — never on
+ * enqueue (see OutboxRelayDelivery).
+ */
 @Injectable()
 export class OutboxEventWorker implements OnModuleInit {
   private readonly logger: PinoLoggerService;
@@ -110,6 +118,31 @@ export class OutboxEventWorker implements OnModuleInit {
         }),
       ),
     );
+  }
+
+  /**
+   * Replays a dead-lettered event. Resetting the row alone is not enough:
+   * the consumer marker would skip it as completed, and re-adding the same
+   * BullMQ job ID would return the retained failed job without running it.
+   * All three states are reset so the next relay tick redelivers for real.
+   */
+  async replayDeadLetter(eventId: string): Promise<boolean> {
+    const client = this.redis?.getClient();
+    if (client) {
+      await client.del(`outbox:consumer:v1:${eventId}`).catch(() => undefined);
+    }
+    const queue = this.queues.getQueue(OUTBOX_QUEUE);
+    if (queue) {
+      try {
+        const retained = await queue.getJob(eventId);
+        await retained?.remove();
+      } catch (error) {
+        this.logger.warn({ error, eventId }, "Retained dead-letter job could not be removed");
+      }
+    }
+    if (!this.database || !this.repository) return false;
+    const repository = this.repository;
+    return this.database.withSystemScope(() => repository.requeueDeadLetter(eventId));
   }
 
   private async markDeadLetter(eventId: string, error: unknown): Promise<void> {
