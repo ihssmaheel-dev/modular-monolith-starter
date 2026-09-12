@@ -14,8 +14,13 @@ export { QueueModule } from "./queue/queue.module";
 export { QueueService } from "./queue/queue.service";
 export { LoggerModule } from "./logger/logger.module";
 export { PinoLoggerService } from "./logger/logger.service";
-export { WorkersModule } from "./workers/workers.module";
-export { PiscinaService } from "./workers/piscina.service";
+export {
+  WorkersModule,
+  PiscinaService,
+  getOptimalWorkerThreadCount,
+  type WorkerPoolConfig,
+  type WorkerPoolStats,
+} from "./workers";
 export { SessionModule } from "./session/session.module";
 export { SessionService } from "./session/session.service";
 export { HealthModule } from "./health/health.module";
