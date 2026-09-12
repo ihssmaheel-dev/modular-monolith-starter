@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
   GetObjectCommand,
+  CopyObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -56,6 +57,16 @@ export class S3Driver implements StorageDriver {
 
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async copy(sourceKey: string, destinationKey: string) {
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        Key: destinationKey,
+        CopySource: `${this.bucket}/${sourceKey}`,
+      }),
+    );
   }
 
   async getMetadata(key: string) {

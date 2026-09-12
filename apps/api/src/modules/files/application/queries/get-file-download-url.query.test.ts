@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GetFileDownloadUrlQuery } from "./get-file-download-url.query";
+import { FileAccessRegistry } from "../../../../common/file-access/file-access.registry";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { FilesRepository } from "../../infrastructure/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
@@ -78,5 +79,75 @@ describe("GetFileDownloadUrlQuery", () => {
       expect(result.value.downloadUrl).toBe("https://s3.example.com/download");
     }
     expect(storage.getPresignedDownloadUrl).toHaveBeenCalledWith(mockFile.key);
+  });
+
+  it("asks the owning domain for linked attachments when a registry is present (H10)", async () => {
+    const checker = vi.fn().mockResolvedValue(true);
+    const registry = {
+      getChecker: vi.fn().mockReturnValue(checker),
+    } as unknown as FileAccessRegistry;
+    const scoped = new GetFileDownloadUrlQuery(
+      storage,
+      filesRepo,
+      undefined,
+      undefined,
+      undefined,
+      registry as never,
+    );
+    vi.mocked(filesRepo.findById).mockResolvedValue(ok(mockFile));
+    vi.mocked(storage.getPresignedDownloadUrl).mockResolvedValue(
+      ok("https://s3.example.com/download"),
+    );
+
+    const result = await scoped.execute("file-1", ACTOR);
+
+    expect(result.isOk()).toBe(true);
+    expect(registry.getChecker).toHaveBeenCalledWith("note");
+    expect(checker).toHaveBeenCalledWith(mockFile, ACTOR);
+  });
+
+  it("denies linked attachments the parent domain rejects (H10)", async () => {
+    const registry = {
+      getChecker: vi.fn().mockReturnValue(async () => false),
+    } as unknown as FileAccessRegistry;
+    const scoped = new GetFileDownloadUrlQuery(
+      storage,
+      filesRepo,
+      undefined,
+      undefined,
+      undefined,
+      registry as never,
+    );
+    vi.mocked(filesRepo.findById).mockResolvedValue(ok(mockFile));
+
+    const result = await scoped.execute("file-1", ACTOR);
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("FILE_NOT_FOUND");
+    }
+    expect(storage.getPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  it("denies parent types without a registered checker (H10)", async () => {
+    const registry = {
+      getChecker: vi.fn().mockReturnValue(undefined),
+    } as unknown as FileAccessRegistry;
+    const scoped = new GetFileDownloadUrlQuery(
+      storage,
+      filesRepo,
+      undefined,
+      undefined,
+      undefined,
+      registry as never,
+    );
+    vi.mocked(filesRepo.findById).mockResolvedValue(ok(mockFile));
+
+    const result = await scoped.execute("file-1", ACTOR);
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("FILE_NOT_FOUND");
+    }
   });
 });

@@ -120,6 +120,26 @@ export class StorageService {
     );
   }
 
+  /**
+   * Server-side copy used for quarantine promotion: the approved bytes move
+   * to the final key, so a still-valid presigned upload URL (which points at
+   * the quarantine key) can never overwrite served content afterwards.
+   */
+  async copy(sourceKey: string, destinationKey: string): Promise<Result<void, StorageError>> {
+    return this.guarded(() =>
+      this.circuitBreaker.execute(async () => {
+        try {
+          await this.driver.copy(sourceKey, destinationKey);
+          this.logger.info({ sourceKey, destinationKey }, "File promoted from quarantine");
+          return ok(undefined);
+        } catch (error) {
+          this.logger.error({ sourceKey, destinationKey, error }, "Quarantine promote failed");
+          return err({ code: "COPY_FAILED", message: "api.error.uploadFailed" });
+        }
+      }),
+    );
+  }
+
   async getMetadata(key: string): Promise<Result<StoredObjectMetadata | null, StorageError>> {
     return this.guarded(() =>
       this.circuitBreaker.execute(async () => {

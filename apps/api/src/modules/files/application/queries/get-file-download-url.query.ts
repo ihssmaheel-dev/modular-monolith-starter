@@ -9,6 +9,7 @@ import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
 import { DatabaseService } from "../../../../infrastructure/database";
+import { FileAccessRegistry } from "../../../../common/file-access/file-access.registry";
 
 interface DownloadUrlResult {
   downloadUrl: string;
@@ -22,6 +23,7 @@ export class GetFileDownloadUrlQuery {
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly authorization?: AuthorizationService,
     @Optional() private readonly tenantContext?: TenantContextService,
+    @Optional() private readonly accessRegistry?: FileAccessRegistry,
   ) {}
 
   async execute(
@@ -47,6 +49,27 @@ export class GetFileDownloadUrlQuery {
     }
     if (file.status !== "uploaded") {
       return err({ type: "FILE_NOT_FOUND", message: "api.file.notFound" });
+    }
+    // Parent-controlled attachments (anything linked to a domain entity)
+    // inherit the parent's readability, checked live against the owning
+    // domain. Unlinked or general files stay tenant-shared; unknown parent
+    // types are denied until their domain registers a checker. Without a
+    // registry (standalone/test compositions) the legacy files:read policy
+    // above remains the boundary.
+    if (file.parentType !== "general" && file.parentId && this.accessRegistry) {
+      const checker = this.accessRegistry?.getChecker(file.parentType);
+      if (!checker) {
+        return err({ type: "FILE_NOT_FOUND", message: "api.file.notFound" });
+      }
+      let allowed = false;
+      try {
+        allowed = await checker(file, actor);
+      } catch {
+        allowed = false;
+      }
+      if (!allowed) {
+        return err({ type: "FILE_NOT_FOUND", message: "api.file.notFound" });
+      }
     }
     if (!this.storage.usesDirectTransfer()) {
       return ok({

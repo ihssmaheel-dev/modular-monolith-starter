@@ -142,6 +142,27 @@ describe("RequestUploadCommand", () => {
     );
   });
 
+  it("presigns the quarantine object, never the served key (H09)", async () => {
+    vi.mocked(storage.getPresignedUploadUrl).mockResolvedValue(ok("https://s3.example.com/upload"));
+
+    const result = await command.execute(
+      {
+        fileName: "test.pdf",
+        contentType: "application/pdf",
+        fileSize: 1024,
+      },
+      ACTOR,
+    );
+
+    expect(result.isOk()).toBe(true);
+    const [presignedKey, , ttl] = vi.mocked(storage.getPresignedUploadUrl).mock.calls[0]!;
+    expect(presignedKey).toMatch(/^general\/user-1\/.+\.quarantine$/);
+    expect(ttl).toBeLessThanOrEqual(900);
+    if (result.isOk()) {
+      expect(result.value.fileKey).not.toContain(".quarantine");
+    }
+  });
+
   it("should sanitize file name in key", async () => {
     vi.mocked(storage.getPresignedUploadUrl).mockResolvedValue(ok("https://s3.example.com/upload"));
 

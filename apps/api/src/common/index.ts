@@ -22,3 +22,4 @@ export * from "./utils/access-token.utils";
 export * from "./utils/magic-bytes.utils";
 export * from "./utils/request-id.utils";
 export * from "./utils/duration.utils";
+export * from "./file-access/file-access.registry";

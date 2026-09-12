@@ -7,6 +7,7 @@ import { MetricsService } from "../../../../infrastructure/metrics/metrics.servi
 
 import { TenantContextService } from "../../../../infrastructure/database";
 import { DatabaseService } from "../../../../infrastructure/database";
+import { deleteFileObjects } from "../file-objects";
 import { env } from "../../../../config/env";
 
 const PENDING_EXPIRATION_HOURS = 24;
@@ -87,7 +88,7 @@ export class FileCleanupWorker {
 
   private async purgeFile(file: { id: string; key: string; fileSize: number }): Promise<boolean> {
     try {
-      const deletedObject = await this.storageService.delete(file.key);
+      const deletedObject = await deleteFileObjects(this.storageService, file.key);
       if (deletedObject.isErr()) return false;
       const deletedRow = await this.database.runTransaction(() =>
         this.filesRepository.deleteById(file.id),

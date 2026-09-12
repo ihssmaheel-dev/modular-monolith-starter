@@ -41,13 +41,17 @@ describe("PurgeTenantFilesCommand", () => {
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) expect(result.value).toEqual({ deleted: 2 });
-    expect(storage.delete).toHaveBeenNthCalledWith(1, "k-f1");
+    // Both the quarantine and the final object go; S3 deletes are idempotent.
+    expect(storage.delete).toHaveBeenNthCalledWith(1, "k-f1.quarantine");
+    expect(storage.delete).toHaveBeenNthCalledWith(2, "k-f1");
     expect(files.deleteById).toHaveBeenNthCalledWith(1, "f1");
   });
 
   it("should keep completed batches and report storage failures", async () => {
     vi.mocked(files.paginate).mockResolvedValue(ok(page(["f1", "f2"]) as never));
     vi.mocked(storage.delete)
+      .mockResolvedValueOnce(ok(undefined))
+      .mockResolvedValueOnce(ok(undefined))
       .mockResolvedValueOnce(ok(undefined))
       .mockResolvedValueOnce(err({ code: "DELETE_FAILED", message: "x" }));
     vi.mocked(files.deleteById).mockResolvedValue(ok(true));

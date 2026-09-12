@@ -8,6 +8,7 @@ import { StorageService } from "../../../../infrastructure/storage/storage.servi
 import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
+import { quarantineKeyFor } from "../../domain/file-keys";
 
 @Injectable()
 export class ConfirmUploadCommand {
@@ -44,7 +45,9 @@ export class ConfirmUploadCommand {
     if (file.status !== "pending")
       return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
 
-    const metadata = await this.storage.getMetadata(file.key);
+    // Validate the quarantine object the browser actually uploaded, not the
+    // final key (which must not exist before the scan worker promotes it).
+    const metadata = await this.storage.getMetadata(quarantineKeyFor(file.key));
     if (metadata.isErr() || !this.matches(file, metadata.value)) {
       return err({ type: "METADATA_MISMATCH", message: "api.file.metadataMismatch" });
     }

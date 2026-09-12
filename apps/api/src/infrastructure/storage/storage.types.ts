@@ -8,6 +8,7 @@ export interface StorageError {
     | "DELETE_FAILED"
     | "DOWNLOAD_FAILED"
     | "PRESIGN_FAILED"
+    | "COPY_FAILED"
     | "NOT_FOUND"
     | "CIRCUIT_OPEN"
     | "BULKHEAD_REJECTED";
@@ -33,4 +34,5 @@ export interface StorageDriver {
   getMetadata(key: string): Promise<StoredObjectMetadata | null>;
   getDownloadStream(key: string): Promise<Readable>;
   delete(key: string): Promise<void>;
+  copy(sourceKey: string, destinationKey: string): Promise<void>;
 }

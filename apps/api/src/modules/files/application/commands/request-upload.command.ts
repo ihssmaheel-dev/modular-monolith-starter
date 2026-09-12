@@ -11,8 +11,11 @@ import { TenantContextService } from "../../../../infrastructure/database";
 import { env as runtimeEnv } from "../../../../config/env";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
+import { quarantineKeyFor } from "../../domain/file-keys";
 
-const PRESIGNED_UPLOAD_TTL_SECONDS = 3_600;
+// Short-lived: with quarantine promotion the URL only needs to cover the
+// actual upload, and a smaller window shrinks abuse of leaked URLs.
+const PRESIGNED_UPLOAD_TTL_SECONDS = 900;
 
 interface RequestUploadResult {
   uploadMode: "direct" | "proxy";
@@ -119,7 +122,15 @@ export class RequestUploadCommand {
   }
 
   private async createTransfer(fileKey: string, contentType: string) {
-    const result = await this.storage.getPresignedUploadUrl(fileKey, contentType);
+    // Presign the quarantine object, never the final key: only the scan
+    // worker promotes approved bytes, so post-approval overwrites through
+    // this URL cannot reach served content.
+    const quarantineKey = quarantineKeyFor(fileKey);
+    const result = await this.storage.getPresignedUploadUrl(
+      quarantineKey,
+      contentType,
+      PRESIGNED_UPLOAD_TTL_SECONDS,
+    );
     if (result.isErr()) return err(result.error);
     const expiresAt = new Date(Date.now() + PRESIGNED_UPLOAD_TTL_SECONDS * 1_000);
     return ok({

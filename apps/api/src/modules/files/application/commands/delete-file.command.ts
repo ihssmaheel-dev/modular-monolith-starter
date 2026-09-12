@@ -8,6 +8,7 @@ import { DatabaseService } from "../../../../infrastructure/database";
 import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
+import { deleteFileObjects } from "../file-objects";
 
 @Injectable()
 export class DeleteFileCommand {
@@ -60,7 +61,7 @@ export class DeleteFileCommand {
       });
     }
 
-    const storageResult = await this.storage.delete(file.key);
+    const storageResult = await deleteFileObjects(this.storage, file.key);
     if (storageResult.isErr()) {
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });
     }

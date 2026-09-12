@@ -103,6 +103,17 @@ describe("ConfirmUploadCommand", () => {
     }
     expect(filesRepo.updateById).toHaveBeenCalledWith(file.id, { status: "uploading" });
   });
+
+  it("validates the quarantine object, never the final key (H09)", async () => {
+    const file = createFile();
+    vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
+    vi.mocked(filesRepo.updateById).mockResolvedValue(ok({ ...file, status: "uploading" }));
+
+    const result = await command.execute(file.key, ACTOR);
+
+    expect(result.isOk()).toBe(true);
+    expect(storage.getMetadata).toHaveBeenCalledWith(`${file.key}.quarantine`);
+  });
 });
 
 function createFile(): FileEntity {

@@ -16,6 +16,7 @@ import { FileCleanupWorker } from "./application/workers/file-cleanup.worker";
 import { FileScanWorker } from "./application/workers/file-scan.worker";
 import { FileReconciliationWorker } from "./application/workers/file-reconciliation.worker";
 import { FilesRepository } from "./infrastructure/files.repository";
+import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
 import { DatabaseModule } from "../../infrastructure/database";
 import { FilesOrpcController } from "./presentation/files.orpc.controller";
 
@@ -38,6 +39,7 @@ import { FilesOrpcController } from "./presentation/files.orpc.controller";
     FileScanWorker,
     FileReconciliationWorker,
     FilesRepository,
+    FileAccessRegistry,
   ],
   exports: [
     RequestUploadCommand,
@@ -54,6 +56,7 @@ import { FilesOrpcController } from "./presentation/files.orpc.controller";
     FileScanWorker,
     FileReconciliationWorker,
     FilesRepository,
+    FileAccessRegistry,
   ],
 })
 export class FilesModule implements OnModuleInit {

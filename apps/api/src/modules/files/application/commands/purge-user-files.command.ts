@@ -5,6 +5,7 @@ import { StorageService } from "../../../../infrastructure/storage/storage.servi
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { FileError } from "../../domain/errors/file.errors";
 import { FilesRepository } from "../../infrastructure/files.repository";
+import { deleteFileObjects } from "../file-objects";
 
 const PURGE_BATCH_LIMIT = 500;
 
@@ -42,7 +43,7 @@ export class PurgeUserFilesCommand {
   }
 
   private async purgeOne(file: { id: string; key: string }): Promise<Result<void, FileError>> {
-    const storageResult = await this.storage.delete(file.key);
+    const storageResult = await deleteFileObjects(this.storage, file.key);
     if (storageResult.isErr()) {
       this.logger.error({ key: file.key }, "Erasure storage delete failed");
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });
