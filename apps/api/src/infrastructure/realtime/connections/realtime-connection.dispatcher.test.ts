@@ -8,8 +8,8 @@ import { dispatchToConnection, dispatchToEveryConnection } from "./realtime-conn
 const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSED = 3;
 
-function createSocket(readyState: number): WebSocket {
-  return { readyState, send: vi.fn() } as unknown as WebSocket;
+function createSocket(readyState: number, bufferedAmount = 0): WebSocket {
+  return { readyState, bufferedAmount, send: vi.fn() } as unknown as WebSocket;
 }
 
 function createSubject(): Subject<NestMessageEvent> {
@@ -31,6 +31,23 @@ describe("realtime connection dispatcher", () => {
     );
     expect(closedSocket.send).not.toHaveBeenCalled();
     expect(subject.next).toHaveBeenCalledWith({ type: "note.created", data: { id: "1" } });
+  });
+
+  it("skips slow sockets past the outbound ceiling and reports them (H16)", () => {
+    const slowSocket = createSocket(WS_READY_STATE_OPEN, 2 * 1_048_576);
+    const wsClients = new Map([["tenant-1:user-1", new Set([slowSocket])]]);
+    const sseClients = new Map();
+
+    const { droppedSlowClients } = dispatchToConnection(
+      wsClients,
+      sseClients,
+      "tenant-1:user-1",
+      "note.created",
+      { id: "1" },
+    );
+
+    expect(slowSocket.send).not.toHaveBeenCalled();
+    expect(droppedSlowClients).toBe(1);
   });
 
   it("delivers a broadcast to every connected client", () => {

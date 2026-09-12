@@ -5,18 +5,28 @@ import {
   OnGatewayDisconnect,
   ConnectedSocket,
   SubscribeMessage,
+  OnGatewayInit,
 } from "@nestjs/websockets";
-import { Optional } from "@nestjs/common";
+import { Optional, OnModuleDestroy } from "@nestjs/common";
 import { Server, WebSocket } from "ws";
 import { RealtimeService } from "../realtime.service";
 import { PinoLoggerService } from "../../../infrastructure/logger/logger.service";
-import { clientOrigins } from "../../../common/utils/origin.utils";
-import { verifyAccessToken } from "../../../common/utils/access-token.utils";
+import { clientOrigins, isTrustedOrigin } from "../../../common/utils/origin.utils";
+import {
+  decodeAccessTokenExpiry,
+  verifyAccessToken,
+} from "../../../common/utils/access-token.utils";
 import { ResolveTenantAccessQuery } from "../../../modules/tenancy/application/queries/resolve-tenant-access.query";
 import { GetUserByIdQuery } from "../../../modules/users/application/queries/get-user-by-id.query";
 
 const WS_READY_STATE_OPEN = 1;
 const ACCESS_TOKEN_COOKIE = "access_token";
+/** Inbound frames are ping-sized control messages; anything larger is abuse. */
+const WS_MAX_INBOUND_BYTES = 64 * 1024;
+/** Revalidation sweep cadence for long-lived sockets (expiry + membership). */
+const WS_REVALIDATE_INTERVAL_MS = 60_000;
+const WS_CLOSE_TOKEN_EXPIRED = 4401;
+const WS_CLOSE_MEMBERSHIP_REVOKED = 4403;
 
 interface HandshakeRequest {
   headers?: Record<string, string | string[] | undefined>;
@@ -26,16 +36,21 @@ interface HandshakeRequest {
 interface SocketIdentity {
   userId: string;
   tenantId?: string;
+  /** Token expiry (ms) decoded at handshake; null when the token carries none. */
+  expiresAt: number | null;
 }
 
-// Declared handshake origins come from the same trust source as HTTP
-// CORS. Explicit per-handshake Origin enforcement is H16 follow-up work.
-@WebSocketGateway({ cors: { origin: clientOrigins() } })
-export class RealtimeWebsocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+// Declared handshake origins come from the same trust source as HTTP CORS;
+// the handshake below additionally enforces Origin per connection.
+@WebSocketGateway({ cors: { origin: clientOrigins() }, maxPayload: WS_MAX_INBOUND_BYTES })
+export class RealtimeWebsocketGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
+{
   @WebSocketServer()
   server!: Server;
 
   private socketIdentity = new Map<WebSocket, SocketIdentity>();
+  private revalidateTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly realtime: RealtimeService,
@@ -44,8 +59,25 @@ export class RealtimeWebsocketGateway implements OnGatewayConnection, OnGatewayD
     @Optional() private readonly getUserById?: GetUserByIdQuery,
   ) {}
 
+  afterInit(): void {
+    this.revalidateTimer = setInterval(() => {
+      void this.revalidateConnections().catch((error) => {
+        this.logger.error({ error }, "Realtime revalidation sweep failed");
+      });
+    }, WS_REVALIDATE_INTERVAL_MS);
+    this.revalidateTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.revalidateTimer) clearInterval(this.revalidateTimer);
+  }
+
   async handleConnection(@ConnectedSocket() client: WebSocket, ...args: unknown[]): Promise<void> {
     const request = args[0] as HandshakeRequest | undefined;
+    if (!this.isAllowedOrigin(request)) {
+      client.close();
+      return;
+    }
     const token = this.extractToken(request);
     const user = token ? verifyAccessToken(token) : null;
 
@@ -68,10 +100,14 @@ export class RealtimeWebsocketGateway implements OnGatewayConnection, OnGatewayD
       client.close();
       return;
     }
-    const identity = { userId: user.sub, tenantId: access.value.tenantId };
+    const identity: SocketIdentity = {
+      userId: user.sub,
+      tenantId: access.value.tenantId,
+      expiresAt: token ? decodeAccessTokenExpiry(token) : null,
+    };
     this.socketIdentity.set(client, identity);
     this.realtime.addWsClient(identity.userId, identity.tenantId, client);
-    this.logger.debug(identity, "WS connected");
+    this.logger.debug({ userId: identity.userId, tenantId: identity.tenantId }, "WS connected");
   }
 
   handleDisconnect(@ConnectedSocket() client: WebSocket): void {
@@ -84,6 +120,42 @@ export class RealtimeWebsocketGateway implements OnGatewayConnection, OnGatewayD
         "WS disconnected",
       );
     }
+  }
+
+  /**
+   * Long-lived sockets outlive both token expiry and membership changes.
+   * The sweep closes expired credentials and re-resolves membership; an
+   * empty sweep is the common case and touches no sockets.
+   */
+  private async revalidateConnections(): Promise<void> {
+    if (this.socketIdentity.size === 0) return;
+    const now = Date.now();
+    for (const [socket, identity] of this.socketIdentity) {
+      if (socket.readyState !== WS_READY_STATE_OPEN) {
+        this.socketIdentity.delete(socket);
+        continue;
+      }
+      if (identity.expiresAt !== null && identity.expiresAt <= now) {
+        this.logger.debug({ userId: identity.userId }, "Closing expired realtime socket");
+        socket.close(WS_CLOSE_TOKEN_EXPIRED, "token expired");
+        this.socketIdentity.delete(socket);
+        continue;
+      }
+      if (identity.tenantId !== undefined) {
+        const access = await this.tenantAccess.execute(identity.userId, identity.tenantId);
+        if (access.isErr()) {
+          this.logger.debug({ userId: identity.userId }, "Closing revoked realtime socket");
+          socket.close(WS_CLOSE_MEMBERSHIP_REVOKED, "membership revoked");
+          this.socketIdentity.delete(socket);
+        }
+      }
+    }
+  }
+
+  private isAllowedOrigin(request?: HandshakeRequest): boolean {
+    const origin = request?.headers?.origin;
+    if (typeof origin !== "string" || origin.length === 0) return true;
+    return isTrustedOrigin(origin);
   }
 
   @SubscribeMessage("ping")
@@ -100,8 +172,19 @@ export class RealtimeWebsocketGateway implements OnGatewayConnection, OnGatewayD
     }
 
     const cookie = request?.headers?.cookie;
-    if (typeof cookie !== "string") return null;
-    return this.readCookie(cookie, ACCESS_TOKEN_COOKIE);
+    if (typeof cookie === "string") {
+      const fromCookie = this.readCookie(cookie, ACCESS_TOKEN_COOKIE);
+      if (fromCookie) return fromCookie;
+    }
+
+    // Browser fallback: the WebSocket constructor cannot set headers, and
+    // auth cookies scoped to Path=/api are never sent to /ws. Short-lived
+    // access tokens only — never put refresh tokens in URLs.
+    if (request?.url) {
+      const token = new URL(request.url, "http://localhost").searchParams.get("token");
+      if (token) return token;
+    }
+    return null;
   }
 
   private readCookie(header: string, name: string): string | null {

@@ -10,7 +10,10 @@ import type { ResolveTenantAccessQuery } from "../../../modules/tenancy/applicat
 import { RealtimeWebsocketGateway } from "./realtime-websocket.gateway";
 
 vi.mock("../../../config/env", () => ({ env: { CLIENT_URL: "http://localhost:5156" } }));
-vi.mock("../../../common/utils/access-token.utils", () => ({ verifyAccessToken: vi.fn() }));
+vi.mock("../../../common/utils/access-token.utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../common/utils/access-token.utils")>();
+  return { ...actual, verifyAccessToken: vi.fn() };
+});
 
 const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSED = 3;
@@ -84,5 +87,59 @@ describe("RealtimeWebsocketGateway", () => {
 
     expect(openSocket.send).toHaveBeenCalledWith(JSON.stringify({ event: "pong", payload: null }));
     expect(closedSocket.send).not.toHaveBeenCalled();
+  });
+
+  it("rejects handshakes from untrusted origins (H16)", async () => {
+    vi.mocked(verifyAccessToken).mockReturnValue(AUTHENTICATED_USER);
+    const socket = createSocket();
+
+    await gateway.handleConnection(socket, {
+      headers: { authorization: "Bearer access-token", origin: "https://evil.example.com" },
+    });
+
+    expect(socket.close).toHaveBeenCalledOnce();
+    expect(tenantAccess.execute).not.toHaveBeenCalled();
+  });
+
+  it("accepts the ?token= browser fallback when cookies cannot travel (H16)", async () => {
+    vi.mocked(verifyAccessToken).mockReturnValue(AUTHENTICATED_USER);
+    const socket = createSocket();
+
+    await gateway.handleConnection(socket, { url: "/ws?token=query-token" });
+
+    expect(tenantAccess.execute).toHaveBeenCalled();
+    expect(realtime.addWsClient).toHaveBeenCalledWith("user-1", "tenant-1", socket);
+    expect(socket.close).not.toHaveBeenCalled();
+  });
+
+  it("sweeps expired credentials and revoked memberships (H16)", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(verifyAccessToken).mockReturnValue(AUTHENTICATED_USER);
+      const expiredToken = `header.${Buffer.from(
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 60 }),
+      ).toString("base64url")}.sig`;
+      const liveToken = `header.${Buffer.from(
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 600 }),
+      ).toString("base64url")}.sig`;
+      const expired = createSocket();
+      const revoked = createSocket();
+      await gateway.handleConnection(expired, {
+        headers: { authorization: `Bearer ${expiredToken}` },
+      });
+      await gateway.handleConnection(revoked, {
+        headers: { authorization: `Bearer ${liveToken}` },
+      });
+      vi.mocked(tenantAccess.execute).mockResolvedValue({ isErr: () => true } as never);
+
+      gateway.afterInit();
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      expect(expired.close).toHaveBeenCalledWith(4401, "token expired");
+      expect(revoked.close).toHaveBeenCalledWith(4403, "membership revoked");
+    } finally {
+      vi.useRealTimers();
+      gateway.onModuleDestroy();
+    }
   });
 });

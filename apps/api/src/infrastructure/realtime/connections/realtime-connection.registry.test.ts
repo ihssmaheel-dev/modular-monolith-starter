@@ -62,4 +62,39 @@ describe("RealtimeConnectionRegistry", () => {
 
     expect(registry.getUserCount()).toBe(1);
   });
+
+  it("counts a physical connection once across primary and alias keys (H16)", () => {
+    const socket = createSocket();
+    registry.addWsClient("user-1", "tenant-1", socket);
+    registry.addWsAlias("user-1", socket);
+
+    expect(metrics.incrementGauge).toHaveBeenCalledOnce();
+    expect(registry.getUserCount()).toBe(1);
+
+    registry.removeWsClient("user-1", "tenant-1", socket);
+    registry.removeWsAlias("user-1", socket);
+
+    expect(metrics.decrementGauge).toHaveBeenCalledOnce();
+    expect(registry.getUserCount()).toBe(0);
+  });
+
+  it("delivers tenant messages to the scope key and global ones to the alias", () => {
+    const socket = createSocket();
+    registry.addWsClient("user-1", "tenant-1", socket);
+    registry.addWsAlias("user-1", socket);
+
+    registry.dispatchToUser("user-1", "tenant-1", "note.updated", { id: "note-1" });
+    registry.dispatchToUser("user-1", undefined, "export.ready", {});
+
+    expect(socket.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("never leaks tenant messages to user-global subscribers", () => {
+    const globalSocket = createSocket();
+    registry.addWsClient("user-1", undefined, globalSocket);
+
+    registry.dispatchToUser("user-1", "tenant-1", "note.updated", { id: "note-1" });
+
+    expect(globalSocket.send).not.toHaveBeenCalled();
+  });
 });

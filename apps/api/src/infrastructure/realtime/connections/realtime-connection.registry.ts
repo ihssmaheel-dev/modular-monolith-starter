@@ -39,6 +39,24 @@ export class RealtimeConnectionRegistry {
     );
   }
 
+  /**
+   * Subscribes an already-counted socket to the user-global key without
+   * touching gauges: tenant-scoped subscribers must still receive global
+   * (tenant-less) messages, but a physical connection is counted once.
+   */
+  addWsAlias(userId: string, socket: WebSocket): void {
+    const key = connectionKey(userId, undefined);
+    if (!this.wsClients.has(key)) this.wsClients.set(key, new Set());
+    this.wsClients.get(key)!.add(socket);
+  }
+
+  removeWsAlias(userId: string, socket: WebSocket): void {
+    const clients = this.wsClients.get(connectionKey(userId, undefined));
+    if (clients?.delete(socket) && clients.size === 0) {
+      this.wsClients.delete(connectionKey(userId, undefined));
+    }
+  }
+
   removeWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
     const key = connectionKey(userId, tenantId);
     const clients = this.wsClients.get(key);
@@ -76,6 +94,23 @@ export class RealtimeConnectionRegistry {
     );
   }
 
+  /**
+   * SSE counterpart of addWsAlias: same user-global subscription, no gauge
+   * change. See addWsAlias for the rationale.
+   */
+  addSseAlias(userId: string, subject: Subject<NestMessageEvent>): void {
+    const key = connectionKey(userId, undefined);
+    if (!this.sseClients.has(key)) this.sseClients.set(key, new Set());
+    this.sseClients.get(key)!.add(subject);
+  }
+
+  removeSseAlias(userId: string, subject: Subject<NestMessageEvent>): void {
+    const clients = this.sseClients.get(connectionKey(userId, undefined));
+    if (clients?.delete(subject) && clients.size === 0) {
+      this.sseClients.delete(connectionKey(userId, undefined));
+    }
+  }
+
   removeSseClient(
     userId: string,
     tenantId: string | undefined,
@@ -100,13 +135,16 @@ export class RealtimeConnectionRegistry {
     event: string,
     payload: unknown,
   ): void {
-    dispatchToConnection(
+    const { droppedSlowClients } = dispatchToConnection(
       this.wsClients,
       this.sseClients,
       connectionKey(userId, tenantId),
       event,
       payload,
     );
+    if (droppedSlowClients > 0) {
+      this.logger.warn({ userId, droppedSlowClients }, "Skipped slow realtime clients");
+    }
   }
 
   dispatchToAll(event: string, payload: unknown): void {
@@ -146,7 +184,13 @@ export class RealtimeConnectionRegistry {
   }
 
   getUserCount(): number {
-    return new Set([...this.wsClients.keys(), ...this.sseClients.keys()]).size;
+    // Keys are per scope (`<tenant>:<user>`); aliases mean one user can own
+    // several keys, so count distinct users, not keys.
+    const users = new Set<string>();
+    for (const key of [...this.wsClients.keys(), ...this.sseClients.keys()]) {
+      users.add(key.split(":").pop() ?? key);
+    }
+    return users.size;
   }
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuthStore } from "@/stores/auth.store";
+import { useTenantStore } from "@/stores/tenant.store";
 import { renderHookWithProviders } from "@/test/utils";
 import { useRealtimeNotifications } from "./use-realtime-notifications";
 
@@ -57,6 +58,7 @@ describe("useRealtimeNotifications", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     useAuthStore.getState().clearAuth();
+    useTenantStore.getState().setTenantId(null);
   });
 
   it("subscribes with cookie auth when logged in", () => {
@@ -100,5 +102,15 @@ describe("useRealtimeNotifications", () => {
     renderHookWithProviders(() => useRealtimeNotifications());
 
     expect(MockEventSource.instances).toHaveLength(0);
+  });
+
+  it("scopes the subscription to the active tenant (H16)", () => {
+    const tenantId = "123e4567-e89b-42d3-a456-426614174000";
+    useTenantStore.getState().setTenantId(tenantId);
+
+    renderHookWithProviders(() => useRealtimeNotifications());
+
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0]!.url).toBe(`${SSE_URL}?tenantId=${tenantId}`);
   });
 });

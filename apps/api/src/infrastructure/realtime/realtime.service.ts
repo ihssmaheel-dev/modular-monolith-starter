@@ -20,12 +20,20 @@ export class RealtimeService {
     this.logger = logger.child({ module: "RealtimeService" });
   }
 
+  /**
+   * Subscribes a connection to its scope key plus, for tenant-scoped
+   * connections, the user-global key: tenant messages stay isolated to
+   * their scope key, while tenant-less (global) messages still reach
+   * tenant-scoped subscribers. Removal mirrors registration exactly.
+   */
   addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
     this.registry.addWsClient(userId, tenantId, socket);
+    if (tenantId !== undefined) this.registry.addWsAlias(userId, socket);
   }
 
   removeWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
     this.registry.removeWsClient(userId, tenantId, socket);
+    if (tenantId !== undefined) this.registry.removeWsAlias(userId, socket);
   }
 
   addSseClient(
@@ -34,6 +42,7 @@ export class RealtimeService {
     subject: Subject<NestMessageEvent>,
   ): void {
     this.registry.addSseClient(userId, tenantId, subject);
+    if (tenantId !== undefined) this.registry.addSseAlias(userId, subject);
   }
 
   removeSseClient(
@@ -42,6 +51,7 @@ export class RealtimeService {
     subject: Subject<NestMessageEvent>,
   ): void {
     this.registry.removeSseClient(userId, tenantId, subject);
+    if (tenantId !== undefined) this.registry.removeSseAlias(userId, subject);
   }
 
   broadcast(event: string, payload: unknown): void {

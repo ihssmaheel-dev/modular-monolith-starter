@@ -73,4 +73,39 @@ describe("RealtimeService", () => {
   it("returns the active connection owner count from the registry", () => {
     expect(service.getUserCount()).toBe(3);
   });
+
+  it("subscribes tenant connections to the user-global key as well (H16)", () => {
+    const socket = { readyState: 1 } as never;
+    const subject = { next: vi.fn() } as never;
+    const scoped = {
+      addWsClient: vi.fn(),
+      addWsAlias: vi.fn(),
+      removeWsClient: vi.fn(),
+      removeWsAlias: vi.fn(),
+      addSseClient: vi.fn(),
+      addSseAlias: vi.fn(),
+      removeSseClient: vi.fn(),
+      removeSseAlias: vi.fn(),
+    } as unknown as RealtimeConnectionRegistry;
+    const redis = { getClient: vi.fn().mockReturnValue({ xadd }) } as unknown as RedisService;
+    const logger = {
+      child: vi.fn().mockReturnValue({ error: logError }),
+    } as unknown as PinoLoggerService;
+    const scopedService = new RealtimeService(redis, scoped, logger);
+
+    scopedService.addWsClient("user-1", "tenant-1", socket);
+    scopedService.addSseClient("user-1", "tenant-1", subject);
+    scopedService.addWsClient("user-1", undefined, socket);
+
+    expect(scoped.addWsClient).toHaveBeenCalledTimes(2);
+    expect(scoped.addWsAlias).toHaveBeenCalledTimes(1);
+    expect(scoped.addSseClient).toHaveBeenCalledTimes(1);
+    expect(scoped.addSseAlias).toHaveBeenCalledTimes(1);
+
+    scopedService.removeWsClient("user-1", "tenant-1", socket);
+    scopedService.removeSseClient("user-1", "tenant-1", subject);
+
+    expect(scoped.removeWsAlias).toHaveBeenCalledTimes(1);
+    expect(scoped.removeSseAlias).toHaveBeenCalledTimes(1);
+  });
 });

@@ -11,6 +11,25 @@ export function verifyAccessToken(token: string): AuthenticatedUser | null {
   return decoded && isAuthenticatedUser(decoded) ? decoded : null;
 }
 
+/**
+ * Reads the expiry claim without verifying: sweep timing only, never an
+ * authentication decision. Authentication always goes through
+ * verifyAccessToken; this just tells the connection sweeper when to
+ * re-check (or drop) a long-lived socket.
+ */
+export function decodeAccessTokenExpiry(token: string): number | null {
+  const [, payload] = token.split(".");
+  if (!payload) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      exp?: unknown;
+    };
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
 function isAuthenticatedUser(value: JwtPayload): value is AuthenticatedUser {
   return (
     typeof value.sub === "string" &&
