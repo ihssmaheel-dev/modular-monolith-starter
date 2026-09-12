@@ -122,6 +122,14 @@ function run(command, args) {
 }
 
 function execute(command, args, stdio, shell = process.platform === "win32") {
+  if (shell && Array.isArray(args) && args.length > 0) {
+    const fullCommand = [command, ...args].join(" ");
+    return spawnSync(fullCommand, {
+      cwd: ROOT,
+      stdio,
+      shell: true,
+    });
+  }
   return spawnSync(command, args, {
     cwd: ROOT,
     stdio,
