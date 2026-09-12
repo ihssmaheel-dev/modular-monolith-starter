@@ -14,7 +14,7 @@ The migration check creates isolated databases, applies the complete chain to on
 another from every migration except the latest. It also verifies the enum ownership, migration
 history, hardening RLS policies, and audit-retention function.
 
-> **Pre-production squash (2026-09-04):** History was squashed to a single `0000_initial.sql` because no production database exists yet. The single file contains the full schema + RLS + audit immutability + retention function. After this point, migrations are append-only — never edit `0000_initial` once you have production data.
+> **Pre-production squash (2026-09-12):** All baseline migrations were consolidated into a single `0000_initial.sql` because no production database exists yet. The single file contains the unified schema (all tables, columns, indexes, enums) + forced RLS + audit immutability + retention functions. After this point, migrations in production are append-only — never edit `0000_initial` once you have live production data.
 
 Production migrations are append-only after `0000_initial`. Review generated SQL before applying it, never edit an
 already-applied migration, and keep the journal entry in `migrations/pg/meta/_journal.json` in sync.

@@ -1,1 +1,0 @@
-ALTER TYPE "public"."dsr_status" ADD VALUE 'FAILED';

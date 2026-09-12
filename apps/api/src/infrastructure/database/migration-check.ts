@@ -260,13 +260,16 @@ async function verifyMigrations(): Promise<void> {
     await applyMigrations(freshDatabase, MIGRATIONS_PATH);
     await assertMigrationState(freshDatabase, journal.entries.length);
 
-    await createDatabase(upgradeDatabase);
-    partialMigrations = await createPartialMigrations(partialMigrationCount);
-    await applyMigrations(upgradeDatabase, partialMigrations);
-    await applyMigrations(upgradeDatabase, MIGRATIONS_PATH);
-    await assertMigrationState(upgradeDatabase, journal.entries.length);
-
-    process.stdout.write("[MigrationCheck] Fresh and upgrade migration paths passed.\n");
+    if (journal.entries.length > 1) {
+      await createDatabase(upgradeDatabase);
+      partialMigrations = await createPartialMigrations(partialMigrationCount);
+      await applyMigrations(upgradeDatabase, partialMigrations);
+      await applyMigrations(upgradeDatabase, MIGRATIONS_PATH);
+      await assertMigrationState(upgradeDatabase, journal.entries.length);
+      process.stdout.write("[MigrationCheck] Fresh and upgrade migration paths passed.\n");
+    } else {
+      process.stdout.write("[MigrationCheck] Fresh baseline migration path passed.\n");
+    }
   } finally {
     if (partialMigrations) await cleanupMigrationFolder(partialMigrations);
     await Promise.all([cleanupDatabase(freshDatabase), cleanupDatabase(upgradeDatabase)]);

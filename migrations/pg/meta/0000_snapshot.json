@@ -1,5 +1,5 @@
 {
-  "id": "a87c6dac-90b6-4b02-8bcf-2f8293088e5a",
+  "id": "7519615d-9ee8-4207-a442-b731de652942",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1112,6 +1112,13 @@
           "notNull": true,
           "default": "'[]'::jsonb"
         },
+        "delivered_channels": {
+          "name": "delivered_channels",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "read_at": {
           "name": "read_at",
           "type": "timestamp with time zone",
@@ -1731,6 +1738,42 @@
           "primaryKey": false,
           "notNull": false
         },
+        "email_verified_at": {
+          "name": "email_verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_verification_token_hash": {
+          "name": "email_verification_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_verification_expires_at": {
+          "name": "email_verification_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pending_email": {
+          "name": "pending_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_change_token_hash": {
+          "name": "email_change_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_change_expires_at": {
+          "name": "email_change_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "role": {
           "name": "role",
           "type": "user_role",
@@ -1867,7 +1910,7 @@
     "public.dsr_status": {
       "name": "dsr_status",
       "schema": "public",
-      "values": ["REQUESTED", "READY", "FULFILLED", "EXPIRED"]
+      "values": ["REQUESTED", "READY", "FULFILLED", "EXPIRED", "FAILED"]
     },
     "public.dsr_type": {
       "name": "dsr_type",

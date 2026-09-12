@@ -1,3 +1,17 @@
+-- ============================================================================
+-- Modular Monolith Starter — Initial Consolidated Migration (0000_initial)
+-- ============================================================================
+-- Unified baseline schema:
+-- 1. PostgreSQL ENUMs & custom types
+-- 2. Core tables, constraints & default values
+-- 3. Performance, partial, and unique indexes
+-- 4. Audit immutability triggers and retention functions
+-- 5. Multi-tenant and subject Row-Level Security (RLS) isolation policies
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1. ENUMS & TYPES
+-- ----------------------------------------------------------------------------
 CREATE TYPE "public"."audit_action" AS ENUM('CREATE', 'UPDATE', 'DELETE');--> statement-breakpoint
 CREATE TYPE "public"."outbox_status" AS ENUM('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED', 'DEAD_LETTER');--> statement-breakpoint
 CREATE TYPE "public"."file_parent_type" AS ENUM('note', 'user', 'general');--> statement-breakpoint
@@ -5,12 +19,16 @@ CREATE TYPE "public"."file_status" AS ENUM('pending', 'uploading', 'scanning', '
 CREATE TYPE "public"."notification_batch_status" AS ENUM('open', 'delivered');--> statement-breakpoint
 CREATE TYPE "public"."digest_cadence" AS ENUM('realtime', 'hourly', 'daily');--> statement-breakpoint
 CREATE TYPE "public"."notification_channel" AS ENUM('inApp', 'email', 'push');--> statement-breakpoint
-CREATE TYPE "public"."dsr_status" AS ENUM('REQUESTED', 'READY', 'FULFILLED', 'EXPIRED');--> statement-breakpoint
+CREATE TYPE "public"."dsr_status" AS ENUM('REQUESTED', 'READY', 'FULFILLED', 'EXPIRED', 'FAILED');--> statement-breakpoint
 CREATE TYPE "public"."dsr_type" AS ENUM('EXPORT', 'ACCOUNT_ERASURE', 'ORGANIZATION_ERASURE');--> statement-breakpoint
 CREATE TYPE "public"."invitation_role" AS ENUM('admin', 'member');--> statement-breakpoint
 CREATE TYPE "public"."invitation_status" AS ENUM('pending', 'accepted', 'revoked');--> statement-breakpoint
 CREATE TYPE "public"."membership_role" AS ENUM('owner', 'admin', 'member');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('admin', 'user');--> statement-breakpoint
+
+-- ----------------------------------------------------------------------------
+-- 2. CORE TABLES
+-- ----------------------------------------------------------------------------
 CREATE TABLE "audit_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"collection_name" text NOT NULL,
@@ -21,8 +39,8 @@ CREATE TABLE "audit_logs" (
 	"before" jsonb,
 	"after" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "outbox_events" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text,
@@ -35,8 +53,8 @@ CREATE TABLE "outbox_events" (
 	"locked_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "files" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text,
@@ -53,8 +71,8 @@ CREATE TABLE "files" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "notes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text,
@@ -65,8 +83,8 @@ CREATE TABLE "notes" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "device_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -77,8 +95,8 @@ CREATE TABLE "device_tokens" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "device_tokens_user_token_unique" UNIQUE("user_id","token")
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "notification_batches" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -90,8 +108,8 @@ CREATE TABLE "notification_batches" (
 	"window_ends_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "notification_preferences" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -103,8 +121,8 @@ CREATE TABLE "notification_preferences" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "notification_preferences_user_category_unique" UNIQUE("user_id","category")
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "notifications" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -115,11 +133,12 @@ CREATE TABLE "notifications" (
 	"title_params" jsonb,
 	"data" jsonb,
 	"channels" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"delivered_channels" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"read_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "dsr_requests" (
 	"id" text PRIMARY KEY NOT NULL,
 	"type" "dsr_type" NOT NULL,
@@ -130,8 +149,8 @@ CREATE TABLE "dsr_requests" (
 	"expires_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "invitations" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text NOT NULL,
@@ -145,8 +164,8 @@ CREATE TABLE "invitations" (
 	"accepted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "memberships" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tenant_id" text NOT NULL,
@@ -156,8 +175,8 @@ CREATE TABLE "memberships" (
 	"role" "membership_role" NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "organizations" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
@@ -166,8 +185,8 @@ CREATE TABLE "organizations" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
 CREATE TABLE "users" (
 	"id" text PRIMARY KEY NOT NULL,
 	"email" text NOT NULL,
@@ -175,14 +194,23 @@ CREATE TABLE "users" (
 	"password_hash" text NOT NULL,
 	"password_reset_token_hash" text,
 	"password_reset_expires_at" timestamp with time zone,
+	"email_verified_at" timestamp with time zone,
+	"email_verification_token_hash" text,
+	"email_verification_expires_at" timestamp with time zone,
+	"pending_email" text,
+	"email_change_token_hash" text,
+	"email_change_expires_at" timestamp with time zone,
 	"role" "user_role" DEFAULT 'user' NOT NULL,
 	"avatar_file_id" text,
 	"auth_version" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone
-);
---> statement-breakpoint
+);--> statement-breakpoint
+
+-- ----------------------------------------------------------------------------
+-- 3. INDEXES & CONSTRAINTS
+-- ----------------------------------------------------------------------------
 CREATE INDEX "audit_tenant_created_idx" ON "audit_logs" USING btree ("tenant_id","created_at");--> statement-breakpoint
 CREATE INDEX "audit_collection_created_idx" ON "audit_logs" USING btree ("collection_name","created_at");--> statement-breakpoint
 CREATE INDEX "audit_document_id_idx" ON "audit_logs" USING btree ("document_id");--> statement-breakpoint
@@ -227,20 +255,29 @@ CREATE UNIQUE INDEX "organizations_slug_unique" ON "organizations" USING btree (
 CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "users_avatar_file_id_idx" ON "users" USING btree ("avatar_file_id");--> statement-breakpoint
 CREATE INDEX "users_deleted_at_idx" ON "users" USING btree ("deleted_at");--> statement-breakpoint
--- Hand-written hardening below. Not expressible in Drizzle schemas; keep it in
--- this single initial migration while the project is pre-production. New
--- projects must append new migrations instead of editing this file.
--- Audit logs immutability: prevent UPDATE/DELETE
-REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC;
+
+-- ----------------------------------------------------------------------------
+-- 4. HARDENING FUNCTIONS & IMMUTABILITY TRIGGERS
+-- ----------------------------------------------------------------------------
+-- Revoke direct UPDATE / DELETE on audit logs from public
+REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC;--> statement-breakpoint
+
+-- Allow only controlled retention function to remove expired audit rows
 CREATE OR REPLACE FUNCTION prevent_audit_update() RETURNS TRIGGER AS $$
 BEGIN
+  IF TG_OP = 'DELETE'
+     AND current_setting('app.system_scope', true) = 'true'
+     AND current_setting('app.audit_retention_purge', true) = 'true' THEN
+    RETURN OLD;
+  END IF;
   RAISE EXCEPTION 'audit_logs is immutable: updates and deletes are forbidden';
 END;
-$$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS audit_logs_immutable ON audit_logs;
+$$ LANGUAGE plpgsql;--> statement-breakpoint
+
+DROP TRIGGER IF EXISTS audit_logs_immutable ON audit_logs;--> statement-breakpoint
 CREATE TRIGGER audit_logs_immutable BEFORE UPDATE OR DELETE ON audit_logs FOR EACH ROW EXECUTE FUNCTION prevent_audit_update();--> statement-breakpoint
---> statement-breakpoint
-CREATE OR REPLACE FUNCTION purge_audit_logs_older_than(days_to_keep INT) RETURNS INT
+
+CREATE OR REPLACE FUNCTION public.purge_audit_logs_older_than(days_to_keep INT) RETURNS INT
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -252,6 +289,8 @@ BEGIN
     RAISE EXCEPTION 'Retention period cannot be less than 30 days';
   END IF;
 
+  PERFORM set_config('app.system_scope', 'true', true);
+  PERFORM set_config('app.audit_retention_purge', 'true', true);
   DELETE FROM public.audit_logs
   WHERE created_at < NOW() - make_interval(days => days_to_keep);
   GET DIAGNOSTICS deleted_count = ROW_COUNT;
@@ -259,11 +298,39 @@ BEGIN
 END;
 $$;--> statement-breakpoint
 
+REVOKE ALL ON FUNCTION public.purge_audit_logs_older_than(INT) FROM PUBLIC;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION public.purge_audit_logs_older_than(INT) TO CURRENT_USER;--> statement-breakpoint
+
+-- ----------------------------------------------------------------------------
+-- 5. ROW-LEVEL SECURITY (RLS) & ISOLATION POLICIES
+-- ----------------------------------------------------------------------------
+-- Enable and force RLS on all tenant-owned and subject-isolated tables
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE outbox_events ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE outbox_events FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notes ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notes FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE files ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE files FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE memberships FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE invitations FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE organizations FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE dsr_requests ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE dsr_requests FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notifications FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE device_tokens FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notification_batches ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notification_batches FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 
+-- RLS Policies
 DROP POLICY IF EXISTS audit_system_scope ON audit_logs;--> statement-breakpoint
 CREATE POLICY audit_system_scope ON audit_logs
   FOR ALL
@@ -292,8 +359,6 @@ CREATE POLICY outbox_system_scope ON outbox_events
     OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
   );--> statement-breakpoint
 
-ALTER TABLE notes ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE notes FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP POLICY IF EXISTS tenant_isolation_notes ON notes;--> statement-breakpoint
 CREATE POLICY tenant_isolation_notes ON notes
   FOR ALL
@@ -308,8 +373,6 @@ CREATE POLICY tenant_isolation_notes ON notes
     OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
   );--> statement-breakpoint
 
-ALTER TABLE files ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE files FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP POLICY IF EXISTS tenant_isolation_files ON files;--> statement-breakpoint
 CREATE POLICY tenant_isolation_files ON files
   FOR ALL
@@ -324,8 +387,6 @@ CREATE POLICY tenant_isolation_files ON files
     OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
   );--> statement-breakpoint
 
-ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE memberships FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP POLICY IF EXISTS tenant_isolation_memberships ON memberships;--> statement-breakpoint
 CREATE POLICY tenant_isolation_memberships ON memberships
   FOR ALL
@@ -339,8 +400,6 @@ CREATE POLICY tenant_isolation_memberships ON memberships
     OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
   );--> statement-breakpoint
 
-ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE invitations FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP POLICY IF EXISTS tenant_isolation_invitations ON invitations;--> statement-breakpoint
 CREATE POLICY tenant_isolation_invitations ON invitations
   FOR ALL
@@ -353,8 +412,7 @@ CREATE POLICY tenant_isolation_invitations ON invitations
     current_setting('app.system_scope', true) = 'true'
     OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
   );--> statement-breakpoint
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE organizations FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+
 DROP POLICY IF EXISTS tenant_isolation_organizations ON organizations;--> statement-breakpoint
 CREATE POLICY tenant_isolation_organizations ON organizations
   FOR ALL
@@ -371,8 +429,7 @@ CREATE POLICY tenant_isolation_organizations ON organizations
     current_setting('app.system_scope', true) = 'true'
     OR NULLIF(current_setting('app.current_user', true), '') IS NOT NULL
   );--> statement-breakpoint
-ALTER TABLE dsr_requests ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE dsr_requests FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+
 DROP POLICY IF EXISTS subject_isolation_dsr_requests ON dsr_requests;--> statement-breakpoint
 CREATE POLICY subject_isolation_dsr_requests ON dsr_requests
   FOR ALL
@@ -384,43 +441,7 @@ CREATE POLICY subject_isolation_dsr_requests ON dsr_requests
     current_setting('app.system_scope', true) = 'true'
     OR subject_user_id = NULLIF(current_setting('app.current_user', true), '')
   );--> statement-breakpoint
--- Allow only the controlled retention function to remove expired audit rows.
-CREATE OR REPLACE FUNCTION prevent_audit_update() RETURNS TRIGGER AS $$
-BEGIN
-  IF TG_OP = 'DELETE'
-     AND current_setting('app.system_scope', true) = 'true'
-     AND current_setting('app.audit_retention_purge', true) = 'true' THEN
-    RETURN OLD;
-  END IF;
-  RAISE EXCEPTION 'audit_logs is immutable: updates and deletes are forbidden';
-END;
-$$ LANGUAGE plpgsql;--> statement-breakpoint
 
-CREATE OR REPLACE FUNCTION public.purge_audit_logs_older_than(days_to_keep INT) RETURNS INT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  deleted_count INT;
-BEGIN
-  IF days_to_keep < 30 THEN
-    RAISE EXCEPTION 'Retention period cannot be less than 30 days';
-  END IF;
-
-  PERFORM set_config('app.system_scope', 'true', true);
-  PERFORM set_config('app.audit_retention_purge', 'true', true);
-  DELETE FROM public.audit_logs
-  WHERE created_at < NOW() - make_interval(days => days_to_keep);
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
-  RETURN deleted_count;
-END;
-$$;--> statement-breakpoint
-
-REVOKE ALL ON FUNCTION public.purge_audit_logs_older_than(INT) FROM PUBLIC;--> statement-breakpoint
-GRANT EXECUTE ON FUNCTION public.purge_audit_logs_older_than(INT) TO CURRENT_USER;--> statement-breakpoint
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE notifications FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP POLICY IF EXISTS subject_isolation_notifications ON notifications;--> statement-breakpoint
 CREATE POLICY subject_isolation_notifications ON notifications
   FOR ALL
@@ -432,8 +453,7 @@ CREATE POLICY subject_isolation_notifications ON notifications
     current_setting('app.system_scope', true) = 'true'
     OR user_id = NULLIF(current_setting('app.current_user', true), '')
   );--> statement-breakpoint
-ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+
 DROP POLICY IF EXISTS subject_isolation_notification_preferences ON notification_preferences;--> statement-breakpoint
 CREATE POLICY subject_isolation_notification_preferences ON notification_preferences
   FOR ALL
@@ -445,8 +465,7 @@ CREATE POLICY subject_isolation_notification_preferences ON notification_prefere
     current_setting('app.system_scope', true) = 'true'
     OR user_id = NULLIF(current_setting('app.current_user', true), '')
   );--> statement-breakpoint
-ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE device_tokens FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+
 DROP POLICY IF EXISTS subject_isolation_device_tokens ON device_tokens;--> statement-breakpoint
 CREATE POLICY subject_isolation_device_tokens ON device_tokens
   FOR ALL
@@ -458,8 +477,7 @@ CREATE POLICY subject_isolation_device_tokens ON device_tokens
     current_setting('app.system_scope', true) = 'true'
     OR user_id = NULLIF(current_setting('app.current_user', true), '')
   );--> statement-breakpoint
-ALTER TABLE notification_batches ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE notification_batches FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+
 DROP POLICY IF EXISTS subject_isolation_notification_batches ON notification_batches;--> statement-breakpoint
 CREATE POLICY subject_isolation_notification_batches ON notification_batches
   FOR ALL
