@@ -7,4 +7,4 @@ export { CreateUserCommand } from "./application/commands/create-user.command";
 export { UpdateUserCommand } from "./application/commands/update-user.command";
 export { AnonymizeUserCommand } from "./application/commands/anonymize-user.command";
 export { DeleteUserCommand } from "./application/commands/delete-user.command";
-export { UsersController } from "./presentation/users.controller";
+export { UsersController } from "./presentation/controllers/users.controller";

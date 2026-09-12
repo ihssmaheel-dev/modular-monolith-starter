@@ -207,41 +207,31 @@ apps/api/src/modules/
 └── [domain]/
     ├── [domain].module.ts     ← NestJS module definition
     ├── presentation/
-    │   ├── [domain].controller.ts
-    │   └── index.ts
+    │   ├── controllers/       ← REST controllers ([domain].controller.ts)
+    │   ├── orpc/              ← oRPC route handlers ([domain].orpc.controller.ts)
+    │   ├── mappers/           ← DTO / response mappers ([domain].mapper.ts)
+    │   ├── error-maps/        ← Domain error to HTTP status maps ([domain].error-maps.ts)
+    │   └── helpers/           ← Transport utilities (cookies, decorators)
     ├── application/
-    │   ├── commands/           ← Optional: split when 6+ operations
-    │   │   ├── create-[domain].ts
-    │   │   └── index.ts
-    │   ├── queries/            ← Optional: split when 6+ operations
-    │   │   ├── get-[domain].ts
-    │   │   └── index.ts
-    │   └── listeners/          ← Optional: domain event handlers
-    │       ├── [domain]-created.listener.ts
-    │       └── index.ts
+    │   ├── commands/          ← Isolated write use cases (create-[domain].command.ts)
+    │   ├── queries/           ← Isolated read use cases (get-[domain].query.ts)
+    │   ├── listeners/         ← Domain event handlers ([domain]-created.listener.ts)
+    │   ├── workers/           ← Background job workers (if background processing exists)
+    │   ├── policies/          ← Fine-grained authorization policies (if FGA exists)
+    │   └── services/          ← Cross-cutting use case helpers (if complex flows exist)
     ├── domain/
-    │   ├── entities/
-    │   │   ├── [domain].entity.ts
-    │   │   ├── [domain].entity.test.ts
-    │   │   └── index.ts
-    │   ├── value-objects/
-    │   │   ├── email.value-object.ts
-    │   │   └── index.ts
-    │   ├── events/
-    │   │   ├── [domain]-created.event.ts
-    │   │   └── index.ts
-    │   └── errors/
-    │       ├── [domain].errors.ts
-    │       └── index.ts
+    │   ├── entities/          ← Domain entities ([domain].entity.ts)
+    │   ├── value-objects/     ← Immutable value objects (email.vo.ts, file-keys.vo.ts)
+    │   ├── events/            ← Domain events ([domain]-created.event.ts)
+    │   └── errors/            ← Domain error types ([domain].errors.ts)
     └── infrastructure/
-        ├── schemas/
-        │   ├── [domain].schema.ts
-        │   └── index.ts
-        └── [domain].repository.ts
+        ├── schemas/           ← Drizzle table schemas ([domain].schema.ts)
+        └── repositories/      ← Drizzle data access repositories ([domain].repository.ts)
 ```
 
 ### Rules
 - Strict CQRS from the first use case: every operation gets its own command/query class under `application/commands/` and `application/queries/` (no flat services, no "start flat" phase).
+- Zero loose files in `presentation/`, `infrastructure/`, `application/`, or `domain/`.
 - Test files co-locate with source: `create-user.command.test.ts` next to `create-user.command.ts`.
 - Sub-folders by layer are mandatory (presentation, application, domain, infrastructure).
 - Controller is thin: validate → call command/query → map Result to HTTP.

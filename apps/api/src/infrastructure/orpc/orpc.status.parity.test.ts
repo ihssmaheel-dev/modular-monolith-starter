@@ -3,8 +3,8 @@ import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import { RequestMethod } from "@nestjs/common";
 import { organizationsContract } from "@repo/contracts";
 import { describe, expect, it } from "vitest";
-import { TenancyStatusController } from "../../modules/tenancy/presentation/tenancy-status.controller";
-import { TenancyStatusOrpcController } from "../../modules/tenancy/presentation/tenancy-status.orpc.controller";
+import { TenancyStatusController } from "../../modules/tenancy/presentation/controllers/tenancy-status.controller";
+import { TenancyStatusOrpcController } from "../../modules/tenancy/presentation/orpc/tenancy-status.orpc.controller";
 import { RESPONSE_SCHEMA_KEY } from "../../common/decorators/response-schema.decorator";
 
 describe("oRPC tenancy status parity", () => {

@@ -13,10 +13,10 @@ import { ListNoteAttachmentsQuery } from "./application/queries/list-note-attach
 import { NotesRealtimeListener } from "./application/listeners/notes-realtime.listener";
 import { AttachFileToNoteCommand } from "./application/commands/attach-file-to-note.command";
 import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
-import { NotesController } from "./presentation/notes.controller";
+import { NotesController } from "./presentation/controllers/notes.controller";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { FilesModule } from "../files/files.module";
-import { NotesOrpcController } from "./presentation/notes.orpc.controller";
+import { NotesOrpcController } from "./presentation/orpc/notes.orpc.controller";
 
 @Module({
   imports: [OutboxModule, FilesModule],

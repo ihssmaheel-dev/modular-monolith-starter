@@ -22,13 +22,13 @@ import { CanDeleteUserQuery } from "./application/queries/can-delete-user.query"
 import { InvitationsRepository } from "./infrastructure/repositories/invitations.repository";
 import { MembershipsRepository } from "./infrastructure/repositories/memberships.repository";
 import { OrganizationsRepository } from "./infrastructure/repositories/organizations.repository";
-import { MembershipsController } from "./presentation/memberships.controller";
-import { OrganizationsController } from "./presentation/organizations.controller";
-import { TenancyStatusController } from "./presentation/tenancy-status.controller";
+import { MembershipsController } from "./presentation/controllers/memberships.controller";
+import { OrganizationsController } from "./presentation/controllers/organizations.controller";
+import { TenancyStatusController } from "./presentation/controllers/tenancy-status.controller";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
-import { TenancyStatusOrpcController } from "./presentation/tenancy-status.orpc.controller";
-import { OrganizationsOrpcController } from "./presentation/organizations.orpc.controller";
-import { MembershipsOrpcController } from "./presentation/memberships.orpc.controller";
+import { TenancyStatusOrpcController } from "./presentation/orpc/tenancy-status.orpc.controller";
+import { OrganizationsOrpcController } from "./presentation/orpc/organizations.orpc.controller";
+import { MembershipsOrpcController } from "./presentation/orpc/memberships.orpc.controller";
 
 const providers = [
   OrganizationsRepository,

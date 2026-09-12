@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { UsersController } from "./presentation/users.controller";
+import { UsersController } from "./presentation/controllers/users.controller";
 import { GetUsersQuery } from "./application/queries/get-users.query";
 import { GetUserByIdQuery } from "./application/queries/get-user-by-id.query";
 import { GetUserByEmailQuery } from "./application/queries/get-user-by-email.query";
@@ -22,8 +22,8 @@ import { EventEmitterModule } from "@nestjs/event-emitter";
 import { WelcomeEmailListener } from "./application/listeners/welcome-email.listener";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { FilesModule } from "../files/files.module";
-import { UsersOrpcController } from "./presentation/users.orpc.controller";
-import { UsersEmailChangeController } from "./presentation/users-email-change.controller";
+import { UsersOrpcController } from "./presentation/orpc/users.orpc.controller";
+import { UsersEmailChangeController } from "./presentation/controllers/users-email-change.controller";
 
 @Module({
   imports: [EventEmitterModule, OutboxModule, FilesModule],

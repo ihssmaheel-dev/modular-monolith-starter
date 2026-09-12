@@ -1,7 +1,7 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
 import { AuthorizationService } from "../../infrastructure/authorization";
 import { filePolicies } from "./application/policies/files.policies";
-import { FilesController } from "./presentation/files.controller";
+import { FilesController } from "./presentation/controllers/files.controller";
 import { RequestUploadCommand } from "./application/commands/request-upload.command";
 import { ConfirmUploadCommand } from "./application/commands/confirm-upload.command";
 import { DeleteFileCommand } from "./application/commands/delete-file.command";
@@ -18,7 +18,7 @@ import { FileReconciliationWorker } from "./application/workers/file-reconciliat
 import { FilesRepository } from "./infrastructure/repositories/files.repository";
 import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
 import { DatabaseModule } from "../../infrastructure/database";
-import { FilesOrpcController } from "./presentation/files.orpc.controller";
+import { FilesOrpcController } from "./presentation/orpc/files.orpc.controller";
 
 @Module({
   imports: [DatabaseModule],

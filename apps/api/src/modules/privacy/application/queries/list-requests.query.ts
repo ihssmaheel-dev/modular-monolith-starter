@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
 import type { AuthenticatedUser, DsrListResponse } from "@repo/contracts";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
-import { toDsrResponse } from "../../presentation/privacy.mapper";
+import { toDsrResponse } from "../../presentation/mappers/privacy.mapper";
 import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import { DatabaseService } from "../../../../infrastructure/database";
 

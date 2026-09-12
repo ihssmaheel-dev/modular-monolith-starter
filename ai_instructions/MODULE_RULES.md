@@ -12,10 +12,11 @@ Every domain module **must** follow this exact structure:
 modules/[domain]/
 ├── [domain].module.ts
 ├── presentation/
-│   ├── [domain].controller.ts
-│   ├── [domain].orpc.controller.ts
-│   ├── [domain].mapper.ts
-│   └── [domain].error-maps.ts
+│   ├── controllers/       (REST controllers: [domain].controller.ts)
+│   ├── orpc/              (oRPC route handlers: [domain].orpc.controller.ts)
+│   ├── mappers/           (DTO / response mappers: [domain].mapper.ts)
+│   ├── error-maps/        (HTTP status maps: [domain].error-maps.ts)
+│   └── helpers/           (if transport helpers, cookies, or route decorators exist)
 ├── application/
 │   ├── commands/
 │   ├── queries/
@@ -34,7 +35,7 @@ modules/[domain]/
 ```
 
 Do not skip folders. Do not add extra folders beyond this structure.
-Zero loose files in `infrastructure/`, `application/`, or `domain/`.
+Zero loose files in `presentation/`, `infrastructure/`, `application/`, or `domain/`.
 
 
 ---
@@ -42,8 +43,12 @@ Zero loose files in `infrastructure/`, `application/`, or `domain/`.
 ## Folder Responsibilities
 
 ### `presentation/`
-- Controllers only.
-- Extremely thin.
+- Ultra-thin transport and ingress layer.
+- `controllers/` — REST HTTP controllers only.
+- `orpc/` — oRPC route handlers and implementations only.
+- `mappers/` — maps domain entities/results to public response DTOs.
+- `error-maps/` — maps domain errors to HTTP statuses and i18n keys.
+- `helpers/` — transport utilities, cookie management, custom route decorators.
 - Validate input via Zod schemas from `@repo/contracts` (or oRPC contract `oc.route().input().output()`).
 - Call application commands/queries.
 - Map `Result` → HTTP response.
