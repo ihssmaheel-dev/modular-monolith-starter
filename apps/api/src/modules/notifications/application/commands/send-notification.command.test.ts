@@ -3,6 +3,8 @@ import { ok } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { SendNotificationCommand } from "./send-notification.command";
 import { NotificationsRepository } from "../../infrastructure/notifications.repository";
+import { BatchesRepository } from "../../infrastructure/batches.repository";
+import { DatabaseService } from "../../../../infrastructure/database";
 import { RealtimeService } from "../../../../infrastructure/realtime/realtime.service";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { Notification } from "../../domain/entities/notification.entity";
@@ -39,7 +41,10 @@ describe("SendNotificationCommand", () => {
   });
 
   beforeEach(() => {
-    notifications = { create: vi.fn().mockResolvedValue(ok(created)) } as never;
+    notifications = {
+      create: vi.fn().mockResolvedValue(ok(created)),
+      updateById: vi.fn().mockResolvedValue(ok(created)),
+    } as never;
     const preferences = {
       findByUser: vi.fn().mockResolvedValue(ok([preferenceRow()])),
     } as never;
@@ -146,6 +151,147 @@ describe("SendNotificationCommand", () => {
 
     expect(result.isErr() && result.error.type).toBe("NOTIFICATION_SEND_FAILED");
     expect(notifications.create).not.toHaveBeenCalled();
+  });
+
+  it("records confirmed channels on the row after immediate delivery (H12)", async () => {
+    const result = await command.execute({
+      userId: "user-1",
+      type: "user.welcome",
+      titleKey: "notifications.types.userWelcome",
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(notifications.updateById).toHaveBeenCalledWith(created.id, {
+      deliveredChannels: ["inApp"],
+    });
+  });
+
+  it("defers every channel ping for digest-batched types (H12)", async () => {
+    const batches = {
+      findOpenWindow: vi.fn().mockResolvedValue(ok(null)),
+      create: vi.fn().mockResolvedValue(ok({ id: "batch-1" })),
+      appendToWindow: vi.fn(),
+    } as unknown as BatchesRepository;
+    const preferences = {
+      findByUser: vi.fn().mockResolvedValue(
+        ok([
+          {
+            toJSON: () => ({
+              id: "p",
+              userId: "user-1",
+              category: "collaboration",
+              inApp: true,
+              email: true,
+              push: false,
+              digestCadence: "hourly",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }),
+          },
+        ]),
+      ),
+    } as never;
+    const getUserById = {
+      execute: vi.fn().mockResolvedValue(ok({ id: "user-1" })),
+    } as never;
+    const realtime = { sendToUser: vi.fn() } as unknown as RealtimeService;
+    const batched = new SendNotificationCommand(
+      notifications,
+      preferences,
+      {} as never,
+      batches,
+      getUserById,
+      realtime,
+      {} as never,
+      {} as never,
+      { t: (k: string) => k } as never,
+      outbox,
+      events,
+      { child: () => ({}) } as never,
+    );
+
+    const result = await batched.execute({
+      userId: "user-1",
+      tenantId: "tenant-1",
+      type: "note.activity",
+      titleKey: "x",
+      data: { entityId: "note-1" },
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(batches.create).toHaveBeenCalledWith(
+      expect.objectContaining({ groupingKey: "tenant-1:user-1:note.activity:note-1" }),
+    );
+    expect(realtime.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("recovers a lost batch-create race inside a savepoint (H12)", async () => {
+    const batches = {
+      findOpenWindow: vi
+        .fn()
+        .mockResolvedValueOnce(ok(null))
+        .mockResolvedValueOnce(ok({ id: "batch-race", items: [], status: "open" } as never)),
+      create: vi.fn().mockRejectedValue({ code: "23505" }),
+      appendToWindow: vi.fn().mockResolvedValue(ok({})),
+    } as unknown as BatchesRepository;
+    const preferences = {
+      findByUser: vi.fn().mockResolvedValue(
+        ok([
+          {
+            toJSON: () => ({
+              id: "p",
+              userId: "user-1",
+              category: "collaboration",
+              inApp: true,
+              email: true,
+              push: false,
+              digestCadence: "hourly",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }),
+          },
+        ]),
+      ),
+    } as never;
+    const getUserById = {
+      execute: vi.fn().mockResolvedValue(ok({ id: "user-1" })),
+    } as never;
+    const realtime = { sendToUser: vi.fn() } as unknown as RealtimeService;
+    const database = {
+      withResultTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+      withSavepoint: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+      emitAfterCommit: vi.fn(async () => undefined),
+    } as unknown as DatabaseService;
+    const raced = new SendNotificationCommand(
+      notifications,
+      preferences,
+      {} as never,
+      batches,
+      getUserById,
+      realtime,
+      {} as never,
+      {} as never,
+      { t: (k: string) => k } as never,
+      outbox,
+      events,
+      { child: () => ({}) } as never,
+      database,
+    );
+
+    const result = await raced.execute({
+      userId: "user-1",
+      type: "note.activity",
+      titleKey: "x",
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(database.withSavepoint).toHaveBeenCalledTimes(1);
+    expect(batches.appendToWindow).toHaveBeenCalledWith(
+      "batch-race",
+      expect.objectContaining({ titleKey: "x" }),
+      expect.any(Number),
+    );
+    expect(realtime.sendToUser).not.toHaveBeenCalled();
   });
 
   it("should refuse unknown recipients before touching preferences", async () => {

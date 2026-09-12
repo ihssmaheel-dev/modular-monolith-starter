@@ -143,18 +143,26 @@ export class DigestWorker {
     const translate = (key: string, params?: Record<string, unknown>) =>
       this.i18n.t(key, undefined, params as Record<string, string | number> | undefined);
 
+    // Durable per-channel state, mirroring SendNotificationCommand: a crash
+    // between channels must leave an observable record of what went out.
+    const delivered: Array<"inApp" | "email" | "push"> = [];
     if (enabled.includes("inApp")) {
-      this.realtime.sendToUser(
-        window.userId,
-        "notification.created",
-        {
-          id: created.value.id,
-          type: window.type,
-          titleKey: "notifications.digestTitle",
-          titleParams: { count: items.length },
-        },
-        window.tenantId ?? undefined,
-      );
+      try {
+        this.realtime.sendToUser(
+          window.userId,
+          "notification.created",
+          {
+            id: created.value.id,
+            type: window.type,
+            titleKey: "notifications.digestTitle",
+            titleParams: { count: items.length },
+          },
+          window.tenantId ?? undefined,
+        );
+        delivered.push("inApp");
+      } catch (error) {
+        this.logger.warn({ error, batchId: window.id }, "Digest realtime failed");
+      }
     }
     if (enabled.includes("email")) {
       const user = await this.getUserById.execute(window.userId);
@@ -169,11 +177,23 @@ export class DigestWorker {
         const sent = await this.email.send({ to: user.value.email, subject, html });
         if (sent.isErr()) {
           this.logger.warn({ batchId: window.id }, "Digest email failed");
+        } else {
+          delivered.push("email");
         }
       }
     }
     if (enabled.includes("push")) {
-      await this.deliverDigestPush(window.userId, items.length);
+      if (await this.deliverDigestPush(window.userId, items.length)) {
+        delivered.push("push");
+      }
+    }
+    if (delivered.length > 0) {
+      const recorded = await this.notifications.updateById(created.value.id, {
+        deliveredChannels: delivered,
+      });
+      if (recorded.isErr()) {
+        this.logger.warn({ batchId: window.id }, "Digest channels not recorded");
+      }
     }
     const event = new NotificationDigestReadyEvent(
       window.id,
@@ -203,12 +223,12 @@ export class DigestWorker {
     return true;
   }
 
-  private async deliverDigestPush(userId: string, count: number): Promise<void> {
+  private async deliverDigestPush(userId: string, count: number): Promise<boolean> {
     const tokens = await this.devices.findByUser(userId);
-    if (tokens.isErr() || tokens.value.length === 0) return;
+    if (tokens.isErr() || tokens.value.length === 0) return false;
     const driver = this.push.get();
     const expoTokens = tokens.value.filter((token) => token.provider === driver.provider);
-    if (expoTokens.length === 0) return;
+    if (expoTokens.length === 0) return false;
     const title = this.i18n.t("notifications.digestTitle", undefined, { count });
     const results = await driver.send(
       expoTokens.map((token) => ({
@@ -218,6 +238,7 @@ export class DigestWorker {
         data: { count },
       })),
     );
+    let delivered = false;
     for (const [index, result] of results.entries()) {
       const token = expoTokens[index];
       if (!token) continue;
@@ -225,8 +246,11 @@ export class DigestWorker {
         await this.devices.deleteByUserAndToken(userId, token.token);
       } else if (result?.status === "failed") {
         this.logger.warn({ userId, reason: result.reason }, "Digest push failed");
+      } else {
+        delivered = true;
       }
     }
+    return delivered;
   }
 
   private async dispatchTenantScoped<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {

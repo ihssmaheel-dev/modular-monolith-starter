@@ -11,6 +11,8 @@ export interface NotificationData {
   titleParams?: Record<string, unknown> | null;
   data?: Record<string, unknown> | null;
   channels: NotificationChannel[];
+  /** Channels with a confirmed delivery, recorded as each send succeeds. */
+  deliveredChannels: NotificationChannel[];
   readAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +42,7 @@ export class Notification {
       titleParams: input.titleParams ?? null,
       data: input.data ?? null,
       channels: input.channels,
+      deliveredChannels: [],
       readAt: null,
       createdAt: now,
       updatedAt: now,

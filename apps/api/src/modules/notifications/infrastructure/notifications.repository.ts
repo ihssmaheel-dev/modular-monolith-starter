@@ -36,6 +36,7 @@ export class NotificationsRepository extends BaseRepository<Notification, Notifi
       titleParams: (row.titleParams as Record<string, unknown> | null) ?? null,
       data: (row.data as Record<string, unknown> | null) ?? null,
       channels: (row.channels as NotificationChannel[]) ?? [],
+      deliveredChannels: (row.deliveredChannels as NotificationChannel[]) ?? [],
       readAt: row.readAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

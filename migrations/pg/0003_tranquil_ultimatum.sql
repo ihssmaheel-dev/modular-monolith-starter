@@ -1,0 +1,1 @@
+ALTER TABLE "notifications" ADD COLUMN "delivered_channels" jsonb DEFAULT '[]'::jsonb NOT NULL;

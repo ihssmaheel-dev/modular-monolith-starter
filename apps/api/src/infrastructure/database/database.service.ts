@@ -144,14 +144,10 @@ export class DatabaseService implements OnModuleDestroy {
   }
 
   /**
-   * Binds CLS + SQL scope to one tenant for the duration of fn.
-   * - Inside an ambient transaction: switches app.current_tenant and
-   *   restores the previous scope afterwards, so later steps in the same
-   *   unit of work keep their scope. CLS-only scope changes are not
-   *   enough: PostgreSQL settings are fixed when the transaction opens.
-   * - Without one: establishes CLS scope first, then opens a transaction
-   *   so SQL settings are derived from matching context.
-   * - Without CLS (tests): runs fn unchanged.
+   * Binds CLS + SQL scope to one tenant for fn: switches app.current_tenant
+   * inside an ambient transaction (restored afterwards), otherwise opens a
+   * transaction from matching CLS context. CLS-only switches cannot work:
+   * PostgreSQL settings are fixed when the transaction opens.
    */
   async withTenantScope<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
     if (this.getTx()) {
@@ -254,12 +250,15 @@ export class DatabaseService implements OnModuleDestroy {
     return result;
   }
 
-  /**
-   * Serializes a critical section per key with a transaction-scoped advisory
-   * lock (see TransactionScopes). Callers must hold a unit of work.
-   */
+  /** Serializes a critical section per key (see TransactionScopes). Needs a unit of work. */
   async withAdvisoryLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
     return this.scopes.withAdvisoryLock(key, fn);
+  }
+
+  /** Runs fn in a savepoint of the ambient transaction; a throw rolls back and propagates. */
+  async withSavepoint<T>(fn: () => Promise<T>): Promise<T> {
+    if (!this.getTx()) return fn();
+    return this.scopes.withSavepoint(fn);
   }
 
   private async configureTransactionContext(tx: DrizzleDb): Promise<void> {

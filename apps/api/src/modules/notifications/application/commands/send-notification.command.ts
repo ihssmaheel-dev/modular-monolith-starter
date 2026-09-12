@@ -84,8 +84,9 @@ export class SendNotificationCommand {
       : await operation();
     if (result.isErr()) return err(result.error);
     // Channel delivery runs after commit: providers are slow, lossy, and must
-    // never roll back the persisted row. deliver() catches per channel.
-    await this.deliver(result.value.notification, result.value.wanted, input.tenantId);
+    // never roll back the persisted row. Batched rows defer every channel
+    // ping to the digest (the row itself is already visible in the feed).
+    await this.deliver(result.value.notification, result.value.deliverNow, input.tenantId);
     return ok(result.value.notification);
   }
 
@@ -93,7 +94,7 @@ export class SendNotificationCommand {
     input: SendNotificationInput,
   ): Promise<
     Result<
-      { notification: Notification; wanted: NotificationChannel[] },
+      { notification: Notification; deliverNow: NotificationChannel[] },
       NotificationError | TransactionError
     >
   > {
@@ -123,11 +124,13 @@ export class SendNotificationCommand {
       if (batched.isErr()) return err(batched.error);
       const row = await this.createRow(input, definition.category, wanted, true);
       if (row.isErr()) return err(row.error);
-      return ok({ notification: row.value, wanted });
+      // Digest-covered: the digest worker pings every channel later, so no
+      // immediate duplicate. deliverNow stays empty by design.
+      return ok({ notification: row.value, deliverNow: [] });
     }
     const created = await this.createRow(input, definition.category, wanted, false);
     if (created.isErr()) return err(created.error);
-    return ok({ notification: created.value, wanted });
+    return ok({ notification: created.value, deliverNow: wanted });
   }
 
   private async ensurePreferences(userId: string): Promise<NotificationPreferenceData[]> {
@@ -207,7 +210,11 @@ export class SendNotificationCommand {
       grouping === "entity" && typeof input.data?.entityId === "string"
         ? input.data.entityId
         : "none";
-    const groupingKey = `${input.userId}:${input.type}:${entityId}`;
+    // Tenant-scoped grouping: one user's windows in different organizations
+    // must never share a batch. (In-flight windows created before this key
+    // shape may each deliver once more, then age out.)
+    const scope = input.tenantId ?? "global";
+    const groupingKey = `${scope}:${input.userId}:${input.type}:${entityId}`;
     const existing = await this.batches.findOpenWindow(input.userId, groupingKey);
     const item = { titleKey: input.titleKey, titleParams: input.titleParams, data: input.data };
     if (existing.isOk() && existing.value) {
@@ -215,15 +222,21 @@ export class SendNotificationCommand {
       return ok(undefined);
     }
     try {
-      await this.batches.create({
-        userId: input.userId,
-        tenantId: input.tenantId,
-        type: input.type,
-        groupingKey,
-        items: [item],
-        status: "open",
-        windowEndsAt: new Date(Date.now() + windowMinutes * 60 * 1000),
-      });
+      // A concurrent creator may win the unique window race: run the insert
+      // in a savepoint so the recovery queries below execute on a healthy
+      // transaction instead of an aborted one.
+      const createWindow = () =>
+        this.batches.create({
+          userId: input.userId,
+          tenantId: input.tenantId,
+          type: input.type,
+          groupingKey,
+          items: [item],
+          status: "open",
+          windowEndsAt: new Date(Date.now() + windowMinutes * 60 * 1000),
+        });
+      if (this.database) await this.database.withSavepoint(createWindow);
+      else await createWindow();
     } catch (error) {
       if (!isUniqueViolation(error)) return err({ type: "TRANSACTION_FAILED" });
       const reopened = await this.batches.findOpenWindow(input.userId, groupingKey);
@@ -258,22 +271,41 @@ export class SendNotificationCommand {
       titleParams: data.titleParams,
       data: data.data,
     };
+    // Durable per-channel state: every confirmed send is recorded on the
+    // row, so support (and future retry workers) can see exactly which
+    // channels a crash or provider failure skipped.
+    const delivered: NotificationChannel[] = [];
     for (const channel of channels) {
       try {
         if (channel === "inApp") {
           this.realtime.sendToUser(data.userId, "notification.created", payload, tenantId);
+          delivered.push(channel);
         } else if (channel === "email") {
-          await this.deliverEmail(data.userId, data.titleKey, data.titleParams ?? undefined);
+          if (await this.deliverEmail(data.userId, data.titleKey, data.titleParams ?? undefined)) {
+            delivered.push(channel);
+          }
         } else if (channel === "push") {
-          await this.deliverPush(
-            data.userId,
-            data.titleKey,
-            data.titleParams ?? undefined,
-            tenantId,
-          );
+          if (
+            await this.deliverPush(
+              data.userId,
+              data.titleKey,
+              data.titleParams ?? undefined,
+              tenantId,
+            )
+          ) {
+            delivered.push(channel);
+          }
         }
       } catch (error) {
         this.logger.error({ error, channel, notificationId: data.id }, "Channel delivery failed");
+      }
+    }
+    if (delivered.length > 0) {
+      const recorded = await this.notifications.updateById(data.id, {
+        deliveredChannels: delivered,
+      });
+      if (recorded.isErr()) {
+        this.logger.error({ notificationId: data.id }, "Delivered channels not recorded");
       }
     }
   }
@@ -282,9 +314,9 @@ export class SendNotificationCommand {
     userId: string,
     titleKey: string,
     titleParams?: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const user = await this.getUserById.execute(userId);
-    if (user.isErr() || !user.value) return;
+    if (user.isErr() || !user.value) return false;
     const translate = (key: string, params?: Record<string, unknown>) =>
       this.i18n.t(key, undefined, params as Record<string, string | number> | undefined);
     const subject = translate(titleKey, titleParams);
@@ -297,7 +329,9 @@ export class SendNotificationCommand {
     const result = await this.email.send({ to: user.value.email, subject, html });
     if (result.isErr()) {
       this.logger.warn({ userId }, "Notification email failed");
+      return false;
     }
+    return true;
   }
 
   private async deliverPush(
@@ -305,12 +339,12 @@ export class SendNotificationCommand {
     titleKey: string,
     titleParams: Record<string, unknown> | undefined,
     tenantId?: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const tokens = await this.devices.findByUser(userId);
-    if (tokens.isErr() || tokens.value.length === 0) return;
+    if (tokens.isErr() || tokens.value.length === 0) return false;
     const driver = this.push.get();
     const expoTokens = tokens.value.filter((token) => token.provider === driver.provider);
-    if (expoTokens.length === 0) return;
+    if (expoTokens.length === 0) return false;
     const title = this.i18n.t(
       titleKey,
       undefined,
@@ -328,11 +362,15 @@ export class SendNotificationCommand {
     for (const token of dead) {
       await this.devices.deleteByUserAndToken(userId, token.token);
     }
+    let delivered = false;
     for (const result of results) {
       if (result?.status === "failed") {
         this.logger.warn({ userId, reason: result.reason }, "Notification push failed");
+      } else {
+        delivered = true;
       }
     }
+    return delivered;
   }
 }
 

@@ -27,6 +27,7 @@ export const notifications = pgTable(
     titleParams: jsonb("title_params"),
     data: jsonb("data"),
     channels: jsonb("channels").notNull().default([]),
+    deliveredChannels: jsonb("delivered_channels").notNull().default([]),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

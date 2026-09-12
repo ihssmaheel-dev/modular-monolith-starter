@@ -33,6 +33,7 @@ describe("DigestWorker", () => {
       create: vi.fn().mockResolvedValue(ok({ id: "notif-1" })),
       findDigestByBatchId: vi.fn().mockResolvedValue(ok(null)),
       deleteById: vi.fn().mockResolvedValue(ok(true)),
+      updateById: vi.fn().mockResolvedValue(ok({ id: "notif-1" })),
     } as never;
     const preferences = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
     const devices = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
@@ -103,6 +104,16 @@ describe("DigestWorker", () => {
       expect.objectContaining({ type: "note.activity" }),
       undefined,
     );
+  });
+
+  it("records confirmed digest channels on the digest row (H12)", async () => {
+    const { notifications: repo } = build();
+
+    await worker.closeDueWindows();
+
+    expect(repo.updateById).toHaveBeenCalledWith("notif-1", {
+      deliveredChannels: ["inApp"],
+    });
   });
 
   it("should remove its duplicate row when losing the claim race", async () => {
