@@ -3,7 +3,12 @@ import { WebSocket } from "ws";
 import { Subject } from "rxjs";
 import { PinoLoggerService } from "../../logger/logger.service";
 import { MetricsService } from "../../metrics/metrics.service";
-import { dispatchToConnection, dispatchToEveryConnection } from "./realtime-connection.dispatcher";
+import {
+  dispatchToConnection,
+  dispatchToEveryConnection,
+  closeKeyConnections,
+  closeMatchingConnections,
+} from "./realtime-connection.dispatcher";
 
 const MAX_CLIENTS_PER_CONNECTION = 100;
 
@@ -152,34 +157,46 @@ export class RealtimeConnectionRegistry {
   }
 
   disconnectUser(userId: string): number {
-    let closedCount = 0;
-    for (const [key, sockets] of this.wsClients.entries()) {
-      if (key.endsWith(`:${userId}`)) {
-        for (const s of sockets) {
-          try {
-            s.close(4001, "Session invalidated");
-            closedCount++;
-          } catch {
-            /* ignore */
-          }
-        }
-        this.wsClients.delete(key);
-      }
-    }
-    for (const [key, subjects] of this.sseClients.entries()) {
-      if (key.endsWith(`:${userId}`)) {
-        for (const sub of subjects) {
-          try {
-            sub.complete();
-            closedCount++;
-          } catch {
-            /* ignore */
-          }
-        }
-        this.sseClients.delete(key);
-      }
-    }
+    const closedCount = closeMatchingConnections(
+      this.wsClients,
+      this.sseClients,
+      (key) => key.endsWith(`:${userId}`),
+      4001,
+      "Session invalidated",
+    );
     if (closedCount > 0) this.logger.info({ userId, closedCount }, "Disconnected realtime clients");
+    return closedCount;
+  }
+
+  disconnectTenantUser(tenantId: string, userId: string): number {
+    const closedCount = closeKeyConnections(
+      this.wsClients,
+      this.sseClients,
+      connectionKey(userId, tenantId),
+      4003,
+      "Membership revoked",
+    );
+    if (closedCount > 0) {
+      this.logger.info(
+        { tenantId, userId, closedCount },
+        "Disconnected revoked tenant user sockets",
+      );
+    }
+    return closedCount;
+  }
+
+  disconnectTenant(tenantId: string): number {
+    const prefix = `${tenantId}:`;
+    const closedCount = closeMatchingConnections(
+      this.wsClients,
+      this.sseClients,
+      (key) => key.startsWith(prefix),
+      4004,
+      "Organization purged",
+    );
+    if (closedCount > 0) {
+      this.logger.info({ tenantId, closedCount }, "Disconnected purged tenant sockets");
+    }
     return closedCount;
   }
 

@@ -90,6 +90,14 @@ export class RealtimeService {
     return this.registry.disconnectUser(userId);
   }
 
+  disconnectTenantUser(tenantId: string, userId: string): number {
+    return this.registry.disconnectTenantUser(tenantId, userId);
+  }
+
+  disconnectTenant(tenantId: string): number {
+    return this.registry.disconnectTenant(tenantId);
+  }
+
   getUserCount(): number {
     return this.registry.getUserCount();
   }

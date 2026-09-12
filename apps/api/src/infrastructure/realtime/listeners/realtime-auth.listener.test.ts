@@ -39,6 +39,27 @@ describe("RealtimeAuthListener", () => {
     expect(mockRealtime.disconnectUser).toHaveBeenCalledWith("user-789");
   });
 
+  it("disconnects tenant user sessions on tenant.member.removed (H16)", () => {
+    (mockRealtime as unknown as { disconnectTenantUser: unknown }).disconnectTenantUser = vi
+      .fn()
+      .mockReturnValue(1);
+    listener.handleMemberRemoved({ tenantId: "tenant-1", userId: "user-100" });
+    expect(
+      (mockRealtime as unknown as { disconnectTenantUser: (t: string, u: string) => number })
+        .disconnectTenantUser,
+    ).toHaveBeenCalledWith("tenant-1", "user-100");
+  });
+
+  it("disconnects all tenant sessions on organization.purged (H16)", () => {
+    (mockRealtime as unknown as { disconnectTenant: unknown }).disconnectTenant = vi
+      .fn()
+      .mockReturnValue(3);
+    listener.handleOrganizationPurged({ tenantId: "tenant-1" });
+    expect(
+      (mockRealtime as unknown as { disconnectTenant: (t: string) => number }).disconnectTenant,
+    ).toHaveBeenCalledWith("tenant-1");
+  });
+
   it("ignores invalid empty payload without throwing", () => {
     listener.handleAuthVersionIncremented({} as { userId: string });
     expect(mockRealtime.disconnectUser).not.toHaveBeenCalled();

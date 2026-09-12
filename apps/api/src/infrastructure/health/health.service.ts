@@ -93,6 +93,8 @@ export class OutboxHealthIndicator {
 
 @Injectable()
 export class AppHealthService {
+  private isDraining = false;
+
   constructor(
     private readonly health: HealthCheckService,
     private readonly memory: MemoryHealthIndicator,
@@ -101,6 +103,10 @@ export class AppHealthService {
     private readonly outbox: OutboxHealthIndicator,
     private readonly worker: WorkerHealthIndicator,
   ) {}
+
+  markDraining(): void {
+    this.isDraining = true;
+  }
 
   @HealthCheck()
   check(): Promise<HealthCheckResult> {
@@ -113,6 +119,13 @@ export class AppHealthService {
 
   @HealthCheck()
   checkReadiness(): Promise<HealthCheckResult> {
+    if (this.isDraining) {
+      return this.health.check([
+        () => {
+          throw new Error("Service is shutting down and draining traffic");
+        },
+      ]);
+    }
     return this.health.check([
       () => this.postgres.isHealthy("postgres"),
       () => this.redis.isHealthy("redis"),

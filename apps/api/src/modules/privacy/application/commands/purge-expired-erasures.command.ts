@@ -34,10 +34,10 @@ export class PurgeExpiredErasuresCommand {
     private readonly deleteUser: DeleteUserCommand,
     private readonly hardDeleteOrganization: HardDeleteOrganizationCommand,
     private readonly purgeNotifications: PurgeUserNotificationsCommand,
-    private readonly purgeUserNotes: PurgeUserNotesCommand,
-    private readonly purgeUserFiles: PurgeUserFilesCommand,
-    private readonly purgeTenantNotes: PurgeTenantNotesCommand,
-    private readonly purgeTenantFiles: PurgeTenantFilesCommand,
+    @Optional() private readonly purgeUserNotes: PurgeUserNotesCommand | undefined,
+    @Optional() private readonly purgeUserFiles: PurgeUserFilesCommand | undefined,
+    @Optional() private readonly purgeTenantNotes: PurgeTenantNotesCommand | undefined,
+    @Optional() private readonly purgeTenantFiles: PurgeTenantFilesCommand | undefined,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
     logger: PinoLoggerService,
@@ -183,10 +183,14 @@ export class PurgeExpiredErasuresCommand {
     tenantId: string | undefined,
   ): Promise<Result<void, PrivacyError>> {
     const run = async (): Promise<Result<void, PrivacyError>> => {
-      const notes = await this.purgeUserNotes.execute(userId);
-      if (notes.isErr()) return err({ type: "PURGE_FAILED" });
-      const files = await this.purgeUserFiles.execute(userId);
-      if (files.isErr()) return err({ type: "PURGE_FAILED" });
+      if (this.purgeUserNotes) {
+        const notes = await this.purgeUserNotes.execute(userId);
+        if (notes.isErr()) return err({ type: "PURGE_FAILED" });
+      }
+      if (this.purgeUserFiles) {
+        const files = await this.purgeUserFiles.execute(userId);
+        if (files.isErr()) return err({ type: "PURGE_FAILED" });
+      }
       return ok(undefined);
     };
     if (tenantId === undefined || !this.database) return run();
@@ -203,10 +207,14 @@ export class PurgeExpiredErasuresCommand {
       return "failed";
     }
     const destroy = async (): Promise<Result<void, PrivacyError>> => {
-      const notes = await this.purgeTenantNotes.execute();
-      if (notes.isErr()) return err({ type: "PURGE_FAILED" });
-      const files = await this.purgeTenantFiles.execute();
-      if (files.isErr()) return err({ type: "PURGE_FAILED" });
+      if (this.purgeTenantNotes) {
+        const notes = await this.purgeTenantNotes.execute();
+        if (notes.isErr()) return err({ type: "PURGE_FAILED" });
+      }
+      if (this.purgeTenantFiles) {
+        const files = await this.purgeTenantFiles.execute();
+        if (files.isErr()) return err({ type: "PURGE_FAILED" });
+      }
       return ok(undefined);
     };
     const destroyed = this.database

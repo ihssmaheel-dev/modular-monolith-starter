@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy, Optional } from "@nestjs/common";
+import { Inject, Injectable, OnApplicationShutdown, Optional } from "@nestjs/common";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
@@ -19,7 +19,7 @@ export const TENANT_CONTEXT_REQUIRES_TRANSACTION = "TENANT_CONTEXT_REQUIRES_TRAN
 export { ADVISORY_LOCK_NAMESPACE } from "./transaction-scopes";
 
 @Injectable()
-export class DatabaseService implements OnModuleDestroy {
+export class DatabaseService implements OnApplicationShutdown {
   private readonly pool: Pool;
   private readonly db: DrizzleDb;
   private readonly logger: PinoLoggerService;
@@ -217,7 +217,7 @@ export class DatabaseService implements OnModuleDestroy {
     this.cls.set("afterCommit", pending);
   }
 
-  async onModuleDestroy(): Promise<void> {
+  async onApplicationShutdown(): Promise<void> {
     await this.pool.end();
     this.logger.info({}, "Postgres pool closed");
   }

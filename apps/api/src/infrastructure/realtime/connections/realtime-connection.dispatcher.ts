@@ -54,3 +54,75 @@ export function dispatchToEveryConnection(
     }
   }
 }
+
+export function closeKeyConnections(
+  wsClients: WebSocketClients,
+  sseClients: SseClients,
+  key: string,
+  code = 4001,
+  reason = "Closed",
+): number {
+  let closedCount = 0;
+  const ws = wsClients.get(key);
+  if (ws) {
+    for (const s of ws) {
+      try {
+        s.close(code, reason);
+        closedCount++;
+      } catch {
+        /* ignore */
+      }
+    }
+    wsClients.delete(key);
+  }
+  const sse = sseClients.get(key);
+  if (sse) {
+    for (const sub of sse) {
+      try {
+        sub.complete();
+        closedCount++;
+      } catch {
+        /* ignore */
+      }
+    }
+    sseClients.delete(key);
+  }
+  return closedCount;
+}
+
+export function closeMatchingConnections(
+  wsClients: WebSocketClients,
+  sseClients: SseClients,
+  predicate: (key: string) => boolean,
+  code = 4001,
+  reason = "Closed",
+): number {
+  let closedCount = 0;
+  for (const [key, sockets] of wsClients.entries()) {
+    if (predicate(key)) {
+      for (const s of sockets) {
+        try {
+          s.close(code, reason);
+          closedCount++;
+        } catch {
+          /* ignore */
+        }
+      }
+      wsClients.delete(key);
+    }
+  }
+  for (const [key, subjects] of sseClients.entries()) {
+    if (predicate(key)) {
+      for (const sub of subjects) {
+        try {
+          sub.complete();
+          closedCount++;
+        } catch {
+          /* ignore */
+        }
+      }
+      sseClients.delete(key);
+    }
+  }
+  return closedCount;
+}

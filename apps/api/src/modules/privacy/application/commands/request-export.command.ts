@@ -33,7 +33,7 @@ export class RequestExportCommand {
     private readonly getUserById: GetUserByIdQuery,
     private readonly listOrganizations: ListOrganizationsQuery,
     private readonly listInvitationsByEmail: ListInvitationsByEmailQuery,
-    private readonly getNotes: GetNotesQuery,
+    @Optional() private readonly getNotes: GetNotesQuery | undefined,
     private readonly listFilesByUploader: ListFilesByUploaderQuery,
     private readonly getPreferences: GetPreferencesQuery,
     private readonly exportNotifications: ExportUserDataQuery,
@@ -183,6 +183,8 @@ export class RequestExportCommand {
   }
 
   private async collectNotes(actor: AuthenticatedUser, tenantIds: string[]) {
+    if (!this.getNotes) return { items: [], truncated: false, incomplete: false };
+    const getNotes = this.getNotes;
     const items: Array<Record<string, unknown>> = [];
     let truncated = false;
     let incomplete = false;
@@ -194,16 +196,10 @@ export class RequestExportCommand {
           tenantId !== undefined
             ? () =>
                 this.withTenantScope(tenantId, () =>
-                  this.getNotes.execute(
-                    { page, limit: EXPORT_PAGE_LIMIT, createdBy: actor.sub },
-                    actor,
-                  ),
+                  getNotes.execute({ page, limit: EXPORT_PAGE_LIMIT, createdBy: actor.sub }, actor),
                 )
             : () =>
-                this.getNotes.execute(
-                  { page, limit: EXPORT_PAGE_LIMIT, createdBy: actor.sub },
-                  actor,
-                );
+                getNotes.execute({ page, limit: EXPORT_PAGE_LIMIT, createdBy: actor.sub }, actor);
         const result = await run();
         // A failed scope must not silently shrink the export: mark it and
         // keep the scopes that did load.

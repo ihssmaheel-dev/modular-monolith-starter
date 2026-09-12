@@ -46,8 +46,21 @@ export class QueueService implements BeforeApplicationShutdown {
   }
 
   async beforeApplicationShutdown(): Promise<void> {
-    for (const queue of this.queues.values()) await queue.close();
-    for (const worker of this.workers.values()) await worker.close();
+    for (const worker of this.workers.values()) {
+      try {
+        await worker.pause();
+        await worker.close();
+      } catch (error) {
+        this.loggerService.error({ error }, "Error closing BullMQ worker");
+      }
+    }
+    for (const queue of this.queues.values()) {
+      try {
+        await queue.close();
+      } catch (error) {
+        this.loggerService.error({ error }, "Error closing BullMQ queue");
+      }
+    }
   }
 
   private async runWorker<T>(

@@ -1,13 +1,18 @@
-import { Injectable, BeforeApplicationShutdown } from "@nestjs/common";
+import { Injectable, BeforeApplicationShutdown, Optional } from "@nestjs/common";
 import { PinoLoggerService } from "../logger/logger.service";
 import { env } from "../../config/env";
+import { AppHealthService } from "./health.service";
 
 @Injectable()
 export class ShutdownService implements BeforeApplicationShutdown {
-  constructor(private readonly logger: PinoLoggerService) {}
+  constructor(
+    private readonly logger: PinoLoggerService,
+    @Optional() private readonly healthService?: AppHealthService,
+  ) {}
 
   async beforeApplicationShutdown(signal?: string) {
     this.logger.info({ signal }, "Received shutdown signal. Commencing graceful teardown...");
+    this.healthService?.markDraining();
 
     if (env.NODE_ENV === "production") {
       this.logger.info({}, "Pausing for 5 seconds to allow load balancer to drain HTTP traffic...");

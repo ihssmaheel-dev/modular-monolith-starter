@@ -7,22 +7,15 @@ export const XSS_PATTERNS = [
 ];
 
 export const NOSQL_INJECTION_PATTERNS = [
-  /\$where/i,
-  /\$regex/i,
-  /\$gt\b/i,
-  /\$lt\b/i,
-  /\$ne\b/i,
-  /\$in\b/i,
-  /\$nin\b/i,
-  /\$exists/i,
-  /\$and\b/i,
-  /\$or\b/i,
+  /^\$(where|regex|gt|gte|lt|lte|ne|in|nin|exists|and|or|not|nor)$/i,
 ];
 
 export const SQL_INJECTION_PATTERNS = [
-  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|FETCH|DECLARE|TRUNCATE)\b)/i,
-  /(--|#|\/\*|\*\/)/,
-  /(';\s*(DROP|DELETE|INSERT|UPDATE|SELECT))/i,
+  /(';\s*(DROP|DELETE|INSERT|UPDATE|SELECT|ALTER|TRUNCATE)\b)/i,
+  /(\bUNION\s+(ALL\s+)?SELECT\b)/i,
+  /(--\s*$|\/\*[\s\S]*?\*\/)/i,
+  /('?\s*(OR|AND)\s+['"]?\d+['"]?\s*=\s*['"]?\d+)/i,
+  /(\bEXEC(\s+XP_|\s+SP_)\w+)/i,
 ];
 
 export const HEADER_INJECTION_PATTERNS = [/\r\n/i, /\n/i, /\r/i];
