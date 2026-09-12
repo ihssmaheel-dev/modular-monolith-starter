@@ -37,6 +37,7 @@ RUN addgroup -g 1001 -S appgroup && \
 
 # Copy built app and dependencies
 COPY --from=installer /app .
+COPY --from=builder /app/migrations ./migrations
 
 RUN chown -R appuser:appgroup /app
 USER appuser

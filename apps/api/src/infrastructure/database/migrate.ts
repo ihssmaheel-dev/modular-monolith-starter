@@ -1,7 +1,8 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import path from "path";
+import path from "node:path";
+import fs from "node:fs";
 import { env } from "../../config/env";
 
 const MIGRATION_LOCK_ID = 884729104;
@@ -22,7 +23,8 @@ export async function runMigrations(): Promise<void> {
     process.stdout.write("[Migrator] Advisory lock acquired. Applying Drizzle migrations...\n");
 
     const db = drizzle(client);
-    const migrationsFolder = path.resolve(process.cwd(), "../../migrations/pg");
+    const migrationsFolder = resolveMigrationsFolder();
+    process.stdout.write(`[Migrator] Using migrations directory: ${migrationsFolder}\n`);
     await migrate(db, { migrationsFolder });
 
     process.stdout.write("[Migrator] Migrations applied successfully.\n");
@@ -36,6 +38,26 @@ export async function runMigrations(): Promise<void> {
     client.release();
     await pool.end();
   }
+}
+
+export function resolveMigrationsFolder(): string {
+  if (process.env.MIGRATIONS_DIR && fs.existsSync(process.env.MIGRATIONS_DIR)) {
+    return path.resolve(process.env.MIGRATIONS_DIR);
+  }
+  const candidates = [
+    path.resolve(process.cwd(), "migrations/pg"),
+    path.resolve(process.cwd(), "../../migrations/pg"),
+    path.resolve(__dirname, "../../../../../migrations/pg"),
+    path.resolve(__dirname, "../../../../migrations/pg"),
+    path.resolve(__dirname, "../../migrations/pg"),
+    path.resolve("/app/migrations/pg"),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return path.resolve(process.cwd(), "migrations/pg");
 }
 
 if (process.argv[1]?.includes("migrate")) {
