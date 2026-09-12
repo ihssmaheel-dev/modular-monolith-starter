@@ -34,6 +34,7 @@ function verifyPrerequisites() {
   }
   verifyPnpm();
   verifyCompose();
+  verifyDockerDaemon();
 }
 
 function verifyPnpm() {
@@ -45,11 +46,27 @@ function verifyPnpm() {
 }
 
 function verifyCompose() {
-  const version = execute("docker", ["compose", "version"], "ignore");
-  const help = execute("docker", ["compose", "up", "--help"], "pipe");
+  const version = execute("docker", ["compose", "version"], "ignore", undefined, 5000);
+  const help = execute("docker", ["compose", "up", "--help"], "pipe", undefined, 5000);
   const supportsWait = help.stdout?.toString().includes("--wait");
   if (version.error || version.status !== 0 || !supportsWait) {
     throw new Error("Docker with Compose v2.17+ is required.");
+  }
+}
+
+function verifyDockerDaemon() {
+  const result = execute("docker", ["info"], "ignore", undefined, 5000);
+  if (result.error?.code === "ETIMEDOUT") {
+    throw new Error(
+      "Docker daemon is not responding (connection timed out).\n" +
+        "Ensure Docker Desktop is open and the engine is fully running (green icon in Docker Desktop) before running `pnpm bootstrap`.",
+    );
+  }
+  if (result.error || result.status !== 0) {
+    throw new Error(
+      "Docker daemon is not running or accessible.\n" +
+        "Please start Docker Desktop and ensure the engine has started before running `pnpm bootstrap`.",
+    );
   }
 }
 
@@ -121,20 +138,18 @@ function run(command, args) {
   if (result.status !== 0) throw new Error(`${command} exited with code ${result.status}.`);
 }
 
-function execute(command, args, stdio, shell = process.platform === "win32") {
-  if (shell && Array.isArray(args) && args.length > 0) {
-    const fullCommand = [command, ...args].join(" ");
-    return spawnSync(fullCommand, {
-      cwd: ROOT,
-      stdio,
-      shell: true,
-    });
-  }
-  return spawnSync(command, args, {
+function execute(command, args, stdio, shell = process.platform === "win32", timeout = 0) {
+  const options = {
     cwd: ROOT,
     stdio,
     shell,
-  });
+    ...(timeout > 0 ? { timeout } : {}),
+  };
+  if (shell && Array.isArray(args) && args.length > 0) {
+    const fullCommand = [command, ...args].join(" ");
+    return spawnSync(fullCommand, options);
+  }
+  return spawnSync(command, args, options);
 }
 
 main();
