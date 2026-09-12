@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConfirmUploadCommand } from "./confirm-upload.command";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok, err } from "neverthrow";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";

@@ -4,7 +4,7 @@ import { DatabaseService, type TransactionError } from "../../../../infrastructu
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { Notification } from "../../domain/entities/notification.entity";
 import type { NotificationError } from "../../domain/errors/notification.errors";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 
 @Injectable()
 export class MarkReadCommand {

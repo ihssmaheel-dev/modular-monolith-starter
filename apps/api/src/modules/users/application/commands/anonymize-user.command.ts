@@ -8,7 +8,7 @@ import { DistributedCacheService } from "../../../../infrastructure/cache/distri
 import { User } from "../../domain/entities/user.entity";
 import type { UserNotFound } from "../../domain/errors/user.errors";
 import { UserUpdatedEvent } from "../../domain/events/user.events";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 
 export const ANONYMIZED_USER_NAME = "Deleted User";

@@ -469,7 +469,7 @@ Root:
 | Env config | `apps/api/src/config/env.ts` |
 | API Docs setup | `apps/api/src/infrastructure/api-docs/` |
 | Authorization service | `apps/api/src/infrastructure/authorization/` |
-| Domain policies | `apps/api/src/modules/[domain]/application/[domain].policies.ts` |
+| Domain policies | `apps/api/src/modules/[domain]/application/policies/[domain].policies.ts` |
 | Exception filter | `apps/api/src/common/filters/` |
 | Auth guard | `apps/api/src/common/guards/` |
 | Permissions guard | `apps/api/src/common/guards/permissions.guard.ts` |
@@ -498,7 +498,7 @@ Root:
 | Domain event | `apps/api/src/modules/[domain]/domain/events/` |
 | Domain error | `apps/api/src/modules/[domain]/domain/errors/` |
 | Drizzle schema | `apps/api/src/modules/[domain]/infrastructure/schemas/` |
-| Repository | `apps/api/src/modules/[domain]/infrastructure/` |
+| Repository | `apps/api/src/modules/[domain]/infrastructure/repositories/` |
 | Backend unit test | Co-locate with source: `[name].test.ts` |
 | Backend integration test | Co-locate with source: `[name].integration.test.ts` |
 | Backend E2E test | Co-locate with source: `[name].e2e.test.ts` |

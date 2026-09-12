@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PurgeExpiredErasuresCommand } from "./purge-expired-erasures.command";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import { HardDeleteOrganizationCommand } from "../../../tenancy/application/commands/hard-delete-organization.command";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";

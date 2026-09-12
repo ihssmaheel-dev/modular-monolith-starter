@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
 import {
   deviceTokens,
   notificationBatches,
@@ -13,8 +13,8 @@ import {
   type NotificationBatchRow,
   type NotificationRow,
   type PreferenceRow,
-} from "./schemas/notification.schema";
-import { Notification } from "../domain/entities/notification.entity";
+} from "../schemas/notification.schema";
+import { Notification } from "../../domain/entities/notification.entity";
 import type { NotificationChannel } from "@repo/contracts";
 
 @Injectable()

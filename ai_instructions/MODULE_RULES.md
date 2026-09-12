@@ -12,11 +12,17 @@ Every domain module **must** follow this exact structure:
 modules/[domain]/
 ├── [domain].module.ts
 ├── presentation/
-│   └── [domain].controller.ts
+│   ├── [domain].controller.ts
+│   ├── [domain].orpc.controller.ts
+│   ├── [domain].mapper.ts
+│   └── [domain].error-maps.ts
 ├── application/
 │   ├── commands/
 │   ├── queries/
-│   └── listeners/
+│   ├── listeners/
+│   ├── workers/           (if background workers exist)
+│   ├── policies/          (if domain FGA policies exist)
+│   └── services/          (if use-case helper services exist)
 ├── domain/
 │   ├── entities/
 │   ├── value-objects/
@@ -24,12 +30,12 @@ modules/[domain]/
 │   └── errors/
 └── infrastructure/
     ├── schemas/
-    └── [domain].repository.ts
+    └── repositories/
 ```
 
 Do not skip folders. Do not add extra folders beyond this structure.
+Zero loose files in `infrastructure/`, `application/`, or `domain/`.
 
-**Exception:** `listeners/` is allowed under `application/` because domain event handlers are a first-class pattern (see `EVENT_AND_ERROR_RULES.md`).
 
 ---
 
@@ -74,7 +80,7 @@ Every domain module **must** implement a strict CQRS architecture. We do not use
 ### `infrastructure/`
 - Domain-specific persistence and adapters only.
 - `schemas/` — Drizzle pgTable schemas (`[domain].schema.ts`).
-- `[domain].repository.ts` — data access implementation.
+- `repositories/` — Drizzle data access repository implementations.
 - Mappers between Drizzle table rows and domain entities.
 - External API adapters used by this domain only.
 - Never contains business logic.

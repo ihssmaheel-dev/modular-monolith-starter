@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { ok, err, Result } from "neverthrow";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { env } from "../../../../config/env";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import type { FileError } from "../../domain/errors/file.errors";
 import { API_BASE_PATH, type AuthenticatedUser } from "@repo/contracts";
 import { AuthorizationService } from "../../../../infrastructure/authorization";

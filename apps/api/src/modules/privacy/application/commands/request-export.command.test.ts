@@ -3,7 +3,7 @@ import { err, ok } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { RequestExportCommand } from "./request-export.command";
 import { Note } from "../../../notes/domain/entities/note.entity";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
 import { ListInvitationsByEmailQuery } from "../../../tenancy/application/queries/list-invitations-by-email.query";

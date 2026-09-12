@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { VerifyUserCredentialsQuery } from "./verify-user-credentials.query";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "./get-user-by-id.query";
 import { User } from "../../domain/entities/user.entity";
 import { ok } from "neverthrow";

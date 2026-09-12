@@ -2,9 +2,9 @@ import { Injectable, Optional } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { InvitationsRepository } from "../../infrastructure/invitations.repository";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
-import { OrganizationsRepository } from "../../infrastructure/organizations.repository";
+import { InvitationsRepository } from "../../infrastructure/repositories/invitations.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
+import { OrganizationsRepository } from "../../infrastructure/repositories/organizations.repository";
 
 /**
  * GDPR tenant erasure: scrub memberships + invitations now, soft-delete the

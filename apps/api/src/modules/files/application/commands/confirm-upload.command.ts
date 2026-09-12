@@ -1,6 +1,6 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { ok, err, Result } from "neverthrow";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import type { FileError } from "../../domain/errors/file.errors";
 import type { AuthenticatedUser } from "@repo/contracts";
@@ -8,7 +8,7 @@ import { StorageService } from "../../../../infrastructure/storage/storage.servi
 import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
-import { quarantineKeyFor } from "../../domain/file-keys";
+import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
 @Injectable()
 export class ConfirmUploadCommand {

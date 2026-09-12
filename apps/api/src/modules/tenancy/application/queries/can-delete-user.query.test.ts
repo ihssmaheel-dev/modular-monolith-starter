@@ -4,7 +4,7 @@ import { err, ok } from "neverthrow";
 vi.mock("../../../../config/env", () => ({ env: { TENANCY_MODE: "multi" } }));
 
 import { env } from "../../../../config/env";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { CanDeleteUserQuery } from "./can-delete-user.query";
 
 describe("CanDeleteUserQuery", () => {

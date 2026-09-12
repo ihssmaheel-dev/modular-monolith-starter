@@ -5,7 +5,7 @@ import type { DigestCadence, PreferenceItem } from "@repo/contracts";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { isKnownCategory } from "../../domain/entities/notification-preference.entity";
 import type { NotificationError } from "../../domain/errors/notification.errors";
-import { PreferencesRepository } from "../../infrastructure/preferences.repository";
+import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
 
 const MAX_PREFERENCES = 20;
 

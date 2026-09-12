@@ -1,7 +1,7 @@
 import type { Result } from "neverthrow";
-import type { StorageService } from "../../../infrastructure/storage/storage.service";
-import type { StorageError } from "../../../infrastructure/storage/storage.types";
-import { quarantineKeyFor } from "../domain/file-keys";
+import type { StorageService } from "../../../../infrastructure/storage/storage.service";
+import type { StorageError } from "../../../../infrastructure/storage/storage.types";
+import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
 /**
  * Removes every object a file record may own. Bytes live at the quarantine

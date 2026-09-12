@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GetUsersQuery } from "./get-users.query";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { User } from "../../domain/entities/user.entity";
 import { ok } from "neverthrow";
 import * as contracts from "@repo/contracts";

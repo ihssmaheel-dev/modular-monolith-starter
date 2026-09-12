@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { and, eq, lt } from "drizzle-orm";
 import { type Result } from "neverthrow";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { dsrRequests, type DsrRow } from "./schemas/privacy.schema";
-import { DsrRequest } from "../domain/entities/dsr.entity";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { dsrRequests, type DsrRow } from "../schemas/privacy.schema";
+import { DsrRequest } from "../../domain/entities/dsr.entity";
 
 @Injectable()
 export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {

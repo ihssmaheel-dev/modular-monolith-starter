@@ -4,8 +4,8 @@ import type { AuthenticatedUser } from "@repo/contracts";
 import { DatabaseService } from "../../../../infrastructure/database";
 import type { Membership } from "../../domain/entities/tenancy.entity";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { InvitationsRepository } from "../../infrastructure/invitations.repository";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { InvitationsRepository } from "../../infrastructure/repositories/invitations.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { hashInvitationToken } from "./invite-member.command";
 
 @Injectable()

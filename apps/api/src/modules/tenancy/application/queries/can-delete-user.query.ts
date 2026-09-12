@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { err, ok, type Result } from "neverthrow";
 import { env } from "../../../../config/env";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 
 export type UserDeletionPolicyError = { type: "USER_OWNS_ORGANIZATION" };
 

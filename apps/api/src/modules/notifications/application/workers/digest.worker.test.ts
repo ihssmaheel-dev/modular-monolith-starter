@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { DigestWorker } from "./digest.worker";
-import type { BatchesRepository } from "../../infrastructure/batches.repository";
-import type { NotificationsRepository } from "../../infrastructure/notifications.repository";
+import type { BatchesRepository } from "../../infrastructure/repositories/batches.repository";
+import type { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 import type { RealtimeService } from "../../../../infrastructure/realtime/realtime.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 

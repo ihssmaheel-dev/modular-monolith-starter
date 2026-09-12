@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UpdatePreferencesCommand } from "./update-preferences.command";
-import { PreferencesRepository } from "../../infrastructure/preferences.repository";
+import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
 
 describe("UpdatePreferencesCommand", () => {
   let command: UpdatePreferencesCommand;

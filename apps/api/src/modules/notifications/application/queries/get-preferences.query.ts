@@ -4,7 +4,7 @@ import type { PreferenceItem } from "@repo/contracts";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import type { NotificationError } from "../../domain/errors/notification.errors";
 import { defaultPreferencesForUser } from "../../domain/entities/notification-preference.entity";
-import { PreferencesRepository } from "../../infrastructure/preferences.repository";
+import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
 
 @Injectable()
 export class GetPreferencesQuery {

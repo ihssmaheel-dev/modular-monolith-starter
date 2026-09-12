@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { OrganizationsRepository } from "../../infrastructure/organizations.repository";
+import { OrganizationsRepository } from "../../infrastructure/repositories/organizations.repository";
 
 /** Final step of organization erasure after the grace period. Idempotent. */
 @Injectable()

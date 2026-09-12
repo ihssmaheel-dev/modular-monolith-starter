@@ -17,7 +17,7 @@ import { AttachUserAvatarCommand } from "./application/commands/attach-user-avat
 import { RemoveUserAvatarCommand } from "./application/commands/remove-user-avatar.command";
 import { RequestEmailChangeCommand } from "./application/commands/request-email-change.command";
 import { VerifyEmailChangeCommand } from "./application/commands/verify-email-change.command";
-import { UsersRepository } from "./infrastructure/users.repository";
+import { UsersRepository } from "./infrastructure/repositories/users.repository";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { WelcomeEmailListener } from "./application/listeners/welcome-email.listener";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";

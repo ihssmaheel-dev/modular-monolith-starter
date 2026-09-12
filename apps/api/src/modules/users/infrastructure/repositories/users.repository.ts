@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { eq, and, gt, sql } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { users, type UserRow } from "./schemas/user.schema";
-import { User } from "../domain/entities/user.entity";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { users, type UserRow } from "../schemas/user.schema";
+import { User } from "../../domain/entities/user.entity";
 
 @Injectable()
 export class UsersRepository extends BaseRepository<User, UserRow> {

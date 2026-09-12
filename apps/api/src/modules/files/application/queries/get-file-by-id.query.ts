@@ -1,6 +1,6 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { ok, err, Result } from "neverthrow";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import type { FileError } from "../../domain/errors/file.errors";
 import type { AuthenticatedUser } from "@repo/contracts";

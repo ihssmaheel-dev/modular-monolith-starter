@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { GetUserByIdQuery } from "./get-user-by-id.query";
 import { User } from "../../domain/entities/user.entity";
-import type { UsersRepository } from "../../infrastructure/users.repository";
+import type { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import type { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 
 describe("GetUserByIdQuery", () => {

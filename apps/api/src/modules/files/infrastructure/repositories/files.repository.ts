@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { and, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { files, type FileRow } from "./schemas/file.schema";
-import type { FileEntity } from "../domain/entities/file.entity";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { files, type FileRow } from "../schemas/file.schema";
+import type { FileEntity } from "../../domain/entities/file.entity";
 
 @Injectable()
 export class FilesRepository extends BaseRepository<FileEntity, FileRow> {

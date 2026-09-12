@@ -4,7 +4,7 @@ import { env } from "../../../../config/env";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import type { NotificationError } from "../../domain/errors/notification.errors";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 
 /** GDPR erasure fan-out: remove every notification artifact for a subject. Idempotent. */
 @Injectable()

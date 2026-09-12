@@ -1,13 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 
 import { TenantContextService } from "../../../../infrastructure/database";
 import { DatabaseService } from "../../../../infrastructure/database";
-import { deleteFileObjects } from "../file-objects";
+import { deleteFileObjects } from "../services/file-objects.service";
 import { env } from "../../../../config/env";
 
 const PENDING_EXPIRATION_HOURS = 24;

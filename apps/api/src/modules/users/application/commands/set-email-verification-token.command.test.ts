@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { SetEmailVerificationTokenCommand } from "./set-email-verification-token.command";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 
 describe("SetEmailVerificationTokenCommand", () => {
   let command: SetEmailVerificationTokenCommand;

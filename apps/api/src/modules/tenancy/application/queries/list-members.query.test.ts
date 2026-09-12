@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ok } from "neverthrow";
 
 import { TenantContextService } from "../../../../infrastructure/database";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { ListMembersQuery } from "./list-members.query";
 
 describe("ListMembersQuery", () => {

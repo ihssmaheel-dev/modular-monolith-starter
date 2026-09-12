@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ok } from "neverthrow";
-import { InvitationsRepository } from "../../infrastructure/invitations.repository";
+import { InvitationsRepository } from "../../infrastructure/repositories/invitations.repository";
 import { PurgeExpiredInvitationsCommand } from "./purge-expired-invitations.command";
 
 describe("PurgeExpiredInvitationsCommand", () => {

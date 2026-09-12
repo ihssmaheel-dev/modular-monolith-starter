@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { VerifyEmailChangeCommand } from "./verify-email-change.command";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { User } from "../../domain/entities/user.entity";
 
 const user = User.fromPersistence({

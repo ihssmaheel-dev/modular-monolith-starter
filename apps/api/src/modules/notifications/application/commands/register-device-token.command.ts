@@ -6,7 +6,7 @@ import type { NotificationError } from "../../domain/errors/notification.errors"
 import {
   DeviceTokensRepository,
   type DeviceToken,
-} from "../../infrastructure/device-tokens.repository";
+} from "../../infrastructure/repositories/device-tokens.repository";
 import { isExpoPushToken } from "../../infrastructure/push/push.driver";
 
 @Injectable()

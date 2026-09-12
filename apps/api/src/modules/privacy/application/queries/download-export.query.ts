@@ -3,7 +3,7 @@ import { err, ok, Result } from "neverthrow";
 import type { AuthenticatedUser, ExportDownloadResponse } from "@repo/contracts";
 import { ExportDownloadResponseSchema } from "@repo/contracts";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 
 @Injectable()
 export class DownloadExportQuery {

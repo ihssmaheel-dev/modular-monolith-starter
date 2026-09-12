@@ -3,8 +3,8 @@ import { err, ok } from "neverthrow";
 import type { AuthenticatedUser } from "@repo/contracts";
 
 import { Membership, Organization } from "../../domain/entities/tenancy.entity";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
-import { OrganizationsRepository } from "../../infrastructure/organizations.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
+import { OrganizationsRepository } from "../../infrastructure/repositories/organizations.repository";
 import { ListOrganizationsQuery } from "./list-organizations.query";
 
 describe("ListOrganizationsQuery", () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { err, ok } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { RequestAccountErasureCommand } from "./request-account-erasure.command";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { VerifyUserCredentialsQuery } from "../../../users/application/queries/verify-user-credentials.query";
 import { AnonymizeUserCommand } from "../../../users/application/commands/anonymize-user.command";

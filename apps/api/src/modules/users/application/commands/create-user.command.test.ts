@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CreateUserCommand } from "./create-user.command";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByEmailQuery } from "../queries/get-user-by-email.query";
 import { ok } from "neverthrow";
 import { User } from "../../domain/entities/user.entity";

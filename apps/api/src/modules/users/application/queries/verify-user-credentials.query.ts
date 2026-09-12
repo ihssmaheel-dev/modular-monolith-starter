@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ok, err, Result } from "neverthrow";
 import { verify } from "@node-rs/argon2";
 import { User } from "../../domain/entities/user.entity";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "./get-user-by-id.query";
 
 @Injectable()

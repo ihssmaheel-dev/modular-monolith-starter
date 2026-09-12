@@ -1,14 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import { type Result } from "neverthrow";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { notificationPreferences, type PreferenceRow } from "./schemas/notification.schema";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { notificationPreferences, type PreferenceRow } from "../schemas/notification.schema";
 import {
   NotificationPreference,
   type NotificationPreferenceData,
-} from "../domain/entities/notification-preference.entity";
+} from "../../domain/entities/notification-preference.entity";
 import type { DigestCadence } from "@repo/contracts";
 
 @Injectable()

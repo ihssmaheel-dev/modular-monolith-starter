@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
 import { env } from "../../../../config/env";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { InvitationsRepository } from "../../infrastructure/invitations.repository";
+import { InvitationsRepository } from "../../infrastructure/repositories/invitations.repository";
 
 const PURGE_BATCH_SIZE = 500;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;

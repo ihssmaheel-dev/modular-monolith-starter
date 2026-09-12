@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import { User } from "../../domain/entities/user.entity";
 import type { UserNotFound } from "../../domain/errors/user.errors";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { DatabaseService } from "../../../../infrastructure/database";

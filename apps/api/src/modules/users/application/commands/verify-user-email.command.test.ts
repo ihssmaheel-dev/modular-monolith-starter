@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { VerifyUserEmailCommand } from "./verify-user-email.command";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { User } from "../../domain/entities/user.entity";
 
 describe("VerifyUserEmailCommand", () => {

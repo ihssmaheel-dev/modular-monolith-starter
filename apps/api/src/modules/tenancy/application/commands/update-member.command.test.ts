@@ -3,7 +3,7 @@ import { err, ok } from "neverthrow";
 
 import { TenantContextService, type DatabaseService } from "../../../../infrastructure/database";
 import { Membership } from "../../domain/entities/tenancy.entity";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { UpdateMemberCommand } from "./update-member.command";
 
 describe("UpdateMemberCommand", () => {

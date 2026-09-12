@@ -1,13 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { memberships, type MembershipRow } from "./schemas/tenancy.schema";
-import { Membership } from "../domain/entities/tenancy.entity";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { memberships, type MembershipRow } from "../schemas/tenancy.schema";
+import { Membership } from "../../domain/entities/tenancy.entity";
 import type { TenantRole } from "@repo/contracts";
-import type { PaginatedResult, PaginationOptions } from "../../../infrastructure/database";
+import type { PaginatedResult, PaginationOptions } from "../../../../infrastructure/database";
 
 @Injectable()
 export class MembershipsRepository extends BaseRepository<Membership, MembershipRow> {

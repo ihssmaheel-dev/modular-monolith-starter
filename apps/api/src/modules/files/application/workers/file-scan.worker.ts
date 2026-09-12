@@ -5,8 +5,8 @@ import { DatabaseService, TenantContextService } from "../../../../infrastructur
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { FileScannerService } from "../../../../infrastructure/storage/file-scanner.service";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
-import { FilesRepository } from "../../infrastructure/files.repository";
-import { quarantineKeyFor } from "../../domain/file-keys";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
+import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
 const SCAN_BATCH_SIZE = 50;
 

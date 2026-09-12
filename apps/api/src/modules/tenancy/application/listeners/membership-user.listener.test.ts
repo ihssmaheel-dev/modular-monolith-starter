@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MembershipUserListener } from "./membership-user.listener";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { DatabaseService } from "../../../../infrastructure/database/database.service";
 

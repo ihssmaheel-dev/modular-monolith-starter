@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
 import type { ExportedBatch, ExportedDevice, ExportedNotification } from "@repo/contracts";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
-import { DeviceTokensRepository } from "../../infrastructure/device-tokens.repository";
-import { BatchesRepository } from "../../infrastructure/batches.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
+import { DeviceTokensRepository } from "../../infrastructure/repositories/device-tokens.repository";
+import { BatchesRepository } from "../../infrastructure/repositories/batches.repository";
 
 const EXPORT_NOTIFICATION_LIMIT = 1000;
 const EXPORT_DEVICE_LIMIT = 100;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ok } from "neverthrow";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { SetPasswordResetTokenCommand } from "./set-password-reset-token.command";
 
 describe("SetPasswordResetTokenCommand", () => {

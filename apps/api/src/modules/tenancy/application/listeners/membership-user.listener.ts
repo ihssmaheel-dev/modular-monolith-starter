@@ -3,7 +3,7 @@ import { OnEvent } from "@nestjs/event-emitter";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { DatabaseService } from "../../../../infrastructure/database";
 import type { UserDeletedEventPayload, UserUpdatedEventPayload } from "@repo/contracts";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 
 @Injectable()
 export class MembershipUserListener {

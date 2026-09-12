@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { MarkReadCommand } from "./mark-read.command";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { Notification } from "../../domain/entities/notification.entity";
 

@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { ok, err, Result } from "neverthrow";
 import { Note } from "../../domain/entities/note.entity";
 import { NoteNotFound } from "../../domain/errors/note.errors";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 import type { AuthenticatedUser } from "@repo/contracts";
 import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { TenantContextService } from "../../../../infrastructure/database";

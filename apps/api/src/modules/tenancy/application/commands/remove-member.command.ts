@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, type Result } from "neverthrow";
 import { TenantContextService } from "../../../../infrastructure/database";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { DatabaseService } from "../../../../infrastructure/database";
 
 @Injectable()

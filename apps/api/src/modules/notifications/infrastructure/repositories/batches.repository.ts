@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { and, eq, lte, sql } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { notificationBatches, type NotificationBatchRow } from "./schemas/notification.schema";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { notificationBatches, type NotificationBatchRow } from "../schemas/notification.schema";
 
 export interface NotificationBatchItem {
   titleKey: string;

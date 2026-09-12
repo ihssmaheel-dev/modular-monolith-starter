@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { DownloadExportQuery } from "./download-export.query";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
 import type { AuthenticatedUser } from "@repo/contracts";
 

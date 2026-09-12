@@ -3,7 +3,7 @@ import { ok, err, Result } from "neverthrow";
 import { randomUUID } from "crypto";
 import { env } from "../../../../config/env";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import type { FileError } from "../../domain/errors/file.errors";
 import type { FileEntity } from "../../domain/entities/file.entity";
 import type { AuthenticatedUser, RequestUploadInput } from "@repo/contracts";
@@ -11,7 +11,7 @@ import { TenantContextService } from "../../../../infrastructure/database";
 import { env as runtimeEnv } from "../../../../config/env";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
-import { quarantineKeyFor } from "../../domain/file-keys";
+import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
 // Short-lived: with quarantine promotion the URL only needs to cover the
 // actual upload, and a smaller window shrinks abuse of leaked URLs.

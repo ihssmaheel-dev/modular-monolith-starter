@@ -15,7 +15,7 @@ import { ListFilesByUploaderQuery } from "../../../files/application/queries/lis
 import { DsrRequest } from "../../domain/entities/dsr.entity";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { ExportReadyEvent } from "../../domain/events/privacy.events";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 
 const EXPORT_PAGE_LIMIT = 100;
 const EXPORT_MAX_ITEMS = 1000;

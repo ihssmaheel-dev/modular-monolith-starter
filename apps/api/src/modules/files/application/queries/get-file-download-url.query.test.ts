@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GetFileDownloadUrlQuery } from "./get-file-download-url.query";
 import { FileAccessRegistry } from "../../../../common/file-access/file-access.registry";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok, err } from "neverthrow";
 

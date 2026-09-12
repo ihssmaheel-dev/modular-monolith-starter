@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { PurgeUserNotesCommand } from "./purge-user-notes.command";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 
 function page(ids: string[], totalPages: number) {
   return {

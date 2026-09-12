@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FileCleanupWorker } from "./file-cleanup.worker";
-import type { FilesRepository } from "../../infrastructure/files.repository";
+import type { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import type { StorageService } from "../../../../infrastructure/storage/storage.service";
 import type { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";

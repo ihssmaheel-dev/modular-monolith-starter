@@ -4,7 +4,7 @@ import { z } from "zod";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CreateNoteSchema } from "@repo/contracts";
 import { Note } from "../../domain/entities/note.entity";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 import { NoteCreatedEvent } from "../../domain/events/note.events";
 import type { NoteEventDispatchFailed } from "../../domain/errors/note.errors";
 import type { AuthenticatedUser } from "@repo/contracts";

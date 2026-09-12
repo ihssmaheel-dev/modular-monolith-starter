@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DeleteUserCommand } from "./delete-user.command";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { User } from "../../domain/entities/user.entity";

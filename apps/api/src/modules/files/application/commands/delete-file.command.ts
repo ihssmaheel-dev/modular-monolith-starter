@@ -1,14 +1,14 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { ok, err, Result } from "neverthrow";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import type { FileError } from "../../domain/errors/file.errors";
 import type { AuthenticatedUser } from "@repo/contracts";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
-import { deleteFileObjects } from "../file-objects";
+import { deleteFileObjects } from "../services/file-objects.service";
 
 @Injectable()
 export class DeleteFileCommand {

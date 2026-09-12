@@ -9,7 +9,7 @@ import { OutboxService } from "../../../../infrastructure/outbox/outbox.service"
 import { User } from "../../domain/entities/user.entity";
 import { EmailTaken } from "../../domain/errors/user.errors";
 import { UserCreatedEvent } from "../../domain/events/user.events";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByEmailQuery } from "../queries/get-user-by-email.query";
 
 @Injectable()

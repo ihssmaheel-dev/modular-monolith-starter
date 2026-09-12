@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { RegisterDeviceTokenCommand } from "./register-device-token.command";
-import { DeviceTokensRepository } from "../../infrastructure/device-tokens.repository";
+import { DeviceTokensRepository } from "../../infrastructure/repositories/device-tokens.repository";
 
 describe("RegisterDeviceTokenCommand", () => {
   let command: RegisterDeviceTokenCommand;

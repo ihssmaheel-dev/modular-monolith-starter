@@ -6,9 +6,9 @@ import type { OutboxService } from "../../../../infrastructure/outbox/outbox.ser
 
 import { TenantContextService } from "../../../../infrastructure/database";
 import { Invitation, Membership, Organization } from "../../domain/entities/tenancy.entity";
-import { InvitationsRepository } from "../../infrastructure/invitations.repository";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
-import { OrganizationsRepository } from "../../infrastructure/organizations.repository";
+import { InvitationsRepository } from "../../infrastructure/repositories/invitations.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
+import { OrganizationsRepository } from "../../infrastructure/repositories/organizations.repository";
 import { InviteMemberCommand } from "./invite-member.command";
 
 const actor: AuthenticatedUser = { sub: "owner-1", email: "owner@example.com", role: "user" };

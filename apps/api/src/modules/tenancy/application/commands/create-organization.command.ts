@@ -4,8 +4,8 @@ import type { AuthenticatedUser, CreateOrganizationInput } from "@repo/contracts
 import { DatabaseService } from "../../../../infrastructure/database";
 import type { Membership, Organization } from "../../domain/entities/tenancy.entity";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
-import { OrganizationsRepository } from "../../infrastructure/organizations.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
+import { OrganizationsRepository } from "../../infrastructure/repositories/organizations.repository";
 
 const MAX_SLUG_LENGTH = 50;
 

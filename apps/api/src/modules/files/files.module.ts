@@ -1,6 +1,6 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
 import { AuthorizationService } from "../../infrastructure/authorization";
-import { filePolicies } from "./application/files.policies";
+import { filePolicies } from "./application/policies/files.policies";
 import { FilesController } from "./presentation/files.controller";
 import { RequestUploadCommand } from "./application/commands/request-upload.command";
 import { ConfirmUploadCommand } from "./application/commands/confirm-upload.command";
@@ -15,7 +15,7 @@ import { ListFilesByParentQuery } from "./application/queries/list-files-by-pare
 import { FileCleanupWorker } from "./application/workers/file-cleanup.worker";
 import { FileScanWorker } from "./application/workers/file-scan.worker";
 import { FileReconciliationWorker } from "./application/workers/file-reconciliation.worker";
-import { FilesRepository } from "./infrastructure/files.repository";
+import { FilesRepository } from "./infrastructure/repositories/files.repository";
 import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
 import { DatabaseModule } from "../../infrastructure/database";
 import { FilesOrpcController } from "./presentation/files.orpc.controller";

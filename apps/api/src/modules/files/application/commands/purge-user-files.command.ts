@@ -4,8 +4,8 @@ import type { TransactionError } from "../../../../infrastructure/database";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { FileError } from "../../domain/errors/file.errors";
-import { FilesRepository } from "../../infrastructure/files.repository";
-import { deleteFileObjects } from "../file-objects";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
+import { deleteFileObjects } from "../services/file-objects.service";
 
 const PURGE_BATCH_LIMIT = 500;
 

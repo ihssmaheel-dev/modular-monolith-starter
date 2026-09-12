@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { err, ok } from "neverthrow";
 import { FileScanWorker } from "./file-scan.worker";
-import type { FilesRepository } from "../../infrastructure/files.repository";
+import type { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import type { FileScannerService } from "../../../../infrastructure/storage/file-scanner.service";
 import type { StorageService } from "../../../../infrastructure/storage/storage.service";
 import type { DatabaseService, TenantContextService } from "../../../../infrastructure/database";

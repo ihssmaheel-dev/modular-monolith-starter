@@ -15,7 +15,7 @@ import { LinkFileCommand } from "../../../files/application/commands/link-file.c
 
 import { User } from "../../domain/entities/user.entity";
 import { InvalidAvatarFile, UserNotFound } from "../../domain/errors/user.errors";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 
 /**

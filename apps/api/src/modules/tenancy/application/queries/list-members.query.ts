@@ -3,7 +3,7 @@ import { err, type Result } from "neverthrow";
 import { TenantContextService, type PaginatedResult } from "../../../../infrastructure/database";
 import type { Membership } from "../../domain/entities/tenancy.entity";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 
 @Injectable()
 export class ListMembersQuery {

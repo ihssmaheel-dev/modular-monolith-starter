@@ -3,7 +3,7 @@ import { err, ok, type Result } from "neverthrow";
 import type { AuthenticatedUser } from "@repo/contracts";
 import type { NotificationError } from "../../domain/errors/notification.errors";
 import type { Notification } from "../../domain/entities/notification.entity";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import type { PaginatedResult } from "../../../../infrastructure/database";
 

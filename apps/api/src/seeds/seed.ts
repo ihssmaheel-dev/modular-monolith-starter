@@ -2,7 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { hash } from "@node-rs/argon2";
 import { env } from "../config/env";
 import { PinoLoggerService } from "../infrastructure/logger/logger.service";
-import { UsersRepository } from "../modules/users/infrastructure/users.repository";
+import { UsersRepository } from "../modules/users/infrastructure/repositories/users.repository";
 import { SeedModule } from "./seed.module";
 
 async function bootstrap(): Promise<void> {

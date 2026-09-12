@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import type { InvalidVerificationToken } from "../../domain/errors/user.errors";
 import type { User } from "../../domain/entities/user.entity";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { DatabaseService } from "../../../../infrastructure/database";
 
 @Injectable()

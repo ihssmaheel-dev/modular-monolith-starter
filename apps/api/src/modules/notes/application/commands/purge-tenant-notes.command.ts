@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ok, type Result } from "neverthrow";
 import type { TransactionError } from "../../../../infrastructure/database";
 import type { NoteNotFound } from "../../domain/errors/note.errors";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 
 const PURGE_BATCH_LIMIT = 500;
 

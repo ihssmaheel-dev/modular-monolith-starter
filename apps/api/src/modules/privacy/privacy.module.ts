@@ -14,7 +14,7 @@ import { RequestOrganizationErasureCommand } from "./application/commands/reques
 import { PurgeExpiredErasuresCommand } from "./application/commands/purge-expired-erasures.command";
 import { DownloadExportQuery } from "./application/queries/download-export.query";
 import { ListRequestsQuery } from "./application/queries/list-requests.query";
-import { PrivacyRepository } from "./infrastructure/privacy.repository";
+import { PrivacyRepository } from "./infrastructure/repositories/privacy.repository";
 
 @Module({
   imports: [

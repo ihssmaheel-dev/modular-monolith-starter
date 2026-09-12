@@ -12,10 +12,10 @@ import { PinoLoggerService } from "../../../../infrastructure/logger/logger.serv
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { NotificationDigestReadyEvent } from "../../domain/events/notification.events";
-import { BatchesRepository } from "../../infrastructure/batches.repository";
-import { DeviceTokensRepository } from "../../infrastructure/device-tokens.repository";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
-import { PreferencesRepository } from "../../infrastructure/preferences.repository";
+import { BatchesRepository } from "../../infrastructure/repositories/batches.repository";
+import { DeviceTokensRepository } from "../../infrastructure/repositories/device-tokens.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
+import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
 import { PushDriverFactory } from "../../infrastructure/push/push.factory";
 import { renderNotificationEmail } from "../commands/notification-email.renderer";
 

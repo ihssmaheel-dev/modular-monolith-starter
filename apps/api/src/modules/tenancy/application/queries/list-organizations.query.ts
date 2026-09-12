@@ -3,8 +3,8 @@ import { err, ok, type Result } from "neverthrow";
 import type { AuthenticatedUser, TenantRole } from "@repo/contracts";
 import type { Organization } from "../../domain/entities/tenancy.entity";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
-import { OrganizationsRepository } from "../../infrastructure/organizations.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
+import { OrganizationsRepository } from "../../infrastructure/repositories/organizations.repository";
 
 export interface OrganizationAccess {
   organization: Organization;

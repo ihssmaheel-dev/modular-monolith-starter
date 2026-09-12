@@ -22,10 +22,10 @@ import {
 } from "../../domain/entities/notification-preference.entity";
 import type { NotificationError } from "../../domain/errors/notification.errors";
 import { NotificationCreatedEvent } from "../../domain/events/notification.events";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
-import { PreferencesRepository } from "../../infrastructure/preferences.repository";
-import { DeviceTokensRepository } from "../../infrastructure/device-tokens.repository";
-import { BatchesRepository } from "../../infrastructure/batches.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
+import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
+import { DeviceTokensRepository } from "../../infrastructure/repositories/device-tokens.repository";
+import { BatchesRepository } from "../../infrastructure/repositories/batches.repository";
 import { PushDriverFactory } from "../../infrastructure/push/push.factory";
 import { renderNotificationEmail } from "./notification-email.renderer";
 

@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ClsModule } from "nestjs-cls";
 import { DatabaseModule, DatabaseService, TenantContextService } from "../infrastructure/database";
 import { LoggerModule } from "../infrastructure/logger/logger.module";
-import { UsersRepository } from "../modules/users/infrastructure/users.repository";
+import { UsersRepository } from "../modules/users/infrastructure/repositories/users.repository";
 
 @Module({
   imports: [

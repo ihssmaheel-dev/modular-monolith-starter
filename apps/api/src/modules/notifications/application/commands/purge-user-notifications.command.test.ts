@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PurgeUserNotificationsCommand } from "./purge-user-notifications.command";
-import { NotificationsRepository } from "../../infrastructure/notifications.repository";
+import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 
 describe("PurgeUserNotificationsCommand", () => {

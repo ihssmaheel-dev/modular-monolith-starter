@@ -13,9 +13,9 @@ import { TenantContextService } from "../../../../infrastructure/database";
 import type { Invitation } from "../../domain/entities/tenancy.entity";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
 import { InvitationCreatedEvent } from "../../domain/events/invitation-created.event";
-import { InvitationsRepository } from "../../infrastructure/invitations.repository";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
-import { OrganizationsRepository } from "../../infrastructure/organizations.repository";
+import { InvitationsRepository } from "../../infrastructure/repositories/invitations.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
+import { OrganizationsRepository } from "../../infrastructure/repositories/organizations.repository";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { DatabaseService } from "../../../../infrastructure/database";
 

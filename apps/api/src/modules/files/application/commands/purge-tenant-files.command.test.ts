@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "neverthrow";
 import { PurgeTenantFilesCommand } from "./purge-tenant-files.command";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 

@@ -6,7 +6,7 @@ import { UpdateUserSchema, type AuthenticatedUser } from "@repo/contracts";
 import { User } from "../../domain/entities/user.entity";
 import { EmailTaken, UserForbidden, UserNotFound } from "../../domain/errors/user.errors";
 import { UserUpdatedEvent } from "../../domain/events/user.events";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 import { GetUserByEmailQuery } from "../queries/get-user-by-email.query";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";

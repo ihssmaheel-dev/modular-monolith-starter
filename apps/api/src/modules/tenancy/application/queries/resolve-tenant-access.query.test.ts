@@ -5,7 +5,7 @@ vi.mock("../../../../config/env", () => ({ env: { TENANCY_MODE: "multi" } }));
 
 import { env } from "../../../../config/env";
 import { Membership } from "../../domain/entities/tenancy.entity";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { ResolveTenantAccessQuery } from "./resolve-tenant-access.query";
 import type { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 

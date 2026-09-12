@@ -1,7 +1,7 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { Result } from "neverthrow";
 import { Note } from "../../domain/entities/note.entity";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 import type { PaginatedResult } from "../../../../infrastructure/database";
 import type { AuthenticatedUser } from "@repo/contracts";
 import { AuthorizationService } from "../../../../infrastructure/authorization";

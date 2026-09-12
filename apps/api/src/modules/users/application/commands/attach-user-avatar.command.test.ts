@@ -5,7 +5,7 @@ import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 import { GetFileByIdQuery } from "../../../files/application/queries/get-file-by-id.query";
 import { LinkFileCommand } from "../../../files/application/commands/link-file.command";
 import { DeleteFileCommand } from "../../../files/application/commands/delete-file.command";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { User } from "../../domain/entities/user.entity";
 import type { AuthenticatedUser } from "@repo/contracts";
 

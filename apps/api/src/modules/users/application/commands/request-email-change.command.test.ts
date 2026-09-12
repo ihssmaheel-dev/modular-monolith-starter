@@ -3,7 +3,7 @@ import { ok } from "neverthrow";
 import { RequestEmailChangeCommand } from "./request-email-change.command";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 import { GetUserByEmailQuery } from "../queries/get-user-by-email.query";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { EmailService } from "../../../../infrastructure/email/email.service";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";

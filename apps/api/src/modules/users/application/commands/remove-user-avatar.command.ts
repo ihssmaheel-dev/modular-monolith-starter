@@ -6,7 +6,7 @@ import { DeleteFileCommand } from "../../../files/application/commands/delete-fi
 
 import { User } from "../../domain/entities/user.entity";
 import { UserNotFound } from "../../domain/errors/user.errors";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 
 /** Self-serve avatar removal: clear the reference column and delete the file. Idempotent. */

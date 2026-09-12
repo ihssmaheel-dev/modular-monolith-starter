@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { AnonymizeUserCommand, anonymizedEmail } from "./anonymize-user.command";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { User } from "../../domain/entities/user.entity";

@@ -15,10 +15,10 @@ import { GetPreferencesQuery } from "./application/queries/get-preferences.query
 import { ExportUserDataQuery } from "./application/queries/export-user-data.query";
 import { DomainEventFanoutListener } from "./application/listeners/domain-event-fanout.listener";
 import { DigestWorker } from "./application/workers/digest.worker";
-import { NotificationsRepository } from "./infrastructure/notifications.repository";
-import { PreferencesRepository } from "./infrastructure/preferences.repository";
-import { DeviceTokensRepository } from "./infrastructure/device-tokens.repository";
-import { BatchesRepository } from "./infrastructure/batches.repository";
+import { NotificationsRepository } from "./infrastructure/repositories/notifications.repository";
+import { PreferencesRepository } from "./infrastructure/repositories/preferences.repository";
+import { DeviceTokensRepository } from "./infrastructure/repositories/device-tokens.repository";
+import { BatchesRepository } from "./infrastructure/repositories/batches.repository";
 import { PushDriverFactory } from "./infrastructure/push/push.factory";
 
 @Module({

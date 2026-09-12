@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CreateNoteCommand } from "./create-note.command";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { Note } from "../../domain/entities/note.entity";
 import { ok } from "neverthrow";

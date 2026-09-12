@@ -15,7 +15,7 @@ import { PurgeTenantNotesCommand } from "../../../notes/application/commands/pur
 import { PurgeTenantFilesCommand } from "../../../files/application/commands/purge-tenant-files.command";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { AccountPurgedEvent, OrganizationPurgedEvent } from "../../domain/events/privacy.events";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import type { DsrRequest } from "../../domain/entities/dsr.entity";
 
 const PURGE_BATCH_LIMIT = 25;

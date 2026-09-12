@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import { User } from "../../domain/entities/user.entity";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { hashSha256Token } from "../../../../infrastructure/security/token.utils";
 
 import type { InvalidEmailChangeToken } from "../../domain/errors/user.errors";

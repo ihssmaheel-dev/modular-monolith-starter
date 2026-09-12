@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { LinkFileCommand } from "./link-file.command";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import type { FileEntity } from "../../domain/entities/file.entity";
 import type { AuthenticatedUser } from "@repo/contracts";
 

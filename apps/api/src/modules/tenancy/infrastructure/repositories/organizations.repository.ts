@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { inArray } from "drizzle-orm";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { organizations, type OrganizationRow } from "./schemas/tenancy.schema";
-import { Organization } from "../domain/entities/tenancy.entity";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { organizations, type OrganizationRow } from "../schemas/tenancy.schema";
+import { Organization } from "../../domain/entities/tenancy.entity";
 import type { Result } from "neverthrow";
 
 @Injectable()

@@ -5,7 +5,7 @@ import { DatabaseService, TenantContextService } from "../../../../infrastructur
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 
 const RECONCILIATION_BATCH_SIZE = 100;
 

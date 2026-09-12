@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GetFileByIdQuery } from "./get-file-by-id.query";
-import { FilesRepository } from "../../infrastructure/files.repository";
+import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok } from "neverthrow";
 

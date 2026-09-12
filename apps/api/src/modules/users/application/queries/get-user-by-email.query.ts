@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Result, ok, err } from "neverthrow";
 import { User } from "../../domain/entities/user.entity";
-import { UsersRepository } from "../../infrastructure/users.repository";
+import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 
 @Injectable()
 export class GetUserByEmailQuery {

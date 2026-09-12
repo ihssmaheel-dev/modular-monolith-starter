@@ -1,7 +1,7 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
 import { AuthorizationService } from "../../infrastructure/authorization";
-import { notePolicies } from "./application/notes.policies";
-import { NotesRepository } from "./infrastructure/notes.repository";
+import { notePolicies } from "./application/policies/notes.policies";
+import { NotesRepository } from "./infrastructure/repositories/notes.repository";
 import { CreateNoteCommand } from "./application/commands/create-note.command";
 import { UpdateNoteCommand } from "./application/commands/update-note.command";
 import { DeleteNoteCommand } from "./application/commands/delete-note.command";

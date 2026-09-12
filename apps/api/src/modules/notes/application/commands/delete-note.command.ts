@@ -3,7 +3,7 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { ok, err, Result } from "neverthrow";
 import { NoteNotFound } from "../../domain/errors/note.errors";
 import { NoteDeletedEvent } from "../../domain/events/note.events";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 import { GetNoteByIdQuery } from "../queries/get-note-by-id.query";
 import type { AuthenticatedUser } from "@repo/contracts";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";

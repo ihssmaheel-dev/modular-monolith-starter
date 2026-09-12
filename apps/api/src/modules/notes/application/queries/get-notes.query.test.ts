@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GetNotesQuery } from "./get-notes.query";
-import { NotesRepository } from "../../infrastructure/notes.repository";
+import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 import { Note } from "../../domain/entities/note.entity";
 import { ok } from "neverthrow";
 import type { PaginatedResult } from "../../../../infrastructure/database";

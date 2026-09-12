@@ -4,7 +4,7 @@ import type { TenantRole } from "@repo/contracts";
 import { TenantContextService } from "../../../../infrastructure/database";
 import type { Membership } from "../../domain/entities/tenancy.entity";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
-import { MembershipsRepository } from "../../infrastructure/memberships.repository";
+import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { DatabaseService } from "../../../../infrastructure/database";
 
 @Injectable()

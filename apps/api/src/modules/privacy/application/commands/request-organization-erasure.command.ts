@@ -13,7 +13,7 @@ import { PurgeUserNotificationsCommand } from "../../../notifications/applicatio
 import { DsrRequest } from "../../domain/entities/dsr.entity";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { OrganizationErasureRequestedEvent } from "../../domain/events/privacy.events";
-import { PrivacyRepository } from "../../infrastructure/privacy.repository";
+import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 
 const GRACE_DAYS = 30;
 const ORG_PAGE_LIMIT = 100;
