@@ -59,6 +59,7 @@ Supreme laws of this codebase. These are never negotiable.
 7. Respect the file/function limits in `CODE_QUALITY_RULES.md` (single-responsibility first).
 8. Use Pino logger with structured context.
 9. Place files in correct locations per `FILE_PLACEMENT_RULES.md`.
+10. Maintain zero loose files across all 4 module layers (`presentation/`, `application/`, `domain/`, `infrastructure/`).
 
 ---
 

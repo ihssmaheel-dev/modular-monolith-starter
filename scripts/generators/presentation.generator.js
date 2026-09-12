@@ -12,7 +12,7 @@ function generatePresentation({
   FeaturePlural,
 }) {
   const mapperContent = `import type { ${Feature}ResponseDto } from "@repo/contracts";
-import type { ${Feature} } from "../domain/entities/${feature}.entity";
+import type { ${Feature} } from "../../domain/entities/${feature}.entity";
 
 export function to${Feature}Response(entity: ${Feature}): ${Feature}ResponseDto {
   return {
@@ -48,9 +48,9 @@ import {
   ResponseSchema,
   ZodValidationPipe,
   requireAuthenticatedUser,
-} from "../../../common";
-import { handleResult } from "../../../common/utils/presentation.utils";
-import { I18nService } from "../../../infrastructure/i18n/i18n.service";
+} from "../../../../common";
+import { handleResult } from "../../../../common/utils/presentation.utils";
+import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import type {
   Create${Feature}Dto,
   ${Feature}ListResponseDto,
@@ -68,12 +68,12 @@ import {
   ${Feature}ResponseSchema,
   EmptyResponseSchema,
 } from "@repo/contracts";
-import { Create${Feature}Command } from "../application/commands/create-${feature}.command";
-import { Update${Feature}Command } from "../application/commands/update-${feature}.command";
-import { Delete${Feature}Command } from "../application/commands/delete-${feature}.command";
-import { Get${Feature}ByIdQuery } from "../application/queries/get-${feature}-by-id.query";
-import { Get${FeaturePlural}Query } from "../application/queries/get-${featurePlural}.query";
-import { to${Feature}Response } from "./${featurePlural}.mapper";
+import { Create${Feature}Command } from "../../application/commands/create-${feature}.command";
+import { Update${Feature}Command } from "../../application/commands/update-${feature}.command";
+import { Delete${Feature}Command } from "../../application/commands/delete-${feature}.command";
+import { Get${Feature}ByIdQuery } from "../../application/queries/get-${feature}-by-id.query";
+import { Get${FeaturePlural}Query } from "../../application/queries/get-${featurePlural}.query";
+import { to${Feature}Response } from "../mappers/${featurePlural}.mapper";
 
 const ERROR_CONFIG = {
   ${Feature.toUpperCase()}_NOT_FOUND: {
@@ -206,21 +206,21 @@ export class ${ModuleName}Module {}
 `;
 
   writeFileIfMissing(
-    path.join(modulePath, "presentation", `${featurePlural}.mapper.ts`),
+    path.join(modulePath, "presentation", "mappers", `${featurePlural}.mapper.ts`),
     mapperContent,
   );
   writeFileIfMissing(
-    path.join(modulePath, "presentation", `${featurePlural}.controller.ts`),
+    path.join(modulePath, "presentation", "controllers", `${featurePlural}.controller.ts`),
     controllerContent,
   );
   const orpcControllerContent = `import { Controller, Req } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import { ${featurePlural}Contract } from "@repo/contracts";
-import { Implement, implement } from "../../../infrastructure/orpc/orpc-runtime";
-import { invokeOrpc } from "../../../infrastructure/orpc";
+import { Implement, implement } from "../../../../infrastructure/orpc/orpc-runtime";
+import { invokeOrpc } from "../../../../infrastructure/orpc";
 import { Idempotent, RequirePermission } from "../../../common";
-import { I18nService } from "../../../infrastructure/i18n/i18n.service";
-import { ${FeaturePlural}Controller } from "./${featurePlural}.controller";
+import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
+import { ${FeaturePlural}Controller } from "../controllers/${featurePlural}.controller";
 
 @Controller("rpc")
 export class ${FeaturePlural}OrpcController {
@@ -294,87 +294,41 @@ export class ${FeaturePlural}OrpcController {
 }
 `;
   writeFileIfMissing(
-    path.join(modulePath, "presentation", `${featurePlural}.orpc.controller.ts`),
+    path.join(modulePath, "presentation", "orpc", `${featurePlural}.orpc.controller.ts`),
     orpcControllerContent,
   );
-  const parityTestContent = `import "reflect-metadata";
-import { HTTP_CODE_METADATA, METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
-import { RequestMethod } from "@nestjs/common";
-import { ${featurePlural}Contract } from "@repo/contracts";
+  const parityTestContent = `import { ${featurePlural}Contract } from "@repo/contracts";
 import type { AnyContractProcedure } from "@orpc/contract" with { "resolution-mode": "import" };
-import { describe, expect, it } from "vitest";
+import { describeRouteParity, routePairs, type RoutePair } from "../../../../common/testing/route-parity";
 import { ${FeaturePlural}Controller } from "./${featurePlural}.controller";
-import { ${FeaturePlural}OrpcController } from "./${featurePlural}.orpc.controller";
-import { RESPONSE_SCHEMA_KEY } from "../../../common/decorators/response-schema.decorator";
+import { ${FeaturePlural}OrpcController } from "../orpc/${featurePlural}.orpc.controller";
 
-type RoutePair = { contract: AnyContractProcedure; rpc: object; rest: object; method: string };
-const featureContract = ${featurePlural}Contract as Record<string, AnyContractProcedure>;
-const ROUTES: RoutePair[] = [
-  ["list", "list"],
-  ["getById", "getById"],
-  ["create", "create"],
-  ["update", "update"],
-  ["delete", "delete"],
-].map(([method, restMethod]) => ({
-  contract: featureContract[method],
-  rpc: ${FeaturePlural}OrpcController,
-  rest: ${FeaturePlural}Controller,
-  method: restMethod,
-}));
+const routes: RoutePair[] = routePairs(${featurePlural}Contract, ${FeaturePlural}OrpcController, ${FeaturePlural}Controller, [
+  ["list", "list", "list"],
+  ["getById", "getById", "getById"],
+  ["create", "create", "create"],
+  ["update", "update", "update"],
+  ["delete", "delete", "delete"],
+]);
 
-describe("${featurePlural} oRPC and REST route parity", () => {
-  it.each(ROUTES)("keeps $method aligned with its contract", (route) => {
-    const contractRoute = route.contract["~orpc"].route;
-    const restPath = routePath(route.rest, route.method);
-    const rpcPath = routePath(route.rpc, route.method);
-    expect(restPath).toBe(nestPath(contractRoute.path));
-    expect(rpcPath).toBe(\`/rpc\${nestPath(contractRoute.path)}\`);
-    expect(methodName(route.rest, route.method)).toBe(contractRoute.method);
-    expect(methodName(route.rpc, route.method)).toBe(contractRoute.method);
-    const expectedStatus = contractRoute.successStatus ?? 200;
-    expect(successStatus(route.rest, route.method)).toBe(expectedStatus);
-    expect(successStatus(route.rpc, route.method)).toBe(expectedStatus);
-    expect(responseSchema(route.rest, route.method)).toBe(route.contract["~orpc"].outputSchema);
-  });
+describeRouteParity({
+  domain: "${featurePlural}",
+  routes,
+  controllers: [[${FeaturePlural}Controller, "${FeaturePlural}Controller"]],
+  contract: ${featurePlural}Contract as unknown as Record<string, AnyContractProcedure>,
 });
-
-function routePath(controller: object, method: string): string {
-  const type = controller as { prototype: object };
-  const classPath = Reflect.getMetadata(PATH_METADATA, controller) as string | undefined;
-  const callback = (type.prototype as Record<string, unknown>)[method] as object;
-  const methodPath = Reflect.getMetadata(PATH_METADATA, callback) as string | undefined;
-  return normalize([classPath, methodPath].filter(Boolean).join("/"));
-}
-function responseSchema(controller: object, method: string): unknown {
-  const callback = ((controller as { prototype: object }).prototype as Record<string, unknown>)[method] as object;
-  return Reflect.getMetadata(RESPONSE_SCHEMA_KEY, callback);
-}
-function methodName(controller: object, method: string): string {
-  const callback = ((controller as { prototype: object }).prototype as Record<string, unknown>)[method] as object;
-  return RequestMethod[Reflect.getMetadata(METHOD_METADATA, callback) as RequestMethod];
-}
-function successStatus(controller: object, method: string): number {
-  const callback = ((controller as { prototype: object }).prototype as Record<string, unknown>)[method] as object;
-  return (Reflect.getMetadata(HTTP_CODE_METADATA, callback) as number | undefined) ?? 200;
-}
-function normalize(path?: string): string {
-  return \`/\${(path ?? "").replace(/^\\/+|\\/+$/g, "")}\`.replace(/\\/+/g, "/");
-}
-function nestPath(path?: string): string {
-  return normalize(path).replace(/\\{([^}]+)\\}/g, ":$1");
-}
 `;
   writeFileIfMissing(
-    path.join(modulePath, "presentation", `${featurePlural}.parity.test.ts`),
+    path.join(modulePath, "presentation", "controllers", `${featurePlural}.parity.test.ts`),
     parityTestContent,
   );
   writeOrUpdateModule(path.join(modulePath, `${moduleName}.module.ts`), moduleContent, {
     imports: [
       `import { AuthorizationModule } from "../../../infrastructure/authorization";`,
       `import { OutboxModule } from "../../../infrastructure/outbox/outbox.module";`,
-      `import { ${FeaturePlural}Controller } from "./presentation/${featurePlural}.controller";`,
-      `import { ${FeaturePlural}OrpcController } from "./presentation/${featurePlural}.orpc.controller";`,
-      `import { ${FeaturePlural}Repository } from "./infrastructure/${featurePlural}.repository";`,
+      `import { ${FeaturePlural}Controller } from "./presentation/controllers/${featurePlural}.controller";`,
+      `import { ${FeaturePlural}OrpcController } from "./presentation/orpc/${featurePlural}.orpc.controller";`,
+      `import { ${FeaturePlural}Repository } from "./infrastructure/repositories/${featurePlural}.repository";`,
       `import { Create${Feature}Command } from "./application/commands/create-${feature}.command";`,
       `import { Update${Feature}Command } from "./application/commands/update-${feature}.command";`,
       `import { Delete${Feature}Command } from "./application/commands/delete-${feature}.command";`,

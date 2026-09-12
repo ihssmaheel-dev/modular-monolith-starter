@@ -22,7 +22,10 @@ if (fs.existsSync(basePath)) {
 }
 
 const folders = [
-  "presentation",
+  "presentation/controllers",
+  "presentation/orpc",
+  "presentation/mappers",
+  "presentation/error-maps",
   "application/commands",
   "application/queries",
   "application/listeners",
@@ -31,6 +34,7 @@ const folders = [
   "domain/events",
   "domain/errors",
   "infrastructure/schemas",
+  "infrastructure/repositories",
 ];
 
 folders.forEach((folder) => {
@@ -55,8 +59,8 @@ fs.writeFileSync(path.join(basePath, "README.md"), moduleReadme);
 
 const moduleFileContent = `// GENERATED_MODULE_SCAFFOLD: feature generation may replace this file.
 import { Module } from "@nestjs/common";
-import { ${pascalName}Controller } from "./presentation/${moduleName}.controller";
-import { ${pascalName}Repository } from "./infrastructure/${moduleName}.repository";
+import { ${pascalName}Controller } from "./presentation/controllers/${moduleName}.controller";
+import { ${pascalName}Repository } from "./infrastructure/repositories/${moduleName}.repository";
 import { Create${pascalName}Command } from "./application/commands/create-${moduleName}.command";
 import { Get${pascalName}Query } from "./application/queries/get-${moduleName}.query";
 
@@ -83,7 +87,7 @@ const controllerContent = `import { Controller } from "@nestjs/common";
 export class ${pascalName}Controller {}
 `;
 fs.writeFileSync(
-  path.join(basePath, "presentation", `${moduleName}.controller.ts`),
+  path.join(basePath, "presentation/controllers", `${moduleName}.controller.ts`),
   controllerContent,
 );
 
@@ -118,11 +122,11 @@ fs.writeFileSync(
 );
 
 const repositoryContent = `import { Injectable } from "@nestjs/common";
-import { DatabaseService } from "../../../infrastructure/database";
-import { TenantContextService } from "../../../infrastructure/database";
-import { BaseRepository } from "../../../infrastructure/database";
-import { ${moduleName}Table, type ${pascalName}Row } from "./schemas/${moduleName}.schema";
-import { ${pascalName} } from "../domain/entities/${moduleName}.entity";
+import { DatabaseService } from "../../../../infrastructure/database";
+import { TenantContextService } from "../../../../infrastructure/database";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { ${moduleName}Table, type ${pascalName}Row } from "../schemas/${moduleName}.schema";
+import { ${pascalName} } from "../../domain/entities/${moduleName}.entity";
 
 @Injectable()
 export class ${pascalName}Repository extends BaseRepository<${pascalName}, ${pascalName}Row> {
@@ -136,7 +140,7 @@ export class ${pascalName}Repository extends BaseRepository<${pascalName}, ${pas
 }
 `;
 fs.writeFileSync(
-  path.join(basePath, "infrastructure", `${moduleName}.repository.ts`),
+  path.join(basePath, "infrastructure/repositories", `${moduleName}.repository.ts`),
   repositoryContent,
 );
 

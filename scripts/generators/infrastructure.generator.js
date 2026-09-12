@@ -27,9 +27,9 @@ export type New${Feature}Row = typeof ${feature}Table.$inferInsert;
 `;
 
   const repositoryContent = `import { Injectable } from "@nestjs/common";
-import { BaseRepository, DatabaseService, TenantContextService } from "../../../infrastructure/database";
-import { ${Feature} } from "../domain/entities/${feature}.entity";
-import { ${feature}Table, type ${Feature}Row } from "./schemas/${feature}.schema";
+import { BaseRepository, DatabaseService, TenantContextService } from "../../../../infrastructure/database";
+import { ${Feature} } from "../../domain/entities/${feature}.entity";
+import { ${feature}Table, type ${Feature}Row } from "../schemas/${feature}.schema";
 
 @Injectable()
 export class ${FeaturePlural}Repository extends BaseRepository<${Feature}, ${Feature}Row> {
@@ -56,7 +56,7 @@ export class ${FeaturePlural}Repository extends BaseRepository<${Feature}, ${Fea
     schemaContent,
   );
   writeFileIfMissing(
-    path.join(modulePath, "infrastructure", `${featurePlural}.repository.ts`),
+    path.join(modulePath, "infrastructure", "repositories", `${featurePlural}.repository.ts`),
     repositoryContent,
   );
 }

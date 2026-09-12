@@ -55,7 +55,7 @@ export class CreateUserCommand {
 ### Controller Layer
 
 ```typescript
-// modules/presentation/users.controller.ts
+// modules/users/presentation/controllers/users.controller.ts
 // constructor(private readonly createUserCommand: CreateUserCommand) {}
 
   // Nest handler — uses @Post(), @Body() validated via Zod / oRPC

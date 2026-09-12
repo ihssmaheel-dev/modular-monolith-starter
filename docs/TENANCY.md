@@ -33,8 +33,8 @@ To make a domain tenant-owned:
 4. Never accept `tenantId` in a public input schema.
 
 ```ts
-import { BaseRepository } from "../../../infrastructure/database";
-import { orders, type OrderRow } from "./schemas/order.schema";
+import { BaseRepository } from "../../../../infrastructure/database";
+import { orders, type OrderRow } from "../schemas/order.schema";
 
 export class OrdersRepository extends BaseRepository<Order, OrderRow> {
   constructor(database: DatabaseService, tenantContext: TenantContextService) {

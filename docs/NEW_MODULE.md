@@ -15,11 +15,21 @@ creates compilable placeholders in the mandatory layers:
 ```text
 apps/api/src/modules/orders/
 ├── orders.module.ts
-├── presentation/orders.controller.ts
-├── application/commands/create-orders.command.ts
-├── application/queries/get-orders.query.ts
+├── presentation/
+│   ├── controllers/orders.controller.ts
+│   ├── orpc/orders.orpc.controller.ts
+│   ├── mappers/orders.mapper.ts
+│   └── error-maps/orders.error-maps.ts
+├── application/
+│   ├── commands/create-orders.command.ts
+│   ├── queries/get-orders.query.ts
+│   ├── listeners/
+│   ├── policies/
+│   └── services/
 ├── domain/{entities,value-objects,events,errors}/
-└── infrastructure/{schemas,orders.repository.ts}
+└── infrastructure/
+    ├── schemas/orders.schema.ts
+    └── repositories/orders.repository.ts
 ```
 
 The generator cannot infer business rules, public contracts, persistence fields, or indexes. The
@@ -74,15 +84,15 @@ Use `@Controller()` with standard NestJS HTTP decorators (`@Post`, `@Get`, `@Pat
 Each route calls exactly one command or query and maps its `Result` through localized presentation error maps.
 Protect mutations with permissions and idempotency where required.
 
-Add the oRPC presentation adapter beside the REST controller. Decorate each procedure with
+Add the oRPC presentation adapter under `presentation/orpc/`. Decorate each procedure with
 `@Implement(contract.procedure)`, use `implement(contract.procedure).handler(...)`, and delegate
 to the same command/query as REST. The adapter is served below `/api/v1/rpc`; keep it free of a
-second business implementation. Add a parity test that compares contract metadata and a smoke
-test that exercises at least one authenticated and one public procedure.
+second business implementation. Add a co-located parity test under `presentation/controllers/[module].parity.test.ts`
+using `describeRouteParity` from `apps/api/src/common/testing/route-parity`.
 
 ## 7. Wire the module
 
-List the controller, repository, commands, queries, and listeners in `orders.module.ts`.
+List the controllers, repositories, commands, queries, and listeners in `orders.module.ts`.
 Export commands/queries needed by another module, never internal repositories.
 The full-stack feature generator merges the feature into the module file and imports
 `OrdersModule` into `apps/api/src/app.module.ts` automatically. If you customize the module

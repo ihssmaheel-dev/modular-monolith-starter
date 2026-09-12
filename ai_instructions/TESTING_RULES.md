@@ -105,7 +105,7 @@ Use `vi.fn()` with typed interfaces:
 
 ```typescript
 import { vi } from "vitest";
-import { UsersRepository } from "../infrastructure/users.repository";
+import { UsersRepository } from "../infrastructure/repositories/users.repository";
 
 const mockRepository = {
   findByEmail: vi.fn(),
@@ -121,9 +121,10 @@ const mockRepository = {
 
 | Situation | Approach |
 |-----------|----------|
-| Unit testing a service | Mock the repository |
+| Unit testing a command/query | Mock the repository |
 | Unit testing domain logic | No mocks needed (pure functions) |
 | Integration testing a repository | Real database (testcontainers) |
+| Testing REST/oRPC route parity | `describeRouteParity` in `presentation/controllers/` |
 | E2E testing an API | Real everything (Supertest + Docker) |
 
 ### Test Data Factories
@@ -152,34 +153,58 @@ Use factories instead of inline fixtures when:
 ## File Naming
 
 ```
-users.service.test.ts          # Unit test for users.service.ts (co-located)
-users.repository.integration.test.ts  # Integration test
-users.e2e.test.ts              # E2E test for user-related API endpoints
+create-user.command.test.ts          # Unit test for command (co-located)
+get-user-by-id.query.test.ts         # Unit test for query (co-located)
+users.parity.test.ts                 # Route parity test (in presentation/controllers/)
+users.repository.integration.test.ts # Integration test
+users.e2e.test.ts                    # E2E test for user-related API endpoints
 ```
 
-Place unit test files next to the source file they test.
+Place unit and parity test files next to the source files they test.
 
 ---
 
 ## Test Structure
 
+### CQRS Command/Query Test
+
 ```typescript
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { CreateUserCommand } from "./create-user.command";
 
-describe("UsersService", () => {
-  describe("create", () => {
-    it("should create a user when email is available", async () => {
-      // Arrange
-      // Act
-      // Assert
-    });
-
-    it("should return EMAIL_TAKEN when email already exists", async () => {
-      // Arrange
-      // Act
-      // Assert
-    });
+describe("CreateUserCommand", () => {
+  it("should create a user when email is available", async () => {
+    // Arrange
+    // Act
+    // Assert
   });
+
+  it("should return EMAIL_TAKEN when email already exists", async () => {
+    // Arrange
+    // Act
+    // Assert
+  });
+});
+```
+
+### Route Parity Test (`presentation/controllers/`)
+
+Every domain module with REST and oRPC endpoints must include a co-located route parity test using `describeRouteParity` from `apps/api/src/common/testing/route-parity`:
+
+```typescript
+import { usersContract } from "@repo/contracts";
+import { describeRouteParity, routePairs } from "../../../../common/testing/route-parity";
+import { UsersController } from "./users.controller";
+import { UsersOrpcController } from "../orpc/users.orpc.controller";
+
+describeRouteParity({
+  domain: "users",
+  routes: routePairs(usersContract, UsersOrpcController, UsersController, [
+    ["create", "create", "create"],
+    ["getById", "getById", "getById"],
+  ]),
+  controllers: [[UsersController, "UsersController"]],
+  contract: usersContract,
 });
 ```
 
