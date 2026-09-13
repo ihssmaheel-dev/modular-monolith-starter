@@ -15,7 +15,9 @@ export class RequestIdInterceptor implements NestInterceptor {
 
     const requestId = resolveRequestId(request.headers[REQUEST_ID_HEADER]);
 
-    this.cls.set("requestId", requestId);
+    if (this.cls.isActive()) {
+      this.cls.set("requestId", requestId);
+    }
 
     if (typeof response.header === "function") {
       response.header(REQUEST_ID_HEADER, requestId);
@@ -23,6 +25,12 @@ export class RequestIdInterceptor implements NestInterceptor {
       response.setHeader(REQUEST_ID_HEADER, requestId);
     }
 
-    return next.handle().pipe(finalize(() => this.cls.set("requestId", undefined)));
+    return next.handle().pipe(
+      finalize(() => {
+        if (this.cls.isActive()) {
+          this.cls.set("requestId", undefined);
+        }
+      }),
+    );
   }
 }
