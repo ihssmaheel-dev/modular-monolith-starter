@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alert `ServiceDown` firing (Prometheus scrape target unreachable for > 2m).
 - `GET /api/v1/health/live` stops returning 200, or `/api/v1/health/ready` degrades.
 - Users report "app won't load" across web and mobile simultaneously.
 - Distinguish first: **live failing = process dead**; **live OK but ready failing = dependencies

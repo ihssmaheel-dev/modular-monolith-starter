@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alert `PostgresBufferHitRatioLow` firing (buffer cache hit ratio < 95% over 10m).
 - `/api/v1/health/ready` red while `/live` is green.
 - Logs show `ECONNREFUSED`, `timeout`, or pool exhaustion (`DB_MAX_POOL_SIZE`, default 10).
 - Users report errors on every data screen; static pages may still render.

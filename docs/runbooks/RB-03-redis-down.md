@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alert `RedisKeyspaceHitRatioLow` firing (cache hit ratio < 40% over 15m).
 - Logs show `Redis client error` / `Failed to connect to Redis`; `ready` probe may stay
   green because the API boots and serves without Redis by design.
 - Symptoms are partial: refresh-token reuse detection weakened, realtime fan-out stops

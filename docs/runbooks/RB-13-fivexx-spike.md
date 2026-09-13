@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alert `ApiHighErrorRate` firing (HTTP 5xx error rate > 2% over 5m).
 - 5xx rate alert or user reports with `ref #xxxxxxxx` strings — this runbook assumes the
   error-reference system is your primary tool: every API failure carries an 8-hex ref
   derived from the trace ID, shown on frontend error boundaries with a copy button.

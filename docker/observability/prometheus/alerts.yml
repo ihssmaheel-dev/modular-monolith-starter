@@ -1,4 +1,35 @@
 groups:
+  - name: service-availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service target {{ $labels.job }} ({{ $labels.instance }}) is down"
+          description: "Target has been unreachable for more than 2 minutes."
+
+  - name: api-service-health
+    rules:
+      - alert: ApiHighErrorRate
+        expr: (sum(rate(http_requests_total{status_code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) * 100 > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: API HTTP 5xx error rate is elevated
+          description: "HTTP 5xx error rate is above 2% over the last 5 minutes."
+
+      - alert: ApiHighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: API p95 latency exceeds 1 second
+          description: "95th percentile latency is above 1s over the last 5 minutes."
+
   - name: modular-monolith-reliability
     rules:
       - alert: OutboxPendingDepthHigh
@@ -51,3 +82,23 @@ groups:
         annotations:
           summary: File metadata drift was repaired
           description: One or more uploaded files were marked failed after object verification.
+
+  - name: database-and-cache-health
+    rules:
+      - alert: PostgresBufferHitRatioLow
+        expr: ((sum(rate(pg_stat_database_blks_hit[5m])) / (sum(rate(pg_stat_database_blks_hit[5m])) + sum(rate(pg_stat_database_blks_read[5m])))) * 100 < 95) and ((sum(rate(pg_stat_database_blks_hit[5m])) + sum(rate(pg_stat_database_blks_read[5m]))) > 0.1)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: PostgreSQL buffer cache hit ratio is low
+          description: "Postgres buffer hit ratio dropped below 95% over the last 10 minutes."
+
+      - alert: RedisKeyspaceHitRatioLow
+        expr: ((rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))) * 100 < 40) and ((rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) > 0.1)
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: Redis keyspace hit ratio is low
+          description: "Redis cache hit ratio has dropped below 60% over the last 15 minutes."

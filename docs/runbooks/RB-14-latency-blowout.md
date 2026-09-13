@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alert `ApiHighLatencyP95` firing (API p95 latency > 1.0s over 5m).
 - p95/p99 latency alerts or "the app feels slow" reports with no errors — slowness without
   failure is a different animal from RB-13; don't mix the playbooks.
 - First split: database slow, downstream slow, or app slow? The answer picks the fix.
