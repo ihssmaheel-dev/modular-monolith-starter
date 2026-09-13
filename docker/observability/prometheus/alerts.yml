@@ -94,6 +94,15 @@ groups:
           summary: PostgreSQL buffer cache hit ratio is low
           description: "Postgres buffer hit ratio dropped below 95% over the last 10 minutes."
 
+      - alert: PostgresDatabaseSizeHigh
+        expr: pg_database_size_bytes{datname="app"} > 10737418240
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: PostgreSQL application database size is high
+          description: "Database 'app' size has exceeded 10GB."
+
       - alert: RedisKeyspaceHitRatioLow
         expr: ((rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))) * 100 < 40) and ((rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) > 0.1)
         for: 15m

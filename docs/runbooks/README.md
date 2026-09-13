@@ -11,7 +11,7 @@ New runbook? Copy `TEMPLATE.md`, fill every section, add the row below.
 | RB-01 | [API down / health failing](RB-01-api-down.md)             | SEV-1    | `ServiceDown`, `/health/live` vs `/ready`      |
 | RB-02 | [Postgres down / pool exhausted](RB-02-postgres-down.md)   | SEV-1/2  | `PostgresBufferHitRatioLow`, `pg_isready`      |
 | RB-03 | [Redis down (degraded mode)](RB-03-redis-down.md)          | SEV-2    | `RedisKeyspaceHitRatioLow`, client error       |
-| RB-04 | [Disk full](RB-04-disk-full.md)                            | SEV-1/2  | write failures, `df -h`, log errors            |
+| RB-04 | [Disk full](RB-04-disk-full.md)                            | SEV-1/2  | `PostgresDatabaseSizeHigh`, write failures     |
 | RB-05 | [Outbox lag / depth growing](RB-05-outbox-lag.md)          | SEV-2→1  | `OutboxPendingDepthHigh`, `OutboxEventLagHigh` |
 | RB-06 | [Dead letters appearing](RB-06-dead-letters.md)            | SEV-2→1  | `OutboxDeadLettersCreated`, realtime DLQ       |
 | RB-07 | [Queue stuck / stalled jobs](RB-07-queue-stuck.md)         | SEV-2    | worker errors, queue depth, delayed age        |

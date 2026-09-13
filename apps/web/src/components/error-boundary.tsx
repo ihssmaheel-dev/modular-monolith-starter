@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@repo/ui/components/ui/button";
 import { Badge } from "@repo/ui/components/ui/badge";
@@ -12,11 +12,20 @@ import {
 } from "@repo/ui/components/ui/card";
 import { Check, Copy } from "lucide-react";
 import { extractErrorDetails, formatSupportClipboardText } from "@/lib/error-reference";
+import { reportClientError } from "@/lib/client-beacon";
 
 export function RouteErrorFallback({ error, reset }: { error: unknown; reset: () => void }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const details = extractErrorDetails(error);
+
+  useEffect(() => {
+    reportClientError({
+      message: details.message || "Route render error",
+      errorRef: details.errorRef,
+      url: typeof window !== "undefined" ? window.location.pathname : "/",
+    });
+  }, [details.errorRef, details.message]);
 
   const handleCopy = async () => {
     const text = formatSupportClipboardText(details);

@@ -81,7 +81,20 @@ services:
     environment:
       REDIS_ADDR: "redis://redis:6379"
 
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: monorepo-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+
 volumes:
   prometheus_data:
   loki_data:
   grafana_data:
+  alertmanager_data:

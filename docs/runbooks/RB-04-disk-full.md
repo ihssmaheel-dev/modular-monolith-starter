@@ -6,8 +6,9 @@
 
 ## How you notice
 
+- Alert `PostgresDatabaseSizeHigh` firing (application database size > 10GB).
 - Postgres logs `could not extend file` / `No space left on device`; uploads fail;
-  Loki/Promtail stop shipping; containers may fail to start (no space for layers).
+- Loki/Promtail stop shipping; containers may fail to start (no space for layers).
 - Users report write failures while reads still work — the classic full-disk signature
   (reads need no new pages; writes do).
 

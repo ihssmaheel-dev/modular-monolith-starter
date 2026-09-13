@@ -27,6 +27,7 @@ import { RouteErrorFallback } from "@/components/error-boundary";
 import { initAuthSync } from "@/lib/cross-tab/auth-sync";
 import { QueryBroadcaster } from "@/lib/cross-tab/query-sync";
 import { ThemeSync } from "@/lib/cross-tab/theme-sync";
+import { initGlobalErrorListeners } from "@/lib/client-beacon";
 import { useEffect } from "react";
 import "@repo/ui/globals.css";
 
@@ -99,6 +100,7 @@ function RootPending() {
 
 function RootComponent() {
   const navigate = useNavigate();
+  useEffect(() => initGlobalErrorListeners(), []);
   useEffect(
     () =>
       initAuthSync({

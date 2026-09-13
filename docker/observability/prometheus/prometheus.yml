@@ -5,12 +5,10 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
-# Prod alert routing: run Alertmanager with alertmanager.example.yml
-# (SLACK_WEBHOOK_URL) and uncomment:
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ["alertmanager:9093"]
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
 
 scrape_configs:
   - job_name: "prometheus"

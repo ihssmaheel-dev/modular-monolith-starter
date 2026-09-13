@@ -14,6 +14,7 @@ import {
   createNotesClient,
   createNotificationsClient,
   createPrivacyClient,
+  createTelemetryClient,
   createTenancyClient,
   createUsersClient,
 } from "./subclients";
@@ -116,6 +117,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     notes: createNotesClient(authenticatedFetch, orpcClient),
     privacy: createPrivacyClient(authenticatedFetch, orpcClient),
     notifications: createNotificationsClient(authenticatedFetch, orpcClient),
+    telemetry: createTelemetryClient(authenticatedFetch),
     tenancy: createTenancyClient(authenticatedFetch, orpcClient, options.getTenantId),
     users: createUsersClient(authenticatedFetch, orpcClient),
     orpc,

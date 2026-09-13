@@ -1,0 +1,20 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: "mailpit:1025"
+  smtp_from: "alerts@modular-monolith.local"
+  smtp_require_tls: false
+
+route:
+  group_by: ["alertname", "job", "severity"]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 4h
+  receiver: "on-call"
+
+receivers:
+  - name: "on-call"
+    email_configs:
+      - to: "on-call@modular-monolith.local"
+        send_resolved: true
+        headers:
+          Subject: "[ALERT: {{ .Status | toUpper }}] {{ .GroupLabels.alertname }} ({{ .CommonLabels.severity }})"

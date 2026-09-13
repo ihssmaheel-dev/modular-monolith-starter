@@ -6,3 +6,4 @@ export * from "./tenancy";
 export * from "./upload";
 export * from "./privacy";
 export * from "./notifications";
+export * from "./telemetry";
