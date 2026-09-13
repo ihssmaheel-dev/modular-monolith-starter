@@ -10,6 +10,8 @@ import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
 import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
+import { FileScanWorker } from "../workers/file-scan.worker";
+
 @Injectable()
 export class ConfirmUploadCommand {
   constructor(
@@ -18,6 +20,7 @@ export class ConfirmUploadCommand {
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly authorization?: AuthorizationService,
     @Optional() private readonly tenantContext?: TenantContextService,
+    @Optional() private readonly scanWorker?: FileScanWorker,
   ) {}
 
   async execute(fileKey: string, actor: AuthenticatedUser): Promise<Result<FileEntity, FileError>> {
@@ -62,6 +65,12 @@ export class ConfirmUploadCommand {
         type: "UPLOAD_FAILED",
         message: "api.error.uploadFailed",
       });
+    }
+
+    if (this.scanWorker) {
+      await this.scanWorker.scanOne(file);
+      const promoted = await this.filesRepo.findByKey(fileKey);
+      if (promoted && promoted.status === "uploaded") return ok(promoted);
     }
 
     return ok(updateResult.value);

@@ -27,7 +27,11 @@ export function useAttachAvatarMutation() {
         { fileName: file.name, contentType: file.type, fileSize: file.size, body: file },
         (url, body, contentType) => putBytesWithProgress(url, body, contentType, onProgress),
       );
-      const response = await getApiClient().users.attachAvatar({ fileId: uploaded.id });
+      let response = await getApiClient().users.attachAvatar({ fileId: uploaded.id });
+      for (let attempt = 0; attempt < 5 && response.status === 409; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        response = await getApiClient().users.attachAvatar({ fileId: uploaded.id });
+      }
       if (response.status !== 201) throw new Error(toErrorKey(response.error));
       return response.body;
     },

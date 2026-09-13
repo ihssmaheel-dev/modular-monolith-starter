@@ -114,6 +114,34 @@ describe("ConfirmUploadCommand", () => {
     expect(result.isOk()).toBe(true);
     expect(storage.getMetadata).toHaveBeenCalledWith(`${file.key}.quarantine`);
   });
+
+  it("promotes file to uploaded immediately when scanWorker is provided", async () => {
+    const file = createFile();
+    const promotedFile: FileEntity = { ...file, status: "uploaded" };
+    vi.mocked(filesRepo.findByKey).mockResolvedValueOnce(file).mockResolvedValueOnce(promotedFile);
+    vi.mocked(filesRepo.updateById).mockResolvedValue(ok({ ...file, status: "uploading" }));
+
+    const scanWorker = {
+      scanOne: vi.fn().mockResolvedValue(true),
+    };
+
+    const commandWithWorker = new ConfirmUploadCommand(
+      filesRepo,
+      storage,
+      undefined,
+      undefined,
+      undefined,
+      scanWorker as never,
+    );
+
+    const result = await commandWithWorker.execute(file.key, ACTOR);
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.status).toBe("uploaded");
+    }
+    expect(scanWorker.scanOne).toHaveBeenCalledWith(file);
+  });
 });
 
 function createFile(): FileEntity {

@@ -46,7 +46,12 @@ export class FileScanWorker {
     }
   }
 
-  private async scanOne(file: { id: string; key: string; fileSize: number; contentType: string }) {
+  async scanOne(file: {
+    id: string;
+    key: string;
+    fileSize: number;
+    contentType: string;
+  }): Promise<boolean> {
     const quarantineKey = quarantineKeyFor(file.key);
     const scan = await this.scanner.scan({ ...file, key: quarantineKey });
     const clean = "result" in scan && scan.result === "clean";
@@ -57,14 +62,14 @@ export class FileScanWorker {
       const copied = await this.storage.copy(quarantineKey, file.key);
       if (copied.isErr()) {
         this.logger.error({ fileId: file.id, key: file.key }, "Quarantine promote failed");
-        return;
+        return false;
       }
       const promoted = await this.storage.getMetadata(file.key);
       if (promoted.isErr() || !promoted.value || promoted.value.size !== file.fileSize) {
         this.logger.error({ fileId: file.id, key: file.key }, "Promoted bytes mismatch");
         await this.storage.delete(file.key);
         await this.markFailed(file.id);
-        return;
+        return false;
       }
       await this.database.runTransaction(() =>
         this.files.updateById(file.id, { status: "uploaded" }),
@@ -73,7 +78,7 @@ export class FileScanWorker {
       if (cleaned.isErr()) {
         this.logger.warn({ fileId: file.id, key: quarantineKey }, "Quarantine cleanup failed");
       }
-      return;
+      return true;
     }
     await this.markFailed(file.id);
     const cleaned = await this.storage.delete(quarantineKey);
@@ -84,6 +89,7 @@ export class FileScanWorker {
       { fileId: file.id, key: file.key, error: "error" in scan ? scan.error : "unknown" },
       "File failed quarantine scan",
     );
+    return false;
   }
 
   private async markFailed(fileId: string): Promise<void> {

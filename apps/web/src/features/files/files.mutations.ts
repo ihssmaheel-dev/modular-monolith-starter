@@ -61,7 +61,11 @@ export function useAttachNoteFileMutation(noteId: string, slot?: string) {
   return useMutation({
     mutationFn: async ({ file, onProgress }: UploadQueueItem) => {
       const uploaded = await upload.mutateAsync({ file, onProgress });
-      const response = await getApiClient().notes.attach(noteId, uploaded.id, slot);
+      let response = await getApiClient().notes.attach(noteId, uploaded.id, slot);
+      for (let attempt = 0; attempt < 5 && response.status === 409; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        response = await getApiClient().notes.attach(noteId, uploaded.id, slot);
+      }
       if (response.status !== 201) throw new Error("api.error.uploadFailed");
       return response.body;
     },
