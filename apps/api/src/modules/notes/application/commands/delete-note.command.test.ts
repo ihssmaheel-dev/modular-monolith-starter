@@ -18,7 +18,7 @@ describe("DeleteNoteCommand", () => {
 
   beforeEach(() => {
     repository = {
-      deleteById: vi.fn(),
+      softDeleteById: vi.fn(),
     } as unknown as NotesRepository;
 
     getNoteById = {
@@ -52,7 +52,7 @@ describe("DeleteNoteCommand", () => {
     }
   });
 
-  it("should delete note and return ok", async () => {
+  it("should soft delete note and return ok", async () => {
     // Arrange
     const note = Note.fromPersistence({
       id: "123",
@@ -62,14 +62,14 @@ describe("DeleteNoteCommand", () => {
       updatedAt: new Date(),
     });
     vi.mocked(getNoteById.execute).mockResolvedValue(ok(note));
-    vi.mocked(repository.deleteById).mockResolvedValue(ok(true));
+    vi.mocked(repository.softDeleteById).mockResolvedValue(ok(note));
 
     // Act
     const result = await command.execute("123", ACTOR);
 
     // Assert
     expect(result.isOk()).toBe(true);
-    expect(repository.deleteById).toHaveBeenCalledWith("123");
+    expect(repository.softDeleteById).toHaveBeenCalledWith("123");
   });
 
   it("should return err if repository delete fails", async () => {
@@ -82,7 +82,7 @@ describe("DeleteNoteCommand", () => {
       updatedAt: new Date(),
     });
     vi.mocked(getNoteById.execute).mockResolvedValue(ok(note));
-    vi.mocked(repository.deleteById).mockResolvedValue(ok(false));
+    vi.mocked(repository.softDeleteById).mockResolvedValue(ok(null));
 
     // Act
     const result = await command.execute("123", ACTOR);

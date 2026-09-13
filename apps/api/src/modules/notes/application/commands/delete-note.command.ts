@@ -42,7 +42,7 @@ export class DeleteNoteCommand {
     const existing = await this.getNoteById.execute(id, actor);
     if (existing.isErr()) return err(existing.error);
 
-    const deleted = await this.repository.deleteById(id);
+    const deleted = await this.repository.softDeleteById(id);
     if (deleted.isErr()) return err({ type: "NOTE_NOT_FOUND", noteId: id });
     if (!deleted.value) return err({ type: "NOTE_NOT_FOUND", noteId: id });
 

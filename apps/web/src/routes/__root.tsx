@@ -22,7 +22,7 @@ import { QueryProvider } from "@/lib/query-client";
 import { I18nProvider } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { FRONTEND_ROUTES } from "@repo/contracts";
-import { getWebEnv } from "@/lib/env";
+import { getWebEnv, isDev } from "@/lib/env";
 import { RouteErrorFallback } from "@/components/error-boundary";
 import { initAuthSync } from "@/lib/cross-tab/auth-sync";
 import { QueryBroadcaster } from "@/lib/cross-tab/query-sync";
@@ -134,7 +134,7 @@ function RootComponent() {
                 <Outlet />
               </div>
               <Toaster />
-              {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+              {isDev ? <TanStackRouterDevtools position="bottom-right" /> : null}
             </ThemeProvider>
           </I18nProvider>
         </QueryProvider>

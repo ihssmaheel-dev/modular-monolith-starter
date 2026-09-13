@@ -1,14 +1,14 @@
 import { eq, and, isNull, sql } from "drizzle-orm";
-import { ok, type Result } from "neverthrow";
+import { ok, err, type Result } from "neverthrow";
 import { BaseReadRepository } from "./base-read.repository";
 import type { Id, PaginatedResult, PaginationOptions } from "./repository.types";
 
 export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<TEntity, TRow> {
-  async create(data: Record<string, unknown>): Promise<Result<TEntity, never>> {
+  async create(
+    data: Record<string, unknown>,
+  ): Promise<Result<TEntity, { type: "TENANT_REQUIRED" }>> {
     if (this.requiresTenantForWrite(data)) {
-      throw new Error(
-        "TENANT_REQUIRED: Cannot insert tenant-scoped entity without active tenant context",
-      );
+      return err({ type: "TENANT_REQUIRED" });
     }
     const db = this.getDb();
     const payload = {
@@ -29,11 +29,11 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
     return ok(this.toDomain(rows[0] as TRow));
   }
 
-  async createMany(data: Record<string, unknown>[]): Promise<Result<TEntity[], never>> {
+  async createMany(
+    data: Record<string, unknown>[],
+  ): Promise<Result<TEntity[], { type: "TENANT_REQUIRED" }>> {
     if (data.some((item) => this.requiresTenantForWrite(item))) {
-      throw new Error(
-        "TENANT_REQUIRED: Cannot insert tenant-scoped entities without active tenant context",
-      );
+      return err({ type: "TENANT_REQUIRED" });
     }
     const db = this.getDb();
     const payloads = data.map((d) => ({

@@ -66,6 +66,24 @@ describe("Unified Authorization Engine (RBAC + ReBAC + ABAC)", () => {
     expect(decision.reason).toBe("TENANT_MISMATCH");
   });
 
+  it("2b. Tenant mismatch: denies cross-tenant access even for tenant-bound admins", () => {
+    const tenantAdmin: Principal = {
+      id: "user-tenant-admin",
+      email: "admin@tenant-other.com",
+      role: "admin",
+      tenantId: "tenant-other",
+    };
+
+    const decision = evaluateAuthorization({
+      principal: tenantAdmin,
+      action: "notes:read",
+      resource: sampleNote,
+    });
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toBe("TENANT_MISMATCH");
+  });
+
   it("3. ReBAC Ownership: owner can update their own resource", () => {
     const decision = evaluateAuthorization({
       principal: alice,

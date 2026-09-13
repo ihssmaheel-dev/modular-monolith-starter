@@ -4,7 +4,7 @@ import type { ClsService } from "nestjs-cls";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { err, ok } from "neverthrow";
 import { env } from "../../config/env";
-import type { ResolveTenantAccessQuery } from "../../modules/tenancy/application/queries/resolve-tenant-access.query";
+import type { TenantAccessResolverPort } from "../ports/tenant-access-resolver.port";
 import { TenantContextGuard } from "./tenant-context.guard";
 
 const originalMode = env.TENANCY_MODE;
@@ -33,17 +33,17 @@ describe("TenantContextGuard", () => {
       role: "admin" as const,
     };
     const { guard, request, resolver, cls } = createGuard(tenant.tenantId);
-    vi.mocked(resolver.execute).mockResolvedValue(ok(tenant));
+    vi.mocked(resolver.resolveAccess).mockResolvedValue(ok(tenant));
 
     await expect(guard.canActivate(contextFor(request))).resolves.toBe(true);
-    expect(resolver.execute).toHaveBeenCalledWith("user-1", tenant.tenantId);
+    expect(resolver.resolveAccess).toHaveBeenCalledWith("user-1", tenant.tenantId);
     expect(cls.set).toHaveBeenCalledWith("tenantRole", "admin");
   });
 
   it("rejects a missing tenant in multi mode", async () => {
     env.TENANCY_MODE = "multi";
     const { guard, request, resolver } = createGuard();
-    vi.mocked(resolver.execute).mockResolvedValue(err({ type: "TENANT_REQUIRED" }));
+    vi.mocked(resolver.resolveAccess).mockResolvedValue(err({ type: "TENANT_REQUIRED" }));
 
     await expect(guard.canActivate(contextFor(request))).rejects.toBeInstanceOf(
       BadRequestException,
@@ -55,7 +55,9 @@ function createGuard(tenantId?: string) {
   const reflector = {
     getAllAndOverride: vi.fn().mockReturnValue(false),
   } as unknown as Reflector;
-  const resolver = { execute: vi.fn() } as unknown as ResolveTenantAccessQuery;
+  const resolver: TenantAccessResolverPort = {
+    resolveAccess: vi.fn(),
+  };
   const cls = { set: vi.fn(), get: vi.fn() } as unknown as ClsService;
   const i18n = {
     t: vi.fn().mockReturnValue("translated"),

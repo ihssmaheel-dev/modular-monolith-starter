@@ -61,6 +61,7 @@ export class PrivacyController {
 
   @Post("export")
   @HttpCode(HttpStatus.OK)
+  @Idempotent()
   @RateLimit(10, 60)
   @RequirePermission("privacy:export:self")
   @ResponseSchema(DsrResponseSchema)

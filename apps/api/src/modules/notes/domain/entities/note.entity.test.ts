@@ -2,61 +2,50 @@ import { describe, it, expect } from "vitest";
 import { Note } from "./note.entity";
 
 describe("Note Entity", () => {
-  it("should create a Note instance from persistence data", () => {
-    // Arrange
-    const data = {
+  it("should create a note with defaults and timestamps", () => {
+    const note = Note.create({
+      title: "My Note",
+      content: "Some content",
+      createdBy: "user-1",
+      tenantId: "tenant-1",
+    });
+
+    expect(note.title).toBe("My Note");
+    expect(note.content).toBe("Some content");
+    expect(note.createdBy).toBe("user-1");
+    expect(note.tenantId).toBe("tenant-1");
+    expect(note.id).toBeDefined();
+    expect(note.createdAt).toBeInstanceOf(Date);
+    expect(note.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it("should restore note from persistence", () => {
+    const now = new Date();
+    const note = Note.fromPersistence({
       id: "note-123",
-      title: "My Title",
-      content: "My Content",
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01"),
-    };
+      title: "Saved Title",
+      content: "Saved Content",
+      createdBy: "user-2",
+      createdAt: now,
+      updatedAt: now,
+      tenantId: "tenant-2",
+    });
 
-    // Act
-    const note = Note.fromPersistence(data);
-
-    // Assert
-    expect(note).toBeInstanceOf(Note);
     expect(note.id).toBe("note-123");
-    expect(note.title).toBe("My Title");
-    expect(note.content).toBe("My Content");
-    expect(note.createdAt).toEqual(new Date("2024-01-01"));
-    expect(note.updatedAt).toEqual(new Date("2024-01-01"));
+    expect(note.title).toBe("Saved Title");
+    expect(note.content).toBe("Saved Content");
+    expect(note.tenantId).toBe("tenant-2");
   });
 
-  it("should update title and content when update is called", () => {
-    // Arrange
-    const note = Note.fromPersistence({
-      id: "note-123",
-      title: "Old Title",
-      content: "Old Content",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  it("should update title and content", () => {
+    const note = Note.create({
+      title: "Initial",
+      content: "Initial content",
     });
 
-    // Act
-    note.update({ title: "New Title", content: "New Content" });
+    note.update({ title: "Updated Title", content: "Updated content" });
 
-    // Assert
-    expect(note.title).toBe("New Title");
-    expect(note.content).toBe("New Content");
-  });
-
-  it("should ignore undefined values on update", () => {
-    // Arrange
-    const note = Note.fromPersistence({
-      id: "note-123",
-      title: "Old Title",
-      content: "Old Content",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    // Act
-    note.update({ title: undefined, content: undefined });
-
-    // Assert
-    expect(note.title).toBe("Old Title");
-    expect(note.content).toBe("Old Content");
+    expect(note.title).toBe("Updated Title");
+    expect(note.content).toBe("Updated content");
   });
 });

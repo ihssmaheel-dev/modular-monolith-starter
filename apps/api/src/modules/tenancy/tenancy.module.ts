@@ -30,6 +30,8 @@ import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { TenancyStatusOrpcController } from "./presentation/orpc/tenancy-status.orpc.controller";
 import { OrganizationsOrpcController } from "./presentation/orpc/organizations.orpc.controller";
 import { MembershipsOrpcController } from "./presentation/orpc/memberships.orpc.controller";
+import { TENANT_ACCESS_RESOLVER_PORT } from "../../common/ports/tenant-access-resolver.port";
+import { TenancyAccessResolverAdapter } from "./application/adapters/tenancy-access-resolver.adapter";
 
 const providers = [
   OrganizationsRepository,
@@ -54,6 +56,10 @@ const providers = [
   GetTenancyStatusQuery,
   PurgeExpiredInvitationsCommand,
   InvitationRetentionWorker,
+  {
+    provide: TENANT_ACCESS_RESOLVER_PORT,
+    useClass: TenancyAccessResolverAdapter,
+  },
 ];
 
 @Global()
@@ -73,11 +79,7 @@ export class TenancyModule {
       module: TenancyModule,
       imports: [EventEmitterModule, OutboxModule],
       controllers: [TenancyStatusController, TenancyStatusOrpcController, ...domainControllers],
-      providers: [
-        ...providers,
-        TenancyStatusController,
-        ...(env.TENANCY_MODE === "multi" ? [OrganizationsController, MembershipsController] : []),
-      ],
+      providers: [...providers],
       exports: [
         ResolveTenantAccessQuery,
         CanDeleteUserQuery,
@@ -88,6 +90,7 @@ export class TenancyModule {
         InvitationRetentionWorker,
         DeleteOrganizationDataCommand,
         HardDeleteOrganizationCommand,
+        TENANT_ACCESS_RESOLVER_PORT,
       ],
     };
   }

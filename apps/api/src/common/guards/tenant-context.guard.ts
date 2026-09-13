@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
@@ -10,7 +11,10 @@ import { ClsService } from "nestjs-cls";
 import { TenantIdSchema, type AuthenticatedUser, type TenantContext } from "@repo/contracts";
 import { env } from "../../config/env";
 import { I18nService } from "../../infrastructure/i18n/i18n.service";
-import { ResolveTenantAccessQuery } from "../../modules/tenancy/application/queries/resolve-tenant-access.query";
+import {
+  TENANT_ACCESS_RESOLVER_PORT,
+  type TenantAccessResolverPort,
+} from "../ports/tenant-access-resolver.port";
 import { TENANT_AGNOSTIC_KEY } from "../decorators/tenant-agnostic.decorator";
 
 type TenantRequest = {
@@ -24,7 +28,8 @@ type TenantRequest = {
 export class TenantContextGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly resolver: ResolveTenantAccessQuery,
+    @Inject(TENANT_ACCESS_RESOLVER_PORT)
+    private readonly resolver: TenantAccessResolverPort,
     private readonly cls: ClsService,
     private readonly i18n: I18nService,
   ) {}
@@ -42,7 +47,7 @@ export class TenantContextGuard implements CanActivate {
     if (tenantId && !TenantIdSchema.safeParse(tenantId).success) {
       throw new BadRequestException(this.i18n.t("api.tenancy.invalidTenant", lang));
     }
-    const result = await this.resolver.execute(request.user.sub, tenantId);
+    const result = await this.resolver.resolveAccess(request.user.sub, tenantId);
     if (result.isErr() && result.error.type === "TENANT_REQUIRED") {
       throw new BadRequestException(this.i18n.t("api.tenancy.tenantRequired", lang));
     }

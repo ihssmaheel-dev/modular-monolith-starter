@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ProfileCard } from "@/features/users/components/profile-card";
 import { AccountSecurityCard } from "@/features/settings/components/account-security-card";
 import { ThemeCard } from "@/features/settings/components/theme-card";
+import { LanguageCard } from "@/features/settings/components/language-card";
 import { PreferencesCard } from "@/features/notifications/components/preferences-card";
 import { EmailChangeCard } from "@/features/users/components/email-change-card";
 import { ExportCard } from "@/features/privacy/components/export-card";
@@ -30,7 +31,10 @@ function SettingsPage() {
       <ExportCard />
       <EraseAccountCard />
       <EraseOrganizationCard />
-      <ThemeCard />
+      <div className="grid gap-4 md:grid-cols-2">
+        <ThemeCard />
+        <LanguageCard />
+      </div>
     </div>
   );
 }

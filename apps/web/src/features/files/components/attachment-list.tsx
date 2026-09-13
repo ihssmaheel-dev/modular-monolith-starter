@@ -13,10 +13,28 @@ const STATUS_LABELS: Record<FileMetadataResponse["status"], string> = {
   failed: "files.status.failed",
 };
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+function formatBytes(bytes: number, locale = "en"): string {
+  if (bytes < 1024) {
+    return new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit: "byte",
+      unitDisplay: "narrow",
+    }).format(bytes);
+  }
+  if (bytes < 1024 * 1024) {
+    return new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit: "kilobyte",
+      unitDisplay: "narrow",
+      maximumFractionDigits: 1,
+    }).format(bytes / 1024);
+  }
+  return new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit: "megabyte",
+    unitDisplay: "narrow",
+    maximumFractionDigits: 1,
+  }).format(bytes / (1024 * 1024));
 }
 
 interface AttachmentListProps {
@@ -27,7 +45,7 @@ interface AttachmentListProps {
 }
 
 export function AttachmentList({ files, onDownload, onDelete, isDeleting }: AttachmentListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (files.length === 0) {
     return <p className="text-sm text-muted-foreground">{t("files.noAttachments")}</p>;
   }
@@ -39,7 +57,7 @@ export function AttachmentList({ files, onDownload, onDelete, isDeleting }: Atta
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{file.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {formatBytes(file.fileSize)}
+              {formatBytes(file.fileSize, i18n.language)}
               {file.slot ? ` · ${file.slot}` : ""}
             </p>
           </div>

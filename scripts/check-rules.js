@@ -81,7 +81,7 @@ function checkFile(file) {
     [/\bas\s+any\b|:\s*any\b|<any>|\bany\[\]/, "explicit any is forbidden"],
     [/@ts-ignore|@ts-nocheck/, "TypeScript suppression is forbidden"],
     [/_unsafeUnwrap/, "unsafe Result unwrapping is forbidden"],
-    [/console\.log\s*\(/, "console.log is forbidden"],
+    [/console\.(log|warn|error|info|debug)\s*\(/, "console methods are forbidden"],
   ];
   // Mobile palette bans — enforce semantic tokens
   const isMobileUi = name.startsWith("apps/mobile/");
@@ -162,6 +162,13 @@ function checkTranslationUsage() {
     },
   ];
 
+  const allowedDynamicTranslations = [
+    /^(?:CATEGORY|CHANNEL|CADENCE|STATUS)_LABELS\[/,
+    /^mutation\.error\.message$/,
+    /^item\.(?:titleKey|errorKey)/,
+    /^toErrorKey\(/,
+  ];
+
   for (const directory of ["apps", "packages"]) {
     for (const file of walk(path.join(ROOT, directory))) {
       if (!CODE_EXTENSIONS.has(path.extname(file)) || isTest(file)) continue;
@@ -172,6 +179,19 @@ function checkTranslationUsage() {
           if (!key) continue;
           if (keyPattern && !keyPattern.test(key)) continue;
           if (!englishKeys.has(key)) report(file, `unknown translation key: ${key}`);
+        }
+      }
+      const rel = relative(file);
+      if (rel.startsWith("apps/web/") || rel.startsWith("apps/mobile/")) {
+        const dynamicPattern = /\bt\(\s*([^)"'`,\s][^),]*)/g;
+        for (const match of source.matchAll(dynamicPattern)) {
+          const expr = match[1].trim();
+          if (!allowedDynamicTranslations.some((pattern) => pattern.test(expr))) {
+            report(
+              file,
+              `unvalidated dynamic translation call: t(${expr}) — use string literals or allowlisted lookup maps`,
+            );
+          }
         }
       }
     }
@@ -400,6 +420,66 @@ function checkAdrIndex() {
   }
 }
 
+function checkRoutePurity() {
+  const routesDir = path.join(ROOT, "apps/web/src/routes");
+  if (!fs.existsSync(routesDir)) return;
+  const allowlist = new Set([
+    "apps/web/src/routes/_app.tsx",
+    "apps/web/src/routes/_app.test.ts",
+    "apps/web/src/routes/__root.tsx",
+  ]);
+  for (const file of walk(routesDir)) {
+    if (!CODE_EXTENSIONS.has(path.extname(file))) continue;
+    const rel = relative(file);
+    if (allowlist.has(rel)) continue;
+    const source = fs.readFileSync(file, "utf8");
+    if (/\bgetApiClient\s*\(/.test(source)) {
+      report(file, "routes must not call getApiClient() — delegate to feature queries/mutations");
+    }
+    if (/\buseMutation\s*\(/.test(source)) {
+      report(file, "routes must not call useMutation() — delegate to feature components");
+    }
+  }
+}
+
+function checkTransportGuards() {
+  const xhrAllowlist = new Set(["apps/web/src/features/files/files.mutations.ts"]);
+  const sseAllowlist = new Set(["apps/web/src/hooks/use-realtime-notifications.ts"]);
+  for (const app of ["apps/web", "apps/mobile"]) {
+    const srcDirectory = path.join(ROOT, `${app}/src`);
+    if (!fs.existsSync(srcDirectory)) continue;
+    for (const file of walk(srcDirectory)) {
+      if (!CODE_EXTENSIONS.has(path.extname(file)) || isTest(file)) continue;
+      const rel = relative(file);
+      const source = fs.readFileSync(file, "utf8");
+      if (/\bnew\s+XMLHttpRequest\b/.test(source) && !xhrAllowlist.has(rel)) {
+        report(file, "XMLHttpRequest is forbidden outside allowlisted file uploaders");
+      }
+      if (/\bnew\s+EventSource\b/.test(source) && !sseAllowlist.has(rel)) {
+        report(file, "EventSource is forbidden outside allowlisted realtime hooks");
+      }
+    }
+  }
+}
+
+function checkEnvUsage() {
+  const envAllowlist = new Set(["apps/web/src/lib/env.ts"]);
+  const srcDirectory = path.join(ROOT, "apps/web/src");
+  if (!fs.existsSync(srcDirectory)) return;
+  for (const file of walk(srcDirectory)) {
+    if (!CODE_EXTENSIONS.has(path.extname(file)) || isTest(file)) continue;
+    const rel = relative(file);
+    if (envAllowlist.has(rel)) continue;
+    const source = fs.readFileSync(file, "utf8");
+    if (/\bimport\.meta\.env\b/.test(source)) {
+      report(
+        file,
+        "import.meta.env is forbidden outside apps/web/src/lib/env.ts — use getWebEnv()",
+      );
+    }
+  }
+}
+
 checkLocaleParity();
 checkTranslationUsage();
 checkTenantRepositories();
@@ -412,6 +492,9 @@ checkUiStories();
 checkCrossTabBoundaries();
 checkAdrIndex();
 checkAlertRunbookMapping();
+checkRoutePurity();
+checkTransportGuards();
+checkEnvUsage();
 
 if (failures.length) {
   process.stderr.write(

@@ -35,4 +35,5 @@ export interface StorageDriver {
   getDownloadStream(key: string): Promise<Readable>;
   delete(key: string): Promise<void>;
   copy(sourceKey: string, destinationKey: string): Promise<void>;
+  getBucket?(): string;
 }

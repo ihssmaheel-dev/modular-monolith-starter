@@ -9,6 +9,25 @@ export class Note {
     public readonly tenantId?: string,
   ) {}
 
+  static create(data: {
+    title: string;
+    content: string;
+    createdBy?: string;
+    tenantId?: string;
+    id?: string;
+  }): Note {
+    const now = new Date();
+    return new Note(
+      data.id ?? crypto.randomUUID(),
+      data.title,
+      data.content,
+      data.createdBy,
+      now,
+      now,
+      data.tenantId,
+    );
+  }
+
   static fromPersistence(data: {
     id: string;
     title: string;

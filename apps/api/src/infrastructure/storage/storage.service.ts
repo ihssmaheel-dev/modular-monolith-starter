@@ -14,6 +14,7 @@ import { Readable } from "node:stream";
 import { CircuitBreaker } from "../../common/utils/circuit-breaker";
 import { Bulkhead } from "../../common/utils/bulkhead";
 import { TenantContextService } from "../database";
+import { env } from "../../config/env";
 
 @Injectable()
 export class StorageService {
@@ -74,6 +75,10 @@ export class StorageService {
   }
   usesDirectTransfer(): boolean {
     return true;
+  }
+
+  getBucketName(): string {
+    return this.driver.getBucket ? this.driver.getBucket() : env.S3_BUCKET;
   }
 
   private guarded<T>(

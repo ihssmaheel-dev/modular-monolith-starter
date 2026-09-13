@@ -28,7 +28,8 @@
     "manageItems": "Gérez vos enregistrements",
     "contractDriven": "Validé par des contrats partagés",
     "copied": "Copié dans le presse-papiers",
-    "user": "Utilisateur"
+    "user": "Utilisateur",
+    "unknown": "Inconnu"
   },
   "auth": {
     "welcomeBack": "Bon retour",
@@ -197,6 +198,7 @@
     "title": "Paramètres",
     "profile": "Paramètres du profil",
     "language": "Langue",
+    "languageDescription": "Sélectionnez votre langue préférée pour l'application",
     "theme": "Thème",
     "darkMode": "Mode sombre",
     "lightMode": "Mode clair",
@@ -364,6 +366,7 @@
     "erasureScheduled": "Suppression planifiée. Vos données seront définitivement supprimées après le délai de grâce."
   },
   "tenancy": {
+    "allOrganizations": "Toutes les organisations",
     "activeOrganization": "Organisation active",
     "organization": "Organisation",
     "organizationName": "Nom de l’organisation",

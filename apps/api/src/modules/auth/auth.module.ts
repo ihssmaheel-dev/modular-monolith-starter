@@ -9,6 +9,7 @@ import { RefreshTokensCommand } from "./application/commands/refresh-tokens.comm
 import { ForgotPasswordCommand } from "./application/commands/forgot-password.command";
 import { ResetPasswordCommand } from "./application/commands/reset-password.command";
 import { LogoutCommand } from "./application/commands/logout.command";
+import { GetCurrentUserQuery } from "./application/queries/get-current-user.query";
 import { UsersModule } from "../users/users.module";
 import { EmailModule } from "../../infrastructure/email/email.module";
 import { AuthOrpcController } from "./presentation/orpc/auth.orpc.controller";
@@ -17,8 +18,6 @@ import { AuthOrpcController } from "./presentation/orpc/auth.orpc.controller";
   imports: [UsersModule, EmailModule],
   controllers: [AuthController, AuthVerificationController, AuthOrpcController],
   providers: [
-    AuthController,
-    AuthVerificationController,
     RegisterCommand,
     VerifyEmailCommand,
     SendVerificationEmailCommand,
@@ -27,6 +26,7 @@ import { AuthOrpcController } from "./presentation/orpc/auth.orpc.controller";
     ForgotPasswordCommand,
     ResetPasswordCommand,
     LogoutCommand,
+    GetCurrentUserQuery,
   ],
 })
 export class AuthModule {}

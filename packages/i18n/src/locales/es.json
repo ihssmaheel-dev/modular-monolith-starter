@@ -28,7 +28,8 @@
     "manageItems": "Administra tus registros",
     "contractDriven": "Validado por contratos compartidos",
     "copied": "Copiado al portapapeles",
-    "user": "Usuario"
+    "user": "Usuario",
+    "unknown": "Desconocido"
   },
   "auth": {
     "welcomeBack": "Te damos la bienvenida de nuevo",
@@ -197,6 +198,7 @@
     "title": "Configuración",
     "profile": "Configuración de perfil",
     "language": "Idioma",
+    "languageDescription": "Selecciona tu idioma preferido para la aplicación",
     "theme": "Tema",
     "darkMode": "Modo oscuro",
     "lightMode": "Modo claro",
@@ -364,6 +366,7 @@
     "erasureScheduled": "Eliminación programada. Tus datos se eliminarán permanentemente después del período de gracia."
   },
   "tenancy": {
+    "allOrganizations": "Todas las organizaciones",
     "activeOrganization": "Organización activa",
     "organization": "Organización",
     "organizationName": "Nombre de la organización",

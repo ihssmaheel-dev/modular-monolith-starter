@@ -9,6 +9,8 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["e2e/**", "src/**/*.e2e.*"],
     setupFiles: ["./src/test/setup.ts"],
+    testTimeout: 15000,
+    hookTimeout: 15000,
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],

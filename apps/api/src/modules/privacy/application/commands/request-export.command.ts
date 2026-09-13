@@ -2,7 +2,6 @@ import { Injectable, Optional } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { err, ok, Result } from "neverthrow";
 import type { AuthenticatedUser } from "@repo/contracts";
-import { env } from "../../../../config/env";
 import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
@@ -188,7 +187,7 @@ export class RequestExportCommand {
     const items: Array<Record<string, unknown>> = [];
     let truncated = false;
     let incomplete = false;
-    const scopes = env.TENANCY_MODE === "multi" && tenantIds.length > 0 ? tenantIds : [undefined];
+    const scopes = this.isMultiTenant() && tenantIds.length > 0 ? tenantIds : [undefined];
     for (const tenantId of scopes) {
       let page = 1;
       for (;;) {
@@ -229,11 +228,17 @@ export class RequestExportCommand {
     return { items, truncated, incomplete };
   }
 
+  private isMultiTenant(): boolean {
+    return typeof this.tenantContext?.get === "function"
+      ? this.tenantContext.get().mode === "multi"
+      : false;
+  }
+
   private async collectFiles(userId: string, tenantIds: string[]) {
     const items: Array<Record<string, unknown>> = [];
     let truncated = false;
     let incomplete = false;
-    const scopes = env.TENANCY_MODE === "multi" && tenantIds.length > 0 ? tenantIds : [undefined];
+    const scopes = this.isMultiTenant() && tenantIds.length > 0 ? tenantIds : [undefined];
     for (const tenantId of scopes) {
       const run =
         tenantId !== undefined

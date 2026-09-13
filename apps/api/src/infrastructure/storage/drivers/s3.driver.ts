@@ -100,4 +100,8 @@ export class S3Driver implements StorageDriver {
         : undefined;
     return value.name === "NotFound" || status === 404;
   }
+
+  getBucket(): string {
+    return this.bucket;
+  }
 }

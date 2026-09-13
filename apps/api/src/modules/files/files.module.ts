@@ -24,7 +24,6 @@ import { FilesOrpcController } from "./presentation/orpc/files.orpc.controller";
   imports: [DatabaseModule],
   controllers: [FilesController, FilesOrpcController],
   providers: [
-    FilesController,
     RequestUploadCommand,
     ConfirmUploadCommand,
     DeleteFileCommand,

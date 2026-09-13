@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Global, Module } from "@nestjs/common";
 import { UsersController } from "./presentation/controllers/users.controller";
 import { GetUsersQuery } from "./application/queries/get-users.query";
 import { GetUserByIdQuery } from "./application/queries/get-user-by-id.query";
@@ -24,13 +24,14 @@ import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { FilesModule } from "../files/files.module";
 import { UsersOrpcController } from "./presentation/orpc/users.orpc.controller";
 import { UsersEmailChangeController } from "./presentation/controllers/users-email-change.controller";
+import { AUTH_USER_VERIFIER_PORT } from "../../common/ports/auth-user-verifier.port";
+import { UsersAuthVerifierAdapter } from "./application/adapters/users-auth-verifier.adapter";
 
+@Global()
 @Module({
   imports: [EventEmitterModule, OutboxModule, FilesModule],
   controllers: [UsersController, UsersEmailChangeController, UsersOrpcController],
   providers: [
-    UsersController,
-    UsersEmailChangeController,
     GetUsersQuery,
     GetUserByIdQuery,
     GetUserByEmailQuery,
@@ -50,6 +51,10 @@ import { UsersEmailChangeController } from "./presentation/controllers/users-ema
     VerifyEmailChangeCommand,
     UsersRepository,
     WelcomeEmailListener,
+    {
+      provide: AUTH_USER_VERIFIER_PORT,
+      useClass: UsersAuthVerifierAdapter,
+    },
   ],
   exports: [
     GetUsersQuery,
@@ -67,6 +72,7 @@ import { UsersEmailChangeController } from "./presentation/controllers/users-ema
     IncrementAuthVersionCommand,
     AttachUserAvatarCommand,
     RemoveUserAvatarCommand,
+    AUTH_USER_VERIFIER_PORT,
   ],
 })
 export class UsersModule {}

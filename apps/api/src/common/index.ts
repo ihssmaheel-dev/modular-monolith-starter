@@ -23,3 +23,5 @@ export * from "./utils/magic-bytes.utils";
 export * from "./utils/request-id.utils";
 export * from "./utils/duration.utils";
 export * from "./file-access/file-access.registry";
+export * from "./ports/auth-user-verifier.port";
+export * from "./ports/tenant-access-resolver.port";

@@ -102,7 +102,7 @@ export function PreferencesCard() {
             {rows.map((row) => (
               <div key={row.category} className="space-y-2 rounded-lg border p-3">
                 <p className="text-sm font-medium">
-                  {t(CATEGORY_LABELS[row.category] ?? row.category)}
+                  {t(CATEGORY_LABELS[row.category] ?? "common.unknown")}
                 </p>
                 <div className="flex flex-wrap gap-4">
                   {CHANNELS.map((channel) => (

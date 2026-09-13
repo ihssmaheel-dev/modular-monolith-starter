@@ -53,14 +53,14 @@ export function evaluateAuthorization<
   const { principal, action } = request;
   const resource = normalizeResource(request.resource, request.resourceType);
 
-  // 1. Superadmin bypass
-  if (principal.role === "admin" || principal.role === "*") {
-    return { allowed: true, reason: "SUPERADMIN" };
-  }
-
-  // 2. Tenant isolation check
+  // 1. Tenant isolation check: Tenant-bound principals cannot cross tenant boundaries
   if (resource?.tenantId && principal.tenantId && resource.tenantId !== principal.tenantId) {
     return { allowed: false, reason: "TENANT_MISMATCH", details: "Cross-tenant access forbidden" };
+  }
+
+  // 2. Superadmin bypass (global admins or admins within their active tenant)
+  if (principal.role === "admin" || principal.role === "*") {
+    return { allowed: true, reason: "SUPERADMIN" };
   }
 
   const matchingPolicies = policies.filter(

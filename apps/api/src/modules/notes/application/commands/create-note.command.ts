@@ -1,5 +1,5 @@
 import { Injectable, Optional } from "@nestjs/common";
-import { err, Result } from "neverthrow";
+import { err, ok, Result } from "neverthrow";
 import { z } from "zod";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CreateNoteSchema } from "@repo/contracts";
@@ -42,28 +42,30 @@ export class CreateNoteCommand {
       createdBy: actor.sub,
     });
 
-    if (result.isOk()) {
-      const event = new NoteCreatedEvent(
-        result.value.id,
-        actor.sub,
-        result.value.title,
-        result.value.content,
-        result.value.tenantId,
-      );
-      const dispatched = await this.outbox.dispatchTenant("note.created", event);
-      if (dispatched.isErr()) return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
-      await this.emitMutated({
-        collectionName: "notes",
-        documentId: result.value.id,
-        action: "CREATE",
-        actorId: actor.sub,
-        tenantId: result.value.tenantId,
-        before: null,
-        after: { id: result.value.id, title: result.value.title },
-      });
+    if (result.isErr()) {
+      return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
     }
 
-    return result;
+    const event = new NoteCreatedEvent(
+      result.value.id,
+      actor.sub,
+      result.value.title,
+      result.value.content,
+      result.value.tenantId,
+    );
+    const dispatched = await this.outbox.dispatchTenant("note.created", event);
+    if (dispatched.isErr()) return err({ type: "NOTE_EVENT_DISPATCH_FAILED" });
+    await this.emitMutated({
+      collectionName: "notes",
+      documentId: result.value.id,
+      action: "CREATE",
+      actorId: actor.sub,
+      tenantId: result.value.tenantId,
+      before: null,
+      after: { id: result.value.id, title: result.value.title },
+    });
+
+    return ok(result.value);
   }
 
   private async emitMutated(payload: Record<string, unknown>): Promise<void> {

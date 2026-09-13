@@ -26,6 +26,7 @@ describe("RequestUploadCommand", () => {
     storage = {
       getPresignedUploadUrl: vi.fn(),
       usesDirectTransfer: vi.fn().mockReturnValue(true),
+      getBucketName: vi.fn().mockReturnValue("test-bucket"),
     } as unknown as StorageService;
 
     filesRepo = {

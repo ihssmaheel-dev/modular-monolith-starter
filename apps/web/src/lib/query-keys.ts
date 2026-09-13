@@ -12,6 +12,8 @@ export const queryKeys = {
     list: (tenantId: string | null, page: number, limit: number) =>
       ["users", tenantId, "list", { page, limit }] as const,
     detail: (tenantId: string | null, id: string) => ["users", tenantId, "detail", id] as const,
+    avatar: (avatarFileId: string | null | undefined) =>
+      ["users", "avatar", avatarFileId ?? null] as const,
   },
   privacy: {
     all: () => ["privacy"] as const,
@@ -27,5 +29,10 @@ export const queryKeys = {
     list: (page: number, limit: number) => ["notifications", "list", { page, limit }] as const,
     unreadCount: () => ["notifications", "unread-count"] as const,
     preferences: () => ["notifications", "preferences"] as const,
+  },
+  tenancy: {
+    all: () => ["tenancy"] as const,
+    status: () => ["tenancy", "status"] as const,
+    organizations: () => ["tenancy", "organizations"] as const,
   },
 } as const;

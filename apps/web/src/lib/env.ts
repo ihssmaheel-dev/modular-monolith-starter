@@ -2,6 +2,8 @@ import { webEnvSchema, type WebEnv } from "@repo/contracts";
 
 export type { WebEnv };
 
+export const isDev: boolean = typeof import.meta !== "undefined" && Boolean(import.meta.env?.DEV);
+
 function loadEnv(): WebEnv {
   // Vite exposes env via import.meta.env
   const raw = import.meta.env as Record<string, string | undefined>;

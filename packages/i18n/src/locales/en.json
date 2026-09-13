@@ -28,7 +28,8 @@
     "manageItems": "Manage your records",
     "contractDriven": "Validated by shared contracts",
     "copied": "Copied to clipboard",
-    "user": "User"
+    "user": "User",
+    "unknown": "Unknown"
   },
   "email": {
     "welcome": {
@@ -124,6 +125,7 @@
     "title": "Settings",
     "profile": "Profile Settings",
     "language": "Language",
+    "languageDescription": "Select your preferred application language",
     "theme": "Theme",
     "darkMode": "Dark Mode",
     "lightMode": "Light Mode",
@@ -391,6 +393,7 @@
     "erasureScheduled": "Deletion scheduled. Your data will be permanently removed after the grace period."
   },
   "tenancy": {
+    "allOrganizations": "All organizations",
     "activeOrganization": "Active organization",
     "organization": "Organization",
     "organizationName": "Organization name",

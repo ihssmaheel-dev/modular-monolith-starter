@@ -41,10 +41,10 @@ export function ForgotPasswordForm() {
           {sent ? <MailCheck className="size-5" /> : <KeyRound className="size-5" />}
         </div>
         <h1 className="text-3xl font-semibold tracking-tight">
-          {t(sent ? "auth.checkEmail" : "auth.forgotPassword")}
+          {sent ? t("auth.checkEmail") : t("auth.forgotPassword")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {t(sent ? "auth.checkEmailDescription" : "auth.forgotDescription")}
+          {sent ? t("auth.checkEmailDescription") : t("auth.forgotDescription")}
         </p>
       </div>
 

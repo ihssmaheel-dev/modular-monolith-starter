@@ -1,5 +1,6 @@
 import * as React from "react";
 import { FlatList, Text, View, Pressable, ActivityIndicator } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/theme-provider";
 import { mobileTokens } from "@/theme/tokens.generated";
 import { Input } from "./input";
@@ -24,13 +25,15 @@ export function DataTable<T>({
   data,
   columns,
   isLoading,
-  emptyText = "No results",
+  emptyText,
   searchPlaceholder,
   onSearch,
   getRowKey,
 }: DataTableProps<T>) {
+  const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const colors = mobileTokens[resolvedTheme];
+  const resolvedEmptyText = emptyText ?? t("common.noResults");
 
   if (isLoading) {
     return (
@@ -67,7 +70,7 @@ export function DataTable<T>({
         </View>
         {data.length === 0 ? (
           <View className="p-8 items-center">
-            <Text style={{ color: colors["muted-foreground"] }}>{emptyText}</Text>
+            <Text style={{ color: colors["muted-foreground"] }}>{resolvedEmptyText}</Text>
           </View>
         ) : (
           <FlatList
@@ -107,11 +110,15 @@ export function DataTablePagination({
   totalPages,
   onPageChange,
   pageLabel,
-  previousLabel = "Previous",
-  nextLabel = "Next",
+  previousLabel,
+  nextLabel,
 }: PaginationProps) {
+  const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const colors = mobileTokens[resolvedTheme];
+  const resolvedPrevious = previousLabel ?? t("common.previous");
+  const resolvedNext = nextLabel ?? t("common.next");
+  const resolvedPage = pageLabel ?? t("common.pageOf", { page, totalPages });
   return (
     <View className="flex-row items-center justify-between py-3">
       <Pressable
@@ -120,10 +127,10 @@ export function DataTablePagination({
         className="rounded-lg border px-4 py-2 disabled:opacity-40"
         style={{ borderColor: colors.border, backgroundColor: colors.card }}
       >
-        <Text style={{ color: colors.foreground }}>{previousLabel}</Text>
+        <Text style={{ color: colors.foreground }}>{resolvedPrevious}</Text>
       </Pressable>
       <Text className="text-xs" style={{ color: colors["muted-foreground"] }}>
-        {pageLabel ?? `Page ${page} of ${totalPages}`}
+        {resolvedPage}
       </Text>
       <Pressable
         disabled={page >= totalPages}
@@ -131,7 +138,7 @@ export function DataTablePagination({
         className="rounded-lg border px-4 py-2 disabled:opacity-40"
         style={{ borderColor: colors.border, backgroundColor: colors.card }}
       >
-        <Text style={{ color: colors.foreground }}>{nextLabel}</Text>
+        <Text style={{ color: colors.foreground }}>{resolvedNext}</Text>
       </Pressable>
     </View>
   );

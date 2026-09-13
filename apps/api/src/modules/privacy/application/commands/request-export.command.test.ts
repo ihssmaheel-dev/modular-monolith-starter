@@ -62,7 +62,10 @@ describe("RequestExportCommand", () => {
         .fn()
         .mockResolvedValue(ok({ notifications: [], devices: [], batches: [], truncated: false })),
     } as never;
-    const tenantContext = {} as TenantContextService;
+    const tenantContext = {
+      get: vi.fn().mockReturnValue({ mode: "single" }),
+      run: vi.fn((_ctx, cb) => cb()),
+    } as unknown as TenantContextService;
     outbox = {
       dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as OutboxService;

@@ -45,7 +45,7 @@ import {
   LOGIN_ERRORS,
 } from "../error-maps/auth.error-maps";
 import { AuthRateLimit } from "../helpers/auth-rate-limit.decorator";
-import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
+import { GetCurrentUserQuery } from "../../application/queries/get-current-user.query";
 
 @Controller("auth")
 @TenantAgnostic()
@@ -57,7 +57,7 @@ export class AuthController {
     private readonly refreshCmd: RefreshTokensCommand,
     private readonly forgotPasswordCmd: ForgotPasswordCommand,
     private readonly resetPasswordCmd: ResetPasswordCommand,
-    private readonly getUserById: GetUserByIdQuery,
+    private readonly getCurrentUser: GetCurrentUserQuery,
     private readonly i18n: I18nService,
   ) {}
 
@@ -66,7 +66,7 @@ export class AuthController {
   @ResponseSchema(CurrentUserResponseSchema)
   async me(@Req() req: FastifyRequest): Promise<CurrentUserResponse> {
     const actor = requireAuthenticatedUser(req);
-    const result = await this.getUserById.execute(actor.sub);
+    const result = await this.getCurrentUser.execute(actor.sub);
     const user = handleResult(
       result,
       INVALID_TOKEN_ERRORS,
@@ -79,7 +79,7 @@ export class AuthController {
         email: user.email,
         name: user.name,
         role: user.role,
-        avatarFileId: user.avatarFileId,
+        avatarFileId: user.avatarFileId ?? null,
       },
     };
   }

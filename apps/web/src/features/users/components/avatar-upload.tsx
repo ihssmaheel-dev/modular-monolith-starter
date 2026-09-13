@@ -5,9 +5,9 @@ import { Camera } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
 import { Button } from "@repo/ui/components/ui/button";
 import { AVATAR_MIME_TYPES } from "@repo/contracts";
-import { getApiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { useAttachAvatarMutation, useRemoveAvatarMutation } from "../avatar.mutations";
+import { userAvatarQuery } from "../users.queries";
 
 function initials(name: string): string {
   return name
@@ -26,18 +26,7 @@ export function AvatarUpload() {
   const attachMutation = useAttachAvatarMutation();
   const removeMutation = useRemoveAvatarMutation();
 
-  const avatarUrlQuery = useQuery({
-    queryKey: ["users", "avatar", user?.avatarFileId ?? null],
-    queryFn: async () => {
-      const res = await getApiClient().files.getDownloadUrl({
-        params: { id: user?.avatarFileId as string },
-      });
-      if (res.status !== 200 || !res.body) throw new Error("api.error.internal");
-      return res.body.downloadUrl;
-    },
-    enabled: !!user?.avatarFileId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const avatarUrlQuery = useQuery(userAvatarQuery(user?.avatarFileId));
 
   if (!user) return null;
   const busy = attachMutation.isPending || removeMutation.isPending;

@@ -3,8 +3,7 @@ import type { ExecutionContext } from "@nestjs/common";
 import { UnauthorizedException } from "@nestjs/common";
 import type { Reflector } from "@nestjs/core";
 import type { ClsService } from "nestjs-cls";
-import { ok } from "neverthrow";
-import type { GetUserByIdQuery } from "../../modules/users/application/queries/get-user-by-id.query";
+import type { AuthUserVerifierPort } from "../ports/auth-user-verifier.port";
 import { AuthGuard } from "./auth.guard";
 import { verifyAccessToken } from "../utils/access-token.utils";
 
@@ -17,15 +16,15 @@ describe("AuthGuard", () => {
   let reflector: Reflector;
   let cls: ClsService;
   let guard: AuthGuard;
+  let userVerifier: AuthUserVerifierPort;
 
   beforeEach(() => {
     reflector = { getAllAndOverride: vi.fn().mockReturnValue(false) } as unknown as Reflector;
     cls = { set: vi.fn() } as unknown as ClsService;
-    const users = {
-      execute: vi.fn().mockResolvedValue(ok({ authVersion: undefined })),
-      executeFresh: vi.fn().mockResolvedValue(ok({ authVersion: undefined })),
-    } as unknown as GetUserByIdQuery;
-    guard = new AuthGuard(reflector, cls, users);
+    userVerifier = {
+      verifyUserAuthVersion: vi.fn().mockResolvedValue({ valid: true }),
+    };
+    guard = new AuthGuard(reflector, cls, userVerifier);
   });
 
   it("accepts and stores a verified access-token actor", async () => {
@@ -63,17 +62,17 @@ describe("AuthGuard", () => {
       authVersion: 1,
     } as const;
     vi.mocked(verifyAccessToken).mockReturnValue(actor);
-    const users = {
-      execute: vi.fn().mockResolvedValue(ok({ authVersion: 2 })),
-    } as unknown as GetUserByIdQuery;
-    guard = new AuthGuard(reflector, cls, users);
+    const staleVerifier: AuthUserVerifierPort = {
+      verifyUserAuthVersion: vi.fn().mockResolvedValue({ valid: false }),
+    };
+    guard = new AuthGuard(reflector, cls, staleVerifier);
 
     await expect(
       guard.canActivate(
         contextFor({ url: "/api/v1/users", headers: { authorization: "Bearer token" } }),
       ),
     ).rejects.toThrow(UnauthorizedException);
-    expect(users.execute).toHaveBeenCalledWith(actor.sub);
+    expect(staleVerifier.verifyUserAuthVersion).toHaveBeenCalledWith(actor.sub, actor.authVersion);
   });
 });
 

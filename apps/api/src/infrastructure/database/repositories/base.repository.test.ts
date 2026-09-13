@@ -57,8 +57,8 @@ describe("BaseRepository Tenant Isolation", () => {
     } as unknown as TenantContextService;
   });
 
-  it("throws TENANT_REQUIRED when creating entity without active tenant in multi-tenant mode", async () => {
-    // When tenantScoped is true, missing tenant context throws
+  it("returns TENANT_REQUIRED when creating entity without active tenant in multi-tenant mode", async () => {
+    // When tenantScoped is true, missing tenant context returns error result
     const repo = new TestRepo(mockDb, mockContext, true);
     // Simulate multi-tenant mode
     vi.spyOn(
@@ -66,8 +66,17 @@ describe("BaseRepository Tenant Isolation", () => {
       "isTenantIsolationRequired",
     ).mockReturnValue(true);
 
-    await expect(repo.create({ name: "Fail" })).rejects.toThrow("TENANT_REQUIRED");
-    await expect(repo.createMany([{ name: "Fail" }])).rejects.toThrow("TENANT_REQUIRED");
+    const result = await repo.create({ name: "Fail" });
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toEqual({ type: "TENANT_REQUIRED" });
+    }
+
+    const manyResult = await repo.createMany([{ name: "Fail" }]);
+    expect(manyResult.isErr()).toBe(true);
+    if (manyResult.isErr()) {
+      expect(manyResult.error).toEqual({ type: "TENANT_REQUIRED" });
+    }
   });
 
   it("succeeds when tenant context is present", async () => {

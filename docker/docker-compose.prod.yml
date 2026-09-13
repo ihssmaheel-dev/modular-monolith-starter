@@ -160,7 +160,7 @@ services:
     # Worker has no HTTP port. Process liveness proves the outbox relay /
     # queue consumers are running. Do not disable this.
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q '[n]ode.*main.js'"]
+      test: ["CMD-SHELL", "pgrep -f 'main.js' > /dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

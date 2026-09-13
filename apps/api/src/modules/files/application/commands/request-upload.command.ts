@@ -8,7 +8,6 @@ import type { FileError } from "../../domain/errors/file.errors";
 import type { FileEntity } from "../../domain/entities/file.entity";
 import type { AuthenticatedUser, RequestUploadInput } from "@repo/contracts";
 import { TenantContextService } from "../../../../infrastructure/database";
-import { env as runtimeEnv } from "../../../../config/env";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
@@ -75,16 +74,20 @@ export class RequestUploadCommand {
       const reserve = async (): Promise<Result<FileEntity, FileError>> => {
         const quota = await this.checkQuota(input.fileSize, userId);
         if (!quota) return err({ type: "QUOTA_EXCEEDED", message: "api.error.quotaExceeded" });
-        return this.filesRepo.create({
+        const created = await this.filesRepo.create({
           key: fileKey,
           fileName: input.fileName,
           contentType: input.contentType,
           fileSize: input.fileSize,
-          bucket: env.S3_BUCKET,
+          bucket: this.storage.getBucketName(),
           parentType: "general",
           uploadedBy: userId,
           status: "pending",
         });
+        if (created.isErr()) {
+          return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
+        }
+        return ok(created.value);
       };
       // Serialize quota check + reservation per user so concurrent uploads
       // cannot each observe headroom and jointly exceed the quota.
@@ -118,7 +121,7 @@ export class RequestUploadCommand {
     // Runs inside the caller's unit of work (under the quota lock), so the
     // sum and the subsequent insert observe the same serialized state.
     const current = await repository.sumActiveBytes(userId);
-    return current + fileSize <= runtimeEnv.FILE_USER_QUOTA_BYTES;
+    return current + fileSize <= env.FILE_USER_QUOTA_BYTES;
   }
 
   private async createTransfer(fileKey: string, contentType: string) {

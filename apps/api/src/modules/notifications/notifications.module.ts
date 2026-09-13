@@ -25,7 +25,6 @@ import { PushDriverFactory } from "./infrastructure/push/push.factory";
   imports: [EventEmitterModule, OutboxModule, DatabaseModule, UsersModule],
   controllers: [NotificationsController, NotificationsOrpcController],
   providers: [
-    NotificationsController,
     SendNotificationCommand,
     MarkReadCommand,
     UpdatePreferencesCommand,

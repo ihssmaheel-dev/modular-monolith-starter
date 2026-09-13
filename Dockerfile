@@ -25,11 +25,12 @@ RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
 RUN pnpm turbo build --filter=api...
+RUN pnpm prune --prod
 
 # Stage 5: Production Runner
 FROM base AS runner
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-RUN corepack enable pnpm
 
 # Create non-root user
 RUN addgroup -g 1001 -S appgroup && \

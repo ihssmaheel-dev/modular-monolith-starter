@@ -26,10 +26,10 @@ export function putBytesWithProgress(
         onProgress(1);
         resolve();
       } else {
-        reject(new Error(`PUT failed with status ${xhr.status}`));
+        reject(new Error("api.file.uploadFailed"));
       }
     };
-    xhr.onerror = () => reject(new Error("PUT network error"));
+    xhr.onerror = () => reject(new Error("api.file.uploadFailed"));
     xhr.send(payload);
   });
 }
