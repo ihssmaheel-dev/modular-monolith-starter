@@ -14,6 +14,7 @@ import {
 } from "@repo/ui/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
 import { verifyEmailMutationOptions } from "@/features/auth/auth.mutations";
+import { publishSignedIn } from "@/lib/cross-tab/auth-sync";
 
 const PENDING_INVITE_KEY = "pendingInviteToken";
 
@@ -52,6 +53,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
     ...verifyEmailMutationOptions(),
     onSuccess: (data) => {
       setAuth(data);
+      publishSignedIn(data);
       setDone(true);
     },
   });

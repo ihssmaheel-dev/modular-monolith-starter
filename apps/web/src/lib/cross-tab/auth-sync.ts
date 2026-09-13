@@ -34,11 +34,16 @@ export function publishSignedIn(response: AuthResponse): void {
   channel().post({ type: "signed-in", response });
 }
 
+export interface AuthSyncOptions {
+  onSignedOut: () => void;
+  onSignedIn?: () => void;
+}
+
 /**
  * Subscribes this tab to auth events from sibling tabs. Safe to call once per
  * mount (StrictMode/HMR via the returned cleanup); never touches the network.
  */
-export function initAuthSync(options: { onSignedOut: () => void }): () => void {
+export function initAuthSync(options: AuthSyncOptions): () => void {
   const handle = createBroadcastChannel<AuthSyncEvent>(AUTH_SYNC_CHANNEL);
   const unsubscribe = handle.subscribe((message) => {
     if (message.type === "signed-out") {
@@ -50,8 +55,16 @@ export function initAuthSync(options: { onSignedOut: () => void }): () => void {
       signOutLocally();
       options.onSignedOut();
     } else if (message.type === "signed-in") {
-      // Only adopt a session when logged out — never overwrite a live one.
-      if (!useAuthStore.getState().user) useAuthStore.getState().setAuth(message.response);
+      const current = useAuthStore.getState();
+      const shouldAdopt =
+        !current.user ||
+        current.status === "unauthenticated" ||
+        (current.user.id === message.response.user.id && !current.accessToken);
+
+      if (shouldAdopt) {
+        useAuthStore.getState().setAuth(message.response);
+        options.onSignedIn?.();
+      }
     }
   });
   return () => {

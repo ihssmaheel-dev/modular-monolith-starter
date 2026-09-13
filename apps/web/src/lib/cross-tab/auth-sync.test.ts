@@ -92,16 +92,36 @@ describe("auth sync", () => {
 
   it("adopts a remote sign-in only when logged out", async () => {
     const onSignedOut = vi.fn();
-    cleanups.push(initAuthSync({ onSignedOut }));
+    const onSignedIn = vi.fn();
+    cleanups.push(initAuthSync({ onSignedOut, onSignedIn }));
     const remote = createBroadcastChannel<AuthSyncEvent>(AUTH_SYNC_CHANNEL);
     cleanups.push(() => remote.close());
 
     publishSignedIn(sessionB as never);
     await vi.waitFor(() => expect(useAuthStore.getState().user?.id).toBe("u-2"));
+    expect(onSignedIn).toHaveBeenCalledOnce();
 
     publishSignedIn(sessionA as never);
     await flush();
     expect(useAuthStore.getState().user?.id).toBe("u-2");
+    expect(onSignedIn).toHaveBeenCalledOnce();
+  });
+
+  it("adopts tokens for rehydrated user missing in-memory credentials", async () => {
+    useAuthStore.setState({
+      status: "loading",
+      accessToken: null,
+      refreshToken: null,
+      user: sessionA.user as never,
+    });
+    const onSignedOut = vi.fn();
+    const onSignedIn = vi.fn();
+    cleanups.push(initAuthSync({ onSignedOut, onSignedIn }));
+
+    publishSignedIn(sessionA as never);
+    await vi.waitFor(() => expect(useAuthStore.getState().accessToken).toBe("a"));
+    expect(useAuthStore.getState().status).toBe("authenticated");
+    expect(onSignedIn).toHaveBeenCalledOnce();
   });
 
   it("signOutLocally clears query cache, tenant, and auth together", () => {

@@ -105,6 +105,14 @@ function RootComponent() {
         onSignedOut: () => {
           void navigate({ to: FRONTEND_ROUTES.auth, replace: true });
         },
+        onSignedIn: () => {
+          if (
+            typeof window !== "undefined" &&
+            window.location.pathname.startsWith(FRONTEND_ROUTES.auth)
+          ) {
+            void navigate({ to: FRONTEND_ROUTES.dashboard, replace: true });
+          }
+        },
       }),
     [navigate],
   );
