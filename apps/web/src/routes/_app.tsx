@@ -6,6 +6,30 @@ import { AppShell } from "@/components/app-shell";
 import { getApiClient } from "@/lib/api";
 import { useTranslation } from "react-i18next";
 
+let verificationPromise: Promise<boolean> | null = null;
+
+export async function verifySession(): Promise<boolean> {
+  if (useAuthStore.getState().status === "authenticated") return true;
+  if (verificationPromise) return verificationPromise;
+
+  verificationPromise = (async () => {
+    try {
+      const response = await getApiClient().auth.me();
+      if (response.status === 200 && response.body?.user) {
+        useAuthStore.getState().setUser(response.body.user);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      verificationPromise = null;
+    }
+  })();
+
+  return verificationPromise;
+}
+
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     const auth = useAuthStore.getState();
@@ -13,17 +37,9 @@ export const Route = createFileRoute("/_app")({
       throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
     }
 
-    if (auth.status === "loading" || !auth.accessToken) {
-      try {
-        const response = await getApiClient().auth.me();
-        if (response.status === 200 && response.body?.user) {
-          useAuthStore.getState().setUser(response.body.user);
-        } else {
-          useAuthStore.getState().clearAuth();
-          throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
-        }
-      } catch (error) {
-        if (error && typeof error === "object" && "to" in error) throw error;
+    if (auth.status === "loading") {
+      const verified = await verifySession();
+      if (!verified) {
         useAuthStore.getState().clearAuth();
         throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
       }
