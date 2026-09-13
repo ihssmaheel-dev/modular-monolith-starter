@@ -31,7 +31,10 @@ export async function verifySession(): Promise<boolean> {
 }
 
 export const Route = createFileRoute("/_app")({
+  ssr: false,
   beforeLoad: async () => {
+    if (typeof window === "undefined") return;
+
     const auth = useAuthStore.getState();
     if (auth.status === "unauthenticated" || !auth.user) {
       throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
