@@ -34,8 +34,10 @@ modules/[domain]/
     └── repositories/
 ```
 
-Do not skip folders. Do not add extra folders beyond this structure.
-Zero loose files in `presentation/`, `infrastructure/`, `application/`, or `domain/`.
+Core layers (`presentation`, `application`, `domain`, `infrastructure`) are mandatory for all modules that own persistence state. Orchestration-only modules without their own database tables (such as `auth`) do not require empty placeholder `infrastructure/` or `domain/repositories/` directories.
+Optional subdirectories (`helpers/`, `policies/`, `workers/`, `services/`, `value-objects/`, `listeners/`) are included only when the domain requires them.
+Zero loose files directly inside `presentation/`, `infrastructure/`, `application/`, or `domain/` — all source files must reside in their respective categorized subfolders.
+Module root contains only `[domain].module.ts` (never create barrel `index.ts` files at module root).
 
 
 ---

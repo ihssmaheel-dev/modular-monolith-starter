@@ -5,6 +5,21 @@ export const NOTE_NOT_FOUND_ERRORS: ErrorMap = {
   NOTE_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.note.notFound" },
 };
 
+export const NOTE_MUTATION_ERRORS: ErrorMap = {
+  NOTE_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.note.notFound" },
+  NOTE_EVENT_DISPATCH_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    i18nKey: "api.error.eventDispatchFailed",
+  },
+};
+
+export const NOTE_CREATE_ERRORS: ErrorMap = {
+  NOTE_EVENT_DISPATCH_FAILED: {
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    i18nKey: "api.error.eventDispatchFailed",
+  },
+};
+
 export const ATTACH_FILE_ERRORS: ErrorMap = {
   NOTE_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.note.notFound" },
   FILE_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.file.notFound" },

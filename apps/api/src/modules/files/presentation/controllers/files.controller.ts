@@ -11,7 +11,6 @@ import {
   Req,
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
-import { z } from "zod";
 import {
   Idempotent,
   NoDatabaseTransaction,
@@ -27,14 +26,15 @@ import {
   type FileMetadataResponse,
   type DownloadUrlResponse,
   type FileListResponse,
+  type FileListQuery,
   RequestUploadSchema,
   ConfirmUploadSchema,
   FileIdParamSchema,
-  PaginationQuerySchema,
   PresignedUrlResponseSchema,
   FileMetadataSchema,
   DownloadUrlResponseSchema,
   FileListResponseSchema,
+  FileListQuerySchema,
   EmptyResponseSchema,
 } from "@repo/contracts";
 import { RequestUploadCommand } from "../../application/commands/request-upload.command";
@@ -131,22 +131,8 @@ export class FilesController {
   @RequirePermission("files:read")
   @ResponseSchema(FileListResponseSchema)
   async listByParent(
-    @Query(
-      new ZodValidationPipe(
-        PaginationQuerySchema.extend({
-          parentType: z.enum(["note", "user", "general"]),
-          parentId: z.string().min(1).optional(),
-          slot: z.string().max(64).optional(),
-        }),
-      ),
-    )
-    query: {
-      parentType: "note" | "user" | "general";
-      parentId?: string;
-      slot?: string;
-      page: number;
-      limit: number;
-    },
+    @Query(new ZodValidationPipe(FileListQuerySchema))
+    query: FileListQuery,
     @Req() req: FastifyRequest,
   ): Promise<FileListResponse> {
     const lang = req?.headers["accept-language"];

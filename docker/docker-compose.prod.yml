@@ -28,7 +28,6 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL}
         VITE_APP_NAME: ${VITE_APP_NAME:-Workspace}
-    container_name: monorepo-web
     expose:
       - "3000"
     environment:
@@ -52,7 +51,6 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    container_name: monorepo-api
     expose:
       - "3000"
     environment:
@@ -77,6 +75,7 @@ services:
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}
       AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-365}
+      INVITATION_RETENTION_DAYS: ${INVITATION_RETENTION_DAYS:-90}
       EMAIL_DRIVER: ${EMAIL_DRIVER:-smtp}
       EMAIL_FROM: ${EMAIL_FROM:?set EMAIL_FROM}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
@@ -117,7 +116,6 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    container_name: monorepo-worker
     command: ["node", "apps/api/dist/apps/api/src/main.js"]
     environment:
       NODE_ENV: production
@@ -139,6 +137,7 @@ services:
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}
       AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-365}
+      INVITATION_RETENTION_DAYS: ${INVITATION_RETENTION_DAYS:-90}
       EMAIL_DRIVER: ${EMAIL_DRIVER:-smtp}
       EMAIL_FROM: ${EMAIL_FROM:?set EMAIL_FROM}
       SMTP_HOST: ${SMTP_HOST:-localhost}
@@ -201,7 +200,7 @@ services:
       dockerfile: Dockerfile
     command: ["node", "apps/api/dist/apps/api/src/infrastructure/database/migrate.js"]
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      DATABASE_URL: ${DB_DIRECT_URL:-$DATABASE_URL}
     networks:
       - app-network
 

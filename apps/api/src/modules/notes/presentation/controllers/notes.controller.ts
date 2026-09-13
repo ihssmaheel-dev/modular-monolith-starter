@@ -12,7 +12,6 @@ import {
   Req,
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
-import { z } from "zod";
 import {
   RequirePermission,
   Idempotent,
@@ -40,6 +39,7 @@ import {
   AttachFileSchema,
   FileMetadataSchema,
   FileListResponseSchema,
+  NoteIdParamSchema,
 } from "@repo/contracts";
 import { CreateNoteCommand } from "../../application/commands/create-note.command";
 import { UpdateNoteCommand } from "../../application/commands/update-note.command";
@@ -49,7 +49,12 @@ import { GetNotesQuery } from "../../application/queries/get-notes.query";
 import { GetNoteByIdQuery } from "../../application/queries/get-note-by-id.query";
 import { ListNoteAttachmentsQuery } from "../../application/queries/list-note-attachments.query";
 import { toNoteListResponse, toNoteResponse } from "../mappers/notes.mapper";
-import { ATTACH_FILE_ERRORS, NOTE_NOT_FOUND_ERRORS } from "../error-maps/notes.error-maps";
+import {
+  ATTACH_FILE_ERRORS,
+  NOTE_CREATE_ERRORS,
+  NOTE_MUTATION_ERRORS,
+  NOTE_NOT_FOUND_ERRORS,
+} from "../error-maps/notes.error-maps";
 import {
   toFileResponse,
   toFileListResponse,
@@ -77,8 +82,8 @@ export class NotesController {
     @Query(new ZodValidationPipe(PaginationQuerySchema)) query: PaginationQuery,
     @Req() req: FastifyRequest,
   ): Promise<NoteListResponseDto> {
-    const page = Number(query.page ?? 1);
-    const limit = Number(query.limit ?? 20);
+    const page = query.page;
+    const limit = query.limit;
     const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.getNotesQuery.execute({ page, limit }, actor);
@@ -90,24 +95,13 @@ export class NotesController {
   @RequirePermission("notes:read")
   @ResponseSchema(NoteResponseSchema)
   async getById(
-    @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
+    @Param("id", new ZodValidationPipe(NoteIdParamSchema.shape.id)) id: string,
     @Req() req: FastifyRequest,
   ): Promise<NoteResponseDto> {
     const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.getNoteByIdQuery.execute(id, actor);
-    const note = handleResult(
-      result,
-      {
-        NOTE_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.note.notFound" },
-        NOTE_EVENT_DISPATCH_FAILED: {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          i18nKey: "api.error.eventDispatchFailed",
-        },
-      },
-      this.i18n,
-      lang,
-    );
+    const note = handleResult(result, NOTE_MUTATION_ERRORS, this.i18n, lang);
     return toNoteResponse(note);
   }
 
@@ -123,7 +117,7 @@ export class NotesController {
     const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.createNoteCommand.execute(body, actor);
-    const note = handleResult(result, {}, this.i18n, lang);
+    const note = handleResult(result, NOTE_CREATE_ERRORS, this.i18n, lang);
     return toNoteResponse(note);
   }
 
@@ -132,25 +126,14 @@ export class NotesController {
   @RequirePermission("notes:update")
   @ResponseSchema(NoteResponseSchema)
   async update(
-    @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
+    @Param("id", new ZodValidationPipe(NoteIdParamSchema.shape.id)) id: string,
     @Body(new ZodValidationPipe(UpdateNoteSchema)) body: UpdateNoteDto,
     @Req() req: FastifyRequest,
   ): Promise<NoteResponseDto> {
     const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.updateNoteCommand.execute(id, body, actor);
-    const note = handleResult(
-      result,
-      {
-        NOTE_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.note.notFound" },
-        NOTE_EVENT_DISPATCH_FAILED: {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          i18nKey: "api.error.eventDispatchFailed",
-        },
-      },
-      this.i18n,
-      lang,
-    );
+    const note = handleResult(result, NOTE_MUTATION_ERRORS, this.i18n, lang);
     return toNoteResponse(note);
   }
 
@@ -160,24 +143,13 @@ export class NotesController {
   @RequirePermission("notes:delete")
   @ResponseSchema(EmptyResponseSchema)
   async delete(
-    @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
+    @Param("id", new ZodValidationPipe(NoteIdParamSchema.shape.id)) id: string,
     @Req() req: FastifyRequest,
   ): Promise<void> {
     const lang = req?.headers["accept-language"];
     const actor = requireAuthenticatedUser(req);
     const result = await this.deleteNoteCommand.execute(id, actor);
-    handleResult(
-      result,
-      {
-        NOTE_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.note.notFound" },
-        NOTE_EVENT_DISPATCH_FAILED: {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          i18nKey: "api.error.eventDispatchFailed",
-        },
-      },
-      this.i18n,
-      lang,
-    );
+    handleResult(result, NOTE_MUTATION_ERRORS, this.i18n, lang);
   }
 
   @Post(":id/attachments")
@@ -186,7 +158,7 @@ export class NotesController {
   @RequirePermission("notes:update")
   @ResponseSchema(FileMetadataSchema)
   async attachFile(
-    @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
+    @Param("id", new ZodValidationPipe(NoteIdParamSchema.shape.id)) id: string,
     @Body(new ZodValidationPipe(AttachFileSchema)) body: AttachFileInput,
     @Req() req: FastifyRequest,
   ): Promise<FileMetadataResponse> {
@@ -201,7 +173,7 @@ export class NotesController {
   @RequirePermission("notes:read")
   @ResponseSchema(FileListResponseSchema)
   async listAttachments(
-    @Param("id", new ZodValidationPipe(z.string().min(1))) id: string,
+    @Param("id", new ZodValidationPipe(NoteIdParamSchema.shape.id)) id: string,
     @Query(new ZodValidationPipe(NoteAttachmentsQuerySchema)) query: NoteAttachmentsQuery,
     @Req() req: FastifyRequest,
   ): Promise<FileListResponse> {
@@ -210,8 +182,8 @@ export class NotesController {
     const result = await this.listAttachmentsQuery.execute(
       id,
       actor,
-      Number(query.page ?? 1),
-      Number(query.limit ?? 20),
+      query.page,
+      query.limit,
       query.slot,
     );
     const data = handleResult(result, NOTE_NOT_FOUND_ERRORS, this.i18n, lang);

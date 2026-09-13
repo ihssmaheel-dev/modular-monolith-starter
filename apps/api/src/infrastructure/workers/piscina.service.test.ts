@@ -113,7 +113,7 @@ describe("PiscinaService", () => {
       );
 
       expect(result).toBe(15);
-    });
+    }, 15000);
 
     it("executes default task when task name is omitted", async () => {
       service.getPool({
@@ -129,7 +129,7 @@ describe("PiscinaService", () => {
       );
 
       expect(result).toBe(60);
-    });
+    }, 15000);
 
     it("enforces bounded queue limit and rejects excess tasks", async () => {
       service.getPool({

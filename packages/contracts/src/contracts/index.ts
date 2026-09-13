@@ -14,7 +14,6 @@ export * from "./auth.contract";
 export * from "./files.contract";
 export * from "./organizations.contract";
 export * from "./memberships.contract";
-export * from "./tenancy.contract";
 export * from "./privacy.contract";
 export * from "./notification.contract";
 

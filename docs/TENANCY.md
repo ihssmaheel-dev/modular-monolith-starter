@@ -29,7 +29,7 @@ To make a domain tenant-owned:
 
 1. Add an optional `tenantId` column to its Drizzle schema (`text("tenant_id")`). It remains null in single mode.
 2. Extend `BaseRepository` passing `tenantScoped = true` to `super()`.
-3. Add compound tenant indexes in the Drizzle schema and migrations.
+3. Add compound tenant indexes in migrations (`migrations/pg/`).
 4. Never accept `tenantId` in a public input schema.
 
 ```ts

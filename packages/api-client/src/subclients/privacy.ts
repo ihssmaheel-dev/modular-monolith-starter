@@ -10,6 +10,7 @@ import {
   DsrResponseSchema,
   EmptyResponseSchema,
   ExportDownloadResponseSchema,
+  DEFAULT_PAGE_LIMIT,
 } from "@repo/contracts";
 import type { FetchFn } from "../types";
 import { orpcResponse, type OrpcClient } from "../orpc";
@@ -31,14 +32,38 @@ export function createPrivacyClient(fetchFn: FetchFn, orpc?: OrpcClient) {
     listRequests: (input: { page?: number; limit?: number } = {}) => {
       const sp = new URLSearchParams();
       sp.set("page", String(input.page ?? 1));
-      sp.set("limit", String(input.limit ?? 20));
+      sp.set("limit", String(input.limit ?? DEFAULT_PAGE_LIMIT));
       return orpc
         ? orpcResponse(
-            () => orpc.privacy.listRequests({ page: input.page ?? 1, limit: input.limit ?? 20 }),
+            () =>
+              orpc.privacy.listRequests({
+                page: input.page ?? 1,
+                limit: input.limit ?? DEFAULT_PAGE_LIMIT,
+              }),
             200,
             DsrListResponseSchema,
           )
         : fetchFn<DsrListResponse>(`/privacy/requests?${sp.toString()}`, {}, DsrListResponseSchema);
+    },
+    listAllRequests: (input: { page?: number; limit?: number } = {}) => {
+      const sp = new URLSearchParams();
+      sp.set("page", String(input.page ?? 1));
+      sp.set("limit", String(input.limit ?? DEFAULT_PAGE_LIMIT));
+      return orpc
+        ? orpcResponse(
+            () =>
+              orpc.privacy.listAllRequests({
+                page: input.page ?? 1,
+                limit: input.limit ?? DEFAULT_PAGE_LIMIT,
+              }),
+            200,
+            DsrListResponseSchema,
+          )
+        : fetchFn<DsrListResponse>(
+            `/privacy/admin/requests?${sp.toString()}`,
+            {},
+            DsrListResponseSchema,
+          );
     },
     requestAccountErasure: (body: RequestAccountErasureInput) =>
       orpc

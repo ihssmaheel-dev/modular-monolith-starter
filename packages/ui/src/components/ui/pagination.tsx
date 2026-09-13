@@ -57,11 +57,12 @@ function PaginationLink({ className, isActive, size = "icon", ...props }: Pagina
 function PaginationPrevious({
   className,
   text = "Previous",
+  "aria-label": ariaLabel = "Go to previous page",
   ...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
   return (
     <PaginationLink
-      aria-label="Go to previous page"
+      aria-label={ariaLabel}
       size="default"
       className={cn("ps-1.5!", className)}
       {...props}
@@ -75,11 +76,12 @@ function PaginationPrevious({
 function PaginationNext({
   className,
   text = "Next",
+  "aria-label": ariaLabel = "Go to next page",
   ...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
   return (
     <PaginationLink
-      aria-label="Go to next page"
+      aria-label={ariaLabel}
       size="default"
       className={cn("pe-1.5!", className)}
       {...props}
@@ -90,7 +92,11 @@ function PaginationNext({
   );
 }
 
-function PaginationEllipsis({ className, ...props }: React.ComponentProps<"span">) {
+function PaginationEllipsis({
+  className,
+  srText = "More pages",
+  ...props
+}: React.ComponentProps<"span"> & { srText?: string }) {
   return (
     <span
       aria-hidden
@@ -102,7 +108,7 @@ function PaginationEllipsis({ className, ...props }: React.ComponentProps<"span"
       {...props}
     >
       <MoreHorizontalIcon />
-      <span className="sr-only">More pages</span>
+      <span className="sr-only">{srText}</span>
     </span>
   );
 }

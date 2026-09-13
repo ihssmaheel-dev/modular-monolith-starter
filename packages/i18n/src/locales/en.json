@@ -27,7 +27,8 @@
     "description": "Description",
     "manageItems": "Manage your records",
     "contractDriven": "Validated by shared contracts",
-    "copied": "Copied to clipboard"
+    "copied": "Copied to clipboard",
+    "user": "User"
   },
   "email": {
     "welcome": {
@@ -254,7 +255,9 @@
       "responseValidationFailed": "The server returned an invalid response",
       "idempotencyConflict": "This idempotency key was already used for a different request",
       "idempotencyInProgress": "This request is still being processed",
-      "idempotencyRecordInvalid": "The previous request record is invalid"
+      "idempotencyRecordInvalid": "The previous request record is invalid",
+      "emailCircuitOpen": "Email service is temporarily unavailable due to high error rate. Please try again later.",
+      "emailBulkheadRejected": "Email service is at capacity. Please try again shortly."
     },
     "health": {
       "redisUnconfigured": "Redis unconfigured but optional",
@@ -288,7 +291,9 @@
       "fetchFailed": "Failed to fetch notes",
       "createFailed": "Failed to create note",
       "updateFailed": "Failed to update note",
-      "deleteFailed": "Failed to delete note"
+      "deleteFailed": "Failed to delete note",
+      "titleRequired": "Title is required",
+      "contentRequired": "Content is required"
     },
     "privacy": {
       "exportFailed": "Could not prepare your data export",
@@ -412,7 +417,12 @@
       "invalid_string": "Invalid {{validation}}",
       "too_small": "String must contain at least {{minimum}} character(s)",
       "too_big": "String must contain at most {{maximum}} character(s)",
-      "custom": "Validation failed"
+      "custom": "Validation failed",
+      "invalid_enum_value": "Invalid option selected",
+      "invalid_union": "Invalid input format",
+      "invalid_date": "Invalid date",
+      "not_multiple_of": "Number must be a multiple of {{multipleOf}}",
+      "not_finite": "Number must be finite"
     }
   },
   "notifications": {

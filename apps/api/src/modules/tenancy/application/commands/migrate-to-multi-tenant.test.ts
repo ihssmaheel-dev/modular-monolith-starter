@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   migrateToMultiTenant,
   type MigrationResult,
-} from "../../../../../scripts/migrate-to-multi-tenant";
+} from "../../../../../../../scripts/migrate-to-multi-tenant";
 
 interface UserFixture {
   id: string;

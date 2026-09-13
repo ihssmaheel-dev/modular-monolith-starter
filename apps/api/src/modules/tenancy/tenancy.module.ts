@@ -19,6 +19,7 @@ import { ListMembersQuery } from "./application/queries/list-members.query";
 import { ListOrganizationsQuery } from "./application/queries/list-organizations.query";
 import { ResolveTenantAccessQuery } from "./application/queries/resolve-tenant-access.query";
 import { CanDeleteUserQuery } from "./application/queries/can-delete-user.query";
+import { GetTenancyStatusQuery } from "./application/queries/get-tenancy-status.query";
 import { InvitationsRepository } from "./infrastructure/repositories/invitations.repository";
 import { MembershipsRepository } from "./infrastructure/repositories/memberships.repository";
 import { OrganizationsRepository } from "./infrastructure/repositories/organizations.repository";
@@ -50,6 +51,7 @@ const providers = [
   InvitationEmailListener,
   MembershipUserListener,
   CanDeleteUserQuery,
+  GetTenancyStatusQuery,
   PurgeExpiredInvitationsCommand,
   InvitationRetentionWorker,
 ];

@@ -7,9 +7,8 @@ import {
   FileListResponseSchema,
   DownloadUrlResponseSchema,
   FileIdParamSchema,
+  FileListQuerySchema,
 } from "../schemas/file.schema";
-import { PaginationQuerySchema } from "../schemas/pagination.schema";
-import { z } from "zod";
 import { EmptyResponseSchema } from "../schemas/common.schema";
 
 export const filesContract = oc.prefix("/files").router({
@@ -44,13 +43,7 @@ export const filesContract = oc.prefix("/files").router({
     .output(FileMetadataSchema),
   listByParent: oc
     .route({ method: "GET", path: "/", summary: "List files by parent entity" })
-    .input(
-      PaginationQuerySchema.extend({
-        parentId: z.string().optional(),
-        parentType: z.enum(["note", "user", "general"]),
-        slot: z.string().max(64).optional(),
-      }),
-    )
+    .input(FileListQuerySchema)
     .output(FileListResponseSchema),
   delete: oc
     .route({ method: "DELETE", path: "/{id}", summary: "Delete a file", successStatus: 204 })

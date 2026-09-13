@@ -62,10 +62,10 @@ return { status: 409, body: { message: "Email already taken" } };
 
 ### Web (`apps/web` — TanStack Start)
 
-- Use `react-i18next` + `i18next-browser-languagedetector` for all user-facing text. Resources imported from `@repo/i18n` locales.
-- Init in `apps/web/src/lib/i18n.tsx`: `i18n.use(LanguageDetector).use(initReactI18next).init({ resources: { en: { translation: locales.en }, es, fr }, fallbackLng: 'en' })`. Wrap app in `I18nProvider` from `routes/__root.tsx`.
-- Store user language preference in Zustand `useLocaleStore` (persist localStorage) + `localStorage` + `i18next-browser-languagedetector` caches `localStorage`.
-- Auto-detect browser language on first visit via detector order `['localStorage','navigator','htmlTag']`.
+- Use `react-i18next` with built-in zero-dependency browser language detection for all user-facing text. Resources imported from `@repo/i18n` locales.
+- Init in `apps/web/src/lib/i18n.tsx`: `i18n.use(initReactI18next).init({ resources: { en: { translation: locales.en }, es, fr }, fallbackLng: 'en' })`. Wrap app in `I18nProvider` from `routes/__root.tsx`.
+- Store user language preference in Zustand `useLocaleStore` (persist localStorage) + `localStorage`.
+- Auto-detect browser language on first visit via built-in detector inspecting `localStorage`, then `navigator.language`.
 - `getApiClient()` reads `getLocale()` from `useLocaleStore` and sends `accept-language`; backend `I18nService.t(key, lang, params)` respects it.
 - Never hardcode strings in components.
 

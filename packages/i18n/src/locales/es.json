@@ -27,7 +27,8 @@
     "description": "Descripción",
     "manageItems": "Administra tus registros",
     "contractDriven": "Validado por contratos compartidos",
-    "copied": "Copiado al portapapeles"
+    "copied": "Copiado al portapapeles",
+    "user": "Usuario"
   },
   "auth": {
     "welcomeBack": "Te damos la bienvenida de nuevo",
@@ -248,7 +249,9 @@
       "responseValidationFailed": "El servidor devolvió una respuesta no válida",
       "idempotencyConflict": "Esta clave de idempotencia ya se usó para otra solicitud",
       "idempotencyInProgress": "Esta solicitud todavía se está procesando",
-      "idempotencyRecordInvalid": "El registro de la solicitud anterior no es válido"
+      "idempotencyRecordInvalid": "El registro de la solicitud anterior no es válido",
+      "emailCircuitOpen": "El servicio de correo electrónico no está disponible temporalmente debido a una alta tasa de errores. Por favor, inténtelo de nuevo más tarde.",
+      "emailBulkheadRejected": "El servicio de correo electrónico está a su máxima capacidad. Por favor, inténtelo de nuevo en breve."
     },
     "health": {
       "redisUnconfigured": "Redis no está configurado, pero es opcional",
@@ -271,7 +274,9 @@
       "fetchFailed": "No se pudieron obtener las notas",
       "createFailed": "No se pudo crear la nota",
       "updateFailed": "No se pudo actualizar la nota",
-      "deleteFailed": "No se pudo eliminar la nota"
+      "deleteFailed": "No se pudo eliminar la nota",
+      "titleRequired": "El título es obligatorio",
+      "contentRequired": "El contenido es obligatorio"
     },
     "tenancy": {
       "slugTaken": "La URL de esta organización ya está en uso",
@@ -391,7 +396,12 @@
       "invalid_string": "{{validation}} inválido",
       "too_small": "La cadena debe contener al menos {{minimum}} carácter(es)",
       "too_big": "La cadena debe contener como máximo {{maximum}} carácter(es)",
-      "custom": "Falló la validación"
+      "custom": "Falló la validación",
+      "invalid_enum_value": "Opción seleccionada no válida",
+      "invalid_union": "Formato de entrada no válido",
+      "invalid_date": "Fecha no válida",
+      "not_multiple_of": "El número debe ser un múltiplo de {{multipleOf}}",
+      "not_finite": "El número debe ser finito"
     }
   },
   "files": {

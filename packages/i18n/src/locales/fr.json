@@ -27,7 +27,8 @@
     "description": "Description",
     "manageItems": "Gérez vos enregistrements",
     "contractDriven": "Validé par des contrats partagés",
-    "copied": "Copié dans le presse-papiers"
+    "copied": "Copié dans le presse-papiers",
+    "user": "Utilisateur"
   },
   "auth": {
     "welcomeBack": "Bon retour",
@@ -248,7 +249,9 @@
       "responseValidationFailed": "Le serveur a renvoyé une réponse invalide",
       "idempotencyConflict": "Cette clé d'idempotence a déjà été utilisée pour une autre requête",
       "idempotencyInProgress": "Cette requête est toujours en cours de traitement",
-      "idempotencyRecordInvalid": "L'enregistrement de la requête précédente est invalide"
+      "idempotencyRecordInvalid": "L'enregistrement de la requête précédente est invalide",
+      "emailCircuitOpen": "Le service de messagerie est temporairement indisponible en raison d'un taux d'erreur élevé. Veuillez réessayer plus tard.",
+      "emailBulkheadRejected": "Le service de messagerie est saturé. Veuillez réessayer sous peu."
     },
     "health": {
       "redisUnconfigured": "Redis n’est pas configuré, mais il est facultatif",
@@ -271,7 +274,9 @@
       "fetchFailed": "Impossible de récupérer les notes",
       "createFailed": "Impossible de créer la note",
       "updateFailed": "Impossible de mettre à jour la note",
-      "deleteFailed": "Impossible de supprimer la note"
+      "deleteFailed": "Impossible de supprimer la note",
+      "titleRequired": "Le titre est requis",
+      "contentRequired": "Le contenu est requis"
     },
     "tenancy": {
       "slugTaken": "L’URL de cette organisation est déjà utilisée",
@@ -391,7 +396,12 @@
       "invalid_string": "{{validation}} invalide",
       "too_small": "La chaîne doit contenir au moins {{minimum}} caractère(s)",
       "too_big": "La chaîne doit contenir au plus {{maximum}} caractère(s)",
-      "custom": "Échec de la validation"
+      "custom": "Échec de la validation",
+      "invalid_enum_value": "Option sélectionnée non valide",
+      "invalid_union": "Format d'entrée non valide",
+      "invalid_date": "Date non valide",
+      "not_multiple_of": "Le nombre doit être un multiple de {{multipleOf}}",
+      "not_finite": "Le nombre doit être fini"
     }
   },
   "files": {

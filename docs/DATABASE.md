@@ -35,8 +35,8 @@ same soft-delete policy.
 Tenant-scoped repositories derive `tenantId` from trusted CLS context in multi-tenant mode. They
 overwrite caller-provided tenant filters and fail closed when no tenant is active.
 
-Indexes belong in schema definitions and migrations (`migrations/pg/`); schema files declare Drizzle
-indexes using `pgTable(..., (t) => [...])`.
+Indexes belong exclusively in migrations (`migrations/pg/*.sql`); schema files do not declare
+indexes in Drizzle to ensure concurrent index creation in production and clean separation.
 
 ## Transactions
 

@@ -12,7 +12,7 @@ These rules govern `apps/web`, `apps/mobile`, and the shared UI/client packages.
 | Styling | Tailwind CSS 4 + `@repo/ui/globals.css` |
 | UI | `@repo/ui` — Base UI React + shadcn base-nova + lucide + CVA |
 | Forms | react-hook-form + `@hookform/resolvers` + Zod 4 from `@repo/contracts` |
-| i18n | react-i18next + i18next-browser-languagedetector |
+| i18n | react-i18next (with zero-dependency browser detection) |
 | API | `@repo/api-client` with oRPC clients by default and REST compatibility fallbacks |
 
 No alternatives without architecture review (see `PACKAGE_POLICY.md`).

@@ -1,6 +1,10 @@
 import { z } from "zod";
+import { PaginationQuerySchema, type PaginationQuery } from "./pagination.schema";
 
 export const FileIdParamSchema = z.object({ id: z.string() });
+
+export const ParentTypeSchema = z.enum(["note", "user", "general"]);
+export type ParentType = z.infer<typeof ParentTypeSchema>;
 
 export const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -79,6 +83,12 @@ export const DownloadUrlResponseSchema = z.object({
   downloadUrl: z.string().url(),
 });
 
+export const FileListQuerySchema = PaginationQuerySchema.extend({
+  parentId: z.string().optional(),
+  parentType: ParentTypeSchema,
+  slot: z.string().max(64).optional(),
+});
+
 export const FileListResponseSchema = z.object({
   items: z.array(FileMetadataSchema),
   total: z.number().int().nonnegative(),
@@ -95,3 +105,8 @@ export type FileMetadataResponse = z.infer<typeof FileMetadataSchema>;
 export type PresignedUrlResponse = z.infer<typeof PresignedUrlResponseSchema>;
 export type DownloadUrlResponse = z.infer<typeof DownloadUrlResponseSchema>;
 export type FileListResponse = z.infer<typeof FileListResponseSchema>;
+export type FileListQuery = Partial<PaginationQuery> & {
+  parentId?: string;
+  parentType: ParentType;
+  slot?: string;
+};

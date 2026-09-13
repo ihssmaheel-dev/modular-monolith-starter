@@ -9,7 +9,7 @@ import { EmailService } from "../../../../infrastructure/email/email.service";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { QueueService } from "../../../../infrastructure/queue/queue.service";
-import { InvitationCreatedEvent } from "../../domain/events/invitation-created.event";
+import { InvitationCreatedEvent } from "../../domain/events/tenancy.events";
 
 const EMAIL_RETRY_ATTEMPTS = 5;
 const EMAIL_RETRY_DELAY_MS = 5_000;

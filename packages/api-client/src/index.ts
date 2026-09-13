@@ -122,7 +122,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     users: createUsersClient(authenticatedFetch, orpcClient),
     orpc,
     client: orpcClient,
-    getTransferHeaders: () => getTransferHeaders(options),
+    getTransferHeaders: (isMutating?: boolean) => getTransferHeaders(options, isMutating),
   };
 }
 

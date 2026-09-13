@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { err, ok } from "neverthrow";
-import { NotesModule } from "./notes.module";
-import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
-import type { AuthorizationService } from "../../infrastructure/authorization";
-import type { GetNoteByIdQuery } from "./application/queries/get-note-by-id.query";
+import { NotesModule } from "../../notes.module";
+import { FileAccessRegistry } from "../../../../common/file-access/file-access.registry";
+import type { AuthorizationService } from "../../../../infrastructure/authorization";
+import type { GetNoteByIdQuery } from "../queries/get-note-by-id.query";
 
 const ACTOR = { sub: "user-1", email: "user@example.com", role: "user" } as const;
 

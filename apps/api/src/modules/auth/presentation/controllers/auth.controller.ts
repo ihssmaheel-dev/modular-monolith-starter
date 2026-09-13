@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res } from "@ne
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { err } from "neverthrow";
 import {
+  Idempotent,
   NoDatabaseTransaction,
   Public,
   TenantAgnostic,
@@ -85,6 +86,7 @@ export class AuthController {
 
   @Post("register")
   @HttpCode(HttpStatus.CREATED)
+  @Idempotent()
   @Public()
   @AuthRateLimit("register")
   @ResponseSchema(RegisterResponseSchema)
@@ -157,6 +159,7 @@ export class AuthController {
 
   @Post("forgot-password")
   @HttpCode(HttpStatus.OK)
+  @Idempotent()
   @Public()
   @NoDatabaseTransaction()
   @AuthRateLimit("forgotPassword")
@@ -172,6 +175,7 @@ export class AuthController {
 
   @Post("reset-password")
   @HttpCode(HttpStatus.OK)
+  @Idempotent()
   @Public()
   @NoDatabaseTransaction()
   @AuthRateLimit("resetPassword")

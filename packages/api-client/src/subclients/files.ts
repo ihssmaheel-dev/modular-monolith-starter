@@ -5,6 +5,7 @@ import type {
   FileMetadataResponse,
   PresignedUrlResponse,
   RequestUploadInput,
+  FileListQuery,
 } from "@repo/contracts";
 import {
   DownloadUrlResponseSchema,
@@ -16,14 +17,6 @@ import {
 import type { FetchFn } from "../types";
 import { orpcResponse, type OrpcClient } from "../orpc";
 import { normalizePagination } from "../utils";
-
-type FileListQuery = {
-  page?: number;
-  limit?: number;
-  parentId?: string;
-  parentType?: "note" | "user" | "general";
-  slot?: string;
-};
 
 export function createFilesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
   return {
@@ -69,16 +62,15 @@ export function createFilesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
             {},
             FileMetadataSchema,
           ),
-    listByParent: (req: { query?: FileListQuery } = {}) => {
-      const parentType = req.query?.parentType;
-      if (orpc && parentType) {
+    listByParent: (req: { query: FileListQuery }) => {
+      if (orpc) {
         return orpcResponse(
           () =>
             orpc.files.listByParent({
               ...normalizePagination(req.query),
-              parentId: req.query?.parentId,
-              parentType,
-              ...(req.query?.slot ? { slot: req.query.slot } : {}),
+              parentId: req.query.parentId,
+              parentType: req.query.parentType,
+              ...(req.query.slot ? { slot: req.query.slot } : {}),
             }),
           200,
           FileListResponseSchema,

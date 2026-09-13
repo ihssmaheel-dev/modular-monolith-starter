@@ -22,30 +22,3 @@ export type PrivacyError =
   | ExportFailed
   | ErasureFailed
   | PurgeFailed;
-
-export function formatPrivacyError(error: PrivacyError): string {
-  switch (error.type) {
-    case "DSR_NOT_FOUND":
-      return `Privacy request not found: ${error.requestId}`;
-    case "DSR_EXPIRED":
-      return `Privacy request expired: ${error.requestId}`;
-    case "DSR_FORBIDDEN":
-      return "Not allowed to access this privacy request";
-    case "INVALID_PASSWORD":
-      return "Invalid password";
-    case "INVALID_CONFIRMATION":
-      return "Confirmation does not match";
-    case "ORG_ERASE_FORBIDDEN":
-      return "Only organization owners can delete the organization";
-    case "ERASURE_ALREADY_REQUESTED":
-      return "A deletion request is already in progress";
-    case "LAST_OWNER_BLOCKED":
-      return "Transfer organization ownership before deleting this account";
-    case "EXPORT_FAILED":
-      return "Data export failed";
-    case "ERASURE_FAILED":
-      return "Deletion request failed";
-    case "PURGE_FAILED":
-      return "Expired request purge failed";
-  }
-}

@@ -14,11 +14,16 @@ export function getAuthorizationHeader(options: ApiClientOptions): string {
   return token ? `Bearer ${token}` : "";
 }
 
-export function getTransferHeaders(options: ApiClientOptions): Record<string, string> {
+export function getTransferHeaders(
+  options: ApiClientOptions,
+  isMutating = false,
+): Record<string, string> {
   const headers: Record<string, string> = {
     "accept-language": options.getLocale?.() ?? "en",
-    "idempotency-key": createIdempotencyKey(),
   };
+  if (isMutating) {
+    headers["idempotency-key"] = createIdempotencyKey();
+  }
   const authorization = getAuthorizationHeader(options);
   const tenantId = options.getTenantId?.();
   if (authorization) headers.authorization = authorization;
