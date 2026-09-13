@@ -11,8 +11,144 @@
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 200,
-      "title": "PostgreSQL Database Health",
+      "title": "PostgreSQL Database Health & Storage Engine",
       "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 31,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Database Size (app)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "pg_database_size_bytes{datname=\"app\"} or vector(0)",
+          "legendFormat": "Size",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 32,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Active Client Queries",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "pg_stat_activity_count{datname=\"app\",state=\"active\"} or vector(0)",
+          "legendFormat": "Active",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 98 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 33,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Buffer Hit Ratio %",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "(sum(rate(pg_stat_database_blks_hit[1m])) / (sum(rate(pg_stat_database_blks_hit[1m])) + sum(rate(pg_stat_database_blks_read[1m])))) * 100 or vector(100)",
+          "legendFormat": "Hit %",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "tps"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 34,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Commits / sec",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(pg_stat_database_xact_commit[1m])) or vector(0)",
+          "legendFormat": "Commits",
+          "refId": "A"
+        }
+      ]
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
@@ -23,19 +159,19 @@
           "unit": "short"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 },
       "id": 11,
-      "title": "Postgres Active Connections",
+      "title": "Postgres Connections by State",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "pg_stat_activity_count",
-          "legendFormat": "Active Connections",
+          "expr": "pg_stat_activity_count{datname=\"app\"}",
+          "legendFormat": "State: {{state}}",
           "refId": "A"
         },
         {
           "expr": "pg_settings_max_connections",
-          "legendFormat": "Max Connections",
+          "legendFormat": "Max Connections Limit",
           "refId": "B"
         }
       ]
@@ -59,9 +195,9 @@
           }
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
       "id": 12,
-      "title": "Postgres Cache Hit Ratio",
+      "title": "Postgres Cache Hit Ratio %",
       "type": "timeseries",
       "targets": [
         {
@@ -80,9 +216,9 @@
           "unit": "tps"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
       "id": 13,
-      "title": "Postgres Transactions / sec",
+      "title": "Postgres Transactions (Commits vs Rollbacks)",
       "type": "timeseries",
       "targets": [
         {
@@ -99,10 +235,142 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
       "id": 201,
-      "title": "Redis Cache & Queue Metrics",
+      "title": "Redis Cache, Memory & Network Operations",
       "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "purple", "value": null }]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 14 },
+      "id": 35,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Redis Memory Used",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "redis_memory_used_bytes or vector(0)",
+          "legendFormat": "Memory",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 14 },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Connected Redis Clients",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "redis_connected_clients or vector(0)",
+          "legendFormat": "Clients",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "green", "value": 90 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 14 },
+      "id": 37,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Keyspace Hit Ratio %",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "(rate(redis_keyspace_hits_total[1m]) / (rate(redis_keyspace_hits_total[1m]) + rate(redis_keyspace_misses_total[1m]))) * 100 or vector(100)",
+          "legendFormat": "Hit %",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 14 },
+      "id": 38,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Commands / sec",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "rate(redis_commands_processed_total[1m]) or vector(0)",
+          "legendFormat": "Commands",
+          "refId": "A"
+        }
+      ]
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
@@ -113,9 +381,9 @@
           "unit": "bytes"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
       "id": 14,
-      "title": "Redis Memory Usage",
+      "title": "Redis Memory Consumption",
       "type": "timeseries",
       "targets": [
         {
@@ -125,7 +393,7 @@
         },
         {
           "expr": "redis_memory_max_bytes",
-          "legendFormat": "Max Memory",
+          "legendFormat": "Max Memory Ceiling",
           "refId": "B"
         }
       ]
@@ -139,14 +407,14 @@
           "unit": "ops"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
       "id": 15,
-      "title": "Redis Commands / sec",
+      "title": "Redis Commands Processed Rate",
       "type": "timeseries",
       "targets": [
         {
           "expr": "rate(redis_commands_processed_total[1m])",
-          "legendFormat": "Commands/sec",
+          "legendFormat": "Commands / sec",
           "refId": "A"
         }
       ]
@@ -157,18 +425,23 @@
         "defaults": {
           "color": { "mode": "palette-classic" },
           "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
-          "unit": "short"
+          "unit": "Bps"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
       "id": 16,
-      "title": "Redis Connected Clients",
+      "title": "Redis Network Throughput",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "redis_connected_clients",
-          "legendFormat": "Connected Clients",
+          "expr": "rate(redis_net_input_bytes_total[1m])",
+          "legendFormat": "Network Input (Bps)",
           "refId": "A"
+        },
+        {
+          "expr": "rate(redis_net_output_bytes_total[1m])",
+          "legendFormat": "Network Output (Bps)",
+          "refId": "B"
         }
       ]
     }
