@@ -3,6 +3,9 @@ import { MetricsService } from "./metrics.service";
 
 vi.mock("prom-client", () => {
   return {
+    register: {
+      getSingleMetric: vi.fn(),
+    },
     Counter: class {
       inc = vi.fn();
     },
@@ -37,9 +40,20 @@ describe("MetricsService", () => {
     service.incrementGauge("http_active_connections", "Active HTTP Connections");
     service.decrementGauge("http_active_connections", "Active HTTP Connections");
 
-    // We can't directly check the internal gauge properties easily without exposing them,
-    // but we can verify the mock was called if we captured the instance.
-    // However, instantiating the service calls Gauge constructor, so it's initialized.
     expect(service).toBeDefined();
+  });
+
+  it("should reuse already registered metrics from prom-client registry", async () => {
+    const { register } = await import("prom-client");
+    const mockExistingHistogram = {
+      observe: vi.fn(),
+      startTimer: vi.fn(),
+    };
+    vi.mocked(register.getSingleMetric).mockReturnValue(mockExistingHistogram as never);
+
+    service.recordHistogram("realtime_consumer_lag_ms", "Consumer lag", 123);
+
+    expect(register.getSingleMetric).toHaveBeenCalledWith("realtime_consumer_lag_ms");
+    expect(mockExistingHistogram.observe).toHaveBeenCalledWith(123);
   });
 });

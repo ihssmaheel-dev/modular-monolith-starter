@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Counter, Gauge, Histogram, Summary } from "prom-client";
+import { Counter, Gauge, Histogram, register, Summary } from "prom-client";
 
 type Labels = Record<string, string | number>;
 
@@ -60,7 +60,10 @@ export class MetricsService {
   private getCounter(name: string, help: string, labels?: Labels): Counter<string> {
     let metric = this.counters.get(name);
     if (!metric) {
-      metric = new Counter({ name, help, labelNames: Object.keys(labels ?? {}) });
+      const existing = register?.getSingleMetric?.(name);
+      metric =
+        (existing as Counter<string> | undefined) ??
+        new Counter({ name, help, labelNames: Object.keys(labels ?? {}) });
       this.counters.set(name, metric);
     }
     return metric;
@@ -74,7 +77,10 @@ export class MetricsService {
   ): Histogram<string> {
     let metric = this.histograms.get(name);
     if (!metric) {
-      metric = new Histogram({ name, help, labelNames: Object.keys(labels ?? {}), buckets });
+      const existing = register?.getSingleMetric?.(name);
+      metric =
+        (existing as Histogram<string> | undefined) ??
+        new Histogram({ name, help, labelNames: Object.keys(labels ?? {}), buckets });
       this.histograms.set(name, metric);
     }
     return metric;
@@ -83,7 +89,10 @@ export class MetricsService {
   private getGauge(name: string, help: string, labels?: Labels): Gauge<string> {
     let metric = this.gauges.get(name);
     if (!metric) {
-      metric = new Gauge({ name, help, labelNames: Object.keys(labels ?? {}) });
+      const existing = register?.getSingleMetric?.(name);
+      metric =
+        (existing as Gauge<string> | undefined) ??
+        new Gauge({ name, help, labelNames: Object.keys(labels ?? {}) });
       this.gauges.set(name, metric);
     }
     return metric;
@@ -92,7 +101,10 @@ export class MetricsService {
   private getSummary(name: string, help: string, labels?: Labels): Summary<string> {
     let metric = this.summaries.get(name);
     if (!metric) {
-      metric = new Summary({ name, help, labelNames: Object.keys(labels ?? {}) });
+      const existing = register?.getSingleMetric?.(name);
+      metric =
+        (existing as Summary<string> | undefined) ??
+        new Summary({ name, help, labelNames: Object.keys(labels ?? {}) });
       this.summaries.set(name, metric);
     }
     return metric;
