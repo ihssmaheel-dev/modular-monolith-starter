@@ -1,0 +1,21 @@
+services:
+  intelligence:
+    build:
+      context: ../apps/intelligence
+      dockerfile: Dockerfile
+    container_name: monorepo-intelligence
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - INTELLIGENCE_INTERNAL_SECRET=development-internal-ai-secret
+      - AI_PROVIDER=mock
+      - DEFAULT_MODEL=mock-model
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

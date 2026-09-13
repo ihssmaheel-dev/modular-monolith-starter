@@ -254,7 +254,8 @@
       "responseValidationFailed": "The server returned an invalid response",
       "idempotencyConflict": "This idempotency key was already used for a different request",
       "idempotencyInProgress": "This request is still being processed",
-      "idempotencyRecordInvalid": "The previous request record is invalid"
+      "idempotencyRecordInvalid": "The previous request record is invalid",
+      "aiUnavailable": "AI intelligence service is temporarily unavailable"
     },
     "health": {
       "redisUnconfigured": "Redis unconfigured but optional",

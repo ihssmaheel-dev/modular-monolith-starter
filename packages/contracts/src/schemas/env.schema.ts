@@ -159,6 +159,10 @@ export const envSchema = z
     EXPO_ACCESS_TOKEN: z.preprocess(emptyStringAsUndefined, z.string().min(16).optional()),
     NOTIFICATION_DIGEST_MAX_ITEMS: z.coerce.number().int().min(1).max(100).default(20),
 
+    AI_ENABLED: z.coerce.boolean().default(false),
+    INTELLIGENCE_SERVICE_URL: z.string().url().default("http://localhost:8000"),
+    INTELLIGENCE_INTERNAL_SECRET: z.string().default("development-internal-ai-secret"),
+
     SEED_ADMIN_EMAIL: z.string().email().optional(),
     SEED_ADMIN_PASSWORD: z.string().min(12).optional(),
   })

@@ -34,6 +34,9 @@ export const Permissions = {
   // Notifications
   NOTIFICATIONS_READ: "notifications:read",
   NOTIFICATIONS_WRITE: "notifications:write",
+  // AI
+  AI_CHAT: "ai:chat",
+  AI_READ: "ai:read",
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
@@ -54,6 +57,8 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_ERASE_SELF,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
+    Permissions.AI_CHAT,
+    Permissions.AI_READ,
   ],
 };
 

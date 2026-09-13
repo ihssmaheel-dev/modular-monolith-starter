@@ -248,7 +248,8 @@
       "responseValidationFailed": "El servidor devolvió una respuesta no válida",
       "idempotencyConflict": "Esta clave de idempotencia ya se usó para otra solicitud",
       "idempotencyInProgress": "Esta solicitud todavía se está procesando",
-      "idempotencyRecordInvalid": "El registro de la solicitud anterior no es válido"
+      "idempotencyRecordInvalid": "El registro de la solicitud anterior no es válido",
+      "aiUnavailable": "El servicio de inteligencia artificial no está disponible temporalmente"
     },
     "health": {
       "redisUnconfigured": "Redis no está configurado, pero es opcional",

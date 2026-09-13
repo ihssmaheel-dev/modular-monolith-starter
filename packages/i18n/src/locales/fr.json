@@ -248,7 +248,8 @@
       "responseValidationFailed": "Le serveur a renvoyé une réponse invalide",
       "idempotencyConflict": "Cette clé d'idempotence a déjà été utilisée pour une autre requête",
       "idempotencyInProgress": "Cette requête est toujours en cours de traitement",
-      "idempotencyRecordInvalid": "L'enregistrement de la requête précédente est invalide"
+      "idempotencyRecordInvalid": "L'enregistrement de la requête précédente est invalide",
+      "aiUnavailable": "Le service d'intelligence artificielle est temporairement indisponible"
     },
     "health": {
       "redisUnconfigured": "Redis n’est pas configuré, mais il est facultatif",
