@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { reportClientError, initGlobalErrorListeners } from "./client-beacon";
+import {
+  reportClientError,
+  initGlobalErrorListeners,
+  MAX_REPORTED_ERRORS,
+  clearReportedErrors,
+  getReportedErrorsCount,
+} from "./client-beacon";
 
 const reportClientErrorMock = vi.fn().mockResolvedValue({ status: 204 });
 
@@ -15,6 +21,7 @@ describe("client-beacon", () => {
   const originalSendBeacon = navigator.sendBeacon;
 
   beforeEach(() => {
+    clearReportedErrors();
     reportClientErrorMock.mockClear();
   });
 
@@ -67,5 +74,30 @@ describe("client-beacon", () => {
     cleanup();
     expect(removeEventListenerSpy).toHaveBeenCalledWith("error", expect.any(Function));
     expect(removeEventListenerSpy).toHaveBeenCalledWith("unhandledrejection", expect.any(Function));
+  });
+
+  it("deduplicates identical errors and does not resend", () => {
+    const sendBeaconMock = vi.fn().mockReturnValue(true);
+    navigator.sendBeacon = sendBeaconMock;
+
+    reportClientError({ message: "Duplicate error", url: "/notes" });
+    reportClientError({ message: "Duplicate error", url: "/notes" });
+
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+    expect(getReportedErrorsCount()).toBe(1);
+  });
+
+  it("caps reportedErrors set at MAX_REPORTED_ERRORS to prevent memory leak", () => {
+    navigator.sendBeacon = vi.fn().mockReturnValue(true);
+
+    for (let i = 0; i < MAX_REPORTED_ERRORS + 20; i++) {
+      reportClientError({
+        message: `Error ${i}`,
+        url: "/test",
+        errorRef: `ref-${i}`,
+      });
+    }
+
+    expect(getReportedErrorsCount()).toBe(MAX_REPORTED_ERRORS);
   });
 });

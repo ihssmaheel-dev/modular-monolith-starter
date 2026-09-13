@@ -105,4 +105,30 @@ describe("BaseRepository Tenant Isolation", () => {
     const missing = await repo.deleteById("gone");
     expect(missing.isOk() && missing.value).toBe(false);
   });
+
+  it("applies default limit and custom limit on find()", async () => {
+    vi.mocked(mockContext.get).mockReturnValue({ mode: "multi", tenantId: "tenant-123" });
+    const limitFn = vi.fn().mockResolvedValue([{ id: "1", tenantId: "tenant-123", name: "Item" }]);
+    const whereFn = vi.fn().mockReturnValue({ limit: limitFn });
+    vi.mocked(mockDb.getDb).mockReturnValue({
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: whereFn,
+          limit: limitFn,
+        })),
+      })),
+    } as never);
+
+    const repo = new TestRepo(mockDb, mockContext, true);
+
+    const defaultResult = await repo.find({ name: "Item" });
+    expect(defaultResult.isOk()).toBe(true);
+    expect(limitFn).toHaveBeenCalledWith(1000);
+
+    await repo.find({ name: "Item" }, { limit: 50 });
+    expect(limitFn).toHaveBeenCalledWith(50);
+
+    await repo.find({ name: "Item" }, { limit: 99999 });
+    expect(limitFn).toHaveBeenCalledWith(5000);
+  });
 });

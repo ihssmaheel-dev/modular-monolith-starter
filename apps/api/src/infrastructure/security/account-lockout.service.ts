@@ -1,9 +1,11 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, OnApplicationShutdown } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
 import { PinoLoggerService } from "../logger/logger.service";
 import { env } from "../../config/env";
 
 const LOCKOUT_PREFIX = "lockout:";
+export const MAX_MEMORY_LOCKOUT_ENTRIES = 5_000;
+const MEMORY_SWEEP_INTERVAL_MS = 60_000;
 
 interface InMemoryAttempt {
   count: number;
@@ -11,9 +13,10 @@ interface InMemoryAttempt {
 }
 
 @Injectable()
-export class AccountLockoutService {
+export class AccountLockoutService implements OnApplicationShutdown {
   private readonly memoryStore = new Map<string, InMemoryAttempt>();
   private readonly logger: PinoLoggerService;
+  private sweepTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly redis: RedisService,
@@ -53,14 +56,26 @@ export class AccountLockoutService {
     return false;
   }
 
+  get memorySize(): number {
+    return this.memoryStore.size;
+  }
+
   async recordFailedAttempt(email: string): Promise<void> {
     const client = this.redis.getClient();
     const ttlSeconds = env.LOCKOUT_DURATION_MINUTES * 60;
 
     if (!client) {
+      this.ensureSweepTimer();
       const now = Date.now();
       const existing = this.memoryStore.get(email);
       if (!existing || now > existing.expiresAt) {
+        if (!existing && this.memoryStore.size >= MAX_MEMORY_LOCKOUT_ENTRIES) {
+          this.sweepExpired();
+          if (this.memoryStore.size >= MAX_MEMORY_LOCKOUT_ENTRIES) {
+            const oldestKey = this.memoryStore.keys().next().value;
+            if (oldestKey) this.memoryStore.delete(oldestKey);
+          }
+        }
         this.memoryStore.set(email, { count: 1, expiresAt: now + ttlSeconds * 1000 });
       } else {
         existing.count += 1;
@@ -90,5 +105,31 @@ export class AccountLockoutService {
     }
 
     await client.del(`${LOCKOUT_PREFIX}${email}`);
+  }
+
+  sweepExpired(): number {
+    const now = Date.now();
+    let evicted = 0;
+    for (const [key, entry] of this.memoryStore.entries()) {
+      if (now > entry.expiresAt) {
+        this.memoryStore.delete(key);
+        evicted++;
+      }
+    }
+    return evicted;
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = null;
+    }
+    this.memoryStore.clear();
+  }
+
+  private ensureSweepTimer(): void {
+    if (this.sweepTimer) return;
+    this.sweepTimer = setInterval(() => this.sweepExpired(), MEMORY_SWEEP_INTERVAL_MS);
+    this.sweepTimer.unref?.();
   }
 }

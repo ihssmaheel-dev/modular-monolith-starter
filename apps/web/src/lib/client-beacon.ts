@@ -2,13 +2,27 @@ import { getWebEnv } from "./env";
 import { getApiClient } from "./api";
 import type { ClientErrorBeacon } from "@repo/contracts";
 
+export const MAX_REPORTED_ERRORS = 500;
 const reportedErrors = new Set<string>();
+
+export function getReportedErrorsCount(): number {
+  return reportedErrors.size;
+}
+
+export function clearReportedErrors(): void {
+  reportedErrors.clear();
+}
 
 export function reportClientError(beacon: ClientErrorBeacon): void {
   if (typeof window === "undefined") return;
 
   const key = `${beacon.message}:${beacon.url}:${beacon.errorRef ?? ""}`;
   if (reportedErrors.has(key)) return;
+
+  if (reportedErrors.size >= MAX_REPORTED_ERRORS) {
+    const oldestKey = reportedErrors.values().next().value;
+    if (oldestKey) reportedErrors.delete(oldestKey);
+  }
   reportedErrors.add(key);
 
   const payload: ClientErrorBeacon = {
@@ -29,7 +43,9 @@ export function reportClientError(beacon: ClientErrorBeacon): void {
     void getApiClient()
       .telemetry.reportClientError(payload)
       .catch(() => {});
-  } catch {}
+  } catch {
+    // Suppress telemetry transport failures to ensure user flow is unaffected
+  }
 }
 
 export function initGlobalErrorListeners(): () => void {

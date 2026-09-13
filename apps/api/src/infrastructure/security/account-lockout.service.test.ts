@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { AccountLockoutService } from "./account-lockout.service";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { AccountLockoutService, MAX_MEMORY_LOCKOUT_ENTRIES } from "./account-lockout.service";
 import type { PinoLoggerService } from "../logger/logger.service";
 import type { RedisService } from "../redis/redis.service";
 
@@ -36,6 +36,11 @@ describe("AccountLockoutService", () => {
     } as unknown as RedisService;
 
     service = new AccountLockoutService(mockRedisService, mockLogger);
+  });
+
+  afterEach(async () => {
+    await service.onApplicationShutdown();
+    vi.useRealTimers();
   });
 
   describe("with Redis available", () => {
@@ -86,6 +91,45 @@ describe("AccountLockoutService", () => {
 
       await service.resetAttempts(email);
       expect(await service.isLockedOut(email)).toBe(false);
+    });
+
+    it("bounds memoryStore to MAX_MEMORY_LOCKOUT_ENTRIES and evicts oldest", async () => {
+      await service.recordFailedAttempt("first@example.com");
+      for (let i = 1; i < MAX_MEMORY_LOCKOUT_ENTRIES; i++) {
+        await service.recordFailedAttempt(`user${i}@example.com`);
+      }
+      expect(service.memorySize).toBe(MAX_MEMORY_LOCKOUT_ENTRIES);
+
+      // Adding one more should evict 'first@example.com'
+      await service.recordFailedAttempt("overflow@example.com");
+      expect(service.memorySize).toBe(MAX_MEMORY_LOCKOUT_ENTRIES);
+      expect(await service.isLockedOut("first@example.com")).toBe(false);
+    });
+
+    it("sweeps expired attempts", async () => {
+      vi.useFakeTimers();
+      const startTime = new Date(2026, 0, 1, 12, 0, 0);
+      vi.setSystemTime(startTime);
+
+      await service.recordFailedAttempt("user1@example.com");
+      await service.recordFailedAttempt("user2@example.com");
+
+      expect(service.memorySize).toBe(2);
+
+      // Advance past lockout duration (default 15 minutes = 900,000 ms)
+      vi.setSystemTime(new Date(startTime.getTime() + 16 * 60 * 1000));
+
+      const evicted = service.sweepExpired();
+      expect(evicted).toBe(2);
+      expect(service.memorySize).toBe(0);
+    });
+
+    it("clears memoryStore and cancels timer on application shutdown", async () => {
+      await service.recordFailedAttempt("user@example.com");
+      expect(service.memorySize).toBe(1);
+
+      await service.onApplicationShutdown();
+      expect(service.memorySize).toBe(0);
     });
   });
 });

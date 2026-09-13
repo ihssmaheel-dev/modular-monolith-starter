@@ -6,12 +6,15 @@ import { CacheMetricsService } from "./cache-metrics.service";
 import { Result } from "neverthrow";
 
 const CACHE_CHANNEL = "cache:invalidation";
+export const MAX_CACHE_SIZE = 10_000;
+const CACHE_SWEEP_INTERVAL_MS = 60_000;
 
 @Injectable()
 export class DistributedCacheService implements OnModuleInit, OnApplicationShutdown {
   private subscriber: Redis | null = null;
   private logger: PinoLoggerService;
   private cache = new Map<string, { value: unknown; exp: number }>();
+  private sweepTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly redisService: RedisService,
@@ -22,6 +25,9 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
   }
 
   async onModuleInit() {
+    this.sweepTimer = setInterval(() => this.sweepExpired(), CACHE_SWEEP_INTERVAL_MS);
+    this.sweepTimer.unref?.();
+
     const client = this.redisService.getClient();
     if (!client) {
       this.logger.warn(
@@ -55,9 +61,15 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
   }
 
   async onApplicationShutdown() {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = null;
+    }
     if (this.subscriber) {
       await this.subscriber.quit();
+      this.subscriber = null;
     }
+    this.cache.clear();
   }
 
   get<T>(key: string): T | undefined {
@@ -77,12 +89,39 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
     return item.value as T;
   }
 
+  get size(): number {
+    return this.cache.size;
+  }
+
   set(key: string, value: unknown, ttlSeconds: number): void {
+    if (!this.cache.has(key) && this.cache.size >= MAX_CACHE_SIZE) {
+      this.sweepExpired();
+      if (this.cache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey) {
+          this.cache.delete(oldestKey);
+          this.cacheMetrics.recordEvict("memory");
+        }
+      }
+    }
     this.cache.set(key, {
       value,
       exp: Date.now() + ttlSeconds * 1000,
     });
     this.cacheMetrics.recordSet("memory");
+  }
+
+  sweepExpired(): number {
+    const now = Date.now();
+    let evictedCount = 0;
+    for (const [key, item] of this.cache.entries()) {
+      if (now > item.exp) {
+        this.cache.delete(key);
+        this.cacheMetrics.recordEvict("memory");
+        evictedCount++;
+      }
+    }
+    return evictedCount;
   }
 
   private deleteLocal(key: string) {

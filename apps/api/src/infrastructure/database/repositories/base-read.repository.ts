@@ -6,6 +6,9 @@ import { DatabaseService } from "../database.service";
 import { TenantContextService } from "../context/tenant-context.service";
 import type { BaseFindOptions, Id } from "./repository.types";
 
+export const DEFAULT_FIND_LIMIT = 1_000;
+export const MAX_FIND_LIMIT = 5_000;
+
 export abstract class BaseReadRepository<TEntity, TRow> {
   constructor(
     protected readonly table: PgTable,
@@ -80,20 +83,40 @@ export abstract class BaseReadRepository<TEntity, TRow> {
     return ok(row ? this.toDomain(row) : null);
   }
 
-  async find(filter: Record<string, unknown> = {}): Promise<Result<TEntity[], never>> {
+  async find(
+    filter: Record<string, unknown> = {},
+    options: BaseFindOptions = {},
+  ): Promise<Result<TEntity[], never>> {
     if (this.hasMissingTenantContext()) return ok([]);
     const db = this.getDb();
+    const limit = Math.min(options.limit ?? DEFAULT_FIND_LIMIT, MAX_FIND_LIMIT);
     const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() });
     const query = (
       db as unknown as {
-        select: () => { from: (t: unknown) => { where: (c: unknown) => Promise<TRow[]> } };
+        select: () => {
+          from: (t: unknown) => {
+            where: (c: unknown) => { limit: (n: number) => Promise<TRow[]> } | Promise<TRow[]>;
+            limit: (n: number) => Promise<TRow[]>;
+          };
+        };
       }
     )
       .select()
       .from(this.table);
-    const rows = conditions
-      ? await (query as unknown as { where: (c: unknown) => Promise<TRow[]> }).where(conditions)
-      : await (query as unknown as Promise<TRow[]>);
+
+    let rows: TRow[];
+    if (conditions) {
+      const filtered = (query as unknown as { where: (c: unknown) => unknown }).where(conditions);
+      rows =
+        typeof (filtered as { limit?: (n: number) => Promise<TRow[]> }).limit === "function"
+          ? await (filtered as { limit: (n: number) => Promise<TRow[]> }).limit(limit)
+          : await (filtered as Promise<TRow[]>);
+    } else {
+      rows =
+        typeof (query as unknown as { limit?: (n: number) => Promise<TRow[]> }).limit === "function"
+          ? await (query as unknown as { limit: (n: number) => Promise<TRow[]> }).limit(limit)
+          : await (query as unknown as Promise<TRow[]>);
+    }
     return ok(rows.map((r) => this.toDomain(r)));
   }
 
