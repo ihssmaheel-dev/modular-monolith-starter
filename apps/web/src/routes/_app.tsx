@@ -7,11 +7,26 @@ import { getApiClient } from "@/lib/api";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/_app")({
-  beforeLoad: () => {
-    // Sync guard after hydration: avoids rendering protected shell
-    // when the persisted store already knows we are logged out.
-    if (useAuthStore.getState().status === "unauthenticated") {
+  beforeLoad: async () => {
+    const auth = useAuthStore.getState();
+    if (auth.status === "unauthenticated" || !auth.user) {
       throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
+    }
+
+    if (auth.status === "loading" || !auth.accessToken) {
+      try {
+        const response = await getApiClient().auth.me();
+        if (response.status === 200 && response.body?.user) {
+          useAuthStore.getState().setUser(response.body.user);
+        } else {
+          useAuthStore.getState().clearAuth();
+          throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
+        }
+      } catch (error) {
+        if (error && typeof error === "object" && "to" in error) throw error;
+        useAuthStore.getState().clearAuth();
+        throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
+      }
     }
   },
   component: ProtectedApp,
@@ -21,26 +36,6 @@ function ProtectedApp() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const status = useAuthStore((state) => state.status);
-  const setUser = useAuthStore((state) => state.setUser);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-
-  useEffect(() => {
-    if (status !== "loading") return;
-    let active = true;
-    void getApiClient()
-      .auth.me()
-      .then((response) => {
-        if (!active) return;
-        if (response.status === 200 && response.body?.user) setUser(response.body.user);
-        else clearAuth();
-      })
-      .catch(() => {
-        if (active) clearAuth();
-      });
-    return () => {
-      active = false;
-    };
-  }, [clearAuth, setUser, status]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
