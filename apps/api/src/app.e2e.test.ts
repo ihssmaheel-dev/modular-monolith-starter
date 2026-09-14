@@ -46,7 +46,17 @@ describe("API liveness", () => {
         }
         done();
       });
-    app.setGlobalPrefix(API_GLOBAL_PREFIX);
+    app.setGlobalPrefix(API_GLOBAL_PREFIX, {
+      exclude: [
+        "metrics",
+        "docs",
+        "api/docs",
+        "health",
+        "health/(.*)",
+        `${API_GLOBAL_PREFIX}/health`,
+        `${API_GLOBAL_PREFIX}/health/(.*)`,
+      ],
+    });
     await app.init();
     pool = new Pool({ connectionString: env.DATABASE_URL, max: 1 });
   });
@@ -57,13 +67,16 @@ describe("API liveness", () => {
     await app?.close();
   });
 
-  it("returns a liveness response without database dependencies", async () => {
-    const response = await app.getHttpAdapter().getInstance().inject({
-      method: "GET",
-      url: "/api/v1/health/live",
-    });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok" });
+  it("returns a liveness response without database dependencies at /health/live and /api/v1/health/live", async () => {
+    const instance = app.getHttpAdapter().getInstance();
+    const [rootRes, prefixedRes] = await Promise.all([
+      instance.inject({ method: "GET", url: "/health/live" }),
+      instance.inject({ method: "GET", url: "/api/v1/health/live" }),
+    ]);
+    expect(rootRes.statusCode).toBe(200);
+    expect(rootRes.json()).toEqual({ status: "ok" });
+    expect(prefixedRes.statusCode).toBe(200);
+    expect(prefixedRes.json()).toEqual({ status: "ok" });
   });
 
   it("serves the tenancy status through REST and oRPC transports", async () => {

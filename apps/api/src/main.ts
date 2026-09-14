@@ -43,6 +43,7 @@ const UNDER_PRESSURE_RETRY_AFTER_SECONDS = 30;
 // orchestrator does not restart a merely busy (not dead) process.
 const UNDER_PRESSURE_BYPASS_PREFIXES = [
   `${API_BASE_PATH}/health`,
+  "/health",
   "/metrics",
   API_DOCS_PATH,
   "/docs",
@@ -165,7 +166,17 @@ async function bootstrap() {
     },
   });
 
-  app.setGlobalPrefix(API_GLOBAL_PREFIX, { exclude: ["metrics", "docs", "api/docs"] });
+  app.setGlobalPrefix(API_GLOBAL_PREFIX, {
+    exclude: [
+      "metrics",
+      "docs",
+      "api/docs",
+      "health",
+      "health/(.*)",
+      `${API_GLOBAL_PREFIX}/health`,
+      `${API_GLOBAL_PREFIX}/health/(.*)`,
+    ],
+  });
   app.enableCors({
     origin: (origin, callback) => {
       // One trust rule (see common/utils/origin.utils): configured origins

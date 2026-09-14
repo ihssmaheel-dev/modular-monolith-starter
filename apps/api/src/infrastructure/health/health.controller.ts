@@ -2,9 +2,13 @@ import { Controller, Get } from "@nestjs/common";
 import { HealthCheck } from "@nestjs/terminus";
 import { AppHealthService } from "./health.service";
 import { NoDatabaseTransaction, Public, ResponseSchema } from "../../common";
-import { HealthCheckResponseSchema, type HealthCheckResponse } from "@repo/contracts";
+import {
+  API_GLOBAL_PREFIX,
+  HealthCheckResponseSchema,
+  type HealthCheckResponse,
+} from "@repo/contracts";
 
-@Controller("health")
+@Controller(["health", `${API_GLOBAL_PREFIX}/health`])
 @Public()
 @NoDatabaseTransaction()
 export class HealthController {
