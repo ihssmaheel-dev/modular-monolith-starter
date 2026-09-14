@@ -11,7 +11,7 @@ Supreme laws of this codebase. These are never negotiable.
 | Layer | Locked Choice |
 |-------|---------------|
 | Monorepo | Turborepo 2.10 + pnpm 10 workspaces |
-| Backend | NestJS 11 + Fastify 5 |
+| Backend | NestJS 12 + Fastify 5 |
 | Validation | Zod 4 |
 | API Contract | oRPC + Scalar API Reference (@scalar/fastify-api-reference) |
 | Authorization | Fine-Grained Authorization (RBAC + ReBAC + ABAC) |

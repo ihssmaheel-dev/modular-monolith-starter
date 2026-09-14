@@ -24,7 +24,7 @@ graph TD
     end
 
     subgraph Backend Apps
-        A[apps/api<br>NestJS 11 + Fastify 5]
+        A[apps/api<br>NestJS 12 + Fastify 5]
     end
 
     subgraph Shared Capability Packages
@@ -90,7 +90,7 @@ We never write validation logic twice. The backend uses these Zod schemas (via `
 
 ## 3. The Backend Modular Monolith (`apps/api`)
 
-We deploy as a single Node.js process using **NestJS 11** and **Fastify 5**. Internally, our codebase is split into **strictly isolated Modules** (e.g., `auth`, `users`, `notes`, `tenancy`, `files`, `privacy`, `notifications`).
+We deploy as a single Node.js process using **NestJS 12** and **Fastify 5**. Internally, our codebase is split into **strictly isolated Modules** (e.g., `auth`, `users`, `notes`, `tenancy`, `files`, `privacy`, `notifications`).
 
 - `auth` does not know how `users` works inside.
 - Modules communicate exclusively through Application-layer Commands/Queries or Domain Events.

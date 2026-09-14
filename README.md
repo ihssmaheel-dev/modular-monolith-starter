@@ -6,7 +6,7 @@ A production-grade, highly scalable TypeScript modular monolith architecture des
 
 ## Tech Stack
 
-- **Backend:** NestJS 11 + Fastify 5 + PostgreSQL 16 + Drizzle ORM + Redis 7 + BullMQ + oRPC + Scalar
+- **Backend:** NestJS 12 + Fastify 5 + PostgreSQL 16 + Drizzle ORM + Redis 7 + BullMQ + oRPC + Scalar
 - **Frontend Web:** TanStack Start 1 (Vite 8 + TanStack Router file-based SSR + streaming) + TanStack Query 5 + Zustand 5 + react-i18next + Tailwind 4 + shadcn base-nova + Base UI 1
 - **Capability Packages:**
   - `@repo/contracts`: Zod 4 schemas, oRPC type-safe API contracts, DTO types, pagination & error constants, env schemas (API + VITE_*)

@@ -77,7 +77,7 @@ To prevent repeating ourselves. The backend uses the Zod schemas (via `ZodValida
 
 ## 2. The Backend (`apps/api`)
 
-Our backend uses **NestJS 11** and **Fastify 5**. But we don't just throw code into controllers. We use a pattern called **Clean Architecture** combined with **CQRS** (Command Query Responsibility Segregation).
+Our backend uses **NestJS 12** and **Fastify 5**. But we don't just throw code into controllers. We use a pattern called **Clean Architecture** combined with **CQRS** (Command Query Responsibility Segregation).
 
 This means we divide our code into strict layers, like an onion.
 
