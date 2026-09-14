@@ -126,6 +126,30 @@ describe("RateLimitGuard", () => {
     );
   });
 
+  it("labels routes with substring 'auth' (e.g. /api/v1/authors) with api scope", async () => {
+    rateLimitService.check.mockResolvedValueOnce({
+      allowed: false,
+      remaining: 0,
+      resetAt: 1700000060,
+    });
+
+    const mockReq = {
+      ip: "10.0.0.5",
+      routeOptions: { url: "/api/v1/authors" },
+      headers: {},
+    };
+    const context = createMockContext(mockReq, mockRes);
+
+    await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
+
+    expect(metrics.incrementCounter).toHaveBeenCalledWith(
+      "rate_limit_exceeded_total",
+      "Total number of rate limit rejections",
+      1,
+      { scope: "api", route: "/api/v1/authors" },
+    );
+  });
+
   it("handles optional metrics service gracefully when absent", async () => {
     const guardWithoutMetrics = new RateLimitGuard(
       reflector,

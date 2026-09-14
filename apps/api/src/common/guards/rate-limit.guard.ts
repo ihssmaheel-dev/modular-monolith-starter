@@ -67,7 +67,7 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private handleRejection(route: string, result: RateLimitResult, lang?: string): never {
-    const scope = route.includes("/auth/") || route.includes("auth") ? "auth" : "api";
+    const scope = route.includes("/auth/") || route.includes("auth:") ? "auth" : "api";
     this.metrics?.incrementCounter(
       "rate_limit_exceeded_total",
       "Total number of rate limit rejections",
