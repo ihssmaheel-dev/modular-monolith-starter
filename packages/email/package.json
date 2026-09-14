@@ -19,10 +19,10 @@
   "dependencies": {
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-email": "6.9.2"
+    "react-email": "6.9.5"
   },
   "devDependencies": {
-    "@react-email/ui": "6.9.2",
+    "@react-email/ui": "6.9.5",
     "@repo/typescript-config": "workspace:*",
     "@types/react": "19.2.18",
     "typescript": "~6.0.3"

@@ -22,7 +22,7 @@
   "dependencies": {
     "@orpc/contract": "^1.15.0",
     "@orpc/zod": "^1.15.0",
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "tsup": "^8.5.1",
