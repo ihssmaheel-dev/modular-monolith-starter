@@ -72,16 +72,11 @@ function buildLoggerTransport():
 export class PinoLoggerService implements OnModuleDestroy {
   private logger: pino.Logger;
 
-  constructor(
-    @Optional() @Inject(ClsService) private readonly cls?: ClsService,
-    existingLogger?: pino.Logger,
-  ) {
-    this.logger =
-      existingLogger ??
-      pino({
-        level: env.LOG_LEVEL,
-        transport: buildLoggerTransport(),
-      });
+  constructor(@Optional() @Inject(ClsService) private readonly cls?: ClsService) {
+    this.logger = pino({
+      level: env.LOG_LEVEL,
+      transport: buildLoggerTransport(),
+    });
   }
 
   private enrichContext(context: LogContext): LogContext {
@@ -131,7 +126,9 @@ export class PinoLoggerService implements OnModuleDestroy {
   }
 
   child(bindings: Record<string, unknown>): PinoLoggerService {
-    return new PinoLoggerService(this.cls, this.logger.child(bindings));
+    const child = Object.create(this) as PinoLoggerService;
+    child.logger = this.logger.child(bindings);
+    return child;
   }
 
   onModuleDestroy() {
