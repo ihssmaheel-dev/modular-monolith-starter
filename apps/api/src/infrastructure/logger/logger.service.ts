@@ -19,10 +19,18 @@ export class PinoLoggerService implements OnModuleDestroy {
 
   constructor(@Optional() @Inject(ClsService) private readonly cls?: ClsService) {
     this.logger = pino({
-      level: env.NODE_ENV === "production" ? "info" : "debug",
+      level: env.LOG_LEVEL,
       transport:
         env.NODE_ENV !== "production"
-          ? { target: "pino-pretty", options: { colorize: true } }
+          ? {
+              target: "pino-pretty",
+              options: {
+                colorize: true,
+                singleLine: true,
+                translateTime: "HH:MM:ss.l",
+                ignore: "pid,hostname",
+              },
+            }
           : env.LOKI_HOST && !env.LOKI_HOST.includes("localhost")
             ? {
                 target: "pino-loki",
