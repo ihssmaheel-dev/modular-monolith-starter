@@ -7,7 +7,7 @@
 ## How you notice
 
 - Alert `ServiceDown` firing (Prometheus scrape target unreachable for > 2m).
-- `GET /api/v1/health/live` stops returning 200, or `/api/v1/health/ready` degrades.
+- `GET /health/live` (or `/api/v1/health/live`) stops returning 200, or `/health/ready` degrades.
 - Users report "app won't load" across web and mobile simultaneously.
 - Distinguish first: **live failing = process dead**; **live OK but ready failing = dependencies
   (Postgres/Redis) unreachable** — that sends you to RB-02/RB-03, not here.
@@ -20,9 +20,9 @@ briefly survive while new requests fail.
 
 ## Triage in 5 minutes
 
-1. `curl -m 5 http://localhost:3000/api/v1/health/live` (prod host/port per environment).
+1. `curl -m 5 http://localhost:3000/health/live` (or `/api/v1/health/live`, prod host/port per environment).
    Healthy: `200` with `{"status":"ok"}`-shaped body.
-2. `curl -m 5 http://localhost:3000/api/v1/health/live` vs `/api/v1/health/ready` — record which fails.
+2. `curl -m 5 http://localhost:3000/health/live` vs `/health/ready` — record which fails.
 3. `docker compose ps` (with the environment's compose file). Healthy: `api` shows
    `healthy`, not `restarting` or `exited`.
 4. `docker compose logs --tail=100 api | grep -i -E "error|exception|fatal"` — look for the
@@ -41,7 +41,7 @@ briefly survive while new requests fail.
 
 ## Verify
 
-- `curl /api/v1/health/live` → 200, then `/api/v1/health/ready` → 200.
+- `curl /health/live` (or `/api/v1/health/live`) → 200, then `/health/ready` → 200.
 - Error rate in logs drops to baseline; Grafana API dashboard 5xx flat.
 - One real login + one list load in the app (staging first if prod is still suspect).
 

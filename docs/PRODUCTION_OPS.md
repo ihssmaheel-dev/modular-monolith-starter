@@ -19,7 +19,7 @@ TAG=<sha> docker compose -f docker/docker-compose.prod.yml up -d --wait
 ```
 
 Migrations run first via the `migrate` service (`service_completed_successfully` gate), so API
-and worker never start against an unmigrated database. Verify with `GET /api/v1/health/live`
+and worker never start against an unmigrated database. Verify with `GET /health/live` (or `/api/v1/health/live`)
 and `GET /` afterwards. Roll back by re-running with the previous `TAG`.
 
 ## TLS (`docker/nginx.conf`, `docker/ssl/`)
@@ -72,7 +72,7 @@ When errors occur on the API or in the frontend, an 8-character error reference 
 
 ## Alerting (`docker/observability/prometheus/` and `alertmanager/`)
 
-- `alerts.yml` covers service availability, HTTP error rates, p95 latencies, outbox lag/dead-letter/retry, worker fleet liveness (`WorkerSilentDeath`), BullMQ queue health (`QueueStalledJobs`), file reconciliation, and database/cache health.
+- `alerts.yml` covers service availability, HTTP error rates, p95 latencies, outbox lag/dead-letter/retry, worker fleet liveness (`WorkerSilentDeath`), BullMQ queue health (`QueueStalledJobs`), container health (`ContainerOomKilled`, `ContainerHighMemoryUsage`, `ContainerHighCpuUsage`), file reconciliation, and database/cache health.
 - `prometheus.yml` actively routes alerts to Alertmanager (`alertmanager:9093`).
 - In local development (`pnpm observability:up`), Alertmanager routes all email alerts to local Mailpit (`mailpit:1025`, accessible at `http://localhost:8025`).
 - For production paging: update `docker/observability/alertmanager/alertmanager.yml` to route critical alerts to your team's PagerDuty, Opsgenie, or Slack incoming webhooks.
@@ -104,7 +104,7 @@ regression is caught before release.
 
 `@fastify/under-pressure` sheds traffic with `503 + Retry-After: 30` when the event loop
 exceeds 1000ms delay or 0.98 utilization (container-size-independent signals; no heap/RSS
-byte thresholds by design). Probes and docs (`/api/v1/health`, `/metrics`, `/api/docs`, `/docs`)
+byte thresholds by design). Probes and docs (`/health`, `/api/v1/health`, `/metrics`, `/api/docs`, `/docs`)
 bypass shedding so the orchestrator never restarts a merely busy process. Shed events log a
 Pino warning with `pressureType`. Tune thresholds from Grafana event-loop panels under real
 traffic; the 503 envelope is `{ statusCode: 503, message, error: "UNDER_PRESSURE" }`.

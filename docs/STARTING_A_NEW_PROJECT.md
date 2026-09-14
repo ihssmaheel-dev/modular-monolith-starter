@@ -63,5 +63,5 @@ presentation handler, REST compatibility mapping when needed, and a parity/smoke
 
 `v1` is the stable public API surface. Keep contracts and module code version-neutral; add a new
 version at the transport boundary when a breaking change is required. The Scalar documentation
-stays at `/api/docs`, while application health stays under `/api/v1/health/*` and metrics stay at
+stays at `/api/docs`, while application health is mounted at `/health/*` (with `/api/v1/health/*` alias) and metrics stay at
 `/metrics`.

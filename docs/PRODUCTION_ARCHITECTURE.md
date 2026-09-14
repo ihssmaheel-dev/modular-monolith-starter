@@ -20,7 +20,7 @@ oRPC client → OpenAPI link → Nest @orpc/nest adapter → guards/interceptors
 
 `v1` is the stable public API surface. Contracts and module controllers are version-neutral; a
 breaking API change creates a new transport version without modifying the previous version's
-contract. API documentation remains at `/api/docs`, health checks use `/api/v1/health/*`, and
+contract. API documentation remains at `/api/docs`, health checks use `/health/*` (with `/api/v1/health/*` alias), and
 metrics use `/metrics`.
 
 Authentication, tenant, locale, CSRF, and idempotency headers are injected by the shared client;

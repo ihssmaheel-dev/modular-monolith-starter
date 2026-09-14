@@ -27,7 +27,7 @@ ones lose coordination first.
 2. `docker compose ps redis` — `healthy` vs `restarting`/`exited`.
 3. `docker compose logs --tail=30 redis` — OOM killer lines mean memory, not network (→ RB-04
    if the volume/host is full, else check `maxmemory` policy for the environment).
-4. Confirm degradation, not outage: `curl /api/v1/health/live` should still be 200.
+4. Confirm degradation, not outage: `curl /health/live` (or `/api/v1/health/live`) should still be 200.
 
 ## Fix paths
 

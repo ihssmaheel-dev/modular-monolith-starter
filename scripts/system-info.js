@@ -19,7 +19,7 @@ const c = {
 
 const SERVICES = [
   { group: "APPLICATIONS", name: "API Server", port: 5156, desc: "http://localhost:5156/api" },
-  { group: "APPLICATIONS", name: "Web Frontend", port: 3000, desc: "http://localhost:3000" },
+  { group: "APPLICATIONS", name: "Web Frontend", port: 5155, desc: "http://localhost:5155" },
   { group: "CORE INFRASTRUCTURE", name: "PostgreSQL", port: 5432, desc: "Port 5432 (drizzle)" },
   { group: "CORE INFRASTRUCTURE", name: "Redis Cache", port: 6379, desc: "Port 6379 (ioredis)" },
   { group: "CORE INFRASTRUCTURE", name: "MinIO S3 API", port: 9000, desc: "Port 9000 (S3)" },

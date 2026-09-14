@@ -16,7 +16,7 @@ A production-grade, highly scalable TypeScript modular monolith architecture des
   - `@repo/ui`: Base UI React 1 + shadcn base-nova + Tailwind 4 + tw-animate-css + CVA + lucide-react (single `globals.css` + `cn()`)
   - `@repo/email`: React Email templates with isolated HTML renderer
   - `@repo/typescript-config`: Centralized TypeScript configurations (TS ~6)
-- **Observability:** Grafana + Prometheus + Loki + Alloy + Tempo + Postgres & Redis Exporters
+- **Observability:** Grafana + Prometheus + Loki + Alloy + Tempo + cAdvisor + Postgres & Redis Exporters
 - **Documentation:** Interactive Scalar API Reference (`@scalar/fastify-api-reference`) & OpenAPI 3.1
 - **Tooling & Monorepo:** Turborepo 2.10 + pnpm 10 workspaces + TypeScript ~6 + Vitest 5 (api) + Playwright (web)
 
@@ -95,6 +95,8 @@ pnpm format           # Format code with Prettier
 pnpm format:check     # Check formatting
 pnpm typecheck        # Run TypeScript type check across all workspaces (api, web, ui, contracts ...)
 pnpm rules:check      # Enforce strict architectural boundaries and dependency rules
+pnpm status           # Inspect real-time TCP connectivity & latency across all 15 services
+pnpm info             # Alias for pnpm status
 pnpm test:generator   # Verify the full-stack feature generator remains compilable
 
 # Web shadcn
@@ -144,20 +146,21 @@ pnpm observability:logs # Tail telemetry logs
 
 ## Local Service Directory
 
-| Service                  | Local URL / Port                 | Credentials / Purpose                              |
-| :----------------------- | :------------------------------- | :------------------------------------------------- |
-| **API Backend**          | `http://localhost:5156`          | Fastify API Server (`/api/v1`, `/api/v1/health/*`) |
-| **Web (TanStack Start)** | `http://localhost:5155`          | Vite + SSR (dev) `pnpm --filter web dev`           |
-| **Scalar API Reference** | `http://localhost:5156/api/docs` | Interactive OpenAPI 3.1 Docs                       |
-| **Grafana Dashboard**    | `http://localhost:3001`          | `admin / admin` (API, DB, Redis, Traces, Logs)     |
-| **Tempo Trace Engine**   | `http://localhost:3200`          | OTLP Traces (`:4318` HTTP / `:4317` gRPC)          |
-| **Alloy Telemetry UI**   | `http://localhost:12345`         | Live Pipeline Graph & Collector Status             |
-| **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                         |
-| **Loki Log Engine**      | `http://localhost:3100`          | High-performance Log Aggregator                    |
-| **Mailpit Web UI**       | `http://localhost:8025`          | Local SMTP Email Inbox (`:1025`)                   |
-| **Email Preview**        | `http://localhost:3002`          | React Email workshop (`pnpm dev:email`)            |
-| **MinIO Console**        | `http://localhost:9001`          | `minioadmin / minioadmin` (S3: `:9000`)            |
-| **pgAdmin 4**            | `http://localhost:5050`          | `admin@example.com / admin`                        |
+| Service                  | Local URL / Port                 | Credentials / Purpose                          |
+| :----------------------- | :------------------------------- | :--------------------------------------------- |
+| **API Backend**          | `http://localhost:5156`          | Fastify API Server (`/health/*`, `/api/v1/*`)  |
+| **Web (TanStack Start)** | `http://localhost:5155`          | Vite + SSR (dev) `pnpm --filter web dev`       |
+| **Scalar API Reference** | `http://localhost:5156/api/docs` | Interactive OpenAPI 3.1 Docs                   |
+| **Grafana Dashboard**    | `http://localhost:3001`          | `admin / admin` (API, DB, Redis, Traces, Logs) |
+| **Tempo Trace Engine**   | `http://localhost:3200`          | OTLP Traces (`:4318` HTTP / `:4317` gRPC)      |
+| **Alloy Telemetry UI**   | `http://localhost:12345`         | Live Pipeline Graph & Collector Status         |
+| **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                     |
+| **Loki Log Engine**      | `http://localhost:3100`          | High-performance Log Aggregator                |
+| **cAdvisor UI**          | `http://localhost:8080`          | Container Resource & OOM Metrics (`cadvisor`)  |
+| **Mailpit Web UI**       | `http://localhost:8025`          | Local SMTP Email Inbox (`:1025`)               |
+| **Email Preview**        | `http://localhost:3002`          | React Email workshop (`pnpm dev:email`)        |
+| **MinIO Console**        | `http://localhost:9001`          | `minioadmin / minioadmin` (S3: `:9000`)        |
+| **pgAdmin 4**            | `http://localhost:5050`          | `admin@example.com / admin`                    |
 
 ---
 
@@ -213,8 +216,11 @@ For delivery, TLS, secrets, alerting, backups, and load shedding, follow [Produc
 
 ## Health Checks
 
-- **Liveness:** `GET /api/v1/health/live`
-- **Readiness:** `GET /api/v1/health/ready`
+Mounted at both root and versioned prefixes:
+
+- **Liveness:** `GET /health/live` or `GET /api/v1/health/live`
+- **Readiness:** `GET /health/ready` or `GET /api/v1/health/ready`
+- **Full Diagnostics:** `GET /health` or `GET /api/v1/health`
 - **Prometheus Metrics:** `GET /metrics`
 
 ---

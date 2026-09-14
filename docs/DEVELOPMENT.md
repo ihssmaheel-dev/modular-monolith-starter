@@ -56,9 +56,10 @@ pnpm --filter web build && pnpm --filter web start # standalone production-like 
 
 Local endpoints:
 
-- API `http://localhost:5156/api/v1`, Scalar `http://localhost:5156/api/docs`
+- API `http://localhost:5156/api/v1` (health probes: `http://localhost:5156/health` and `/api/v1/health`), Scalar `http://localhost:5156/api/docs`
 - Web `http://localhost:5155`
 - MinIO console `http://localhost:9001`, Mailpit `http://localhost:8025`
+- Observability: Grafana `http://localhost:3001`, Prometheus `http://localhost:9090`, Loki `http://localhost:3100`, Tempo `http://localhost:3200`, cAdvisor `http://localhost:8080`
 
 Stop infrastructure with `pnpm docker:down`.
 
@@ -181,6 +182,7 @@ work against the TypeScript API source. Set `LOG_LEVEL=debug` for structured API
 Useful runtime checks:
 
 ```sh
+pnpm status                                        # Check live TCP connectivity across all 15 services in ~20ms
 docker compose -f docker/docker-compose.yml ps
 docker compose -f docker/docker-compose.yml logs postgres redis minio mailpit
 pnpm --filter api db:migrate:status
@@ -189,7 +191,7 @@ pnpm --filter api db:migrate:status
 ## Troubleshooting
 
 - **`docker` is unavailable:** install/start Docker and confirm `docker compose version` succeeds.
-- **A port is occupied:** check `3000`, `5432`, `6379`, `8025`, `9000`, `9001`, then
+- **A port is occupied:** check `5156` (API), `5155` (Web), `5432` (Postgres), `6379` (Redis), `8025` (Mailpit), `9000` (MinIO), `3001` (Grafana), `8080` (cAdvisor), `3000` (prod container), then
   stop the conflicting process.
 - **Environment validation fails:** compare the relevant `.env` with its `.env.example`; access and
   refresh JWT secrets must differ and contain at least 32 characters.
