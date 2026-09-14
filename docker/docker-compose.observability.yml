@@ -25,14 +25,20 @@ services:
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
 
-  promtail:
-    image: grafana/promtail:3.0.0
-    container_name: monorepo-promtail
+  alloy:
+    image: grafana/alloy:v1.4.3
+    container_name: monorepo-alloy
+    ports:
+      - "12345:12345"
     volumes:
-      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${DOCKER_CONTAINERS_PATH:-/var/lib/docker/containers}:/var/lib/docker/containers:ro
-    command: -config.file=/etc/promtail/config.yml
+      - alloy_data:/var/lib/alloy/data
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
     depends_on:
       - loki
 
@@ -101,3 +107,4 @@ volumes:
   grafana_data:
   alertmanager_data:
   tempo_data:
+  alloy_data:

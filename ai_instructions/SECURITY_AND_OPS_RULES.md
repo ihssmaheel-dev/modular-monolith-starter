@@ -142,7 +142,7 @@ Add an index when:
 - **Grafana** (`http://localhost:3001` admin/admin): Pre-configured dashboards for API performance, Postgres, and Redis.
 - **Prometheus** (`http://localhost:9090`): Scrapes `/metrics` from Fastify API, Postgres exporter (`:9187`), and Redis exporter (`:9121`).
 - **Tempo** (`http://localhost:3200`): Receives OpenTelemetry OTLP traces (`:4318` HTTP / `:4317` gRPC) for high-scale distributed tracing.
-- **Loki** (`http://localhost:3100`) + **Promtail**: Docker log aggregator with automatic `traceId` correlation linking directly into Tempo trace waterfalls in Grafana.
+- **Loki** (`http://localhost:3100`) + **Alloy** (`http://localhost:12345`): High-performance log aggregation with live pipeline debugging and automatic `traceId` correlation linking directly into Tempo trace waterfalls in Grafana.
 
 ### Standard Application Logging
 Tool: Pino (locked stack). Fast, structured, JSON output.
