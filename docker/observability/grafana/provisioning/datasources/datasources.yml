@@ -10,6 +10,13 @@ datasources:
     editable: false
     jsonData:
       timeInterval: 10s
+      exemplarTraceIdDestinations:
+        - datasourceUid: tempo
+          name: trace_id
+          urlDisplayLabel: "Tempo Trace"
+        - datasourceUid: tempo
+          name: TraceID
+          urlDisplayLabel: "Tempo Trace"
 
   - name: Loki
     uid: Loki
@@ -20,9 +27,10 @@ datasources:
     jsonData:
       derivedFields:
         - datasourceUid: tempo
-          matcherRegex: "(?:trace_id|traceId)\":\"?(\\w+)"
+          matcherRegex: '(?:"trace_id"|"traceId"|trace_id|traceId)["\s:=]+([a-fA-F0-9]{16,32})'
           name: TraceID
           url: "$${__value.raw}"
+          urlDisplayLabel: "Tempo Trace"
 
   - name: Tempo
     uid: tempo
@@ -34,19 +42,23 @@ datasources:
       httpMethod: GET
       tracesToLogsV2:
         datasourceUid: Loki
-        spanStartTimeShift: "1s"
-        spanEndTimeShift: "1s"
-        tags: [{ key: "service.name", value: "application" }]
+        spanStartTimeShift: "2s"
+        spanEndTimeShift: "2s"
+        tags: [{ key: "service.name", value: "service" }]
         filterByTraceID: true
         filterBySpanID: false
+        customQuery: true
+        query: '{$${__tags}} |= "$${__trace.traceId}"'
       tracesToMetrics:
         datasourceUid: Prometheus
-        tags: [{ key: "service.name", value: "service" }, { key: "job" }]
+        tags: [{ key: "service.name", value: "service" }]
         queries:
           - name: "Throughput"
-            query: "sum(rate(http_requests_total{}[1m]))"
-          - name: "Latency"
-            query: "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{}[1m])) by (le))"
+            query: 'sum(rate(http_requests_total{route=~"$${__span.tags.http.route:-.*}"}[1m]))'
+          - name: "Latency P95"
+            query: 'histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~"$${__span.tags.http.route:-.*}"}[1m])) by (le))'
+          - name: "5xx Error Rate"
+            query: 'sum(rate(http_requests_total{status_code=~"5..",route=~"$${__span.tags.http.route:-.*}"}[1m]))'
       serviceMap:
         datasourceUid: Prometheus
       search:

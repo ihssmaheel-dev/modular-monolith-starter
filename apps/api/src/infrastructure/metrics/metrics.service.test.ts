@@ -56,4 +56,28 @@ describe("MetricsService", () => {
     expect(register.getSingleMetric).toHaveBeenCalledWith("realtime_consumer_lag_ms");
     expect(mockExistingHistogram.observe).toHaveBeenCalledWith(123);
   });
+
+  it("should pass exemplar labels to histogram observe when provided", async () => {
+    const { register } = await import("prom-client");
+    const mockExistingHistogram = {
+      observe: vi.fn(),
+      startTimer: vi.fn(),
+    };
+    vi.mocked(register.getSingleMetric).mockReturnValue(mockExistingHistogram as never);
+
+    service.recordHistogram(
+      "http_request_duration_seconds",
+      "Duration",
+      0.05,
+      { method: "GET", route: "/notes" },
+      [0.1, 0.5],
+      { trace_id: "test-trace-123" },
+    );
+
+    expect(mockExistingHistogram.observe).toHaveBeenCalledWith({
+      labels: { method: "GET", route: "/notes" },
+      value: 0.05,
+      exemplarLabels: { trace_id: "test-trace-123" },
+    });
+  });
 });

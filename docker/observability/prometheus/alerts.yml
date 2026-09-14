@@ -129,3 +129,32 @@ groups:
         annotations:
           summary: Redis keyspace hit ratio is low
           description: "Redis cache hit ratio has dropped below 60% over the last 15 minutes."
+
+  - name: container-health
+    rules:
+      - alert: ContainerOomKilled
+        expr: increase(container_oom_events_total{name=~"monorepo-.*"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: Container was OOM killed by the kernel
+          description: "One or more monorepo containers experienced an Out-Of-Memory termination event."
+
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_working_set_bytes{name=~"monorepo-.*"} / container_spec_memory_limit_bytes{name=~"monorepo-.*"} > 0.85) and (container_spec_memory_limit_bytes{name=~"monorepo-.*"} > 0)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Container working set memory is dangerously high
+          description: "Container working set memory exceeded 85% of its configured limit for over 5 minutes."
+
+      - alert: ContainerHighCpuUsage
+        expr: (sum by (name) (rate(container_cpu_usage_seconds_total{name=~"monorepo-.*"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Container CPU utilization is sustained above 85%
+          description: "Container is consuming more than 85% CPU capacity for over 5 minutes."
+

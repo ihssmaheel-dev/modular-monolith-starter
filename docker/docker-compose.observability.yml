@@ -12,6 +12,7 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--web.enable-lifecycle"
+      - "--enable-feature=exemplar-storage"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -100,6 +101,24 @@ services:
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/alertmanager"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: monorepo-cadvisor
+    ports:
+      - "8080:8080"
+    command:
+      - "--docker_only=true"
+      - "--disable_metrics=disk,diskIO"
+      - "--housekeeping_interval=10s"
+      - "--max_housekeeping_interval=15s"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
 
 volumes:
   prometheus_data:

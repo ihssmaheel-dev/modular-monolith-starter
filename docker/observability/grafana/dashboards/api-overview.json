@@ -216,6 +216,13 @@
         "defaults": {
           "color": { "mode": "palette-classic" },
           "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "links": [
+            {
+              "title": "Investigate High-Latency Traces in Tempo",
+              "url": "/explore?left={\"datasource\":\"tempo\",\"queries\":[{\"queryType\":\"search\",\"serviceName\":\"api-service\",\"minDuration\":\"250ms\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
+            }
+          ],
           "unit": "s"
         }
       },
@@ -250,6 +257,18 @@
         "defaults": {
           "color": { "mode": "palette-classic" },
           "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "links": [
+            {
+              "title": "Correlate Errors in Loki Logs",
+              "url": "/explore?left={\"datasource\":\"Loki\",\"queries\":[{\"expr\":\"{container=~\\\"$container\\\"} |= \\\"error\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
+            },
+            {
+              "title": "Find Traces in Tempo",
+              "url": "/explore?left={\"datasource\":\"tempo\",\"queries\":[{\"queryType\":\"search\",\"serviceName\":\"api-service\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
+            }
+          ],
           "unit": "reqps"
         }
       },
@@ -725,13 +744,153 @@
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 46 },
+      "id": 107,
+      "title": "Container Infrastructure & Resource Usage (cAdvisor) (RB-15)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Resident working set memory per container via cAdvisor.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "links": [
+            {
+              "title": "View Container Logs in Loki",
+              "url": "/explore?left={\"datasource\":\"Loki\",\"queries\":[{\"expr\":\"{container=~\\\"${__series.name}\\\"}\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
+            }
+          ],
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 47 },
+      "id": 40,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Container Working Set Memory (cAdvisor)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{name=~\"monorepo-.*\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Per-container CPU utilization percent via cAdvisor.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "links": [
+            {
+              "title": "View Container Logs in Loki",
+              "url": "/explore?left={\"datasource\":\"Loki\",\"queries\":[{\"expr\":\"{container=~\\\"${__series.name}\\\"}\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 75 },
+              { "color": "red", "value": 85 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 47 },
+      "id": 41,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Container CPU Utilization % (cAdvisor)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"monorepo-.*\"}[1m])) by (name) * 100",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Container network transmit and receive throughput.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 53 },
+      "id": 42,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Container Network I/O (cAdvisor)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(container_network_receive_bytes_total{name=~\"monorepo-.*\"}[1m])) by (name)",
+          "legendFormat": "Rx: {{name}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(container_network_transmit_bytes_total{name=~\"monorepo-.*\"}[1m])) by (name)",
+          "legendFormat": "Tx: {{name}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Kernel OOM termination events tracked by cAdvisor.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 53 },
+      "id": 43,
+      "options": {
+        "legend": { "calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Container OOM Kill Events (cAdvisor, RB-15)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "increase(container_oom_events_total{name=~\"monorepo-.*\"}[10m])",
+          "legendFormat": "OOM: {{name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
       "id": 106,
       "title": "Live Application & Infrastructure Logs (Correlated with Tempo Traces)",
       "type": "row"
     },
     {
       "datasource": { "type": "loki", "uid": "Loki" },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 47 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 60 },
       "id": 7,
       "options": {
         "dedupStrategy": "none",

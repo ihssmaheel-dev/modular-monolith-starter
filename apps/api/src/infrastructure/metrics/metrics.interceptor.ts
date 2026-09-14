@@ -1,6 +1,7 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { tap, catchError } from "rxjs/operators";
+import { trace } from "@opentelemetry/api";
 import { MetricsService } from "./metrics.service";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
@@ -51,6 +52,11 @@ export class MetricsInterceptor implements NestInterceptor {
     return typeof value.statusCode === "number" ? value.statusCode : 500;
   }
 
+  private getExemplar(): Record<string, string> | undefined {
+    const traceId = trace.getActiveSpan()?.spanContext()?.traceId;
+    return traceId ? { trace_id: traceId } : undefined;
+  }
+
   private recordMetrics(
     startTime: [number, number],
     method: string,
@@ -61,36 +67,27 @@ export class MetricsInterceptor implements NestInterceptor {
       "http_active_connections",
       "Number of active HTTP connections",
       1,
-      {
-        method,
-        route,
-      },
+      { method, route },
     );
 
     const diff = process.hrtime(startTime);
     const durationInSeconds = diff[0] + diff[1] / 1e9;
+    const labels = { method, route, status_code: statusCode };
 
     this.metricsService.recordHistogram(
       "http_request_duration_seconds",
       "Duration of HTTP requests in seconds",
       durationInSeconds,
-      {
-        method,
-        route,
-        status_code: statusCode,
-      },
+      labels,
       [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+      this.getExemplar(),
     );
 
     this.metricsService.incrementCounter(
       "http_requests_total",
       "Total number of HTTP requests",
       1,
-      {
-        method,
-        route,
-        status_code: statusCode,
-      },
+      labels,
     );
   }
 }

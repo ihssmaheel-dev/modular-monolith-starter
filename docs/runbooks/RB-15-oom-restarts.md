@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alerts firing: `ContainerOomKilled` (kernel OOM kill event), `ContainerHighMemoryUsage` (working set memory > 85% of limit), or `ContainerHighCpuUsage` (sustained CPU > 85%).
 - Containers restarting on a loop (`docker compose ps` shows recent uptimes / high restart
   counts), host OOM-killer lines (`dmesg | grep -i "out of memory"`), or Node heap errors
   (`JavaScript heap out of memory`) in logs.

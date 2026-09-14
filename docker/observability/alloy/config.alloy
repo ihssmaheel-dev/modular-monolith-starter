@@ -12,6 +12,12 @@ discovery.relabel "docker_logs" {
 
   rule {
     source_labels = ["__meta_docker_container_name"]
+    regex         = "/(?:monorepo-)?(.*)"
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
     regex         = "/(.*)"
     target_label  = "container"
   }

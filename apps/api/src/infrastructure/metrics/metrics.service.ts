@@ -22,10 +22,16 @@ export class MetricsService {
     value: number,
     labels?: Labels,
     buckets?: number[],
+    exemplarLabels?: Record<string, string>,
   ): void {
     const histogram = this.getHistogram(name, help, labels, buckets);
-    if (labels) histogram.observe(labels, value);
-    else histogram.observe(value);
+    if (exemplarLabels && Object.keys(exemplarLabels).length > 0) {
+      histogram.observe({ labels: labels ?? {}, value, exemplarLabels });
+    } else if (labels) {
+      histogram.observe(labels, value);
+    } else {
+      histogram.observe(value);
+    }
   }
 
   startTimer(name: string, help: string, labels?: Labels, buckets?: number[]): () => number {
@@ -78,9 +84,24 @@ export class MetricsService {
     let metric = this.histograms.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric =
-        (existing as Histogram<string> | undefined) ??
-        new Histogram({ name, help, labelNames: Object.keys(labels ?? {}), buckets });
+      let created: Histogram<string>;
+      try {
+        created = new Histogram({
+          name,
+          help,
+          labelNames: Object.keys(labels ?? {}),
+          buckets,
+          enableExemplars: true,
+        });
+      } catch {
+        created = new Histogram({
+          name,
+          help,
+          labelNames: Object.keys(labels ?? {}),
+          buckets,
+        });
+      }
+      metric = (existing as Histogram<string> | undefined) ?? created;
       this.histograms.set(name, metric);
     }
     return metric;
