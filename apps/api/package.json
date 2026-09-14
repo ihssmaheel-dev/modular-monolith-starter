@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "predev": "pnpm --filter @repo/email build",
-    "dev": "concurrently \"swc src -w -d dist/apps/api\" \"nodemon --delay 2.5 dist/apps/api/src/main.js\"",
-    "dev:debug": "concurrently \"swc src -w -d dist/apps/api\" \"nodemon --delay 2.5 --inspect=0.0.0.0:9229 dist/apps/api/src/main.js\"",
+    "dev": "concurrently \"swc src -w -d dist/apps/api\" \"nodemon dist/apps/api/src/main.js\"",
+    "dev:debug": "concurrently \"swc src -w -d dist/apps/api\" \"nodemon --inspect=0.0.0.0:9229 dist/apps/api/src/main.js\"",
     "prebuild": "pnpm --filter @repo/email build",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
