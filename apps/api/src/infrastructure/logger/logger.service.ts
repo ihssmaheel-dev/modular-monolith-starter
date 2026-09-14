@@ -13,36 +13,75 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
+const LOKI_LABELS = {
+  application: "api-service",
+  service: "api",
+  container: "monorepo-api",
+};
+
+function buildDevTargets(): pino.TransportTargetOptions[] {
+  const targets: pino.TransportTargetOptions[] = [
+    {
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        singleLine: true,
+        translateTime: "HH:MM:ss.l",
+        ignore: "pid,hostname",
+      },
+      level: env.LOG_LEVEL,
+    },
+  ];
+
+  if (env.LOKI_HOST) {
+    targets.push({
+      target: "pino-loki",
+      options: {
+        host: env.LOKI_HOST,
+        batching: true,
+        interval: 2,
+        silenceErrors: true,
+        labels: LOKI_LABELS,
+      },
+      level: env.LOG_LEVEL,
+    });
+  }
+
+  return targets;
+}
+
+function buildLoggerTransport():
+  pino.TransportMultiOptions | pino.TransportSingleOptions | undefined {
+  if (env.NODE_ENV !== "production") {
+    return { targets: buildDevTargets() };
+  }
+  if (!env.LOKI_HOST) return undefined;
+  return {
+    target: "pino-loki",
+    options: {
+      host: env.LOKI_HOST,
+      batching: true,
+      interval: 5,
+      silenceErrors: true,
+      labels: LOKI_LABELS,
+    },
+  };
+}
+
 @Injectable()
 export class PinoLoggerService implements OnModuleDestroy {
   private logger: pino.Logger;
 
-  constructor(@Optional() @Inject(ClsService) private readonly cls?: ClsService) {
-    this.logger = pino({
-      level: env.LOG_LEVEL,
-      transport:
-        env.NODE_ENV !== "production"
-          ? {
-              target: "pino-pretty",
-              options: {
-                colorize: true,
-                singleLine: true,
-                translateTime: "HH:MM:ss.l",
-                ignore: "pid,hostname",
-              },
-            }
-          : env.LOKI_HOST && !env.LOKI_HOST.includes("localhost")
-            ? {
-                target: "pino-loki",
-                options: {
-                  batching: true,
-                  interval: 5,
-                  host: env.LOKI_HOST,
-                  labels: { application: "api-service" },
-                },
-              }
-            : undefined,
-    });
+  constructor(
+    @Optional() @Inject(ClsService) private readonly cls?: ClsService,
+    existingLogger?: pino.Logger,
+  ) {
+    this.logger =
+      existingLogger ??
+      pino({
+        level: env.LOG_LEVEL,
+        transport: buildLoggerTransport(),
+      });
   }
 
   private enrichContext(context: LogContext): LogContext {
@@ -92,9 +131,7 @@ export class PinoLoggerService implements OnModuleDestroy {
   }
 
   child(bindings: Record<string, unknown>): PinoLoggerService {
-    const child = new PinoLoggerService(this.cls);
-    child.logger = this.logger.child(bindings);
-    return child;
+    return new PinoLoggerService(this.cls, this.logger.child(bindings));
   }
 
   onModuleDestroy() {

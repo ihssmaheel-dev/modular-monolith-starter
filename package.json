@@ -56,6 +56,8 @@
     "architecture:check": "depcruise --config .dependency-cruiser.cjs apps/api/src --output-type err",
     "rules:check-style": "node scripts/check-rules.js",
     "rules:check": "pnpm architecture:check && pnpm theme:check && node scripts/check-rules.js",
+    "info": "node scripts/system-info.js",
+    "status": "node scripts/system-info.js",
     "up": "taze -r"
   },
   "devDependencies": {
