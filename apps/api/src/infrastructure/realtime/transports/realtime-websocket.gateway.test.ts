@@ -32,6 +32,8 @@ describe("RealtimeWebsocketGateway", () => {
   let tenantAccess: ResolveTenantAccessQuery;
   let gateway: RealtimeWebsocketGateway;
 
+  let logger: { debug: ReturnType<typeof vi.fn> };
+
   beforeEach(() => {
     vi.clearAllMocks();
     realtime = {
@@ -41,8 +43,12 @@ describe("RealtimeWebsocketGateway", () => {
     tenantAccess = {
       execute: vi.fn().mockResolvedValue(ok({ tenantId: "tenant-1" })),
     } as unknown as ResolveTenantAccessQuery;
-    const logger = { debug: vi.fn() } as unknown as PinoLoggerService;
-    gateway = new RealtimeWebsocketGateway(realtime, tenantAccess, logger);
+    logger = { debug: vi.fn() };
+    gateway = new RealtimeWebsocketGateway(
+      realtime,
+      tenantAccess,
+      logger as unknown as PinoLoggerService,
+    );
   });
 
   it("authenticates and registers a tenant-scoped WebSocket client", async () => {
@@ -68,14 +74,18 @@ describe("RealtimeWebsocketGateway", () => {
     expect(tenantAccess.execute).not.toHaveBeenCalled();
   });
 
-  it("removes the registered connection when it disconnects", async () => {
+  it("removes the registered connection when it disconnects and logs reason", async () => {
     vi.mocked(verifyAccessToken).mockReturnValue(AUTHENTICATED_USER);
     const socket = createSocket();
     await gateway.handleConnection(socket, { headers: { cookie: "access_token=cookie-token" } });
 
-    gateway.handleDisconnect(socket);
+    gateway.handleDisconnect(socket, "token expired");
 
     expect(realtime.removeWsClient).toHaveBeenCalledWith("user-1", "tenant-1", socket);
+    expect(logger.debug).toHaveBeenCalledWith(
+      { userId: "user-1", tenantId: "tenant-1", reason: "token expired" },
+      "WS disconnected",
+    );
   });
 
   it("responds to pings only while the socket is open", () => {

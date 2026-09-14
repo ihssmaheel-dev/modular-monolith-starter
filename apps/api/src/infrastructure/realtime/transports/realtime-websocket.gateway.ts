@@ -110,13 +110,13 @@ export class RealtimeWebsocketGateway
     this.logger.debug({ userId: identity.userId, tenantId: identity.tenantId }, "WS connected");
   }
 
-  handleDisconnect(@ConnectedSocket() client: WebSocket): void {
+  handleDisconnect(@ConnectedSocket() client: WebSocket, reason?: string): void {
     const identity = this.socketIdentity.get(client);
     if (identity) {
       this.realtime.removeWsClient(identity.userId, identity.tenantId, client);
       this.socketIdentity.delete(client);
       this.logger.debug(
-        { userId: identity.userId, tenantId: identity.tenantId },
+        { userId: identity.userId, tenantId: identity.tenantId, reason },
         "WS disconnected",
       );
     }

@@ -22,6 +22,7 @@ const STATUS_KEYS: Record<number, string> = {
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
 type ErrorPayload = {
+  errorCode?: unknown;
   code?: unknown;
   error?: unknown;
   message?: unknown;
@@ -58,7 +59,7 @@ export function createApiErrorEnvelope(
   const i18nKey = i18nKeyOf(payload, safeStatus);
   const retry = retryOf(payload, safeStatus);
   return ApiErrorEnvelopeSchema.parse({
-    code: codeOf(payload, safeStatus),
+    code: codeOf(payload, safeStatus, exception),
     i18nKey,
     message: i18n.t(i18nKey, language),
     status: safeStatus,
@@ -94,7 +95,15 @@ function payloadOf(exception: unknown): ErrorPayload | undefined {
   return typeof value === "object" && value !== null ? (value as ErrorPayload) : undefined;
 }
 
-function codeOf(payload: ErrorPayload | undefined, status: number): string {
+function codeOf(payload: ErrorPayload | undefined, status: number, exception?: unknown): string {
+  if (typeof payload?.errorCode === "string" && isSafeCode(payload.errorCode))
+    return payload.errorCode;
+  if (
+    exception instanceof HttpException &&
+    typeof exception.errorCode === "string" &&
+    isSafeCode(exception.errorCode)
+  )
+    return exception.errorCode;
   if (typeof payload?.code === "string" && isSafeCode(payload.code)) return payload.code;
   if (typeof payload?.error === "string" && /^[A-Z][A-Z0-9_]+$/.test(payload.error))
     return payload.error;

@@ -55,3 +55,4 @@ Decisions with a half-life longer than a sprint. Read the template (`0000-templa
 | 0058   | Env-JSON feature flags, no vendor                                 | accepted |
 | 0061   | Single React version forced via pnpm overrides                    | accepted |
 | 0066   | The enforcer evolves by protocol, not accretion                   | accepted |
+| 0067   | NestJS 12 feature adoption and selective skips                    | accepted |

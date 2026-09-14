@@ -99,4 +99,20 @@ describe("AllExceptionsFilter", () => {
       }),
     );
   });
+
+  it("extracts NestJS 12 native errorCode from HttpExceptionOptions", () => {
+    const { filter } = createFilter();
+    const ctx = host();
+    filter.catch(
+      new BadRequestException("Weak password", { errorCode: "WEAK_PASSWORD" }),
+      ctx.value as never,
+    );
+    const body = ctx.response.send.mock.calls[0]![0];
+    expect(ApiErrorEnvelopeSchema.safeParse(body).success).toBe(true);
+    expect(body).toMatchObject({
+      code: "WEAK_PASSWORD",
+      status: 400,
+      requestId: "request-1",
+    });
+  });
 });

@@ -73,6 +73,14 @@ async function bootstrap() {
       bodyLimit: MAX_BODY_SIZE_BYTES,
       trustProxy: env.TRUST_PROXY,
     }),
+    {
+      routeConflictPolicy: {
+        duplicate: "error",
+        shadow: "warn",
+      },
+      routeResolutionStrategy: "specificity",
+      return503OnClosing: true,
+    },
   );
 
   app
