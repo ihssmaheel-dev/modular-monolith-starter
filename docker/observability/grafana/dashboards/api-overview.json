@@ -354,7 +354,16 @@
             ]
           },
           "unit": "short"
-        }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Oldest Event Age (s)" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "s" }
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 19 },
       "id": 26,
@@ -441,6 +450,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Monitored in production (RB-08). Gauge set during health/readiness checks; 0 or absent in local development is normal.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -590,6 +600,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Emitted by RateLimitGuard on 429 Too Many Requests rejections, partitioned by route and scope.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -606,8 +617,8 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(rate_limit_exceeded_total[1m]))",
-          "legendFormat": "Rate Limit Exceeded / s",
+          "expr": "sum(rate(rate_limit_exceeded_total{route=~\"$route\"}[1m])) by (route)",
+          "legendFormat": "{{route}}",
           "refId": "A"
         }
       ]

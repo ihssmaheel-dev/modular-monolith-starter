@@ -1,7 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, HttpStatus } from "@nestjs/common";
+import { Injectable, CanActivate, ExecutionContext, HttpStatus, Optional } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { RateLimitService } from "../../infrastructure/rate-limit/rate-limit.service";
+import type { RateLimitResult } from "../../infrastructure/rate-limit/rate-limit.service";
 import { I18nService } from "../../infrastructure/i18n/i18n.service";
+import { MetricsService } from "../../infrastructure/metrics/metrics.service";
 import { RATE_LIMIT_KEY, RateLimitMetadata } from "../decorators/rate-limit.decorator";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { HttpException } from "@nestjs/common";
@@ -22,6 +24,7 @@ export class RateLimitGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly rateLimitService: RateLimitService,
     private readonly i18n: I18nService,
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -48,27 +51,42 @@ export class RateLimitGuard implements CanActivate {
       maxRequests,
     });
 
-    res.header(RATE_LIMIT_HEADERS.LIMIT, maxRequests.toString());
-    res.header(RATE_LIMIT_HEADERS.REMAINING, result.remaining.toString());
-    res.header(RATE_LIMIT_HEADERS.RESET, result.resetAt.toString());
+    this.setHeaders(res, maxRequests, result);
 
     if (!result.allowed) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: this.i18n.t("api.error.rateLimited", lang),
-          i18nKey: "api.error.rateLimited",
-          fieldErrors: {},
-          retry: {
-            retryable: true,
-            retryAfterMs: Math.max(0, result.resetAt * MILLISECONDS_PER_SECOND - Date.now()),
-          },
-          error: "RATE_LIMITED",
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+      this.handleRejection(route, result, lang);
     }
 
     return true;
+  }
+
+  private setHeaders(res: FastifyReply, maxRequests: number, result: RateLimitResult): void {
+    res.header(RATE_LIMIT_HEADERS.LIMIT, maxRequests.toString());
+    res.header(RATE_LIMIT_HEADERS.REMAINING, result.remaining.toString());
+    res.header(RATE_LIMIT_HEADERS.RESET, result.resetAt.toString());
+  }
+
+  private handleRejection(route: string, result: RateLimitResult, lang?: string): never {
+    const scope = route.includes("/auth/") || route.includes("auth") ? "auth" : "api";
+    this.metrics?.incrementCounter(
+      "rate_limit_exceeded_total",
+      "Total number of rate limit rejections",
+      1,
+      { scope, route },
+    );
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        message: this.i18n.t("api.error.rateLimited", lang),
+        i18nKey: "api.error.rateLimited",
+        fieldErrors: {},
+        retry: {
+          retryable: true,
+          retryAfterMs: Math.max(0, result.resetAt * MILLISECONDS_PER_SECOND - Date.now()),
+        },
+        error: "RATE_LIMITED",
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 }
