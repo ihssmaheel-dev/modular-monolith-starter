@@ -260,7 +260,7 @@
           "links": [
             {
               "title": "Correlate Errors in Loki Logs",
-              "url": "/explore?left={\"datasource\":\"Loki\",\"queries\":[{\"expr\":\"{container=~\\\"$container\\\"} |= \\\"error\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "url": "/explore?left={\"datasource\":\"Loki\",\"queries\":[{\"expr\":\"{container=~\\\"${container:regex}\\\"} |= \\\"error\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
               "targetBlank": false
             },
             {
@@ -907,7 +907,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "Loki" },
-          "expr": "{container=~\"$container\"}",
+          "expr": "{container=~\"${container:regex}\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -939,6 +939,7 @@
         "type": "query"
       },
       {
+        "allValue": ".+",
         "current": { "selected": true, "text": "All", "value": "$__all" },
         "datasource": { "type": "loki", "uid": "Loki" },
         "definition": "label_values(container)",
@@ -965,6 +966,6 @@
   "timezone": "browser",
   "title": "API & Service Performance",
   "uid": "api-performance-overview",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
