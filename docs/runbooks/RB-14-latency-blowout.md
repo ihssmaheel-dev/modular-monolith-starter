@@ -26,7 +26,7 @@ Treat slowness as pre-outage.
 3. `pg_stat_activity`: lock waits (`wait_event_type = 'Lock'`) vs genuine slow execution.
    Locks point at migrations/transactions; slow execution points at plans/indexes.
 4. Downstream: external calls (SMTP, S3, AV scanner) with new latency? Check their spans
-   in a sampled Jaeger trace before blaming the database.
+   in a sampled Tempo trace before blaming the database.
 
 ## Fix paths
 

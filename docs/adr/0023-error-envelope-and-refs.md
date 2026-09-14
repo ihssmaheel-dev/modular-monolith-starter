@@ -15,7 +15,7 @@ Every failure returns the stable envelope: machine `code`, i18n key, translated 
 
 ## Consequences
 
-Gain: support goes from "what happened?" to a Loki/Jaeger lookup in one paste; API errors stay translated and stable for clients. Pay: every error path must construct the envelope (the filter centralizes it), and reference display must never leak the underlying message.
+Gain: support goes from "what happened?" to a Loki/Tempo lookup in one paste; API errors stay translated and stable for clients. Pay: every error path must construct the envelope (the filter centralizes it), and reference display must never leak the underlying message.
 
 ## Alternatives considered
 

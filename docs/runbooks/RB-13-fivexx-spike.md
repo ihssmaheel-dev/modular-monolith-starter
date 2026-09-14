@@ -22,7 +22,7 @@ instead of one dashboard spelunk.
 
 1. Take one `ref #` from a report or the frontend. In Loki: filter for the 8 hex chars —
    the structured error log carries `traceId`, `requestId`, and the stack.
-2. Follow the Grafana derived `TraceID` field into Jaeger for the full distributed trace —
+2. Follow the Grafana derived `TraceID` field into Tempo for the full distributed trace —
    which service, which span, which downstream call failed.
 3. Check the envelope `code`: validation/config errors (fix forward, small) vs
    `SERVER_ERROR` with connection timeouts (dependency — jump to the matching runbook).

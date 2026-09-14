@@ -56,7 +56,7 @@ When errors occur on the API or in the frontend, an 8-character error reference 
 
 - **Trace correlation**: On API failures with an active OpenTelemetry span, the reference is derived from the first 8 hex characters of the `trace_id`.
 - **Loki lookup**: Search Loki for `{application="api-service"} |= "a3f9c1e4"` to immediately locate the exact structured error log and stack trace.
-- **Jaeger link**: In Grafana Loki, the derived `TraceID` field links directly into Jaeger (`http://localhost:16686/trace/<traceId>`) to inspect the full distributed trace.
+- **Tempo link**: In Grafana Loki, the derived `TraceID` field links directly into Tempo in Grafana to inspect the full distributed trace waterfall.
 - **Support copy**: Users or testers can click "Copy error details" on any error boundary (`RouteErrorFallback` or `RootError`) to copy a structured text payload containing the reference, trace ID, request ID, and timestamp.
 
 ## Workers and migrations

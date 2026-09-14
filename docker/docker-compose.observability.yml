@@ -36,15 +36,17 @@ services:
     depends_on:
       - loki
 
-  jaeger:
-    image: jaegertracing/all-in-one:1.60
-    container_name: monorepo-jaeger
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: monorepo-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
     ports:
-      - "16686:16686"
+      - "3200:3200"
       - "4317:4317"
       - "4318:4318"
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
 
   grafana:
     image: grafana/grafana:11.1.0
@@ -63,7 +65,7 @@ services:
     depends_on:
       - prometheus
       - loki
-      - jaeger
+      - tempo
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
@@ -98,3 +100,4 @@ volumes:
   loki_data:
   grafana_data:
   alertmanager_data:
+  tempo_data:

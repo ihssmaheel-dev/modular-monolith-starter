@@ -25,7 +25,7 @@ export type ApiErrorEnvelope = z.infer<typeof ApiErrorEnvelopeSchema>;
 
 /**
  * Derives a human-readable, 8-character hex error reference ID.
- * Prefers the first 8 characters of the OpenTelemetry trace ID (for immediate Jaeger / Loki lookup),
+ * Prefers the first 8 characters of the OpenTelemetry trace ID (for immediate Tempo / Loki lookup),
  * falling back to the leading 8 characters of the request ID UUID.
  */
 export function formatErrorRef(traceId?: string, requestId?: string): string {

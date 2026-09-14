@@ -16,7 +16,7 @@ A production-grade, highly scalable TypeScript modular monolith architecture des
   - `@repo/ui`: Base UI React 1 + shadcn base-nova + Tailwind 4 + tw-animate-css + CVA + lucide-react (single `globals.css` + `cn()`)
   - `@repo/email`: React Email templates with isolated HTML renderer
   - `@repo/typescript-config`: Centralized TypeScript configurations (TS ~6)
-- **Observability:** Grafana + Prometheus + Loki + Promtail + Jaeger + Postgres & Redis Exporters
+- **Observability:** Grafana + Prometheus + Loki + Promtail + Tempo + Postgres & Redis Exporters
 - **Documentation:** Interactive Scalar API Reference (`@scalar/fastify-api-reference`) & OpenAPI 3.1
 - **Tooling & Monorepo:** Turborepo 2.10 + pnpm 10 workspaces + TypeScript ~6 + Vitest 5 (api) + Playwright (web)
 
@@ -135,7 +135,7 @@ pnpm docker:logs      # View infrastructure logs
 ### Local Observability Stack (One-Command)
 
 ```bash
-pnpm observability:up   # Start Grafana, Prometheus, Loki, Promtail, Jaeger, Exporters
+pnpm observability:up   # Start Grafana, Prometheus, Loki, Promtail, Tempo, Exporters
 pnpm observability:down # Stop observability stack
 pnpm observability:logs # Tail telemetry logs
 ```
@@ -149,8 +149,8 @@ pnpm observability:logs # Tail telemetry logs
 | **API Backend**          | `http://localhost:5156`          | Fastify API Server (`/api/v1`, `/api/v1/health/*`) |
 | **Web (TanStack Start)** | `http://localhost:5155`          | Vite + SSR (dev) `pnpm --filter web dev`           |
 | **Scalar API Reference** | `http://localhost:5156/api/docs` | Interactive OpenAPI 3.1 Docs                       |
-| **Grafana Dashboard**    | `http://localhost:3001`          | `admin / admin` (API, DB, Redis metrics)           |
-| **Jaeger Trace Viewer**  | `http://localhost:16686`         | OpenTelemetry Distributed Traces                   |
+| **Grafana Dashboard**    | `http://localhost:3001`          | `admin / admin` (API, DB, Redis, Traces, Logs)     |
+| **Tempo Trace Engine**   | `http://localhost:3200`          | OTLP Traces (`:4318` HTTP / `:4317` gRPC)          |
 | **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                         |
 | **Loki Log Engine**      | `http://localhost:3100`          | High-performance Log Aggregator                    |
 | **Mailpit Web UI**       | `http://localhost:8025`          | Local SMTP Email Inbox (`:1025`)                   |
