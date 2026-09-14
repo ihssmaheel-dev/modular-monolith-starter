@@ -4,14 +4,39 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "doc",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Incident Runbooks (docs/runbooks)",
+      "tooltip": "Open incident runbooks directory",
+      "type": "link",
+      "url": "https://github.com/ihssmaheel-dev/modular-monolith-starter/tree/main/docs/runbooks"
+    },
+    {
+      "asDropdown": false,
+      "icon": "compass",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Explore Traces (Tempo)",
+      "tooltip": "Open distributed trace search in Tempo",
+      "type": "link",
+      "url": "/explore?left=%7B%22datasource%22:%22tempo%22%7D"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
-      "title": "Golden Signals: Traffic, Latency, Errors & Saturation",
+      "title": "Golden Signals: Traffic, Latency, Errors & Saturation (RB-01, RB-13, RB-14)",
       "type": "row"
     },
     {
@@ -43,7 +68,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total[1m])) or vector(0)",
+          "expr": "sum(rate(http_requests_total{route=~\"$route\"}[1m])) or vector(0)",
           "legendFormat": "RPS",
           "refId": "A"
         }
@@ -59,8 +84,8 @@
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 200 },
-              { "color": "red", "value": 500 }
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
             ]
           },
           "unit": "ms"
@@ -75,12 +100,12 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "title": "p95 Latency",
+      "title": "p95 Latency (Alert @ 1s)",
       "type": "stat",
       "targets": [
         {
-          "expr": "(histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le)) * 1000) or vector(0)",
-          "legendFormat": "p95 ms",
+          "expr": "(histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~\"$route\"}[1m])) by (le)) * 1000) or vector(0)",
+          "legendFormat": "p95 Latency",
           "refId": "A"
         }
       ]
@@ -96,7 +121,7 @@
             "steps": [
               { "color": "green", "value": null },
               { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              { "color": "red", "value": 2 }
             ]
           },
           "unit": "percent"
@@ -106,17 +131,17 @@
       "id": 22,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "title": "Error Rate (4xx/5xx)",
+      "title": "Server Error Rate (5xx SLI - Alert @ 2%)",
       "type": "stat",
       "targets": [
         {
-          "expr": "(sum(rate(http_requests_total{status_code=~\"[45]..\"}[1m])) or vector(0)) / (sum(rate(http_requests_total[1m])) or vector(1)) * 100",
-          "legendFormat": "Error %",
+          "expr": "(sum(rate(http_requests_total{status_code=~\"5..\",route=~\"$route\"}[1m])) or vector(0)) / (sum(rate(http_requests_total{route=~\"$route\"}[1m])) or vector(1)) * 100",
+          "legendFormat": "5xx Error Rate",
           "refId": "A"
         }
       ]
@@ -131,17 +156,18 @@
             "mode": "absolute",
             "steps": [
               { "color": "blue", "value": null },
-              { "color": "purple", "value": 50 }
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 200 }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         }
       },
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
       "id": 23,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
@@ -150,8 +176,8 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(http_active_connections) or vector(0)",
-          "legendFormat": "Connections",
+          "expr": "sum(http_active_connections{route=~\"$route\"}) or vector(0)",
+          "legendFormat": "Active Connections",
           "refId": "A"
         }
       ]
@@ -161,29 +187,24 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never"
-          },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
           "unit": "reqps"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 5 },
       "id": 1,
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
+        "legend": {
+          "calcs": ["mean", "lastNotNull"],
+          "displayMode": "table",
+          "placement": "bottom"
+        }
       },
       "title": "Throughput by Status Code",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total[1m])) by (status_code)",
+          "expr": "sum(rate(http_requests_total{route=~\"$route\"}[1m])) by (status_code)",
           "legendFormat": "HTTP {{status_code}}",
           "refId": "A"
         }
@@ -194,40 +215,31 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never"
-          },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
           "unit": "s"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 5 },
       "id": 2,
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
+        "legend": { "calcs": ["p95", "max"], "displayMode": "table", "placement": "bottom" }
       },
       "title": "API Latency Quantiles (p50, p95, p99)",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{route=~\"$route\"}[1m])) by (le))",
           "legendFormat": "p50 Median",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
-          "legendFormat": "p95 Tail",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~\"$route\"}[1m])) by (le))",
+          "legendFormat": "p95 Latency",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
-          "legendFormat": "p99 Peak",
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route=~\"$route\"}[1m])) by (le))",
+          "legendFormat": "p99 Tail Latency",
           "refId": "C"
         }
       ]
@@ -237,42 +249,34 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "lineWidth": 2,
-            "showPoints": "never"
-          },
-          "unit": "short"
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "reqps"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 5 },
       "id": 3,
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }
       },
-      "title": "Error Rates (4xx Client & 5xx Server)",
+      "title": "Client Errors (4xx) vs Server Errors (5xx)",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status_code=~\"4..\"}[1m]))",
+          "expr": "sum(rate(http_requests_total{status_code=~\"4..\",route=~\"$route\"}[1m]))",
           "legendFormat": "4xx Client Errors",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[1m]))",
-          "legendFormat": "5xx Server Errors",
+          "expr": "sum(rate(http_requests_total{status_code=~\"5..\",route=~\"$route\"}[1m]))",
+          "legendFormat": "5xx Server Errors (RB-13)",
           "refId": "B"
         }
       ]
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
-      "id": 102,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "id": 101,
       "title": "Traffic Distribution & Route Performance",
       "type": "row"
     },
@@ -281,24 +285,24 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
           "unit": "reqps"
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
       "id": 24,
       "options": {
         "legend": {
+          "calcs": ["mean", "lastNotNull"],
           "displayMode": "table",
-          "placement": "bottom",
-          "calcs": ["mean", "lastNotNull"]
+          "placement": "bottom"
         }
       },
-      "title": "Top 5 Endpoints by Throughput",
+      "title": "Top Endpoints by Throughput",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "topk(5, sum(rate(http_requests_total[5m])) by (route))",
+          "expr": "topk(5, sum(rate(http_requests_total{route=~\"$route\"}[5m])) by (route))",
           "legendFormat": "{{route}}",
           "refId": "A"
         }
@@ -309,24 +313,20 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
           "unit": "s"
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
       "id": 25,
       "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": ["mean", "lastNotNull"]
-        }
+        "legend": { "calcs": ["max", "lastNotNull"], "displayMode": "table", "placement": "bottom" }
       },
-      "title": "p95 Latency by Endpoint",
+      "title": "p95 Latency by Endpoint (RB-14)",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "topk(5, histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (route, le)))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~\"$route\"}[5m])) by (route, le))",
           "legendFormat": "{{route}}",
           "refId": "A"
         }
@@ -334,9 +334,109 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 102,
+      "title": "Internal Monolith Pipelines: Outbox, Realtime & Cache (RB-05, RB-16)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 20, "lineWidth": 2 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 19 },
+      "id": 26,
+      "options": {
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Outbox Relay Queue Depth (Alert @ 1000)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "outbox_pending_events_depth",
+          "legendFormat": "Pending Events",
+          "refId": "A"
+        },
+        {
+          "expr": "outbox_pending_age_ms / 1000",
+          "legendFormat": "Oldest Event Age (s)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 19 },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "lastNotNull"],
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "title": "Realtime SSE Streams & Live Connections (RB-16)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(http_active_connections{route=~\"/api/v1/realtime.*\"})",
+          "legendFormat": "Active SSE Streams",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 19 },
+      "id": 28,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "lastNotNull"],
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "title": "Cache Operations (Hit / Miss / Set)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(cache_operations_total[1m])) by (operation)",
+          "legendFormat": "{{operation}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
       "id": 103,
-      "title": "Internal Architecture: Outbox, Realtime & Cache",
+      "title": "Background Processing: BullMQ Queues & Worker Fleet (RB-07, RB-08, RB-17)",
       "type": "row"
     },
     {
@@ -344,26 +444,32 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
-          "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2 },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 10 },
-              { "color": "red", "value": 50 }
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
-      "id": 26,
-      "title": "Outbox Relay Pending Events Queue Depth",
-      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 26 },
+      "id": 30,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Active Worker Nodes (Alert @ 0)",
+      "type": "stat",
       "targets": [
         {
-          "expr": "outbox_pending_events_depth or vector(0)",
-          "legendFormat": "Pending Events",
+          "expr": "worker_heartbeats_active or vector(0)",
+          "legendFormat": "Live Workers",
           "refId": "A"
         }
       ]
@@ -373,48 +479,79 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
-          "unit": "short"
-        }
-      },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
-      "id": 27,
-      "title": "Realtime SSE Streams & Live Connections",
-      "type": "timeseries",
-      "targets": [
-        {
-          "expr": "sum(http_active_connections{route=~\"/api/v1/realtime.*\"}) or vector(0)",
-          "legendFormat": "Active SSE Clients",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
           "unit": "ops"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
-      "id": 28,
-      "title": "Cache Operations (Hit / Miss / Set)",
+      "gridPos": { "h": 6, "w": 9, "x": 6, "y": 26 },
+      "id": 31,
+      "options": {
+        "legend": { "calcs": ["max", "sum"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "BullMQ Job Errors & Stalls (RB-07)",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(cache_operations_total[1m])) by (operation)",
-          "legendFormat": "Cache {{operation}}",
+          "expr": "sum(rate(bullmq_job_failures_total[1m])) by (queue)",
+          "legendFormat": "Failed: {{queue}}",
           "refId": "A"
+        },
+        {
+          "expr": "sum(rate(bullmq_stalled_jobs_total[1m])) by (queue)",
+          "legendFormat": "Stalled: {{queue}}",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(bullmq_worker_errors_total[1m])) by (queue)",
+          "legendFormat": "Worker Err: {{queue}}",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 9, "x": 15, "y": 26 },
+      "id": 32,
+      "options": {
+        "legend": { "calcs": ["max", "sum"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Outbox Failures & File Reconciliation (RB-06, RB-17)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "increase(outbox_dead_letter_total[10m])",
+          "legendFormat": "Outbox Dead Letters",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(outbox_retry_total[1m]))",
+          "legendFormat": "Outbox Retries / s",
+          "refId": "B"
+        },
+        {
+          "expr": "increase(file_reconciliation_error_total[15m])",
+          "legendFormat": "File Reconcile Errors",
+          "refId": "C"
+        },
+        {
+          "expr": "increase(file_reconciliation_repaired_total[15m])",
+          "legendFormat": "File Reconcile Repairs",
+          "refId": "D"
         }
       ]
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
-      "id": 101,
-      "title": "Node.js Process Health & Runtime",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "id": 104,
+      "title": "Authentication & Security Rate Limits",
       "type": "row"
     },
     {
@@ -422,12 +559,80 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 33 },
+      "id": 33,
+      "options": {
+        "legend": { "calcs": ["mean", "sum"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Login Activity: Success vs Failure vs Lockouts",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(auth_successful_logins_total[1m]))",
+          "legendFormat": "Successful Logins",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(auth_failed_logins_total[1m]))",
+          "legendFormat": "Failed Logins",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(auth_lockout_rejected_total[1m]))",
+          "legendFormat": "Lockout Rejections",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 33 },
+      "id": 34,
+      "options": {
+        "legend": { "calcs": ["mean", "sum"], "displayMode": "table", "placement": "bottom" }
+      },
+      "title": "Security Rate Limit Violations",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(rate_limit_exceeded_total[1m]))",
+          "legendFormat": "Rate Limit Exceeded / s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "id": 105,
+      "title": "Node.js Process Health & Runtime (RB-15)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
           "unit": "bytes"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 32 },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 40 },
       "id": 4,
+      "options": {
+        "legend": { "calcs": ["max", "lastNotNull"], "displayMode": "table", "placement": "bottom" }
+      },
       "title": "Process Memory (Heap & RSS)",
       "type": "timeseries",
       "targets": [
@@ -443,7 +648,7 @@
         },
         {
           "expr": "process_resident_memory_bytes",
-          "legendFormat": "RSS Memory",
+          "legendFormat": "Resident (RSS)",
           "refId": "C"
         }
       ]
@@ -453,23 +658,26 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
           "unit": "s"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 32 },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 40 },
       "id": 5,
+      "options": {
+        "legend": { "calcs": ["max", "lastNotNull"], "displayMode": "table", "placement": "bottom" }
+      },
       "title": "Node.js Event Loop Lag",
       "type": "timeseries",
       "targets": [
         {
           "expr": "nodejs_eventloop_lag_p50_seconds",
-          "legendFormat": "Event Loop Lag (p50)",
+          "legendFormat": "Event Loop p50",
           "refId": "A"
         },
         {
           "expr": "nodejs_eventloop_lag_p99_seconds",
-          "legendFormat": "Event Loop Lag (p99)",
+          "legendFormat": "Event Loop p99",
           "refId": "B"
         }
       ]
@@ -479,12 +687,15 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
           "unit": "percent"
         }
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
-      "id": 29,
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 40 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }
+      },
       "title": "API Process CPU Utilization",
       "type": "timeseries",
       "targets": [
@@ -502,42 +713,88 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
-      "id": 104,
-      "title": "Live Application & Infrastructure Logs (Correlated with Traces)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 46 },
+      "id": 106,
+      "title": "Live Application & Infrastructure Logs (Correlated with Tempo Traces)",
       "type": "row"
     },
     {
       "datasource": { "type": "loki", "uid": "Loki" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 41 },
-      "id": 30,
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 47 },
+      "id": 7,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
-        "prettifyLogMessage": false,
+        "prettifyLogMessage": true,
         "showCommonLabels": false,
-        "showLabels": false,
+        "showLabels": true,
+        "showTime": true,
         "sortOrder": "Descending",
         "wrapLogMessage": true
       },
-      "title": "Live Streamed Container Logs with Trace Correlation",
+      "title": "Live Streamed Container Logs (Filtered by $container, Correlated with Tempo)",
       "type": "logs",
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "Loki" },
-          "expr": "{job=\"docker\"}",
+          "expr": "{job=\"docker\", container=~\"$container\"}",
+          "legendFormat": "",
           "refId": "A"
         }
       ]
     }
   ],
-  "refresh": "5s",
+  "refresh": "10s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["api", "nodejs", "http", "outbox", "realtime"],
-  "time": { "from": "now-15m", "to": "now" },
-  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m"] },
+  "tags": ["monolith", "api", "production", "golden-signals"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(http_requests_total, route)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Route",
+        "multi": true,
+        "name": "route",
+        "options": [],
+        "query": {
+          "query": "label_values(http_requests_total, route)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "datasource": { "type": "loki", "uid": "Loki" },
+        "definition": "label_values(container)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Container",
+        "multi": true,
+        "name": "container",
+        "options": [],
+        "query": {
+          "query": "label_values(container)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+  },
   "timezone": "browser",
   "title": "API & Service Performance",
-  "uid": "api-performance-overview"
+  "uid": "api-performance-overview",
+  "version": 2,
+  "weekStart": ""
 }
