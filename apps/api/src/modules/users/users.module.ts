@@ -32,6 +32,8 @@ import { UsersAuthVerifierAdapter } from "./application/adapters/users-auth-veri
   imports: [EventEmitterModule, OutboxModule, FilesModule],
   controllers: [UsersController, UsersEmailChangeController, UsersOrpcController],
   providers: [
+    UsersController,
+    UsersEmailChangeController,
     GetUsersQuery,
     GetUserByIdQuery,
     GetUserByEmailQuery,

@@ -22,6 +22,7 @@ import { NotesOrpcController } from "./presentation/orpc/notes.orpc.controller";
   imports: [OutboxModule, FilesModule],
   controllers: [NotesController, NotesOrpcController],
   providers: [
+    NotesController,
     NotesRepository,
     CreateNoteCommand,
     UpdateNoteCommand,

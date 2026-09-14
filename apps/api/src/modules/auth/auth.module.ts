@@ -18,6 +18,8 @@ import { AuthOrpcController } from "./presentation/orpc/auth.orpc.controller";
   imports: [UsersModule, EmailModule],
   controllers: [AuthController, AuthVerificationController, AuthOrpcController],
   providers: [
+    AuthController,
+    AuthVerificationController,
     RegisterCommand,
     VerifyEmailCommand,
     SendVerificationEmailCommand,

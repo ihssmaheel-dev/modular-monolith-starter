@@ -79,7 +79,11 @@ export class TenancyModule {
       module: TenancyModule,
       imports: [EventEmitterModule, OutboxModule],
       controllers: [TenancyStatusController, TenancyStatusOrpcController, ...domainControllers],
-      providers: [...providers],
+      providers: [
+        ...providers,
+        TenancyStatusController,
+        ...(env.TENANCY_MODE === "multi" ? [OrganizationsController, MembershipsController] : []),
+      ],
       exports: [
         ResolveTenantAccessQuery,
         CanDeleteUserQuery,

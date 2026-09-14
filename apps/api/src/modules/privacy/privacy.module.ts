@@ -28,6 +28,7 @@ import { PrivacyRepository } from "./infrastructure/repositories/privacy.reposit
   ],
   controllers: [PrivacyController, PrivacyOrpcController],
   providers: [
+    PrivacyController,
     RequestExportCommand,
     RequestAccountErasureCommand,
     RequestOrganizationErasureCommand,
