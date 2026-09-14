@@ -12,8 +12,9 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:watch": "tsc --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit",
-    "dev": "email dev --dir ./src/emails -p 3002",
+    "dev": "concurrently \"email dev --dir ./src/emails -p 3002\" \"tsc --watch --preserveWatchOutput\"",
     "clean": "rm -rf dist .react-email"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@react-email/ui": "6.9.5",
     "@repo/typescript-config": "workspace:*",
     "@types/react": "19.2.18",
+    "concurrently": "^9.1.2",
     "typescript": "~6.0.3"
   }
 }

@@ -1,9 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/nodemon.json",
-  "watch": ["dist/apps/api"],
-  "ext": "js",
-  "ignore": ["dist/apps/api/**/*.map", "dist/apps/api/**/*.d.ts", "**/*.test.js", "**/*.spec.js"],
-  "delay": 150,
+  "watch": [
+    "dist/apps/api",
+    "../../packages/contracts/dist",
+    "../../packages/i18n/dist",
+    "../../packages/authorization/dist",
+    "../../packages/email/dist"
+  ],
+  "ext": "js,mjs,json",
+  "ignore": ["**/*.map", "**/*.d.ts", "**/*.test.js", "**/*.spec.js"],
+  "delay": 200,
   "env": {
     "NODE_COMPILE_CACHE": "1"
   }
