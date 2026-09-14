@@ -907,7 +907,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "Loki" },
-          "expr": "{job=\"docker\", container=~\"$container\"}",
+          "expr": "{container=~\"$container\"}",
           "legendFormat": "",
           "refId": "A"
         }

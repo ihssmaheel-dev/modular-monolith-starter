@@ -17,6 +17,7 @@ const LOKI_LABELS = {
   application: "api-service",
   service: "api",
   container: "monorepo-api",
+  job: "api",
 };
 
 function buildDevTargets(): pino.TransportTargetOptions[] {
