@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alert `WorkerSilentDeath` firing (`worker_heartbeats_active == 0` for > 3m).
 - The cruel one: process alive, no errors, but nothing gets consumed — heartbeats stop
   while logs go quiet. Watch for `worker:heartbeat:node:*` keys disappearing from Redis
   and the worker health indicator flipping on `/health`.

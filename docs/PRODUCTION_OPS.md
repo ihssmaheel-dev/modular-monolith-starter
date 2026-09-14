@@ -70,13 +70,12 @@ When errors occur on the API or in the frontend, an 8-character error reference 
 - Web starts without pnpm: `node /app/node_modules/srvx/dist/cli.mjs --prod` from
   `/app/apps/web` (see `apps/web/Dockerfile`).
 
-## Alerting (`docker/observability/prometheus/`)
+## Alerting (`docker/observability/prometheus/` and `alertmanager/`)
 
-- `alerts.yml` covers outbox lag/dead-letter/retry and file reconciliation; `prometheus.yml`
-  has a commented `alerting:` block pointing at `alertmanager:9093`.
-- To page on-call: copy `alertmanager.example.yml` to `alertmanager.yml`, set
-  `SLACK_WEBHOOK_URL`, run Alertmanager alongside Prometheus, and uncomment the block.
-  Local `observability:up` intentionally runs without Alertmanager.
+- `alerts.yml` covers service availability, HTTP error rates, p95 latencies, outbox lag/dead-letter/retry, worker fleet liveness (`WorkerSilentDeath`), BullMQ queue health (`QueueStalledJobs`), file reconciliation, and database/cache health.
+- `prometheus.yml` actively routes alerts to Alertmanager (`alertmanager:9093`).
+- In local development (`pnpm observability:up`), Alertmanager routes all email alerts to local Mailpit (`mailpit:1025`, accessible at `http://localhost:8025`).
+- For production paging: update `docker/observability/alertmanager/alertmanager.yml` to route critical alerts to your team's PagerDuty, Opsgenie, or Slack incoming webhooks.
 
 ## Incident runbooks (`docs/runbooks/`)
 

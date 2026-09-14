@@ -83,6 +83,24 @@ groups:
           summary: File metadata drift was repaired
           description: One or more uploaded files were marked failed after object verification.
 
+      - alert: QueueStalledJobs
+        expr: (increase(bullmq_stalled_jobs_total[10m]) > 0) or (increase(bullmq_job_failures_total[10m]) > 5)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: BullMQ background queue jobs are stalled or failing
+          description: One or more jobs stalled or failed repeatedly in the background queue worker.
+
+      - alert: WorkerSilentDeath
+        expr: worker_heartbeats_active == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: No active worker heartbeats detected
+          description: Worker heartbeat keys are missing or expired in Redis for over 3 minutes.
+
   - name: database-and-cache-health
     rules:
       - alert: PostgresBufferHitRatioLow

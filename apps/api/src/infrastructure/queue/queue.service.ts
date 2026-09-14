@@ -1,8 +1,9 @@
-import { BeforeApplicationShutdown, Injectable } from "@nestjs/common";
+import { BeforeApplicationShutdown, Injectable, Optional } from "@nestjs/common";
 import { context as otelContext, trace } from "@opentelemetry/api";
 import { Job, Queue, Worker } from "bullmq";
 import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
+import { MetricsService } from "../metrics/metrics.service";
 
 type SharedQueue = Queue<unknown, unknown, string>;
 type SharedWorker = Worker<unknown, unknown, string>;
@@ -12,7 +13,10 @@ export class QueueService implements BeforeApplicationShutdown {
   private queues = new Map<string, SharedQueue>();
   private workers = new Map<string, SharedWorker>();
 
-  constructor(private readonly loggerService: PinoLoggerService) {}
+  constructor(
+    private readonly loggerService: PinoLoggerService,
+    @Optional() private readonly metricsService?: MetricsService,
+  ) {}
 
   getQueue<T = unknown>(name: string): Queue<T, unknown, string> | null {
     if (!env.REDIS_URL) return null;
@@ -22,6 +26,12 @@ export class QueueService implements BeforeApplicationShutdown {
       });
       queue.on("error", (error) => {
         this.loggerService.error({ queue: name, error }, "BullMQ queue error");
+        this.metricsService?.incrementCounter(
+          "bullmq_queue_errors_total",
+          "BullMQ queue errors",
+          1,
+          { queue: name },
+        );
       });
       this.queues.set(name, queue);
     }
@@ -40,6 +50,29 @@ export class QueueService implements BeforeApplicationShutdown {
     );
     worker.on("error", (error) => {
       this.loggerService.error({ queue: name, error }, "BullMQ worker error");
+      this.metricsService?.incrementCounter(
+        "bullmq_worker_errors_total",
+        "BullMQ worker errors",
+        1,
+        { queue: name },
+      );
+    });
+    worker.on("stalled", (jobId) => {
+      this.loggerService.warn({ queue: name, jobId }, "BullMQ job stalled");
+      this.metricsService?.incrementCounter(
+        "bullmq_stalled_jobs_total",
+        "BullMQ stalled jobs count",
+        1,
+        { queue: name },
+      );
+    });
+    worker.on("failed", (_job, _error) => {
+      this.metricsService?.incrementCounter(
+        "bullmq_job_failures_total",
+        "BullMQ job failures count",
+        1,
+        { queue: name },
+      );
     });
     this.workers.set(name, worker as SharedWorker);
     return worker;

@@ -6,6 +6,7 @@
 
 ## How you notice
 
+- Alert `QueueStalledJobs` firing (stalled jobs or repeated job failures in BullMQ queues).
 - Delayed side effects pile up (emails/notifications late) while the API itself is healthy
   and the outbox relay keeps publishing.
 - Logs show `BullMQ worker error` lines, or jobs sit `active`/`delayed` far past their

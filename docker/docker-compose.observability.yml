@@ -74,7 +74,7 @@ services:
       - tempo
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: monorepo-postgres-exporter
     ports:
       - "9187:9187"
@@ -82,7 +82,7 @@ services:
       DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/app?sslmode=disable"
 
   redis-exporter:
-    image: oliver006/redis_exporter:latest
+    image: oliver006/redis_exporter:v1.62.0
     container_name: monorepo-redis-exporter
     ports:
       - "9121:9121"
