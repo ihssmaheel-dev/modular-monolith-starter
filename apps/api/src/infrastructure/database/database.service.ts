@@ -271,18 +271,17 @@ export class DatabaseService implements OnApplicationShutdown {
     const userId = typeof current.userId === "string" ? current.userId : "";
     const userEmail = typeof current.userEmail === "string" ? current.userEmail : "";
     const systemScope = current.systemScope === true ? "true" : "false";
-    await runQuery(sql`select set_config('app.tenancy_mode', ${mode}, true)`);
-    await runQuery(sql`select set_config('app.current_tenant', ${tenantId}, true)`);
-    await runQuery(sql`select set_config('app.current_user', ${userId}, true)`);
-    await runQuery(sql`select set_config('app.current_user_email', ${userEmail}, true)`);
-    await runQuery(sql`select set_config('app.system_scope', ${systemScope}, true)`);
-    await runQuery(
-      sql`select set_config('statement_timeout', ${String(env.DB_STATEMENT_TIMEOUT_MS)}, true)`,
-    );
-    await runQuery(sql`select set_config('lock_timeout', ${String(env.DB_LOCK_TIMEOUT_MS)}, true)`);
-    await runQuery(
-      sql`select set_config('idle_in_transaction_session_timeout', ${String(env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS)}, true)`,
-    );
+    await runQuery(sql`
+      select
+        set_config('app.tenancy_mode', ${mode}, true),
+        set_config('app.current_tenant', ${tenantId}, true),
+        set_config('app.current_user', ${userId}, true),
+        set_config('app.current_user_email', ${userEmail}, true),
+        set_config('app.system_scope', ${systemScope}, true),
+        set_config('statement_timeout', ${String(env.DB_STATEMENT_TIMEOUT_MS)}, true),
+        set_config('lock_timeout', ${String(env.DB_LOCK_TIMEOUT_MS)}, true),
+        set_config('idle_in_transaction_session_timeout', ${String(env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS)}, true)
+    `);
   }
 
   private async setConfig(tx: DrizzleDb, key: string, value: string): Promise<void> {
