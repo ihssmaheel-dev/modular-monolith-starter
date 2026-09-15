@@ -30,7 +30,10 @@ export const Permissions = {
   NOTIFICATIONS_WRITE: "notifications:write",
 } as const;
 
-export type Permission = (typeof Permissions)[keyof typeof Permissions];
+export type CorePermission = (typeof Permissions)[keyof typeof Permissions];
+export type Permission = CorePermission | `${string}:${string}`;
+
+const PERMISSION_PATTERN = /^[a-z][a-z0-9-]*(?::(?:[a-z][a-z0-9-]*|\*))+$/;
 
 export const RolePermissions: Record<string, Permission[]> = {
   admin: [
@@ -192,7 +195,7 @@ export function resolveUserPermissions(
     for (const p of TenantRolePermissions[tenantRole.toLowerCase()] ?? []) perms.add(p);
   }
   for (const p of extraPermissions) {
-    if (Object.values(Permissions).includes(p as Permission)) perms.add(p as Permission);
+    if (PERMISSION_PATTERN.test(p)) perms.add(p as Permission);
   }
   return Array.from(perms);
 }

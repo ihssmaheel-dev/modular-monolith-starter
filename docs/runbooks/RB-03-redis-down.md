@@ -1,5 +1,7 @@
 # RB-03: Redis down (degraded mode, not full outage)
 
+This runbook also covers `RedisMemoryPressure` and `RedisEvictionsDetected`.
+
 - **Severity:** SEV-2 (degraded by design — read the blast radius before panicking)
 - **Owner:** backend on-call
 - **Last reviewed:** 2026-09-11

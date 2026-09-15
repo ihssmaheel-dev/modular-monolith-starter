@@ -1,0 +1,143 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Telemetry Services",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 1 },
+      "id": 1,
+      "title": "Scrape Target Health",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "up{job=~\"api-service|worker-service|postgres-exporter|redis-exporter|cadvisor|loki|tempo|alloy|grafana|alertmanager\"}",
+          "legendFormat": "{{job}} / {{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 101,
+      "title": "Prometheus Storage and Sample Pressure",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 7, "w": 6, "x": 0, "y": 10 },
+      "id": 2,
+      "title": "Active Series",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "prometheus_tsdb_head_series",
+          "legendFormat": "Head series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 7, "w": 6, "x": 6, "y": 10 },
+      "id": 6,
+      "title": "Prometheus Block Storage",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "prometheus_tsdb_storage_blocks_bytes",
+          "legendFormat": "Blocks bytes",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 10 },
+      "id": 3,
+      "title": "Scrape Samples Rejected or Limited",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "increase(prometheus_target_scrapes_sample_duplicate_timestamp_total[15m])",
+          "legendFormat": "Duplicate timestamp",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(prometheus_target_scrapes_exceeded_sample_limit_total[15m])",
+          "legendFormat": "Exceeded sample limit",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 102,
+      "title": "Logs, Traces, and Application Error Intake",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps" } },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 19 },
+      "id": 4,
+      "title": "Loki Bytes Received",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(loki_distributor_bytes_received_total[5m])",
+          "legendFormat": "Loki ingest",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 19 },
+      "id": 5,
+      "title": "Tempo Spans Received",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(tempo_distributor_spans_received_total[5m])",
+          "legendFormat": "Tempo spans",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(http_requests_total{status_code=~\"5..\"}[5m])",
+          "legendFormat": "API 5xx",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(error_reports_dropped_total[5m])",
+          "legendFormat": "Dropped error reports",
+          "refId": "C"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["platform", "telemetry", "capacity", "cost"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "Telemetry Health & Capacity",
+  "uid": "telemetry-health-overview",
+  "version": 1
+}

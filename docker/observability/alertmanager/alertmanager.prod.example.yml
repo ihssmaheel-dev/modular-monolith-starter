@@ -1,0 +1,20 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: smtp.example.com:587
+  smtp_from: alerts@example.com
+  smtp_auth_username: alerts@example.com
+  smtp_auth_password_file: /run/secrets/alertmanager_smtp_password
+  smtp_require_tls: true
+
+route:
+  group_by: [alertname, service, environment]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: on-call
+
+receivers:
+  - name: on-call
+    email_configs:
+      - to: on-call@example.com
+        send_resolved: true

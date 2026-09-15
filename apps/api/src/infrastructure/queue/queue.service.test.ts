@@ -5,6 +5,7 @@ import type { PinoLoggerService } from "../logger/logger.service";
 describe("QueueService", () => {
   const mockLogger = {
     error: vi.fn(),
+    warn: vi.fn(),
     child: vi.fn().mockReturnThis(),
   } as unknown as PinoLoggerService;
 
@@ -37,5 +38,30 @@ describe("QueueService", () => {
     expect(mockWorker.close).toHaveBeenCalledTimes(1);
     expect(mockQueue.close).toHaveBeenCalledTimes(1);
     expect(order).toEqual(["worker-pause", "worker-close", "queue-close"]);
+  });
+
+  it("does not overlap queue metric polls or fetch a job for an empty queue", async () => {
+    let resolveCounts: ((counts: Record<string, number>) => void) | undefined;
+    const queue = {
+      getJobCounts: vi.fn().mockImplementation(
+        () =>
+          new Promise<Record<string, number>>((resolve) => {
+            resolveCounts = resolve;
+          }),
+      ),
+      getJobs: vi.fn(),
+    };
+    const metrics = { setGauge: vi.fn() };
+    const service = new QueueService(mockLogger, metrics as never);
+    (service as unknown as { queues: Map<string, unknown> }).queues.set("email", queue);
+
+    const firstPoll = service.measureQueueHealth();
+    await service.measureQueueHealth();
+    expect(queue.getJobCounts).toHaveBeenCalledOnce();
+
+    resolveCounts?.({ waiting: 0, active: 0, delayed: 0, failed: 0 });
+    await firstPoll;
+    expect(queue.getJobs).not.toHaveBeenCalled();
+    expect(metrics.setGauge).toHaveBeenCalledTimes(5);
   });
 });

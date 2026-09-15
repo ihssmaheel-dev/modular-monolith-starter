@@ -6,6 +6,8 @@
 
 ## How you notice
 
+- Alert `ErrorReportsDropped` means the reporting bulkhead protected the application during an error storm; use structured logs and traces as the complete source.
+
 - Alert `ApiHighErrorRate` firing (HTTP 5xx error rate > 2% over 5m).
 - 5xx rate alert or user reports with `ref #xxxxxxxx` strings — this runbook assumes the
   error-reference system is your primary tool: every API failure carries an 8-hex ref

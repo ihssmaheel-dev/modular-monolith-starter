@@ -1,0 +1,213 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "compass",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Explore Traces (Tempo)",
+      "tooltip": "Open distributed trace search in Tempo",
+      "type": "link",
+      "url": "/explore?left=%7B%22datasource%22:%22tempo%22%7D"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Queue Capacity and Drain Health",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 1 },
+      "id": 1,
+      "title": "BullMQ Jobs by State",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "bullmq_queue_waiting_jobs{queue=~\"$queue\"}",
+          "legendFormat": "Waiting {{queue}}",
+          "refId": "A"
+        },
+        {
+          "expr": "bullmq_queue_active_jobs{queue=~\"$queue\"}",
+          "legendFormat": "Active {{queue}}",
+          "refId": "B"
+        },
+        {
+          "expr": "bullmq_queue_delayed_jobs{queue=~\"$queue\"}",
+          "legendFormat": "Delayed {{queue}}",
+          "refId": "C"
+        },
+        {
+          "expr": "bullmq_queue_failed_jobs{queue=~\"$queue\"}",
+          "legendFormat": "Failed {{queue}}",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 1 },
+      "id": 2,
+      "title": "Oldest Waiting Job Age",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "bullmq_queue_oldest_waiting_age_seconds{queue=~\"$queue\"}",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 },
+      "id": 101,
+      "title": "Transactional Outbox, Notifications, Privacy, and Realtime",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 9 },
+      "id": 3,
+      "title": "Outbox Depth and Notification Backlog",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "outbox_pending_events_depth",
+          "legendFormat": "Outbox pending",
+          "refId": "A"
+        },
+        {
+          "expr": "notification_delivery_pending_depth",
+          "legendFormat": "Notifications pending",
+          "refId": "B"
+        },
+        {
+          "expr": "privacy_export_pending_depth",
+          "legendFormat": "Privacy exports pending",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 9 },
+      "id": 4,
+      "title": "Async Oldest Item Age",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "outbox_pending_age_ms / 1000",
+          "legendFormat": "Outbox",
+          "refId": "A"
+        },
+        {
+          "expr": "notification_delivery_oldest_pending_age_seconds",
+          "legendFormat": "Notifications",
+          "refId": "B"
+        },
+        {
+          "expr": "privacy_export_oldest_pending_age_seconds",
+          "legendFormat": "Privacy exports",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "id": 102,
+      "title": "Realtime and Provider Failure Signals",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 17 },
+      "id": 5,
+      "title": "Realtime Connections and Consumer Lag",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(realtime_active_connections) by (type)",
+          "legendFormat": "Connections {{type}}",
+          "refId": "A"
+        },
+        {
+          "expr": "realtime_consumer_lag_ms / 1000",
+          "legendFormat": "Consumer lag (s)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 17 },
+      "id": 6,
+      "title": "Dead Letters and Circuit Breakers",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "increase(outbox_dead_letter_total[10m])",
+          "legendFormat": "Outbox dead letters",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(realtime_dead_letter_total[10m])",
+          "legendFormat": "Realtime dead letters",
+          "refId": "B"
+        },
+        {
+          "expr": "circuit_breaker_state{name=\"email\"}",
+          "legendFormat": "Email circuit state",
+          "refId": "C"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["platform", "queues", "outbox", "realtime"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".+",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(bullmq_queue_waiting_jobs, queue)",
+        "includeAll": true,
+        "label": "Queue",
+        "multi": true,
+        "name": "queue",
+        "query": {
+          "query": "label_values(bullmq_queue_waiting_jobs, queue)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "Async Pipelines & Realtime",
+  "uid": "async-pipelines-overview",
+  "version": 1
+}

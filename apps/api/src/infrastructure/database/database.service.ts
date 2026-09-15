@@ -1,4 +1,5 @@
 import { Inject, Injectable, OnApplicationShutdown, Optional } from "@nestjs/common";
+import { Interval } from "@nestjs/schedule";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
@@ -13,6 +14,7 @@ import { writeAuditMutation } from "../audit/audit-mutation.writer";
 import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/audit.types";
 import { createDatabasePool } from "./database-pool";
 import { databaseErrorMetadata } from "./database-error.utils";
+import { MetricsService } from "../metrics/metrics.service";
 
 export type Database = NodePgDatabase;
 export type DrizzleDb = Database;
@@ -20,6 +22,8 @@ export type DrizzleDb = Database;
 /** Machine code for internal control flow — never user-facing, never an i18n key. */
 export const TENANT_CONTEXT_REQUIRES_TRANSACTION = "TENANT_CONTEXT_REQUIRES_TRANSACTION";
 export const AUDIT_TRANSACTION_REQUIRED = "AUDIT_TRANSACTION_REQUIRED";
+
+const DATABASE_POOL_METRICS_INTERVAL_MS = 15_000;
 
 export { ADVISORY_LOCK_NAMESPACE } from "./transaction-scopes";
 
@@ -33,6 +37,7 @@ export class DatabaseService implements OnApplicationShutdown {
   constructor(
     @Inject(PinoLoggerService) logger: PinoLoggerService,
     @Optional() @Inject(ClsService) private readonly cls?: ClsService,
+    @Optional() private readonly metrics?: MetricsService,
   ) {
     this.logger = logger.child({ module: "DatabaseService" });
     this.scopes = new TransactionScopes(
@@ -55,6 +60,25 @@ export class DatabaseService implements OnApplicationShutdown {
 
   isConnected(): boolean {
     return !this.pool.ended;
+  }
+
+  @Interval(DATABASE_POOL_METRICS_INTERVAL_MS)
+  measurePoolHealth(): void {
+    this.metrics?.setGauge(
+      "postgres_pool_total_connections",
+      "PostgreSQL client pool total connections",
+      this.pool.totalCount,
+    );
+    this.metrics?.setGauge(
+      "postgres_pool_idle_connections",
+      "PostgreSQL client pool idle connections",
+      this.pool.idleCount,
+    );
+    this.metrics?.setGauge(
+      "postgres_pool_waiting_clients",
+      "PostgreSQL client pool waiting clients",
+      this.pool.waitingCount,
+    );
   }
 
   async withTransaction<T>(fn: () => Promise<T>): Promise<Result<T, TransactionError>> {
@@ -93,7 +117,6 @@ export class DatabaseService implements OnApplicationShutdown {
     }
   }
 
-  /** Runs an HTTP or worker operation in one transaction and preserves thrown failures. */
   async runTransaction<T>(fn: () => Promise<T>): Promise<T> {
     if (this.getTx()) {
       return this.scopes.withSavepoint(fn);
@@ -101,7 +124,6 @@ export class DatabaseService implements OnApplicationShutdown {
     return this.openTransaction(fn);
   }
 
-  /** Changes the tenant scope inside the active transaction for invitation/system workflows. */
   async setTenantContext(tenantId: string): Promise<void> {
     const tx = this.getTx();
     if (!tx) throw new Error(TENANT_CONTEXT_REQUIRES_TRANSACTION);
@@ -109,12 +131,6 @@ export class DatabaseService implements OnApplicationShutdown {
     this.cls?.set("tenantId", tenantId);
   }
 
-  /**
-   * Binds CLS + SQL scope to one tenant for fn: switches app.current_tenant
-   * inside an ambient transaction (restored afterwards), otherwise opens a
-   * transaction from matching CLS context. CLS-only switches cannot work:
-   * PostgreSQL settings are fixed when the transaction opens.
-   */
   async withTenantScope<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
     if (this.getTx()) {
       const previous =

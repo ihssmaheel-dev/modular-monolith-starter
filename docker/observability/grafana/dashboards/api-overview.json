@@ -1,22 +1,10 @@
 {
   "annotations": { "list": [] },
-  "editable": true,
+  "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [
-    {
-      "asDropdown": false,
-      "icon": "doc",
-      "includeVars": true,
-      "keepTime": true,
-      "tags": [],
-      "targetBlank": true,
-      "title": "Incident Runbooks (docs/runbooks)",
-      "tooltip": "Open incident runbooks directory",
-      "type": "link",
-      "url": "https://github.com/ihssmaheel-dev/modular-monolith-starter/tree/main/docs/runbooks"
-    },
     {
       "asDropdown": false,
       "icon": "compass",
@@ -426,7 +414,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(http_active_connections{route=~\"/api/v1/realtime.*\"})",
+          "expr": "sum(realtime_active_connections) by (type)",
           "legendFormat": "Active SSE Streams",
           "refId": "A"
         }
@@ -469,7 +457,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "description": "Monitored in production (RB-08). Gauge set during health/readiness checks; 0 or absent in local development is normal.",
+      "description": "Monitored in production (RB-08). Each worker updates its process gauge and heartbeat timestamp every 10 seconds.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -493,11 +481,11 @@
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "title": "Active Worker Nodes (Alert @ 0)",
+      "title": "Active Worker Processes (Alert @ 0)",
       "type": "stat",
       "targets": [
         {
-          "expr": "worker_heartbeats_active or vector(0)",
+          "expr": "sum(worker_process_up) or vector(0)",
           "legendFormat": "Live Workers",
           "refId": "A"
         }
@@ -914,7 +902,7 @@
       ]
     }
   ],
-  "refresh": "10s",
+  "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
   "tags": ["monolith", "api", "production", "golden-signals"],

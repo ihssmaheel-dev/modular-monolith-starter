@@ -63,5 +63,16 @@ describe("Permissions Engine", () => {
       expect(perms).toContain(Permissions.TEAM_INVITE);
       expect(perms).toContain(Permissions.TEAM_MANAGE);
     });
+
+    it("accepts well-formed module permissions and rejects malformed values", () => {
+      const perms = resolveUserPermissions(undefined, undefined, [
+        "inventory:item:approve",
+        "inventory:*",
+        "invalid permission",
+      ]);
+      expect(perms).toContain("inventory:item:approve");
+      expect(perms).toContain("inventory:*");
+      expect(perms).not.toContain("invalid permission");
+    });
   });
 });

@@ -6,6 +6,9 @@
 
 ## How you notice
 
+- Alert `TelemetryActiveSeriesHigh` indicates excessive Prometheus series growth.
+- Alert `LokiIngestionRateHigh` indicates sustained log volume that can exhaust telemetry storage.
+
 - Alert `PostgresDatabaseSizeHigh` firing (application database size > 10GB).
 - Postgres logs `could not extend file` / `No space left on device`; uploads fail;
 - Loki/Alloy stop shipping; containers may fail to start (no space for layers).

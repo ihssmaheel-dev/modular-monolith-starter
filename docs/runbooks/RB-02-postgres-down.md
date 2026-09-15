@@ -1,5 +1,7 @@
 # RB-02: Postgres down / pool exhausted
 
+This runbook also covers `PostgresConnectionsNearLimit`.
+
 - **Severity:** SEV-1 (down) / SEV-2 (pool pressure without outage — same triage, calmer voice)
 - **Owner:** backend on-call
 - **Last reviewed:** 2026-09-11

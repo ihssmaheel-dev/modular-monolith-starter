@@ -80,4 +80,14 @@ describe("MetricsService", () => {
       exemplarLabels: { trace_id: "test-trace-123" },
     });
   });
+
+  it("rejects inconsistent label sets after a metric has been cached", async () => {
+    const { register } = await import("prom-client");
+    vi.mocked(register.getSingleMetric).mockReturnValue(undefined);
+    service.setGauge("queue_depth", "Queue depth", 1, { queue: "email" });
+
+    expect(() => service.setGauge("queue_depth", "Queue depth", 2)).toThrow(
+      "Metric queue_depth was called with an incompatible label set",
+    );
+  });
 });

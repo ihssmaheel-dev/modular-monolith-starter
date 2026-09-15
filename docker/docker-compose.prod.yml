@@ -4,6 +4,8 @@ services:
   nginx:
     image: nginx:1.27-alpine
     container_name: monorepo-nginx
+    labels:
+      observability.logs: "true"
     ports:
       - "80:80"
       - "443:443"
@@ -34,6 +36,8 @@ services:
 
   web:
     image: ${WEB_IMAGE_REF:?set WEB_IMAGE_REF to an immutable image digest}
+    labels:
+      observability.logs: "true"
     expose:
       - "3000"
     environment:
@@ -59,6 +63,8 @@ services:
 
   api:
     image: ${API_IMAGE_REF:?set API_IMAGE_REF to an immutable image digest}
+    labels:
+      observability.logs: "true"
     expose:
       - "3000"
     environment:
@@ -81,6 +87,8 @@ services:
       JWT_ACTIVE_KEY_ID: ${JWT_ACTIVE_KEY_ID:-primary}
       JWT_REFRESH_ACTIVE_KEY_ID: ${JWT_REFRESH_ACTIVE_KEY_ID:-primary}
       METRICS_TOKEN: ${METRICS_TOKEN:?set METRICS_TOKEN}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?set OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_TRACE_SAMPLE_RATIO: ${OTEL_TRACE_SAMPLE_RATIO:-0.1}
       WORKER_METRICS_PORT: ${WORKER_METRICS_PORT:-9464}
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}
@@ -128,6 +136,8 @@ services:
 
   worker:
     image: ${API_IMAGE_REF:?set API_IMAGE_REF to an immutable image digest}
+    labels:
+      observability.logs: "true"
     command: ["node", "apps/api/dist/apps/api/src/main.js"]
     environment:
       NODE_ENV: production
@@ -147,6 +157,8 @@ services:
       JWT_ACTIVE_KEY_ID: ${JWT_ACTIVE_KEY_ID:-primary}
       JWT_REFRESH_ACTIVE_KEY_ID: ${JWT_REFRESH_ACTIVE_KEY_ID:-primary}
       METRICS_TOKEN: ${METRICS_TOKEN:?set METRICS_TOKEN}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?set OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_TRACE_SAMPLE_RATIO: ${OTEL_TRACE_SAMPLE_RATIO:-0.1}
       WORKER_METRICS_PORT: ${WORKER_METRICS_PORT:-9464}
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}

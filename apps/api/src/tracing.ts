@@ -11,15 +11,16 @@ import pino from "pino";
 
 const logger = pino({ name: "tracing", level: env.LOG_LEVEL });
 
-const traceExporter =
-  env.NODE_ENV === "production" || env.OTEL_EXPORTER_OTLP_ENDPOINT
-    ? new OTLPTraceExporter({ url: env.OTEL_EXPORTER_OTLP_ENDPOINT })
-    : undefined;
+const traceExporter = env.OTEL_EXPORTER_OTLP_ENDPOINT
+  ? new OTLPTraceExporter({ url: env.OTEL_EXPORTER_OTLP_ENDPOINT })
+  : undefined;
 
 export const otelSDK = new NodeSDK({
   serviceName: `app-${env.PROCESS_ROLE}`,
   sampler: new ParentBasedSampler({
-    root: new TraceIdRatioBasedSampler(env.NODE_ENV === "production" ? 0.2 : 1.0),
+    root: new TraceIdRatioBasedSampler(
+      env.NODE_ENV === "production" ? env.OTEL_TRACE_SAMPLE_RATIO : 1.0,
+    ),
   }),
   ...(traceExporter ? { spanProcessor: new BatchSpanProcessor(traceExporter) } : {}),
   instrumentations: [

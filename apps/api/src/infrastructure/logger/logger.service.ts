@@ -129,6 +129,11 @@ export class PinoLoggerService implements OnModuleDestroy {
   private enrichContext(context: LogContext): LogContext {
     const enriched = { ...context };
 
+    if (enriched.error !== undefined && enriched.err === undefined) {
+      enriched.err = enriched.error;
+      delete enriched.error;
+    }
+
     if (this.cls?.isActive()) {
       const requestId = this.cls.get("requestId");
       if (requestId && !enriched.requestId) {

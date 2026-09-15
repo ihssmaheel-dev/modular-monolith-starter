@@ -120,6 +120,7 @@ jobs:
           S3_SECRET_ACCESS_KEY=ci-storage-secret \
           EMAIL_FROM=ci@app.example.test \
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.example.test/v1/traces \
           API_IMAGE_REF=${{ env.IMAGE_API }}@${{ needs.publish.outputs.api_digest }} \
           WEB_IMAGE_REF=${{ env.IMAGE_WEB }}@${{ needs.publish.outputs.web_digest }} \
           PGBOUNCER_DB_HOST=db.example.net \
@@ -143,6 +144,7 @@ jobs:
           S3_SECRET_ACCESS_KEY=ci-storage-secret \
           EMAIL_FROM=ci@app.example.test \
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.example.test/v1/traces \
           API_IMAGE_REF=${{ env.IMAGE_API }}@${{ needs.publish.outputs.api_digest }} \
           WEB_IMAGE_REF=${{ env.IMAGE_WEB }}@${{ needs.publish.outputs.web_digest }} \
           PGBOUNCER_DB_HOST=db.example.net \

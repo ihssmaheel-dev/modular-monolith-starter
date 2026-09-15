@@ -10,6 +10,7 @@ export default defineConfig({
     tanstackStart({
       srcDirectory: "src",
       router: {
+        routeFileIgnorePattern: "\\.test\\.[cm]?[jt]sx?$",
         semicolons: false,
         quoteStyle: "single",
       },

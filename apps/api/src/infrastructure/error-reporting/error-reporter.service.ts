@@ -1,19 +1,27 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, type Result } from "neverthrow";
 import { trace } from "@opentelemetry/api";
 import { CircuitBreaker } from "../../common/utils/circuit-breaker";
 import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
+import { MetricsService } from "../metrics/metrics.service";
 import type { ErrorReport, ErrorReportContext, ErrorReporter } from "./error-reporter";
 
 const REPORT_TIMEOUT_MS = 3_000;
+const MAX_ERROR_MESSAGE_LENGTH = 1_000;
+const MAX_ERROR_STACK_LENGTH = 8_000;
+const MAX_CONCURRENT_REPORTS = 5;
 
 @Injectable()
 export class ErrorReporterService implements ErrorReporter {
   private readonly logger: PinoLoggerService;
   private readonly breaker: CircuitBreaker<string>;
+  private activeReports = 0;
 
-  constructor(logger: PinoLoggerService) {
+  constructor(
+    logger: PinoLoggerService,
+    @Optional() private readonly metrics?: MetricsService,
+  ) {
     this.logger = logger.child({ component: "error-reporter" });
     this.breaker = new CircuitBreaker(
       {
@@ -27,11 +35,25 @@ export class ErrorReporterService implements ErrorReporter {
 
   async capture(exception: unknown, context: ErrorReportContext): Promise<void> {
     if (!env.ERROR_REPORTING_URL) return;
-    const result = await this.breaker.execute(() =>
-      this.deliver(this.createReport(exception, context)),
-    );
-    if (result.isErr()) {
-      this.logger.warn({ error: result.error }, "Error report delivery failed");
+    if (this.activeReports >= MAX_CONCURRENT_REPORTS) {
+      this.metrics?.incrementCounter(
+        "error_reports_dropped_total",
+        "Error reports dropped before delivery",
+        1,
+        { reason: "concurrency_limit" },
+      );
+      return;
+    }
+    this.activeReports += 1;
+    try {
+      const result = await this.breaker.execute(() =>
+        this.deliver(this.createReport(exception, context)),
+      );
+      if (result.isErr()) {
+        this.logger.warn({ error: result.error }, "Error report delivery failed");
+      }
+    } finally {
+      this.activeReports -= 1;
     }
   }
 
@@ -76,9 +98,23 @@ function errorDetails(exception: unknown): ErrorReport["error"] {
   if (exception instanceof Error) {
     return {
       name: exception.name,
-      message: exception.message,
-      ...(exception.stack ? { stack: exception.stack } : {}),
+      message: sanitizeErrorText(exception.message, MAX_ERROR_MESSAGE_LENGTH),
+      ...(exception.stack
+        ? { stack: sanitizeErrorText(exception.stack, MAX_ERROR_STACK_LENGTH) }
+        : {}),
     };
   }
-  return { name: "UnknownError", message: String(exception) };
+  return {
+    name: "UnknownError",
+    message: sanitizeErrorText(String(exception), MAX_ERROR_MESSAGE_LENGTH),
+  };
+}
+
+function sanitizeErrorText(value: string, maxLength: number): string {
+  return value
+    .slice(0, maxLength)
+    .replace(/Bearer\s+[A-Za-z0-9._~+\-/]+=*/gi, "Bearer [REDACTED]")
+    .replace(/((?:password|passwd|secret|token|api[_-]?key)\s*[=:]\s*)[^\s,;]+/gi, "$1[REDACTED]")
+    .replace(/(?:postgres(?:ql)?|redis(?:s)?):\/\/[^\s]+/gi, "[REDACTED_CONNECTION_URL]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]");
 }

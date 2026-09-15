@@ -1,5 +1,7 @@
 # RB-10: Emails not arriving
 
+This runbook also covers `EmailCircuitBreakerOpen`.
+
 - **Severity:** SEV-2 (SEV-1 during an active incident that depends on email: password resets, invitations)
 - **Owner:** backend on-call
 - **Last reviewed:** 2026-09-11

@@ -149,13 +149,39 @@ groups:
           description: "Postgres buffer hit ratio dropped below 95% over the last 10 minutes."
 
       - alert: PostgresDatabaseSizeHigh
-        expr: pg_database_size_bytes{datname="app"} > 10737418240
+        expr: sum by (datname) (pg_database_size_bytes) > 10737418240
         for: 15m
         labels:
           severity: warning
         annotations:
-          summary: PostgreSQL application database size is high
-          description: "Database 'app' size has exceeded 10GB."
+          summary: PostgreSQL database size is high
+          description: "A PostgreSQL database has exceeded 10GB; review growth and storage capacity."
+
+      - alert: PostgresConnectionsNearLimit
+        expr: (sum(pg_stat_activity_count) / max(pg_settings_max_connections)) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: PostgreSQL connections are nearing the configured limit
+          description: "PostgreSQL active connections are above 80% of max_connections."
+
+      - alert: RedisMemoryPressure
+        expr: redis_memory_max_bytes > 0 and (redis_memory_used_bytes / redis_memory_max_bytes) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Redis memory usage is high
+          description: "Redis memory usage is above 80% of its configured maxmemory."
+
+      - alert: RedisEvictionsDetected
+        expr: increase(redis_evicted_keys_total[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Redis is evicting keys
+          description: "Redis evicted one or more keys during the last 10 minutes."
 
       - alert: RedisKeyspaceHitRatioLow
         expr: ((rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))) * 100 < 40) and ((rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) > 0.1)
@@ -164,7 +190,7 @@ groups:
           severity: info
         annotations:
           summary: Redis keyspace hit ratio is low
-          description: "Redis cache hit ratio has dropped below 60% over the last 15 minutes."
+          description: "Redis cache hit ratio has dropped below 40% over the last 15 minutes."
 
   - name: container-health
     rules:
@@ -186,10 +212,75 @@ groups:
           description: "Container working set memory exceeded 85% of its configured limit for over 5 minutes."
 
       - alert: ContainerHighCpuUsage
-        expr: (sum by (name) (rate(container_cpu_usage_seconds_total{name=~"monorepo-.*"}[5m])) * 100) > 85
+        expr: (sum by (name) (rate(container_cpu_usage_seconds_total{name=~"monorepo-.*"}[5m])) / on (name) (container_spec_cpu_quota{name=~"monorepo-.*"} / container_spec_cpu_period{name=~"monorepo-.*"})) > 0.85
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: Container CPU utilization is sustained above 85%
           description: "Container is consuming more than 85% CPU capacity for over 5 minutes."
+
+  - name: async-and-provider-health
+    rules:
+      - alert: BullMQQueueBacklogHigh
+        expr: bullmq_queue_waiting_jobs > 1000 or bullmq_queue_oldest_waiting_age_seconds > 300
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: BullMQ queue backlog is outside its operating budget
+          description: "A queue has more than 1000 waiting jobs or an oldest job older than five minutes."
+
+      - alert: RealtimeConsumerLagHigh
+        expr: realtime_consumer_lag_ms > 300000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Realtime consumer lag is high
+          description: "A realtime consumer has been more than five minutes behind the stream."
+
+      - alert: RealtimeDeadLettersCreated
+        expr: increase(realtime_dead_letter_total[10m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: Realtime events were dead-lettered
+          description: "One or more realtime events could not be delivered within their retry budget."
+
+      - alert: EmailCircuitBreakerOpen
+        expr: circuit_breaker_state{name="email"} == 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Email provider circuit breaker is open
+          description: "Email delivery is being rejected while the provider circuit is open."
+
+  - name: telemetry-pipeline-health
+    rules:
+      - alert: TelemetryActiveSeriesHigh
+        expr: prometheus_tsdb_head_series > 100000
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Prometheus active-series count is above the starter budget
+          description: "More than 100,000 active series can increase memory, disk, and managed-metrics cost."
+
+      - alert: LokiIngestionRateHigh
+        expr: sum(rate(loki_distributor_bytes_received_total[5m])) > 131072
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Loki log ingestion is above the starter budget
+          description: "Sustained log ingestion is above 128 KiB/s; identify noisy services before storage grows."
+
+      - alert: ErrorReportsDropped
+        expr: increase(error_reports_dropped_total[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Error reports were dropped by the intake bulkhead
+          description: "The application protected itself from an error-reporting storm; use logs and traces to investigate the underlying failures."

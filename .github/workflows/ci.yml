@@ -160,6 +160,13 @@ jobs:
           S3_SECRET_ACCESS_KEY=ci-storage-secret \
           EMAIL_FROM=ci@app.example.test \
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.example.test/v1/traces \
+          METRICS_TOKEN_FILE=/tmp/metrics_token \
+          ALERTMANAGER_CONFIG_FILE=/tmp/alertmanager.yml \
+          ALERTMANAGER_SMTP_PASSWORD_FILE=/tmp/alertmanager_smtp_password \
+          GF_SECURITY_ADMIN_PASSWORD=ci-grafana-password-32-characters \
+          OBSERVABILITY_POSTGRES_EXPORTER_DSN=postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full \
+          OBSERVABILITY_REDIS_EXPORTER_URL=rediss://:password@redis.example.net:6380 \
           API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
           WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
           PGBOUNCER_DB_HOST=db.example.net \
@@ -183,6 +190,13 @@ jobs:
           S3_SECRET_ACCESS_KEY=ci-storage-secret \
           EMAIL_FROM=ci@app.example.test \
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.example.test/v1/traces \
+          METRICS_TOKEN_FILE=/tmp/metrics_token \
+          ALERTMANAGER_CONFIG_FILE=/tmp/alertmanager.yml \
+          ALERTMANAGER_SMTP_PASSWORD_FILE=/tmp/alertmanager_smtp_password \
+          GF_SECURITY_ADMIN_PASSWORD=ci-grafana-password-32-characters \
+          OBSERVABILITY_POSTGRES_EXPORTER_DSN=postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full \
+          OBSERVABILITY_REDIS_EXPORTER_URL=rediss://:password@redis.example.net:6380 \
           API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
           WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
           PGBOUNCER_DB_HOST=db.example.net \
@@ -190,6 +204,42 @@ jobs:
           PGBOUNCER_DB_USER=ci_user \
           PGBOUNCER_DB_PASSWORD=ci-password-32-characters-long \
           docker compose -f docker/docker-compose.prod.yml --profile pooling config
+
+      - name: Production observability compose and dashboard validation
+        run: |
+          printf 'ci-metrics-token-32-characters-long' > /tmp/metrics_token
+          printf 'ci-alertmanager-smtp-password' > /tmp/alertmanager_smtp_password
+          cp docker/observability/alertmanager/alertmanager.prod.example.yml /tmp/alertmanager.yml
+          DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
+          REDIS_URL=rediss://redis.example.net:6380 \
+          JWT_SECRET=ci-production-access-secret-32-characters \
+          JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
+          CLIENT_URL=https://app.example.test \
+          API_URL=https://api.example.test \
+          VITE_API_URL=https://api.example.test/api/v1 \
+          S3_ENDPOINT=https://storage.example.test \
+          S3_ACCESS_KEY_ID=ci-storage-key \
+          S3_SECRET_ACCESS_KEY=ci-storage-secret \
+          EMAIL_FROM=ci@app.example.test \
+          METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.example.test/v1/traces \
+          METRICS_TOKEN_FILE=/tmp/metrics_token \
+          ALERTMANAGER_CONFIG_FILE=/tmp/alertmanager.yml \
+          ALERTMANAGER_SMTP_PASSWORD_FILE=/tmp/alertmanager_smtp_password \
+          GF_SECURITY_ADMIN_PASSWORD=ci-grafana-password-32-characters \
+          OBSERVABILITY_POSTGRES_EXPORTER_DSN=postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full \
+          OBSERVABILITY_REDIS_EXPORTER_URL=rediss://:password@redis.example.net:6380 \
+          API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
+          WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
+          PGBOUNCER_DB_HOST=db.example.net \
+          PGBOUNCER_DB_NAME=app \
+          PGBOUNCER_DB_USER=ci_user \
+          PGBOUNCER_DB_PASSWORD=ci-password-32-characters-long \
+          docker compose -f docker/docker-compose.prod.yml -f docker/docker-compose.observability.yml -f docker/docker-compose.prod.observability.yml --profile observability config --format json > /tmp/observability-compose.json
+          node scripts/validate-observability-config.js /tmp/observability-compose.json
+          docker run --rm --entrypoint promtool -v "$PWD/docker/observability/prometheus:/etc/prometheus:ro" -v /tmp/metrics_token:/run/secrets/metrics_token:ro prom/prometheus:v2.54.1 check config /etc/prometheus/prometheus.prod.yml
+          docker run --rm --entrypoint promtool -v "$PWD/docker/observability/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 check rules /etc/prometheus/alerts.yml
 
       - name: Build production API image
         run: docker build --file Dockerfile --tag modular-monolith-api:ci .

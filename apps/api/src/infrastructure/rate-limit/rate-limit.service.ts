@@ -56,7 +56,7 @@ export class RateLimitService {
         1,
         { scope, route },
       );
-      this.logger.warn({ key }, "Rate limit Redis unavailable");
+      this.logger.warn({ scope, route }, "Rate limit Redis unavailable");
       const isAuth = key.includes("/auth/") || key.includes("auth:");
       if (isAuth || config.failClosed) {
         return {

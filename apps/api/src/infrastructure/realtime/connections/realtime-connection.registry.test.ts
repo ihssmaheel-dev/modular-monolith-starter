@@ -110,13 +110,13 @@ describe("RealtimeConnectionRegistry", () => {
     expect(registry.disconnectUser("user-1")).toBe(2);
     expect(registry.getUserCount()).toBe(0);
     expect(metrics.decrementGauge).toHaveBeenCalledWith(
-      "realtime_active_connections_total",
+      "realtime_active_connections",
       "Active realtime connections",
       1,
       { type: "ws" },
     );
     expect(metrics.decrementGauge).toHaveBeenCalledWith(
-      "realtime_active_connections_total",
+      "realtime_active_connections",
       "Active realtime connections",
       1,
       { type: "sse" },

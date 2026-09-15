@@ -5,6 +5,7 @@ const { spawnSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const MINIMUM_NODE_MAJOR = 20;
+const BUILD_NODE_OPTIONS = "--max-old-space-size=2048";
 const ENV_FILES = [
   ["apps/api/.env.example", "apps/api/.env"],
   ["apps/web/.env.example", "apps/web/.env"],
@@ -15,11 +16,16 @@ function main() {
     verifyPrerequisites();
     createEnvironmentFiles();
     run("pnpm", ["install", "--frozen-lockfile"]);
+    // Build serially before mutating local infrastructure. Web, mobile, and API
+    // compilers are memory-heavy when Turbo starts them together on laptops.
+    run("pnpm", ["exec", "turbo", "build", "--concurrency=1"], {
+      ...process.env,
+      NODE_OPTIONS: process.env.NODE_OPTIONS || BUILD_NODE_OPTIONS,
+    });
     run("pnpm", ["docker:up"]);
     run("pnpm", ["docker:init"]);
     verifyFreshDatabase();
     run("pnpm", ["db:migrate"]);
-    run("pnpm", ["build"]);
     process.stdout.write("\nBootstrap complete. Run `pnpm dev` to start development.\n");
   } catch (error) {
     process.stderr.write(`\nBootstrap failed: ${error.message}\n`);
@@ -120,29 +126,35 @@ function createEnvironmentFiles() {
       const jwtSecret = generateSecret(48);
       let refreshSecret = generateSecret(48);
       while (refreshSecret === jwtSecret) refreshSecret = generateSecret(48);
-      const metricsToken = generateSecret(32);
       content = content
         .replace("your-super-secret-jwt-key-change-in-prod", jwtSecret)
-        .replace("your-separate-refresh-secret-change-in-prod", refreshSecret)
-        .replace("optional-development-metrics-token-32chars", metricsToken);
+        .replace("your-separate-refresh-secret-change-in-prod", refreshSecret);
     }
     fs.writeFileSync(target, content, "utf8");
     process.stdout.write(`Created ${destination} with generated secrets\n`);
   }
 }
 
-function run(command, args) {
+function run(command, args, environment) {
   process.stdout.write(`\n> ${command} ${args.join(" ")}\n`);
-  const result = execute(command, args, "inherit");
+  const result = execute(command, args, "inherit", undefined, 0, environment);
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} exited with code ${result.status}.`);
 }
 
-function execute(command, args, stdio, shell = process.platform === "win32", timeout = 0) {
+function execute(
+  command,
+  args,
+  stdio,
+  shell = process.platform === "win32",
+  timeout = 0,
+  environment,
+) {
   const options = {
     cwd: ROOT,
     stdio,
     shell,
+    ...(environment ? { env: environment } : {}),
     ...(timeout > 0 ? { timeout } : {}),
   };
   if (shell && Array.isArray(args) && args.length > 0) {

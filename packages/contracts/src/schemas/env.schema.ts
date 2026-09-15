@@ -134,7 +134,8 @@ export const envSchema = z
     LOCKOUT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     LOCKOUT_DURATION_MINUTES: z.coerce.number().int().positive().default(15),
 
-    OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default("http://localhost:4318/v1/traces"),
+    OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().default("http://localhost:4318/v1/traces"),
+    OTEL_TRACE_SAMPLE_RATIO: z.coerce.number().min(0).max(1).default(0.2),
     LOKI_HOST: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     ERROR_REPORTING_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     ERROR_REPORTING_TOKEN: z.preprocess(emptyStringAsUndefined, z.string().min(16).optional()),

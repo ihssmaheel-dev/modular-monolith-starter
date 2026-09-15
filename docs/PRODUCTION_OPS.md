@@ -145,6 +145,32 @@ The bundled production observability overlay is optional. Managed Prometheus, lo
 error reporting are valid if the same signals, retention, access control, and alerts exist. Do not
 expose metrics or Grafana publicly. Metrics endpoints require `METRICS_TOKEN` in production.
 
+The bundled production overlay is private by default: its observability services have no host
+published ports. Supply the following deployment-time values when enabling it with
+`--profile observability`; Compose intentionally fails closed when any required value is absent:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — the authenticated HTTPS OTLP/HTTP trace endpoint.
+- `METRICS_TOKEN_FILE` — a host secret file mounted read-only into Prometheus.
+- `ALERTMANAGER_CONFIG_FILE` — a rendered Alertmanager config based on
+  `docker/observability/alertmanager/alertmanager.prod.example.yml`.
+- `ALERTMANAGER_SMTP_PASSWORD_FILE` — the SMTP password file mounted read-only.
+- `GF_SECURITY_ADMIN_PASSWORD` — a unique secret for the private Grafana deployment.
+- `OBSERVABILITY_POSTGRES_EXPORTER_DSN` and `OBSERVABILITY_REDIS_EXPORTER_URL` — TLS-enabled,
+  least-privilege exporter connections.
+
+Prometheus retention is bounded to 15 days/10 GB. Loki retains seven days and enforces ingestion,
+burst, and per-stream limits. Prometheus uses bounded samples per scrape and a 15-second application /
+30-second infrastructure cadence to control collector work. Keep the
+overlay on a private network or behind an authenticated operator gateway, and use cloud budgets,
+log/trace retention policies, and managed-service quotas for account-level cost control. The CI
+workflow renders this exact merge, validates dashboards, and runs `promtool` against the production
+Prometheus configuration and alert rules.
+
+cAdvisor is deliberately not enabled by the default production observability profile because it
+requires privileged host mounts and a Docker socket. On a dedicated single-host deployment where
+that trade-off is accepted, add `--profile observability-host` and use an explicit host firewall;
+cloud deployments should use the provider's container and host metrics instead.
+
 `@fastify/under-pressure` returns the common localized error envelope with a request ID and
 `Retry-After` when event-loop delay/utilization crosses the configured limits. Health and metrics
 remain reachable so an orchestrator can distinguish overload from process death.

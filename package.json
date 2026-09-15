@@ -49,6 +49,7 @@
     "observability:up": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.observability.yml up -d",
     "observability:down": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.observability.yml down",
     "observability:logs": "docker compose -f docker/docker-compose.observability.yml logs -f",
+    "observability:check": "node scripts/validate-observability-config.js",
     "clean": "node scripts/clean.js",
     "clean:all": "node scripts/clean.js --all",
     "prepare": "husky",

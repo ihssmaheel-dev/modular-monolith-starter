@@ -176,7 +176,7 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
     const timestamp = Number.parseInt(id.split("-")[0] ?? "", 10);
     const lag = Date.now() - timestamp;
     if (Number.isNaN(timestamp) || lag < 0) return;
-    this.metrics.recordHistogram(
+    this.metrics.setGauge(
       "realtime_consumer_lag_ms",
       "Lag between event generation and stream consumption",
       lag,

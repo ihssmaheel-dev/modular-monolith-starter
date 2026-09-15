@@ -9,6 +9,7 @@ export class MetricsService {
   private histograms = new Map<string, Histogram<string>>();
   private gauges = new Map<string, Gauge<string>>();
   private summaries = new Map<string, Summary<string>>();
+  private labelNames = new Map<string, string>();
 
   incrementCounter(name: string, help: string, value = 1, labels?: Labels): void {
     const counter = this.getCounter(name, help, labels);
@@ -64,12 +65,11 @@ export class MetricsService {
   }
 
   private getCounter(name: string, help: string, labels?: Labels): Counter<string> {
+    const labelNames = this.assertLabelNames(name, labels);
     let metric = this.counters.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric =
-        (existing as Counter<string> | undefined) ??
-        new Counter({ name, help, labelNames: Object.keys(labels ?? {}) });
+      metric = (existing as Counter<string> | undefined) ?? new Counter({ name, help, labelNames });
       this.counters.set(name, metric);
     }
     return metric;
@@ -81,53 +81,55 @@ export class MetricsService {
     labels?: Labels,
     buckets?: number[],
   ): Histogram<string> {
+    const labelNames = this.assertLabelNames(name, labels);
     let metric = this.histograms.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      let created: Histogram<string>;
-      try {
-        created = new Histogram({
+      metric =
+        (existing as Histogram<string> | undefined) ??
+        new Histogram({
           name,
           help,
-          labelNames: Object.keys(labels ?? {}),
+          labelNames,
           buckets,
           enableExemplars: true,
         });
-      } catch {
-        created = new Histogram({
-          name,
-          help,
-          labelNames: Object.keys(labels ?? {}),
-          buckets,
-        });
-      }
-      metric = (existing as Histogram<string> | undefined) ?? created;
       this.histograms.set(name, metric);
     }
     return metric;
   }
 
   private getGauge(name: string, help: string, labels?: Labels): Gauge<string> {
+    const labelNames = this.assertLabelNames(name, labels);
     let metric = this.gauges.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric =
-        (existing as Gauge<string> | undefined) ??
-        new Gauge({ name, help, labelNames: Object.keys(labels ?? {}) });
+      metric = (existing as Gauge<string> | undefined) ?? new Gauge({ name, help, labelNames });
       this.gauges.set(name, metric);
     }
     return metric;
   }
 
   private getSummary(name: string, help: string, labels?: Labels): Summary<string> {
+    const labelNames = this.assertLabelNames(name, labels);
     let metric = this.summaries.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric =
-        (existing as Summary<string> | undefined) ??
-        new Summary({ name, help, labelNames: Object.keys(labels ?? {}) });
+      metric = (existing as Summary<string> | undefined) ?? new Summary({ name, help, labelNames });
       this.summaries.set(name, metric);
     }
     return metric;
+  }
+
+  private assertLabelNames(name: string, labels?: Labels): string[] {
+    const labelNames = Object.keys(labels ?? {})
+      .sort()
+      .join(",");
+    const previous = this.labelNames.get(name);
+    if (previous && previous !== labelNames) {
+      throw new Error(`Metric ${name} was called with an incompatible label set`);
+    }
+    this.labelNames.set(name, labelNames);
+    return labelNames ? labelNames.split(",") : [];
   }
 }

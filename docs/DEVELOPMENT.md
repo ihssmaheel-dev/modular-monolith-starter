@@ -59,7 +59,7 @@ Local endpoints:
 - API `http://localhost:5156/api/v1` (health probes: `/api/v1/health`), Scalar `http://localhost:5156/api/docs`
 - Web `http://localhost:5155`
 - MinIO console `http://localhost:9001`, Mailpit `http://localhost:8025`
-- Observability: Grafana `http://localhost:3001`, Prometheus `http://localhost:9090`, Loki `http://localhost:3100`, Tempo `http://localhost:3200`, cAdvisor `http://localhost:8080`
+- Observability: Grafana `http://localhost:3001`, Prometheus `http://localhost:9090`, Loki `http://localhost:3100`, Tempo `http://localhost:3200`, cAdvisor `http://localhost:8081` (override with `CADVISOR_HOST_PORT`)
 
 Stop infrastructure with `pnpm docker:down`.
 
@@ -200,13 +200,18 @@ pnpm --filter api db:migrate:status
 ## Troubleshooting
 
 - **`docker` is unavailable:** install/start Docker and confirm `docker compose version` succeeds.
-- **A port is occupied:** check `5156` (API), `5155` (Web), `5432` (Postgres), `6379` (Redis), `8025` (Mailpit), `9000` (MinIO), `3001` (Grafana), `8080` (cAdvisor), `3000` (prod container), then
+- **A port is occupied:** check `5156` (API), `5155` (Web), `5432` (Postgres), `6379` (Redis), `8025` (Mailpit), `9000` (MinIO), `3001` (Grafana), `8081` (cAdvisor; override with `CADVISOR_HOST_PORT`), `3000` (prod container), then
   stop the conflicting process.
 - **Environment validation fails:** compare the relevant `.env` with its `.env.example`; access and
   refresh JWT secrets must differ and contain at least 32 characters.
 - **PostgreSQL authentication fails:** verify `DATABASE_URL` matches credentials in `docker-compose.yml`.
 - **Integration tests fail before running:** set `TEST_DATABASE_URL` and keep `test` in the database name.
 - **API E2E tests fail before running:** set `E2E_USE_CONTAINERS=true` and start Docker.
+- **Node or Vite fails with a tiny heap or native `memory allocation failed`:** Windows has exhausted
+  its system commit limit. Stop test/build commands before starting dev servers, close unused IDE or
+  browser processes, and run `pnpm observability:down` when telemetry is not being inspected. Keep a
+  system-managed page file enabled. `pnpm bootstrap` builds serially with a bounded Node heap to avoid
+  creating this pressure during setup.
 - **Emails do not appear:** keep `EMAIL_DRIVER=smtp`, `SMTP_HOST=localhost`, and `SMTP_PORT=1025`,
   then inspect Mailpit at `http://localhost:8025`.
 - **Iterating on an email template:** run `pnpm dev:email` and open `http://localhost:3002` —

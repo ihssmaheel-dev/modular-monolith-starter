@@ -52,7 +52,7 @@ describe("RealtimeStreamConsumer", () => {
     const client = { duplicate: vi.fn().mockReturnValue(subscriber) } as unknown as Redis;
     const redis = { getClient: vi.fn().mockReturnValue(client) } as unknown as RedisService;
     const router = { route: vi.fn().mockReturnValue(true) } as unknown as RealtimeStreamRouter;
-    const metrics = { recordHistogram: vi.fn() } as unknown as MetricsService;
+    const metrics = { setGauge: vi.fn() } as unknown as MetricsService;
     const logger = {
       child: vi.fn().mockReturnValue({ error: vi.fn(), warn: vi.fn() }),
     } as unknown as PinoLoggerService;
@@ -66,7 +66,7 @@ describe("RealtimeStreamConsumer", () => {
     });
     await consumer.onModuleDestroy();
 
-    expect(metrics.recordHistogram).toHaveBeenCalledWith(
+    expect(metrics.setGauge).toHaveBeenCalledWith(
       "realtime_consumer_lag_ms",
       "Lag between event generation and stream consumption",
       expect.any(Number),
@@ -79,7 +79,7 @@ describe("RealtimeStreamConsumer", () => {
     const redis = { getClient: vi.fn().mockReturnValue(client) } as unknown as RedisService;
     const router = { route: vi.fn().mockReturnValue(true) } as unknown as RealtimeStreamRouter;
     const metrics = {
-      recordHistogram: vi.fn(),
+      setGauge: vi.fn(),
       incrementCounter: vi.fn(),
     } as unknown as MetricsService;
     const logger = {

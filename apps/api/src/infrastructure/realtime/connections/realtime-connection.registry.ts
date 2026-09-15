@@ -36,12 +36,9 @@ export class RealtimeConnectionRegistry {
       return;
     }
     clients.add(socket);
-    this.metrics.incrementGauge(
-      "realtime_active_connections_total",
-      "Active realtime connections",
-      1,
-      { type: "ws" },
-    );
+    this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
+      type: "ws",
+    });
   }
 
   /**
@@ -66,12 +63,9 @@ export class RealtimeConnectionRegistry {
     const key = connectionKey(userId, tenantId);
     const clients = this.wsClients.get(key);
     if (clients?.delete(socket)) {
-      this.metrics.decrementGauge(
-        "realtime_active_connections_total",
-        "Active realtime connections",
-        1,
-        { type: "ws" },
-      );
+      this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
+        type: "ws",
+      });
       if (clients.size === 0) this.wsClients.delete(key);
     }
   }
@@ -91,12 +85,9 @@ export class RealtimeConnectionRegistry {
       return;
     }
     clients.add(subject);
-    this.metrics.incrementGauge(
-      "realtime_active_connections_total",
-      "Active realtime connections",
-      1,
-      { type: "sse" },
-    );
+    this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
+      type: "sse",
+    });
   }
 
   /**
@@ -124,12 +115,9 @@ export class RealtimeConnectionRegistry {
     const key = connectionKey(userId, tenantId);
     const clients = this.sseClients.get(key);
     if (clients?.delete(subject)) {
-      this.metrics.decrementGauge(
-        "realtime_active_connections_total",
-        "Active realtime connections",
-        1,
-        { type: "sse" },
-      );
+      this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
+        type: "sse",
+      });
       if (clients.size === 0) this.sseClients.delete(key);
     }
   }
@@ -220,7 +208,7 @@ export class RealtimeConnectionRegistry {
     for (const [type, count] of Object.entries(closed)) {
       if (count > 0) {
         this.metrics.decrementGauge(
-          "realtime_active_connections_total",
+          "realtime_active_connections",
           "Active realtime connections",
           count,
           { type },

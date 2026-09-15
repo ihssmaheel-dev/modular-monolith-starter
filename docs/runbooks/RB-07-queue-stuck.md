@@ -1,5 +1,7 @@
 # RB-07: Queue stuck / stalled BullMQ jobs
 
+This runbook also covers `BullMQQueueBacklogHigh`.
+
 - **Severity:** SEV-2 (escalates if user-visible side effects stop — see RB-05)
 - **Owner:** backend on-call
 - **Last reviewed:** 2026-09-11

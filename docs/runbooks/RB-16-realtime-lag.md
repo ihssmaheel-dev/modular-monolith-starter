@@ -1,5 +1,7 @@
 # RB-16: Realtime lag high / live updates stale
 
+This runbook also covers `RealtimeConsumerLagHigh` and `RealtimeDeadLettersCreated`.
+
 - **Severity:** SEV-2 (SEV-3 if only the 60s poll fallback covers it and nobody noticed)
 - **Owner:** backend on-call
 - **Last reviewed:** 2026-09-11

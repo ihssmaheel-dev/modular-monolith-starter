@@ -1,8 +1,20 @@
 # Overlay for: docker compose -f docker-compose.prod.yml -f docker-compose.observability.yml
 # -f docker-compose.prod.observability.yml --profile observability up -d
+x-observability-logging: &observability-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   prometheus:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *observability-logging
     volumes:
       - ./observability/prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -12,43 +24,113 @@ services:
 
   alertmanager:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 100
+    logging: *observability-logging
+    volumes:
+      - !reset []
+      - ${ALERTMANAGER_CONFIG_FILE:?set ALERTMANAGER_CONFIG_FILE}:/etc/alertmanager/alertmanager.yml:ro
+      - ${ALERTMANAGER_SMTP_PASSWORD_FILE:?set ALERTMANAGER_SMTP_PASSWORD_FILE}:/run/secrets/alertmanager_smtp_password:ro
     networks:
       - app-network
 
   loki:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *observability-logging
     networks:
       - app-network
 
   alloy:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *observability-logging
     networks:
       - app-network
 
   tempo:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *observability-logging
     networks:
       - app-network
 
   grafana:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *observability-logging
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:?set GF_SECURITY_ADMIN_PASSWORD}
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     networks:
       - app-network
 
   postgres-exporter:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 100
+    logging: *observability-logging
+    environment:
+      DATA_SOURCE_NAME: ${OBSERVABILITY_POSTGRES_EXPORTER_DSN:?set OBSERVABILITY_POSTGRES_EXPORTER_DSN}
     networks:
       - app-network
 
   redis-exporter:
     profiles: [observability]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 100
+    logging: *observability-logging
+    environment:
+      REDIS_ADDR: ${OBSERVABILITY_REDIS_EXPORTER_URL:?set OBSERVABILITY_REDIS_EXPORTER_URL}
     networks:
       - app-network
 
   cadvisor:
-    profiles: [observability]
+    # cAdvisor requires host mounts and privileged access. Keep it opt-in for
+    # single-host diagnostics; use managed/container metrics in cloud production.
+    profiles: [observability-host]
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *observability-logging
     networks:
       - app-network
+
+  api:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?set OTEL_EXPORTER_OTLP_ENDPOINT}
+
+  worker:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?set OTEL_EXPORTER_OTLP_ENDPOINT}
 
 networks:
   app-network:

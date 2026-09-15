@@ -1,42 +1,67 @@
 discovery.docker "containers" {
-  host = "unix:///var/run/docker.sock"
+	host = "unix:///var/run/docker.sock"
 }
 
-discovery.relabel "docker_logs" {
-  targets = discovery.docker.containers.targets
+discovery.relabel "docker_targets" {
+	targets = discovery.docker.containers.targets
 
-  rule {
-    target_label = "job"
-    replacement  = "docker"
-  }
+	rule {
+		source_labels = ["__meta_docker_container_label_observability_logs"]
+		regex         = "true"
+		action        = "keep"
+	}
 
-  rule {
-    source_labels = ["__meta_docker_container_name"]
-    regex         = "/(?:monorepo-)?(.*)"
-    target_label  = "service"
-  }
+	// Do not feed the log shipper's or Loki's own delivery errors back into
+	// the same pipeline. Their health is monitored through Prometheus.
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/monorepo-(alloy|loki)"
+		action        = "drop"
+	}
+}
 
-  rule {
-    source_labels = ["__meta_docker_container_name"]
-    regex         = "/(.*)"
-    target_label  = "container"
-  }
+discovery.relabel "docker_log_labels" {
+	targets = []
 
-  rule {
-    source_labels = ["__meta_docker_container_log_stream"]
-    target_label  = "stream"
-  }
+	rule {
+		target_label = "job"
+		replacement  = "docker"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(?:monorepo-)?(.*)"
+		target_label  = "service"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_log_stream"]
+		target_label  = "stream"
+	}
 }
 
 loki.source.docker "default" {
-  host          = "unix:///var/run/docker.sock"
-  targets       = discovery.docker.containers.targets
-  relabel_rules = discovery.relabel.docker_logs.rules
-  forward_to    = [loki.write.local.receiver]
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.relabel.docker_targets.output
+	relabel_rules = discovery.relabel.docker_log_labels.rules
+	forward_to    = [loki.write.local.receiver]
 }
 
 loki.write "local" {
-  endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
-  }
+	// Preserve a valid, bounded stream even while Alloy drains batches created
+	// before discovery labels were available (for example after a restart).
+	external_labels = {
+		collector = "alloy",
+	}
+	max_streams = 1000
+
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
 }

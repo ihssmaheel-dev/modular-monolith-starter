@@ -2,6 +2,7 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from "@nestjs/common"
 import Redis from "ioredis";
 import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
+import { MetricsService } from "../metrics/metrics.service";
 
 const MAX_RETRIES_PER_REQUEST = 3;
 const RETRY_DELAY_MULTIPLIER = 200;
@@ -15,7 +16,10 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
   private logger: PinoLoggerService;
   private readonly readyListeners = new Set<ReadyListener>();
 
-  constructor(logger: PinoLoggerService) {
+  constructor(
+    logger: PinoLoggerService,
+    private readonly metrics?: MetricsService,
+  ) {
     this.logger = logger.child({ module: "RedisService" });
   }
 
@@ -37,8 +41,18 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
         return backoff + Math.floor(Math.random() * RETRY_DELAY_MULTIPLIER);
       },
     });
-    client.on("error", (error) => this.logger.error({ error }, "Redis client error"));
-    client.on("ready", () => this.notifyReady());
+    client.on("error", (error) => {
+      this.metrics?.setGauge("redis_client_ready", "Application Redis client readiness", 0);
+      this.metrics?.incrementCounter(
+        "redis_client_errors_total",
+        "Application Redis client errors",
+      );
+      this.logger.error({ err: error }, "Redis client error");
+    });
+    client.on("ready", () => {
+      this.metrics?.setGauge("redis_client_ready", "Application Redis client readiness", 1);
+      this.notifyReady();
+    });
     this.client = client;
     await Promise.race([
       new Promise<void>((resolve) => client.once("ready", resolve)),
@@ -68,7 +82,7 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     try {
       await listener();
     } catch (error) {
-      this.logger.error({ error }, "Redis readiness listener failed");
+      this.logger.error({ err: error }, "Redis readiness listener failed");
     }
   }
 
@@ -80,7 +94,7 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     try {
       await client.quit();
     } catch (error) {
-      this.logger.warn({ error }, "Redis client did not quit cleanly");
+      this.logger.warn({ err: error }, "Redis client did not quit cleanly");
       client.disconnect();
     }
   }

@@ -158,7 +158,7 @@ pnpm observability:logs # Tail telemetry logs
 | **Alloy Telemetry UI**   | `http://localhost:12345`         | Live Pipeline Graph & Collector Status                     |
 | **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                                 |
 | **Loki Log Engine**      | `http://localhost:3100`          | High-performance Log Aggregator                            |
-| **cAdvisor UI**          | `http://localhost:8080`          | Container Resource & OOM Metrics (`cadvisor`)              |
+| **cAdvisor UI**          | `http://localhost:8081`          | Container Resource & OOM Metrics (`cadvisor`)              |
 | **Mailpit Web UI**       | `http://localhost:8025`          | Local SMTP Email Inbox (`:1025`)                           |
 | **Email Preview**        | `http://localhost:3002`          | React Email workshop (`pnpm dev:email`)                    |
 | **MinIO Console**        | `http://localhost:9001`          | Local S3 fixture only; `minioadmin / minioadmin` (`:9000`) |

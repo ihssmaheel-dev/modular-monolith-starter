@@ -1,6 +1,9 @@
 global:
-  scrape_interval: 10s
-  evaluation_interval: 10s
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: production
+    service: modular-monolith
 
 rule_files:
   - /etc/prometheus/alerts.yml
@@ -16,6 +19,7 @@ scrape_configs:
       - targets: ["localhost:9090"]
 
   - job_name: "api-service"
+    sample_limit: 20000
     metrics_path: "/metrics"
     authorization:
       credentials_file: /run/secrets/metrics_token
@@ -23,6 +27,7 @@ scrape_configs:
       - targets: ["api:3000"]
 
   - job_name: "worker-service"
+    sample_limit: 20000
     metrics_path: "/metrics"
     authorization:
       credentials_file: /run/secrets/metrics_token
@@ -30,13 +35,48 @@ scrape_configs:
       - targets: ["worker:9464"]
 
   - job_name: "postgres-exporter"
+    scrape_interval: 30s
+    sample_limit: 10000
     static_configs:
       - targets: ["postgres-exporter:9187"]
 
   - job_name: "redis-exporter"
+    scrape_interval: 30s
+    sample_limit: 10000
     static_configs:
       - targets: ["redis-exporter:9121"]
 
-  - job_name: "cadvisor"
+  - job_name: "loki"
+    scrape_interval: 30s
+    sample_limit: 10000
+    metrics_path: "/metrics"
     static_configs:
-      - targets: ["cadvisor:8080"]
+      - targets: ["loki:3100"]
+
+  - job_name: "tempo"
+    scrape_interval: 30s
+    sample_limit: 10000
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["tempo:3200"]
+
+  - job_name: "alloy"
+    scrape_interval: 30s
+    sample_limit: 10000
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  - job_name: "grafana"
+    scrape_interval: 30s
+    sample_limit: 10000
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  - job_name: "alertmanager"
+    scrape_interval: 30s
+    sample_limit: 10000
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["alertmanager:9093"]
