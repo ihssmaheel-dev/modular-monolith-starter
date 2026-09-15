@@ -40,6 +40,7 @@ describe("VerifyUserCredentialsQuery", () => {
   it("should return ok(null) if user not found", async () => {
     // Arrange
     vi.mocked(repository.findByEmailWithPassword).mockResolvedValue(ok(null));
+    vi.mocked(argon2.verify).mockResolvedValue(false as never);
 
     // Act
     const result = await query.execute("test@example.com", "pwd");
@@ -49,6 +50,8 @@ describe("VerifyUserCredentialsQuery", () => {
     if (result.isOk()) {
       expect(result.value).toBeNull();
     }
+    expect(argon2.verify).toHaveBeenCalledWith(expect.any(String), "pwd");
+    expect(getUserById.execute).not.toHaveBeenCalled();
   });
 
   it("should return ok(null) if password does not match", async () => {

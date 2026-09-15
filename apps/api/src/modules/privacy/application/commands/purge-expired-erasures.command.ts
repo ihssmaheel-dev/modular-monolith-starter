@@ -12,13 +12,14 @@ import { DataLifecycleRegistry } from "../../../../infrastructure/lifecycle/data
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { AccountPurgedEvent, OrganizationPurgedEvent } from "../../domain/events/privacy.events";
 import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
-import type { DsrRequest } from "../../domain/entities/dsr.entity";
+import { DSR_MAX_ATTEMPTS, type DsrRequest } from "../../domain/entities/dsr.entity";
 
-const PURGE_BATCH_LIMIT = 1_000;
+const PURGE_BATCH_LIMIT = 100;
 
 /**
- * GDPR Art. 17 grace enforcement: hard-delete subjects whose erasure grace
- * period expired, and age out stale export snapshots. Runs hourly; also
+ * GDPR Art. 17 grace enforcement: purge subject-owned data after the erasure
+ * grace period, retain a deactivated anonymous identity tombstone for record
+ * integrity, and age out stale export snapshots. Runs hourly; also
  * exposed to admins via POST /privacy/admin/purge-expired.
  */
 @Injectable()
@@ -56,13 +57,20 @@ export class PurgeExpiredErasuresCommand {
 
   private async persist(): Promise<Result<{ purged: number }, PrivacyError>> {
     const batch = await this.database.withTransaction(() =>
-      this.requests.findExpiredErasureBatch(PURGE_BATCH_LIMIT),
+      this.requests.claimExpiredErasureBatch(PURGE_BATCH_LIMIT),
     );
     if (batch.isErr()) return err({ type: "PURGE_FAILED" });
     let purged = 0;
     for (const request of batch.value) {
       const outcome = await this.fulfillRequest(request);
       if (outcome === "fulfilled") purged += 1;
+      if (outcome === "retry" && request.attempts >= DSR_MAX_ATTEMPTS) {
+        this.logger.error(
+          { requestId: request.id, attempts: request.attempts },
+          "Erasure request exhausted its retry budget",
+        );
+        await this.markFailed(request.id);
+      }
     }
     const scrubbed = await this.scrubExpiredExports();
     if (scrubbed.isErr()) return err(scrubbed.error);
@@ -70,9 +78,9 @@ export class PurgeExpiredErasuresCommand {
   }
 
   /**
-   * Fulfills one request end to end. Transient failures keep the REQUESTED
-   * state (retried next cycle); structurally invalid requests move to FAILED
-   * with an error log instead of poisoning every nightly run.
+   * Fulfills one claimed request end to end. Transient failures leave the
+   * PROCESSING lease to become eligible after its timeout; structurally
+   * invalid requests move to FAILED instead of poisoning every hourly run.
    */
   private async fulfillRequest(request: DsrRequest): Promise<"fulfilled" | "retry" | "failed"> {
     if (request.type === "ACCOUNT_ERASURE") {
@@ -140,6 +148,7 @@ export class PurgeExpiredErasuresCommand {
       const marked = await this.requests.updateById(request.id, {
         status: "FULFILLED",
         payload: null,
+        lockedAt: null,
       });
       if (marked.isErr() || !marked.value) return err({ type: "PURGE_FAILED" });
       const dispatched = await this.outbox.dispatchGlobal(
@@ -153,7 +162,7 @@ export class PurgeExpiredErasuresCommand {
         action: "UPDATE",
         actorId: undefined,
         tenantId: undefined,
-        before: { id: request.id, status: "REQUESTED" },
+        before: { id: request.id, status: request.status },
         after: { id: request.id, status: "FULFILLED" },
       });
       return ok("fulfilled" as const);
@@ -190,6 +199,7 @@ export class PurgeExpiredErasuresCommand {
       const marked = await this.requests.updateById(request.id, {
         status: "FULFILLED",
         payload: null,
+        lockedAt: null,
       });
       if (marked.isErr() || !marked.value) return err({ type: "PURGE_FAILED" });
       const dispatched = await this.outbox.dispatchGlobal(
@@ -209,7 +219,7 @@ export class PurgeExpiredErasuresCommand {
 
   private async markFailed(requestId: string): Promise<void> {
     const marked = await this.database.withResultTransaction(() =>
-      this.requests.updateById(requestId, { status: "FAILED", payload: null }),
+      this.requests.updateById(requestId, { status: "FAILED", payload: null, lockedAt: null }),
     );
     if (marked.isErr() || !marked.value) {
       this.logger.error({ requestId }, "Erasure request could not be marked failed");

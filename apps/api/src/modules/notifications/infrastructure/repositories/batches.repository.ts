@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, asc, eq, lte, sql } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
@@ -76,7 +76,11 @@ export class BatchesRepository extends BaseRepository<NotificationBatch, Notific
       db as unknown as {
         select: () => {
           from: (t: unknown) => {
-            where: (c: unknown) => { limit: (n: number) => Promise<NotificationBatchRow[]> };
+            where: (c: unknown) => {
+              orderBy: (...columns: unknown[]) => {
+                limit: (n: number) => Promise<NotificationBatchRow[]>;
+              };
+            };
           };
         };
       }
@@ -89,7 +93,30 @@ export class BatchesRepository extends BaseRepository<NotificationBatch, Notific
           lte(notificationBatches.windowEndsAt, new Date()),
         ),
       )
+      .orderBy(asc(notificationBatches.windowEndsAt), asc(notificationBatches.id))
       .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
+  }
+
+  /** Locks one due window for this transaction; competing replicas skip it. */
+  async lockDueWindow(id: string): Promise<NotificationBatch | null> {
+    const result = await this.getDb().execute(sql`SELECT
+      id,
+      user_id AS "userId",
+      tenant_id AS "tenantId",
+      type,
+      grouping_key AS "groupingKey",
+      items,
+      status,
+      window_ends_at AS "windowEndsAt"
+    FROM notification_batches
+    WHERE id = ${id} AND status = 'open' AND window_ends_at <= NOW()
+    FOR UPDATE SKIP LOCKED`);
+    const row = result.rows[0] as
+      (Omit<NotificationBatchRow, "windowEndsAt"> & { windowEndsAt: Date | string }) | undefined;
+    if (!row) return null;
+    const windowEndsAt =
+      row.windowEndsAt instanceof Date ? row.windowEndsAt : new Date(row.windowEndsAt);
+    return this.toDomain({ ...row, windowEndsAt } as NotificationBatchRow);
   }
 }

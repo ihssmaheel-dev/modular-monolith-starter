@@ -13,6 +13,7 @@ import { DatabaseService } from "../../../../infrastructure/database";
 import { SessionService } from "../../../../infrastructure/session/session.service";
 import { IncrementAuthVersionCommand } from "./increment-auth-version.command";
 
+/** Deactivates an identity while preserving its row for history and privacy policy. */
 @Injectable()
 export class DeleteUserCommand {
   constructor(
@@ -69,9 +70,8 @@ export class DeleteUserCommand {
       await this.sessions.revokeAllForUser(id);
     }
 
-    const deleted = await this.repository.deleteById(id);
-    if (deleted.isErr()) return err({ type: "USER_NOT_FOUND", userId: id });
-    if (!deleted.value) return err({ type: "USER_NOT_FOUND", userId: id });
+    const deleted = await this.repository.softDeleteById(id);
+    if (deleted.isErr() || !deleted.value) return err({ type: "USER_NOT_FOUND", userId: id });
 
     const dispatched = await this.outbox.dispatchGlobal("user.deleted", new UserDeletedEvent(id));
     if (dispatched.isErr()) return err({ type: "USER_EVENT_DISPATCH_FAILED" });

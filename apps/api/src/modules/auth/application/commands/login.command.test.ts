@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { LoginCommand } from "./login.command";
 import { VerifyUserCredentialsQuery } from "../../../users/application/queries/verify-user-credentials.query";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 import * as jwtUtils from "../utils/jwt.utils";
 import { User } from "../../../users/domain/entities/user.entity";
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
@@ -127,7 +127,7 @@ describe("LoginCommand", () => {
     expect(verifyCredentials.execute).not.toHaveBeenCalled();
   });
 
-  it("should return err EMAIL_NOT_VERIFIED for correct credentials on unverified accounts", async () => {
+  it("should not reveal an unverified account after correct credentials", async () => {
     // Arrange
     const user = User.fromPersistence({
       id: "user-123",
@@ -145,13 +145,33 @@ describe("LoginCommand", () => {
     // Assert
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toEqual({ type: "EMAIL_NOT_VERIFIED" });
+      expect(result.error).toEqual({ type: "INVALID_CREDENTIALS" });
     }
     expect(jwtUtils.signAccessToken).not.toHaveBeenCalled();
-    expect(lockoutService.recordFailedAttempt).not.toHaveBeenCalled();
+    expect(lockoutService.recordFailedAttempt).toHaveBeenCalledWith("test@example.com");
+    expect(lockoutService.resetAttempts).not.toHaveBeenCalled();
     expect(metricsService.incrementCounter).not.toHaveBeenCalledWith(
       "auth_successful_logins_total",
       expect.anything(),
     );
+  });
+
+  it("should not reset lockout attempts when session creation fails", async () => {
+    const user = User.fromPersistence({
+      id: "user-123",
+      email: "test@example.com",
+      name: "Test User",
+      role: "user",
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(verifyCredentials.execute).mockResolvedValue(ok(user));
+    vi.mocked(sessions.create).mockResolvedValue(err({ type: "SESSION_UNAVAILABLE" }));
+
+    const result = await command.execute({ email: "test@example.com", password: "password123" });
+
+    expect(result.isErr()).toBe(true);
+    expect(lockoutService.resetAttempts).not.toHaveBeenCalled();
   });
 });

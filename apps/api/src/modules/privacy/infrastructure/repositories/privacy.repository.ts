@@ -5,7 +5,9 @@ import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
 import { dsrRequests, type DsrRow } from "../schemas/privacy.schema";
-import { DsrRequest } from "../../domain/entities/dsr.entity";
+import { DSR_MAX_ATTEMPTS, DsrRequest } from "../../domain/entities/dsr.entity";
+
+const ERASURE_LOCK_TIMEOUT_MINUTES = 15;
 
 @Injectable()
 export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
@@ -54,14 +56,22 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
   }
 
   async claimExportBatch(limit: number): Promise<DsrRequest[]> {
-    const result = await this.getDb().execute(sql`WITH candidates AS (
+    const result = await this.getDb().execute(sql`WITH exhausted AS (
+      UPDATE dsr_requests
+      SET status = 'FAILED', payload = NULL, locked_at = NULL, updated_at = NOW()
+      WHERE type = 'EXPORT'
+        AND status = 'PROCESSING'
+        AND attempts >= ${DSR_MAX_ATTEMPTS}
+        AND locked_at < NOW() - INTERVAL '15 minutes'
+      RETURNING id
+    ), candidates AS (
       SELECT id FROM dsr_requests
       WHERE type = 'EXPORT'
         AND (
           status = 'REQUESTED'
           OR (status = 'PROCESSING' AND locked_at < NOW() - INTERVAL '15 minutes')
         )
-        AND attempts < 3
+        AND attempts < ${DSR_MAX_ATTEMPTS}
         AND expires_at > NOW()
       ORDER BY created_at ASC
       LIMIT ${limit}
@@ -123,24 +133,38 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
     });
   }
 
-  async findExpiredErasureBatch(limit: number): Promise<DsrRequest[]> {
-    const db = this.getDb();
-    const rows = await (
-      db as unknown as {
-        select: () => {
-          from: (t: unknown) => {
-            where: (c: unknown) => { limit: (n: number) => Promise<DsrRow[]> };
-          };
-        };
-      }
+  async claimExpiredErasureBatch(limit: number): Promise<DsrRequest[]> {
+    const result = await this.getDb().execute(sql`WITH exhausted AS (
+      UPDATE dsr_requests
+      SET status = 'FAILED', payload = NULL, locked_at = NULL, updated_at = NOW()
+      WHERE type IN ('ACCOUNT_ERASURE', 'ORGANIZATION_ERASURE')
+        AND status = 'PROCESSING'
+        AND attempts >= ${DSR_MAX_ATTEMPTS}
+        AND locked_at < NOW() - (${ERASURE_LOCK_TIMEOUT_MINUTES} * INTERVAL '1 minute')
+      RETURNING id
+    ), candidates AS (
+      SELECT id FROM dsr_requests
+      WHERE type IN ('ACCOUNT_ERASURE', 'ORGANIZATION_ERASURE')
+        AND expires_at IS NOT NULL
+        AND expires_at <= NOW()
+        AND attempts < ${DSR_MAX_ATTEMPTS}
+        AND (
+          status = 'REQUESTED'
+          OR (
+            status = 'PROCESSING'
+            AND locked_at < NOW() - (${ERASURE_LOCK_TIMEOUT_MINUTES} * INTERVAL '1 minute')
+          )
+        )
+      ORDER BY expires_at ASC, created_at ASC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
     )
-      .select()
-      .from(dsrRequests)
-      .where(
-        and(eq(dsrRequests.status, "REQUESTED"), lt(dsrRequests.expiresAt, new Date())) as never,
-      )
-      .limit(limit);
-    return rows.map((r) => this.toDomain(r));
+    UPDATE dsr_requests
+    SET status = 'PROCESSING', attempts = attempts + 1,
+        locked_at = NOW(), updated_at = NOW()
+    WHERE id IN (SELECT id FROM candidates)
+    RETURNING *`);
+    return (result.rows as DsrRow[]).map((row) => this.toDomain(row));
   }
 
   async findExpiredExportBatch(limit: number): Promise<DsrRequest[]> {

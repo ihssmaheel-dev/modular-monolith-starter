@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PurgeExpiredErasuresCommand } from "./purge-expired-erasures.command";
 import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
@@ -31,7 +31,7 @@ describe("PurgeExpiredErasuresCommand", () => {
 
   beforeEach(() => {
     requests = {
-      findExpiredErasureBatch: vi.fn().mockResolvedValue([]),
+      claimExpiredErasureBatch: vi.fn().mockResolvedValue([]),
       findExpiredExportBatch: vi.fn().mockResolvedValue([]),
       updateById: vi.fn(),
     } as unknown as PrivacyRepository;
@@ -92,7 +92,7 @@ describe("PurgeExpiredErasuresCommand", () => {
     expect(requests.updateById).not.toHaveBeenCalled();
   });
 
-  it("should purge registered lifecycle contributors before hard-deleting the user", async () => {
+  it("should purge lifecycle contributors before deactivating the anonymous user", async () => {
     const erasure = DsrRequest.fromPersistence({
       id: "dsr-erase",
       type: "ACCOUNT_ERASURE",
@@ -103,7 +103,7 @@ describe("PurgeExpiredErasuresCommand", () => {
       createdAt: new Date("2025-12-01T00:00:00Z"),
       updatedAt: new Date("2025-12-01T00:00:00Z"),
     });
-    vi.mocked(requests.findExpiredErasureBatch).mockResolvedValue([erasure]);
+    vi.mocked(requests.claimExpiredErasureBatch).mockResolvedValue([erasure]);
     vi.mocked(requests.updateById).mockResolvedValue(ok(erasure));
 
     const result = await command.execute();
@@ -124,7 +124,7 @@ describe("PurgeExpiredErasuresCommand", () => {
       createdAt: new Date("2025-12-01T00:00:00Z"),
       updatedAt: new Date("2025-12-01T00:00:00Z"),
     });
-    vi.mocked(requests.findExpiredErasureBatch).mockResolvedValue([erasure]);
+    vi.mocked(requests.claimExpiredErasureBatch).mockResolvedValue([erasure]);
     vi.mocked(requests.updateById).mockResolvedValue(ok(erasure));
 
     const result = await command.execute();
@@ -134,6 +134,35 @@ describe("PurgeExpiredErasuresCommand", () => {
     expect(requests.updateById).toHaveBeenCalledWith("dsr-corrupt", {
       status: "FAILED",
       payload: null,
+      lockedAt: null,
+    });
+  });
+
+  it("should fail a claimed erasure after its retry budget is exhausted", async () => {
+    const erasure = DsrRequest.fromPersistence({
+      id: "dsr-retry",
+      type: "ACCOUNT_ERASURE",
+      status: "PROCESSING",
+      subjectUserId: "user-9",
+      payload: { tenantIds: [] },
+      attempts: 3,
+      lockedAt: new Date(),
+      expiresAt: new Date("2026-01-01T00:00:00Z"),
+      createdAt: new Date("2025-12-01T00:00:00Z"),
+      updatedAt: new Date("2025-12-01T00:00:00Z"),
+    });
+    vi.mocked(requests.claimExpiredErasureBatch).mockResolvedValue([erasure]);
+    vi.mocked(requests.updateById).mockResolvedValue(ok(erasure));
+    lifecycle.purgeSubject.mockResolvedValue(
+      err({ type: "LIFECYCLE_CONTRIBUTOR_FAILED", contributor: "files" }),
+    );
+
+    await command.execute();
+
+    expect(requests.updateById).toHaveBeenCalledWith("dsr-retry", {
+      status: "FAILED",
+      payload: null,
+      lockedAt: null,
     });
   });
 });

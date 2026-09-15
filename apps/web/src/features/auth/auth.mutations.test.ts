@@ -62,21 +62,6 @@ describe("auth mutations", () => {
     ).resolves.toBe(body);
   });
 
-  it("throws emailNotVerified for unverified accounts", async () => {
-    client.auth.login.mockResolvedValue({
-      status: 403,
-      body: null,
-      error: { code: "EMAIL_NOT_VERIFIED" },
-    });
-
-    await expect(
-      loginMutationOptions().mutationFn!(
-        { email: "u@e.test", password: "Password123!" },
-        undefined as never,
-      ),
-    ).rejects.toThrow("auth.emailNotVerified");
-  });
-
   it("verifies the email and returns the session", async () => {
     const body = { accessToken: "a", refreshToken: "r", user: { id: "u-1" } };
     client.auth.verifyEmail.mockResolvedValue({ status: 200, body });

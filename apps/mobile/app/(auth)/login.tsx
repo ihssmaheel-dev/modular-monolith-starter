@@ -39,7 +39,6 @@ export default function Login() {
     },
   });
   const resendMutation = useMutation(resendVerificationMutationOptions());
-  const needsVerification = mutation.isError && mutation.error.message === "auth.emailNotVerified";
 
   return (
     <AuthScreen title={t("auth.login")} description={t("auth.loginDescription")}>
@@ -96,7 +95,7 @@ export default function Login() {
         {mutation.isError && (
           <Text className="text-sm text-destructive">{t(mutation.error.message)}</Text>
         )}
-        {needsVerification &&
+        {mutation.isError &&
           (resendMutation.isSuccess ? (
             <Text className="text-sm text-muted-foreground">{t("auth.verificationSent")}</Text>
           ) : (

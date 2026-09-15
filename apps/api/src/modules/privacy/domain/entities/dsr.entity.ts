@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import type { DsrStatus, DsrType } from "@repo/contracts";
 
+export const DSR_MAX_ATTEMPTS = 3;
+
 export interface DsrData {
   id: string;
   type: DsrType;

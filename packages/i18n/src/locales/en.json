@@ -210,7 +210,6 @@
     "emailNotFound": "Email not found",
     "resetLinkSent": "If the email exists, a reset link has been sent",
     "passwordResetSuccess": "Password has been reset successfully",
-    "emailNotVerified": "Please verify your email before signing in",
     "verificationSent": "Verification email sent",
     "verifyTitle": "Verify your email",
     "verifyDescription": "Click the button below to verify your email address.",

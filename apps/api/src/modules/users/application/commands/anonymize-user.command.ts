@@ -50,6 +50,11 @@ export class AnonymizeUserCommand {
       passwordHash: unusableHash,
       passwordResetTokenHash: null,
       passwordResetExpiresAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
     });
     if (updated.isErr() || !updated.value) return err({ type: "USER_NOT_FOUND", userId });
 

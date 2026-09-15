@@ -31,7 +31,6 @@ export function LoginForm({ inviteToken }: { inviteToken?: string }) {
   });
   const mutation = useMutation({ ...loginMutationOptions(), onSuccess });
   const resendMutation = useMutation(resendVerificationMutationOptions());
-  const needsVerification = mutation.error?.message === "auth.emailNotVerified";
 
   return (
     <Card>
@@ -75,7 +74,7 @@ export function LoginForm({ inviteToken }: { inviteToken?: string }) {
           {mutation.isError && (
             <p className="text-sm text-destructive">{t(mutation.error.message)}</p>
           )}
-          {needsVerification &&
+          {mutation.isError &&
             (resendMutation.isSuccess ? (
               <p className="text-sm text-muted-foreground">{t("auth.verificationSent")}</p>
             ) : (

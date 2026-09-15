@@ -86,6 +86,14 @@ async getUser(id: string): Promise<User | null> {
 - Stricter limits on auth endpoints (login, register).
 - Use Redis-backed rate limiting for multi-instance safety.
 
+### Transaction Occupancy
+- Never hold a database transaction while hashing passwords, calling Redis or external services,
+  streaming a response, or performing other slow non-SQL work.
+- HTTP handlers doing such work use `@NoDatabaseTransaction()`; commands open short explicit
+  transactions around only the related SQL changes and transactional outbox writes.
+- Size pools from measured concurrency and alert on waiting clients. Increasing pool size does not
+  repair an unnecessarily long transaction boundary.
+
 ---
 
 ## CPU-Bound Work — Piscina Worker Threads

@@ -26,7 +26,8 @@ const EXPORT_PAGE_LIMIT = 100;
  * identifiers, and commits an erasure PLAN (tenant scope list) — all
  * transaction-safe row work. Notes/files bytes are destroyed later by
  * PurgeExpiredErasuresCommand, because S3 deletions cannot roll back with
- * the database transaction. Hard delete follows the 30-day grace period.
+ * the database transaction. Final soft deletion follows the 30-day grace
+ * period and preserves the anonymous identity key for historical records.
  */
 @Injectable()
 export class RequestAccountErasureCommand {

@@ -39,21 +39,12 @@ export class LoginCommand {
 
     const result = await this.verifyCredentials.execute(data.email, data.password);
     if (result.isErr() || !result.value) {
-      await this.lockoutService.recordFailedAttempt(data.email);
-      this.metricsService.incrementCounter(
-        "auth_failed_logins_total",
-        "Total number of failed logins",
-      );
-      return err({ type: "INVALID_CREDENTIALS" });
+      return this.rejectCredentials(data.email);
     }
-
-    await this.lockoutService.resetAttempts(data.email);
 
     const user = result.value;
     if (!user.isEmailVerified) {
-      // Correct password but unverified address: no tokens, no success metric,
-      // and no lockout increment (this is not a credential failure).
-      return err({ type: "EMAIL_NOT_VERIFIED" });
+      return this.rejectCredentials(data.email);
     }
     const session = await this.sessions.create({
       userId: user.id,
@@ -62,6 +53,7 @@ export class LoginCommand {
       deviceName: device.deviceName ?? "unknown",
     });
     if (session.isErr()) return err({ type: "SESSION_UNAVAILABLE" });
+    await this.lockoutService.resetAttempts(data.email);
     const accessToken = signAccessToken(
       user.id,
       user.email,
@@ -87,5 +79,14 @@ export class LoginCommand {
         avatarFileId: user.avatarFileId,
       },
     });
+  }
+
+  private async rejectCredentials(email: string): Promise<Result<never, AuthError>> {
+    await this.lockoutService.recordFailedAttempt(email);
+    this.metricsService.incrementCounter(
+      "auth_failed_logins_total",
+      "Total number of failed logins",
+    );
+    return err({ type: "INVALID_CREDENTIALS" });
   }
 }

@@ -23,16 +23,17 @@ describe("DigestWorker", () => {
   };
 
   function build(overrides: Record<string, unknown> = {}) {
+    let transactionActive = false;
+    const outboxDispatchScopes: boolean[] = [];
     batches = {
       findDueWindows: vi.fn().mockResolvedValue([window]),
-      findById: vi.fn().mockResolvedValue(ok(window)),
+      lockDueWindow: vi.fn().mockResolvedValue(window),
       updateOne: vi.fn().mockResolvedValue(ok(window)),
       ...overrides,
     } as never;
     notifications = {
       create: vi.fn().mockResolvedValue(ok({ id: "notif-1" })),
       findDigestByBatchId: vi.fn().mockResolvedValue(ok(null)),
-      deleteById: vi.fn().mockResolvedValue(ok(true)),
       updateById: vi.fn().mockResolvedValue(ok({ id: "notif-1" })),
     } as never;
     const deliveryIntents = {
@@ -40,7 +41,12 @@ describe("DigestWorker", () => {
     } as never;
     const preferences = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
     const realtime = { sendToUser: vi.fn() } as unknown as RealtimeService;
-    const outbox = { dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)) } as never;
+    const outbox = {
+      dispatchGlobal: vi.fn().mockImplementation(async () => {
+        outboxDispatchScopes.push(transactionActive);
+        return ok(undefined);
+      }),
+    } as never;
     const events = { emitAsync: vi.fn().mockResolvedValue([]) } as never;
     const tenantContext = {
       runSystem: vi.fn(
@@ -49,9 +55,14 @@ describe("DigestWorker", () => {
     } as never;
     const database = {
       runTransaction: vi.fn(async (fn: () => unknown) => await (fn as () => Promise<unknown>)()),
-      withResultTransaction: vi.fn(
-        async (fn: () => unknown) => await (fn as () => Promise<unknown>)(),
-      ),
+      withResultTransaction: vi.fn(async (fn: () => unknown) => {
+        transactionActive = true;
+        try {
+          return await (fn as () => Promise<unknown>)();
+        } finally {
+          transactionActive = false;
+        }
+      }),
       emitAfterCommit: vi.fn(async (emitter: unknown, event: string, payload: unknown) => {
         await (emitter as { emitAsync: (e: string, p: unknown) => Promise<unknown> }).emitAsync(
           event,
@@ -79,7 +90,11 @@ describe("DigestWorker", () => {
       metrics,
       logger as PinoLoggerService,
     );
-    return { realtime, notifications: notifications as NotificationsRepository };
+    return {
+      realtime,
+      notifications: notifications as NotificationsRepository,
+      outboxDispatchScopes,
+    };
   }
 
   beforeEach(() => {
@@ -113,21 +128,26 @@ describe("DigestWorker", () => {
     });
   });
 
-  it("should remove its duplicate row when losing the claim race", async () => {
-    const built = build({ updateOne: vi.fn().mockResolvedValue(ok(null)) });
-    const repo = built.notifications;
-    const deleteById = vi.fn().mockResolvedValue(ok(true));
-    (repo as unknown as { deleteById: unknown }).deleteById = deleteById;
+  it("writes the durable event inside the digest transaction", async () => {
+    const built = build();
+
+    await worker.closeDueWindows();
+
+    expect(built.outboxDispatchScopes).toEqual([true]);
+  });
+
+  it("should skip a window locked by another replica", async () => {
+    const built = build({ lockDueWindow: vi.fn().mockResolvedValue(null) });
 
     const result = await worker.closeDueWindows();
 
-    expect(result.delivered).toBe(1);
-    expect(deleteById).toHaveBeenCalledWith("notif-1");
+    expect(result.delivered).toBe(0);
+    expect(built.notifications.create).not.toHaveBeenCalled();
   });
 
-  it("should skip empty windows without counting delivery", async () => {
+  it("should close empty windows without counting a delivery", async () => {
     build({
-      findById: vi.fn().mockResolvedValue(ok({ ...window, items: [] })),
+      lockDueWindow: vi.fn().mockResolvedValue({ ...window, items: [] }),
     });
 
     const result = await worker.closeDueWindows();
@@ -145,7 +165,7 @@ describe("DigestWorker", () => {
 
     const result = await worker.closeDueWindows();
 
-    expect(result.delivered).toBe(1);
+    expect(result.delivered).toBe(0);
     expect(create).not.toHaveBeenCalled();
   });
 });

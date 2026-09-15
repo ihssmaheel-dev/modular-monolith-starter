@@ -13,10 +13,7 @@ export function loginMutationOptions() {
     mutationFn: async (data: LoginInput) => {
       const client = getApiClient();
       const res = await client.auth.login({ body: data });
-      if (res.status !== 200) {
-        if (res.error?.code === "EMAIL_NOT_VERIFIED") throw new Error("auth.emailNotVerified");
-        throw new Error("auth.loginFailed");
-      }
+      if (res.status !== 200) throw new Error("auth.loginFailed");
       return res.body;
     },
   });

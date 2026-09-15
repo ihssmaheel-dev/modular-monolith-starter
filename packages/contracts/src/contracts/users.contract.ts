@@ -31,7 +31,7 @@ export const usersContract = oc.prefix("/users").router({
     .input(UserIdParamSchema.and(UpdateUserSchema))
     .output(UserResponseSchema),
   delete: oc
-    .route({ method: "DELETE", path: "/{id}", summary: "Delete user", successStatus: 204 })
+    .route({ method: "DELETE", path: "/{id}", summary: "Deactivate user", successStatus: 204 })
     .input(UserIdParamSchema)
     .output(EmptyResponseSchema),
   updateMe: oc

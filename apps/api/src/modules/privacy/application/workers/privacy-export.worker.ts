@@ -6,10 +6,9 @@ import { PinoLoggerService } from "../../../../infrastructure/logger/logger.serv
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 import { RequestExportCommand } from "../commands/request-export.command";
 import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
-import type { DsrRequest } from "../../domain/entities/dsr.entity";
+import { DSR_MAX_ATTEMPTS, type DsrRequest } from "../../domain/entities/dsr.entity";
 
 const EXPORT_BATCH_SIZE = 10;
-const EXPORT_MAX_ATTEMPTS = 3;
 
 @Injectable()
 export class PrivacyExportWorker {
@@ -64,7 +63,7 @@ export class PrivacyExportWorker {
       });
       return;
     }
-    const terminal = request.attempts >= EXPORT_MAX_ATTEMPTS;
+    const terminal = request.attempts >= DSR_MAX_ATTEMPTS;
     await this.database.runTransaction(() =>
       this.requests.markExportAttemptFailed(request.id, terminal),
     );

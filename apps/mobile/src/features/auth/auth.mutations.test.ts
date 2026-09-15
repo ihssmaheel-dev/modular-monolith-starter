@@ -103,17 +103,6 @@ describe("mobile auth mutations", () => {
     ).rejects.toThrow("auth.resetFailed");
   });
 
-  it("throws emailNotVerified when the account is unverified", async () => {
-    client.auth.login.mockResolvedValue({
-      status: 403,
-      body: null,
-      error: { code: "EMAIL_NOT_VERIFIED" },
-    });
-    const { result } = renderHookWithProviders(() => useMutation(loginMutationOptions()));
-
-    await expect(result.current.mutateAsync(credentials)).rejects.toThrow("auth.emailNotVerified");
-  });
-
   it("verifies the email and returns the session", async () => {
     const session = { accessToken: "a" };
     client.auth.verifyEmail.mockResolvedValue({ status: 200, body: session });

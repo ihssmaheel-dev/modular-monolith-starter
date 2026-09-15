@@ -53,6 +53,11 @@ describe("AnonymizeUserCommand", () => {
         name: "Deleted User",
         passwordResetTokenHash: null,
         passwordResetExpiresAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
       }),
     );
     expect(cacheService.invalidateGlobal).toHaveBeenCalledWith("user:user-1");

@@ -87,6 +87,7 @@ export class AuthController {
   @Post("register")
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
+  @NoDatabaseTransaction()
   @Public()
   @AuthRateLimit("register")
   @ResponseSchema(RegisterResponseSchema)
@@ -101,6 +102,7 @@ export class AuthController {
 
   @Post("login")
   @HttpCode(HttpStatus.OK)
+  @NoDatabaseTransaction()
   @Public()
   @AuthRateLimit("login")
   @ResponseSchema(AuthResponseSchema)

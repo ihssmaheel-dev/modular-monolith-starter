@@ -20,6 +20,7 @@ export class AuthOrpcController {
 
   @Implement(authContract.register)
   @Idempotent()
+  @NoDatabaseTransaction()
   @Public()
   @AuthRateLimit("register")
   register(@Req() request: FastifyRequest) {
@@ -33,6 +34,7 @@ export class AuthOrpcController {
   }
 
   @Implement(authContract.login)
+  @NoDatabaseTransaction()
   @Public()
   @AuthRateLimit("login")
   login(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {

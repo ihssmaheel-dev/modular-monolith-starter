@@ -30,8 +30,9 @@ import { BaseRepository } from "../../../infrastructure/database";
 ```
 
 Repository reads paginate with a bounded page size, inherit the active Postgres transaction from CLS,
-and exclude soft-deleted records unless explicitly requested. Updates and physical deletes follow the
-same soft-delete policy.
+and exclude soft-deleted records unless explicitly requested. `softDeleteById` is the normal
+application deletion primitive. `deleteById` is a physical delete and is reserved for bounded
+retention/lifecycle workers after the owning module has applied its retention policy.
 
 Tenant-scoped repositories derive `tenantId` from trusted CLS context in multi-tenant mode. They
 overwrite caller-provided tenant filters and fail closed when no tenant is active.
@@ -56,6 +57,12 @@ const result = await database.withResultTransaction(async () => {
 The service creates a Postgres transaction via Drizzle, places it in CLS (`databaseTx`) for all
 repository calls, commits successful results, aborts errors, and automatically handles rollback.
 Transactions return `{ type: "TRANSACTION_FAILED" }` for infrastructure failures.
+
+HTTP handlers use a transaction by default to establish transaction-local PostgreSQL RLS context.
+Handlers that perform password hashing, external I/O, streams, or other slow work must use
+`@NoDatabaseTransaction()` and let their commands open short explicit transactions only around SQL
+state changes. Login and registration follow this pattern so Argon2 work never occupies a pooled
+database connection.
 
 ## Connection pooling (PgBouncer)
 

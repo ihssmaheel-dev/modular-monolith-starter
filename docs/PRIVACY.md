@@ -49,11 +49,17 @@ the complete tenant plan, revokes sessions, increments `authVersion`, anonymizes
 tenancy identity rows, and commits a 30-day `REQUESTED` DSR. Organization erasure requires the owner
 and exact organization-name confirmation, then soft-deletes the organization and commits its plan.
 
-The hourly purge worker claims at most 100 expired requests. It validates the persisted plan before
-destructive work. Each lifecycle contributor performs idempotent deletion; S3 calls happen outside
-rollback-capable SQL transactions, and progress/final status is committed in fresh transactions.
-Malformed plans fail closed. This ordering avoids reporting a database rollback after irreversible
-object deletion.
+The hourly purge worker atomically claims at most 100 expired requests with `FOR UPDATE SKIP LOCKED`.
+Claims move to `PROCESSING`, stale 15-minute leases recover automatically, and a request receives at
+most three attempts. It validates the persisted plan before destructive work. Each lifecycle
+contributor performs idempotent deletion; S3 calls happen outside rollback-capable SQL transactions,
+and progress/final status is committed in fresh transactions. Malformed plans fail closed. This
+ordering avoids reporting a database rollback after irreversible object deletion.
+
+Administrative `DELETE /users/:id` soft-deactivates the identity and revokes access. It does not
+bypass this lifecycle. Account erasure keeps the already-anonymized identity row as a deactivated
+tombstone after registered contributors finish. Future business modules can retain legally required
+records against that stable non-personal key without foreign-key cascades or destroyed history.
 
 ## Retention and operations
 

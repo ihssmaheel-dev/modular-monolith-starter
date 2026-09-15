@@ -21,7 +21,7 @@ describe("DeleteUserCommand", () => {
 
   beforeEach(() => {
     repository = {
-      deleteById: vi.fn(),
+      softDeleteById: vi.fn(),
     } as unknown as UsersRepository;
 
     getUserById = {
@@ -63,7 +63,7 @@ describe("DeleteUserCommand", () => {
     expect(result.isErr()).toBe(true);
   });
 
-  it("should delete user, emit event, and return ok", async () => {
+  it("should soft-delete user, emit event, and return ok", async () => {
     // Arrange
     const user = User.fromPersistence({
       id: "123",
@@ -74,14 +74,14 @@ describe("DeleteUserCommand", () => {
       updatedAt: new Date(),
     });
     vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
-    vi.mocked(repository.deleteById).mockResolvedValue(ok(true));
+    vi.mocked(repository.softDeleteById).mockResolvedValue(ok(user));
 
     // Act
     const result = await command.execute("123");
 
     // Assert
     expect(result.isOk()).toBe(true);
-    expect(repository.deleteById).toHaveBeenCalledWith("123");
+    expect(repository.softDeleteById).toHaveBeenCalledWith("123");
     expect(cacheService.invalidateGlobal).toHaveBeenCalledWith("user:123");
     expect(outbox.dispatchGlobal).toHaveBeenCalledWith("user.deleted", expect.anything());
   });
@@ -97,7 +97,7 @@ describe("DeleteUserCommand", () => {
       updatedAt: new Date(),
     });
     vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
-    vi.mocked(repository.deleteById).mockResolvedValue(ok(false));
+    vi.mocked(repository.softDeleteById).mockResolvedValue(ok(null));
 
     // Act
     const result = await command.execute("123");
@@ -121,6 +121,6 @@ describe("DeleteUserCommand", () => {
     const result = await command.execute("123");
 
     expect(result.isErr() && result.error.type).toBe("USER_OWNS_ORGANIZATION");
-    expect(repository.deleteById).not.toHaveBeenCalled();
+    expect(repository.softDeleteById).not.toHaveBeenCalled();
   });
 });

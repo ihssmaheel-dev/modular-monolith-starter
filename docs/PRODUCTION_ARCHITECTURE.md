@@ -71,8 +71,9 @@ claims, conflicts, replay, stale recovery, and lock release.
 Guards run in registration order: the cheap IP limit, authentication, CSRF, tenant resolution,
 explicit actor/tenant aggregate limits, then permissions. Interceptors establish the request ID,
 validate mutation origins, record metrics/traces/logs, deduplicate eligible HTTP requests, establish
-the database transaction, and validate responses. Zod validates transport input before the thin
-controller delegates to an application command or query.
+the database transaction when required, and validate responses. Password hashing, external I/O, and
+long-lived transports opt out and use short command-owned database units of work. Zod validates
+transport input before the thin controller delegates to an application command or query.
 
 ## Modules
 
@@ -92,7 +93,17 @@ claim/result. Dead-lettered outbox events are replayable.
 
 ## Authentication
 
-Access tokens are short-lived and validate issuer, audience, algorithm, and account version. The protected web layout bootstraps against `GET /api/v1/auth/me` before rendering application content, so persisted UI state is never treated as proof of a live session. Refresh tokens carry a unique `jti` and are single-use when Redis is available; reuse is rejected and logout/password reset increment the account version, revoke sessions, and disconnect realtime clients. Redis revocation fan-out ensures every API replica closes its local realtime connections. Signing-key rotation uses `JWT_SIGNING_KEYS` and `JWT_REFRESH_SIGNING_KEYS`: new tokens carry the active `kid`, verification accepts every retained key, and legacy tokens without `kid` use the legacy secret fallback. Keep old keys until the maximum token lifetime has elapsed before removing them.
+Access tokens are short-lived and validate issuer, audience, algorithm, and account version. Login
+performs one Argon2 verification for both present and missing identities and returns the same invalid
+credential response for missing, wrong-password, and unverified accounts. The protected web layout
+bootstraps against `GET /api/v1/auth/me` before rendering application content, so persisted UI state
+is never treated as proof of a live session. Refresh tokens carry a unique `jti` and are single-use
+when Redis is available; reuse is rejected and logout/password reset increment the account version,
+revoke sessions, and disconnect realtime clients. Redis revocation fan-out ensures every API replica
+closes its local realtime connections. Signing-key rotation uses `JWT_SIGNING_KEYS` and
+`JWT_REFRESH_SIGNING_KEYS`: new tokens carry the active `kid`, verification accepts every retained
+key, and legacy tokens without `kid` use the legacy secret fallback. Keep old keys until the maximum
+token lifetime has elapsed before removing them.
 
 ## Transaction boundaries
 

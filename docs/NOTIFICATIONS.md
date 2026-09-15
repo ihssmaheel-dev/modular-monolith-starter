@@ -41,13 +41,14 @@ in code.
 
 ## Digest rules
 
-- Batch-on-write windows keyed `(userId, type, entityId|none)`; work happens
-  first, then an atomic `open → delivered` claim, and a replica that loses the
-  claim deletes its duplicate row — exactly one visible digest row.
+- Batch-on-write windows keyed `(userId, type, entityId|none)`; each replica
+  attempts a non-blocking row lock and only the lock owner prepares the digest.
+  The notification, channel intents, `open → delivered` transition, audit
+  callback, and outbox event commit in one transaction.
 - One digest = one center row + one email + one count-only push. Items capped at
   `NOTIFICATION_DIGEST_MAX_ITEMS` (retains latest).
-- `DigestWorker` runs every minute (`PROCESS_ROLE !== api`); empty windows close
-  uncounted.
+- `DigestWorker` runs every minute (`PROCESS_ROLE !== api`); empty, unknown-type,
+  and fully disabled windows close without generating repeated work.
 
 ## Preferences
 

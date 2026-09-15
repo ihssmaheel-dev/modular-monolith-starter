@@ -57,6 +57,8 @@ export const env = loadEnv();
 - Auth guard reads tokens from both Bearer header and cookies.
 - Logout clears cookies on the server via `POST /auth/logout`.
 - Never store passwords in plaintext. Hash with argon2.
+- Credential lookup must perform one Argon2 verification for present and missing identities. Login
+  must not distinguish missing, wrong-password, and unverified accounts in its public error.
 - Validate auth on every protected route via guard.
 - Apply account lockout after configurable failed attempts (default: 5 attempts, 15-minute lockout).
 - Use the global `SecurityModule` (`AccountLockoutService`, JWT keyring helpers) for cross-cutting security concerns. Rate limiting, WAF, and sessions live in their own dedicated modules (`infrastructure/rate-limit/`, `infrastructure/waf/`, `infrastructure/session/`).

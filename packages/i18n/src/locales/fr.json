@@ -89,7 +89,6 @@
     "emailNotFound": "E-mail non trouvé",
     "resetLinkSent": "Si l'e-mail existe, un lien de réinitialisation a été envoyé",
     "passwordResetSuccess": "Le mot de passe a été réinitialisé avec succès",
-    "emailNotVerified": "Veuillez vérifier votre adresse e-mail avant de vous connecter",
     "verificationSent": "E-mail de vérification envoyé",
     "verifyTitle": "Vérifiez votre e-mail",
     "verifyDescription": "Cliquez sur le bouton ci-dessous pour vérifier votre adresse e-mail.",
