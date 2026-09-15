@@ -1,9 +1,10 @@
 name: CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -22,48 +23,61 @@ env:
 jobs:
   publish:
     name: Publish images
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      api_digest: ${{ steps.api_image.outputs.digest }}
+      web_digest: ${{ steps.web_image.outputs.digest }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set image tag
-        run: echo "TAG=${GITHUB_SHA::12}" >> $GITHUB_ENV
+        id: release
+        run: |
+          RELEASE_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "TAG=${RELEASE_SHA::12}" >> $GITHUB_ENV
+          echo "tag=${RELEASE_SHA::12}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Log in to registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push API image
-        uses: docker/build-push-action@v6
+        id: api_image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ env.IMAGE_API }}:${{ env.TAG }},${{ env.IMAGE_API }}:latest
+          tags: ${{ env.IMAGE_API }}:${{ env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build and push Web image
-        uses: docker/build-push-action@v6
+        id: web_image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./apps/web/Dockerfile
           push: true
-          tags: ${{ env.IMAGE_WEB }}:${{ env.TAG }},${{ env.IMAGE_WEB }}:latest
+          tags: ${{ env.IMAGE_WEB }}:${{ env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             VITE_API_URL=${{ secrets.VITE_API_URL }}
 
       - name: Trivy scan API image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
         with:
           image-ref: ${{ env.IMAGE_API }}:${{ env.TAG }}
           severity: HIGH,CRITICAL
@@ -72,7 +86,7 @@ jobs:
           output: trivy-api.sarif
 
       - name: Trivy scan Web image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
         with:
           image-ref: ${{ env.IMAGE_WEB }}:${{ env.TAG }}
           severity: HIGH,CRITICAL
@@ -80,18 +94,21 @@ jobs:
           format: sarif
           output: trivy-web.sarif
 
-  migrate-and-deploy:
-    name: Migrate and deploy (example)
+  release-evidence:
+    name: Validate release and publish evidence
     runs-on: ubuntu-latest
     needs: publish
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Validate prod compose
         run: |
           DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
           REDIS_URL=rediss://redis.example.net:6380 \
           JWT_SECRET=ci-production-access-secret-32-characters \
           JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
@@ -103,6 +120,8 @@ jobs:
           S3_SECRET_ACCESS_KEY=ci-storage-secret \
           EMAIL_FROM=ci@app.example.test \
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          API_IMAGE_REF=${{ env.IMAGE_API }}@${{ needs.publish.outputs.api_digest }} \
+          WEB_IMAGE_REF=${{ env.IMAGE_WEB }}@${{ needs.publish.outputs.web_digest }} \
           PGBOUNCER_DB_HOST=db.example.net \
           PGBOUNCER_DB_NAME=app \
           PGBOUNCER_DB_USER=ci_user \
@@ -112,6 +131,7 @@ jobs:
       - name: Validate prod compose with pooling profile
         run: |
           DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
           REDIS_URL=rediss://redis.example.net:6380 \
           JWT_SECRET=ci-production-access-secret-32-characters \
           JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
@@ -123,6 +143,8 @@ jobs:
           S3_SECRET_ACCESS_KEY=ci-storage-secret \
           EMAIL_FROM=ci@app.example.test \
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          API_IMAGE_REF=${{ env.IMAGE_API }}@${{ needs.publish.outputs.api_digest }} \
+          WEB_IMAGE_REF=${{ env.IMAGE_WEB }}@${{ needs.publish.outputs.web_digest }} \
           PGBOUNCER_DB_HOST=db.example.net \
           PGBOUNCER_DB_NAME=app \
           PGBOUNCER_DB_USER=ci_user \
@@ -133,10 +155,22 @@ jobs:
         run: |
           docker compose -f docker/docker-compose.staging.yml --env-file docker/.env.staging.example config
 
-      - name: Deploy instructions
+      - name: Write immutable release manifest
         run: |
-          echo "Images published with tag ${GITHUB_SHA::12}."
-          echo "Deploy on your host with:"
-          echo "  TAG=${GITHUB_SHA::12} docker compose -f docker/docker-compose.prod.yml up -d --wait"
-          echo "Migrations run via the 'migrate' service with service_completed_successfully gate."
-          echo "Verify health: GET /api/v1/health/live (api) and GET / (web)."
+          RELEASE_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          cat > release-manifest.json <<EOF
+          {
+            "commit": "${RELEASE_SHA}",
+            "tag": "${RELEASE_SHA::12}",
+            "api": "${IMAGE_API}@${{ needs.publish.outputs.api_digest }}",
+            "web": "${IMAGE_WEB}@${{ needs.publish.outputs.web_digest }}"
+          }
+          EOF
+          cat release-manifest.json
+
+      - name: Upload immutable release manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ needs.publish.outputs.tag }}
+          path: release-manifest.json
+          retention-days: 90

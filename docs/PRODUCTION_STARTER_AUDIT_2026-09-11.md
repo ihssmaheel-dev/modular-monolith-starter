@@ -1,5 +1,9 @@
 # Production starter audit
 
+> **Historical snapshot (2026-09-11).** This report describes the repository before the production
+> remediation work. Use [`PRODUCTION_STARTER_REAUDIT_2026-09-15.md`](PRODUCTION_STARTER_REAUDIT_2026-09-15.md)
+> for the current verified state.
+
 Date: 2026-09-11. Audited revision: **3fb0264a5ad5714ac4f4dccd24571b60eca48d02**.
 
 This review evaluates a general-purpose application foundation. Notes is treated as a reference vertical slice. Its domain requirements are not used to judge product completeness.

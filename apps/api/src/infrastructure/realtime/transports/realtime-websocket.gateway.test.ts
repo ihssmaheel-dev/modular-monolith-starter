@@ -111,15 +111,15 @@ describe("RealtimeWebsocketGateway", () => {
     expect(tenantAccess.execute).not.toHaveBeenCalled();
   });
 
-  it("accepts the ?token= browser fallback when cookies cannot travel (H16)", async () => {
+  it("rejects bearer tokens in query strings", async () => {
     vi.mocked(verifyAccessToken).mockReturnValue(AUTHENTICATED_USER);
     const socket = createSocket();
 
     await gateway.handleConnection(socket, { url: "/ws?token=query-token" });
 
-    expect(tenantAccess.execute).toHaveBeenCalled();
-    expect(realtime.addWsClient).toHaveBeenCalledWith("user-1", "tenant-1", socket);
-    expect(socket.close).not.toHaveBeenCalled();
+    expect(tenantAccess.execute).not.toHaveBeenCalled();
+    expect(realtime.addWsClient).not.toHaveBeenCalled();
+    expect(socket.close).toHaveBeenCalledOnce();
   });
 
   it("sweeps expired credentials and revoked memberships (H16)", async () => {
@@ -147,6 +147,7 @@ describe("RealtimeWebsocketGateway", () => {
 
       expect(expired.close).toHaveBeenCalledWith(4401, "token expired");
       expect(revoked.close).toHaveBeenCalledWith(4403, "membership revoked");
+      expect(realtime.removeWsClient).toHaveBeenCalledWith("user-1", "tenant-1", expired);
     } finally {
       vi.useRealTimers();
       gateway.onModuleDestroy();

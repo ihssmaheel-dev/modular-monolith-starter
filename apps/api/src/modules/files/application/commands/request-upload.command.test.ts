@@ -12,6 +12,8 @@ vi.mock("../../../../config/env", () => ({
     S3_BUCKET: "test-bucket",
     API_URL: "http://localhost:3001",
     FILE_USER_QUOTA_BYTES: 10_000_000,
+    FILE_TENANT_QUOTA_BYTES: 100_000_000,
+    FILE_TENANT_MAX_OBJECTS: 1000,
   },
 }));
 
@@ -31,6 +33,7 @@ describe("RequestUploadCommand", () => {
 
     filesRepo = {
       create: vi.fn().mockResolvedValue(ok(defaultFile())),
+      getActiveUsage: vi.fn().mockResolvedValue({ userBytes: 0, tenantBytes: 0, tenantObjects: 0 }),
     } as unknown as FilesRepository;
 
     const tenantContext = {
@@ -84,7 +87,11 @@ describe("RequestUploadCommand", () => {
     } as unknown as TenantContextService;
     const overQuotaRepo = {
       create: vi.fn(),
-      sumActiveBytes: vi.fn().mockResolvedValue(Number.MAX_SAFE_INTEGER),
+      getActiveUsage: vi.fn().mockResolvedValue({
+        userBytes: Number.MAX_SAFE_INTEGER,
+        tenantBytes: 0,
+        tenantObjects: 0,
+      }),
     } as unknown as FilesRepository;
     const guarded = new RequestUploadCommand(storage, overQuotaRepo, tenantContext);
 
@@ -156,8 +163,10 @@ describe("RequestUploadCommand", () => {
     );
 
     expect(result.isOk()).toBe(true);
-    const [presignedKey, , ttl] = vi.mocked(storage.getPresignedUploadUrl).mock.calls[0]!;
+    const [presignedKey, , contentLength, ttl] = vi.mocked(storage.getPresignedUploadUrl).mock
+      .calls[0]!;
     expect(presignedKey).toMatch(/^general\/user-1\/.+\.quarantine$/);
+    expect(contentLength).toBe(1024);
     expect(ttl).toBeLessThanOrEqual(900);
     if (result.isOk()) {
       expect(result.value.fileKey).not.toContain(".quarantine");
@@ -211,9 +220,9 @@ describe("RequestUploadCommand", () => {
     } as unknown as TenantContextService;
     const quotaRepo = {
       create: vi.fn().mockResolvedValue(ok(defaultFile())),
-      sumActiveBytes: vi.fn().mockImplementation(async () => {
+      getActiveUsage: vi.fn().mockImplementation(async () => {
         order.push("sum");
-        return 0;
+        return { userBytes: 0, tenantBytes: 0, tenantObjects: 0 };
       }),
     } as unknown as FilesRepository;
     const locked = new RequestUploadCommand(storage, quotaRepo, tenantContext, database);
@@ -226,10 +235,14 @@ describe("RequestUploadCommand", () => {
 
     expect(result.isOk()).toBe(true);
     expect(database.withAdvisoryLock).toHaveBeenCalledWith(
-      "upload-quota:user-1",
+      "upload-quota:tenant:single",
       expect.any(Function),
     );
-    expect(order).toEqual(["lock:upload-quota:user-1", "sum"]);
+    expect(order).toEqual([
+      "lock:upload-quota:tenant:single",
+      "lock:upload-quota:user:user-1",
+      "sum",
+    ]);
     expect(quotaRepo.create).toHaveBeenCalledTimes(1);
   });
 });

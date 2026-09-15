@@ -2,19 +2,24 @@ import { Inject, Injectable, OnApplicationShutdown, Optional } from "@nestjs/com
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
-import { Pool } from "pg";
+import type { Pool } from "pg";
 import { err, ok, type Result } from "neverthrow";
 import { ClsService } from "nestjs-cls";
 import { PinoLoggerService } from "../logger/logger.service";
 import { env } from "../../config/env";
 import type { TransactionError } from "./database.types";
 import { TransactionScopes } from "./transaction-scopes";
+import { writeAuditMutation } from "../audit/audit-mutation.writer";
+import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/audit.types";
+import { createDatabasePool } from "./database-pool";
+import { databaseErrorMetadata } from "./database-error.utils";
 
 export type Database = NodePgDatabase;
 export type DrizzleDb = Database;
 
 /** Machine code for internal control flow — never user-facing, never an i18n key. */
 export const TENANT_CONTEXT_REQUIRES_TRANSACTION = "TENANT_CONTEXT_REQUIRES_TRANSACTION";
+export const AUDIT_TRANSACTION_REQUIRED = "AUDIT_TRANSACTION_REQUIRED";
 
 export { ADVISORY_LOCK_NAMESPACE } from "./transaction-scopes";
 
@@ -30,51 +35,12 @@ export class DatabaseService implements OnApplicationShutdown {
     @Optional() @Inject(ClsService) private readonly cls?: ClsService,
   ) {
     this.logger = logger.child({ module: "DatabaseService" });
-    this.scopes = new TransactionScopes(() => this.getTx(), this.logger);
-    this.pool = new Pool({
-      connectionString: env.DATABASE_URL,
-      max: env.DB_MAX_POOL_SIZE,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-      statement_timeout: env.DB_STATEMENT_TIMEOUT_MS,
-      query_timeout: env.DB_STATEMENT_TIMEOUT_MS,
-    });
-    this.pool.on("error", (error) => {
-      this.logger.error({ error: String(error) }, "Postgres pool error");
-    });
-
-    if (typeof this.pool.query === "function") {
-      const originalQuery = this.pool.query.bind(this.pool);
-      // @ts-expect-error wrapping pg pool query for slow query observability
-      this.pool.query = async (...args: Parameters<typeof originalQuery>) => {
-        const start = performance.now();
-        try {
-          const result = await originalQuery(...args);
-          const durationMs = performance.now() - start;
-          if (durationMs > 100) {
-            const sqlText =
-              typeof args[0] === "string"
-                ? args[0]
-                : ((args[0] as { text?: string })?.text ?? "SQL");
-            this.logger.warn(
-              { sql: sqlText.slice(0, 500), durationMs: Math.round(durationMs) },
-              "Slow database query detected (>100ms)",
-            );
-          }
-          return result;
-        } catch (err) {
-          const durationMs = performance.now() - start;
-          const sqlText =
-            typeof args[0] === "string" ? args[0] : ((args[0] as { text?: string })?.text ?? "SQL");
-          this.logger.error(
-            { sql: sqlText.slice(0, 500), durationMs: Math.round(durationMs), error: String(err) },
-            "Database query failed",
-          );
-          throw err;
-        }
-      };
-    }
-
+    this.scopes = new TransactionScopes(
+      () => this.getTx(),
+      this.logger,
+      () => this.getAfterCommitCallbacks(),
+    );
+    this.pool = createDatabasePool(this.logger);
     this.db = drizzle(this.pool);
     this.logger.info({}, "Postgres pool initialized");
   }
@@ -96,7 +62,7 @@ export class DatabaseService implements OnApplicationShutdown {
       const result = await this.runTransaction(fn);
       return ok(result);
     } catch (error) {
-      this.logger.error({ error: String(error) }, "Transaction failed");
+      this.logger.error(databaseErrorMetadata(error), "Transaction failed");
       return err({ type: "TRANSACTION_FAILED" });
     }
   }
@@ -122,7 +88,7 @@ export class DatabaseService implements OnApplicationShutdown {
         const typed = error as E;
         return err(typed);
       }
-      this.logger.error({ error: String(error) }, "Transaction failed");
+      this.logger.error(databaseErrorMetadata(error), "Transaction failed");
       return err({ type: "TRANSACTION_FAILED" } as TransactionError);
     }
   }
@@ -159,11 +125,7 @@ export class DatabaseService implements OnApplicationShutdown {
       try {
         return await fn();
       } finally {
-        try {
-          await this.setTenantContext(previous);
-        } catch (error) {
-          this.logger.error({ error: String(error) }, "Tenant scope restore failed");
-        }
+        await this.setTenantContext(previous);
       }
     }
     if (!this.cls) return fn();
@@ -200,12 +162,38 @@ export class DatabaseService implements OnApplicationShutdown {
     return undefined;
   }
 
+  private getAfterCommitCallbacks(): Array<() => Promise<void>> | undefined {
+    if (!this.cls?.isActive()) return undefined;
+    return this.cls.get("afterCommit") as Array<() => Promise<void>> | undefined;
+  }
+
   async emitAfterCommit(emitter: EventEmitter2, event: string, payload: unknown): Promise<void> {
+    if (event === "database.mutated" && isDatabaseMutationAudit(payload)) {
+      await this.recordAuditMutation(payload);
+      return;
+    }
+    await this.runAfterCommit(
+      () => emitter.emitAsync(event, payload).then(() => undefined),
+      `event:${event}`,
+    );
+  }
+
+  /** Persists an immutable audit row inside the active business transaction. */
+  async recordAuditMutation(mutation: DatabaseMutationAudit): Promise<void> {
+    const transaction = this.getTx();
+    if (!transaction) throw new Error(AUDIT_TRANSACTION_REQUIRED);
+    const write = () => writeAuditMutation(transaction, mutation);
+    if (mutation.tenantId) await write();
+    else await this.withSystemScope(write);
+  }
+
+  /** Defers non-transactional side effects until the surrounding commit succeeds. */
+  async runAfterCommit(callback: () => Promise<void>, operation: string): Promise<void> {
     const run = async (): Promise<void> => {
       try {
-        await emitter.emitAsync(event, payload);
+        await callback();
       } catch (error) {
-        this.logger.error({ error: String(error), event }, "Post-commit event emission failed");
+        this.logger.error({ error: String(error), operation }, "Post-commit operation failed");
       }
     };
     if (!this.cls?.isActive() || !this.getTx()) {

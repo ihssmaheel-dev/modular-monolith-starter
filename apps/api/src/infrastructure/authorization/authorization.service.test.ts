@@ -31,6 +31,15 @@ describe("AuthorizationService", () => {
 
   beforeEach(() => {
     service = new AuthorizationService();
+    service.registerPolicies([
+      {
+        id: "note-owner",
+        resourceType: "note",
+        action: ["notes:read", "notes:update", "notes:delete"],
+        effect: "ALLOW",
+        condition: ({ principal, resource }) => resource?.ownerId === principal.id,
+      },
+    ]);
   });
 
   it("checks resource ownership via ReBAC policy", () => {
@@ -51,9 +60,8 @@ describe("AuthorizationService", () => {
       resource: note,
     });
 
-    // Bob has role permission notes:delete, but note belongs to Alice so ownership check allows Alice, Bob has RBAC fallback within same tenant
-    expect(decision.allowed).toBe(true);
-    expect(decision.reason).toBe("RBAC_ROLE");
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toBe("DEFAULT_DENY");
   });
 
   it("assert throws ForbiddenException on tenant mismatch", () => {

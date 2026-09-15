@@ -35,7 +35,7 @@ describe("PermissionsGuard", () => {
     const reflector = {
       getAllAndOverride: vi
         .fn()
-        .mockReturnValue({ permissions: [Permissions.NOTES_CREATE], mode: "all" }),
+        .mockReturnValue({ permissions: [Permissions.FILES_UPLOAD], mode: "all" }),
     } as unknown as Reflector;
     const guard = new PermissionsGuard(reflector, new AuthorizationService());
     const ctx = createMockContext(undefined);
@@ -47,7 +47,7 @@ describe("PermissionsGuard", () => {
     const reflector = {
       getAllAndOverride: vi
         .fn()
-        .mockReturnValue({ permissions: [Permissions.NOTES_CREATE], mode: "all" }),
+        .mockReturnValue({ permissions: [Permissions.FILES_UPLOAD], mode: "all" }),
     } as unknown as Reflector;
     const guard = new PermissionsGuard(reflector, new AuthorizationService());
     const ctx = createMockContext({ role: "user" });

@@ -24,13 +24,16 @@ export class IncrementAuthVersionCommand {
     if (result.isErr() || !result.value) {
       return err({ type: "USER_NOT_FOUND", userId });
     }
-    await this.cacheService.invalidateGlobal(`user:${userId}`);
-    if (this.events) {
-      await this.events.emitAsync("user.auth-version.incremented", {
-        userId,
-        authVersion: result.value.authVersion,
-      });
-    }
+    const invalidate = () => this.cacheService.invalidateGlobal(`user:${userId}`);
+    if (this.database) await this.database.runAfterCommit(invalidate, "user:auth-version-cache");
+    else await invalidate();
+    const payload = {
+      userId,
+      authVersion: result.value.authVersion,
+    };
+    if (this.events && this.database) {
+      await this.database.emitAfterCommit(this.events, "user.auth-version.incremented", payload);
+    } else if (this.events) await this.events.emitAsync("user.auth-version.incremented", payload);
     return ok(result.value);
   }
 }

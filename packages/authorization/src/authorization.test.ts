@@ -39,15 +39,33 @@ describe("Unified Authorization Engine (RBAC + ReBAC + ABAC)", () => {
     department: "engineering",
   };
 
-  it("1. Superadmin bypass: admin role allows any action", () => {
+  const noteOwnerPolicy: Policy = {
+    id: "note-owner",
+    resourceType: "note",
+    action: ["notes:read", "notes:update", "notes:delete"],
+    effect: "ALLOW",
+    condition: ({ principal, resource }) => resource?.ownerId === principal.id,
+  };
+
+  it("1. Superadmin bypass requires an explicit trusted attribute", () => {
     const decision = evaluateAuthorization({
-      principal: adminUser,
+      principal: { ...adminUser, attributes: { superAdmin: true } },
       action: "team:manage",
       resource: sampleNote,
     });
 
     expect(decision.allowed).toBe(true);
     expect(decision.reason).toBe("SUPERADMIN");
+  });
+
+  it("does not grant unknown future actions to the admin role", () => {
+    const decision = evaluateAuthorization({
+      principal: { ...adminUser, tenantId: "tenant-acme" },
+      action: "payment:release",
+      resource: sampleNote,
+    });
+
+    expect(decision).toMatchObject({ allowed: false, reason: "DEFAULT_DENY" });
   });
 
   it("2. Tenant mismatch: denies cross-tenant access", () => {
@@ -85,11 +103,10 @@ describe("Unified Authorization Engine (RBAC + ReBAC + ABAC)", () => {
   });
 
   it("3. ReBAC Ownership: owner can update their own resource", () => {
-    const decision = evaluateAuthorization({
-      principal: alice,
-      action: "notes:update",
-      resource: sampleNote,
-    });
+    const decision = evaluateAuthorization(
+      { principal: alice, action: "notes:update", resource: sampleNote },
+      [noteOwnerPolicy],
+    );
 
     expect(decision.allowed).toBe(true);
     expect(decision.reason).toBe("REBAC_RELATION");
@@ -140,11 +157,11 @@ describe("Unified Authorization Engine (RBAC + ReBAC + ABAC)", () => {
     expect(decision.matchedPolicyId).toBe("freeze-edits-policy");
   });
 
-  it("6. RBAC Role fallback: member can read notes if in role", () => {
+  it("6. RBAC Role fallback handles coarse route checks", () => {
     const decision = evaluateAuthorization({
       principal: bob,
-      action: "notes:read",
-      resource: sampleNote,
+      action: "files:read",
+      resource: { type: "request", tenantId: "tenant-acme" },
     });
 
     expect(decision.allowed).toBe(true);
@@ -168,11 +185,19 @@ describe("Unified Authorization Engine (RBAC + ReBAC + ABAC)", () => {
   });
 
   it("derives ownership when a descriptor uses a module-specific field", () => {
-    const decision = evaluateAuthorization({
-      principal: alice,
-      action: "notes:update",
-      resource: { type: "note", id: "note-123", createdBy: "user-alice" },
-    });
+    const decision = evaluateAuthorization(
+      {
+        principal: alice,
+        action: "notes:update",
+        resource: {
+          type: "note",
+          id: "note-123",
+          tenantId: "tenant-acme",
+          createdBy: "user-alice",
+        },
+      },
+      [noteOwnerPolicy],
+    );
     expect(decision).toMatchObject({ allowed: true, reason: "REBAC_RELATION" });
   });
 });

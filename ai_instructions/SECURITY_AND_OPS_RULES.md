@@ -53,7 +53,7 @@ export const env = loadEnv();
 - Use pure JWT from the locked stack.
 - Tokens expire. Short-lived access tokens + refresh tokens.
 - Access tokens signed with `JWT_SECRET`, refresh tokens with separate `JWT_REFRESH_SECRET`.
-- Access/refresh tokens live in memory in the client (`useAuthStore` persists only the user profile; see `apps/web/src/stores/auth.store.ts`). The refresh credential that survives reloads is the API's httpOnly cookie (`httpOnly: true`, `secure: true`, `sameSite: "strict"`). Never persist tokens to localStorage.
+- Access/refresh tokens live in memory in the client (`useAuthStore` persists only the user profile; see `apps/web/src/stores/auth.store.ts`). The refresh credential that survives reloads is the API's host-only httpOnly cookie (`httpOnly: true`, `secure` in production, `sameSite: "lax"`). State-changing cookie requests also require the host-only CSRF cookie/header pair. Never persist tokens to localStorage.
 - Auth guard reads tokens from both Bearer header and cookies.
 - Logout clears cookies on the server via `POST /auth/logout`.
 - Never store passwords in plaintext. Hash with argon2.
@@ -72,7 +72,7 @@ export const env = loadEnv();
 - **Action Vocabulary**: Use explicit permission action strings (`notes:create`, `files:upload`, `team:invite`, `privacy:erase:self`).
 - **Endpoint Fast-Guard**: Protect HTTP controllers with `@RequirePermission('...')` to reject unauthorized requests at the presentation boundary.
 - **Application & Domain Protection**: In CQRS command/query handlers or domain policies, use `AuthorizationService.check({ principal, action, resource, context })` (or `can(...)` for booleans, `assert(...)` to throw `ForbiddenException`), or the `canAccessResource()` helper in `apps/api/src/common/utils/resource-authorization.ts` for owner-aware checks.
-- **ReBAC & Ownership**: Resource ownership (`resource.ownerId === principal.id`) grants full author access within the tenant boundary.
+- **ReBAC & Ownership**: Ownership grants only the actions explicitly listed by the feature's ownership policy. Future actions remain denied until registered and tested.
 - **Tenant Isolation**: Cross-tenant resource access is strictly forbidden (`TENANT_MISMATCH`).
 - **Closed-World Default Deny**: Deny by default. Allow only what is explicitly permitted by superadmin, ownership, matching policy, or role.
 
@@ -162,7 +162,7 @@ Tool: Pino (locked stack). Fast, structured, JSON output.
 
 ### Audit Logging (Compliance)
 - **Do NOT** use Pino for compliance or security tracking (e.g., password changes, permission grants, data exports).
-- Emit `database.mutated` domain events from commands; the `AuditListener` (`infrastructure/audit/`) persists immutable, queryable rows. Never write audit rows directly from feature code.
+- Commands call `DatabaseService.emitAfterCommit(..., "database.mutated", ...)` inside their mutation transaction. `DatabaseService` persists the redacted immutable audit row in that same transaction; a failed required audit insert rolls back the mutation. `AuditListener` handles best-effort denial observations that have no business transaction. Never write audit rows directly from feature code.
 - Audit logs must be immutable and queryable by security teams.
 
 ### Rules

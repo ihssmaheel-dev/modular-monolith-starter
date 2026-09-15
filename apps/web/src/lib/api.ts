@@ -4,6 +4,7 @@ import { getWebEnv } from "./env";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLocaleStore } from "@/stores/locale.store";
 import { useTenantStore } from "@/stores/tenant.store";
+import { clearIdentityBoundary } from "./identity-boundary";
 
 let client: ApiClient | null = null;
 
@@ -20,8 +21,8 @@ export function getApiClient(): ApiClient {
     onAuthRefreshed: (response) => {
       useAuthStore.getState().setAuth(response);
     },
-    onAuthFailure: () => {
-      useAuthStore.getState().clearAuth();
+    onAuthFailure: async () => {
+      await clearIdentityBoundary();
       if (typeof window !== "undefined") {
         const currentUrl = new URL(window.location.href);
         const token =

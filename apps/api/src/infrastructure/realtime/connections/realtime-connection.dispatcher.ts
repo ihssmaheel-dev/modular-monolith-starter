@@ -43,14 +43,26 @@ export function dispatchToEveryConnection(
   payload: unknown,
 ): void {
   const message = JSON.stringify({ event, payload });
+  const sentSockets = new Set<WebSocket>();
   for (const sockets of wsClients.values()) {
     for (const socket of sockets) {
-      if (socket.readyState === WS_READY_STATE_OPEN) socket.send(message);
+      if (
+        !sentSockets.has(socket) &&
+        socket.readyState === WS_READY_STATE_OPEN &&
+        socket.bufferedAmount <= WS_SEND_HIGH_WATERMARK_BYTES
+      ) {
+        socket.send(message);
+        sentSockets.add(socket);
+      }
     }
   }
+  const sentSubjects = new Set<Subject<NestMessageEvent>>();
   for (const subjects of sseClients.values()) {
     for (const subject of subjects) {
-      subject.next({ type: event, data: payload } as NestMessageEvent);
+      if (!sentSubjects.has(subject)) {
+        subject.next({ type: event, data: payload } as NestMessageEvent);
+        sentSubjects.add(subject);
+      }
     }
   }
 }
@@ -61,14 +73,15 @@ export function closeKeyConnections(
   key: string,
   code = 4001,
   reason = "Closed",
-): number {
-  let closedCount = 0;
+): { ws: number; sse: number } {
+  const closedWs = new Set<WebSocket>();
+  const closedSse = new Set<Subject<NestMessageEvent>>();
   const ws = wsClients.get(key);
   if (ws) {
     for (const s of ws) {
       try {
         s.close(code, reason);
-        closedCount++;
+        closedWs.add(s);
       } catch {
         /* ignore */
       }
@@ -80,14 +93,14 @@ export function closeKeyConnections(
     for (const sub of sse) {
       try {
         sub.complete();
-        closedCount++;
+        closedSse.add(sub);
       } catch {
         /* ignore */
       }
     }
     sseClients.delete(key);
   }
-  return closedCount;
+  return { ws: closedWs.size, sse: closedSse.size };
 }
 
 export function closeMatchingConnections(
@@ -96,14 +109,15 @@ export function closeMatchingConnections(
   predicate: (key: string) => boolean,
   code = 4001,
   reason = "Closed",
-): number {
-  let closedCount = 0;
+): { ws: number; sse: number } {
+  const closedWs = new Set<WebSocket>();
+  const closedSse = new Set<Subject<NestMessageEvent>>();
   for (const [key, sockets] of wsClients.entries()) {
     if (predicate(key)) {
       for (const s of sockets) {
         try {
-          s.close(code, reason);
-          closedCount++;
+          if (!closedWs.has(s)) s.close(code, reason);
+          closedWs.add(s);
         } catch {
           /* ignore */
         }
@@ -115,8 +129,8 @@ export function closeMatchingConnections(
     if (predicate(key)) {
       for (const sub of subjects) {
         try {
-          sub.complete();
-          closedCount++;
+          if (!closedSse.has(sub)) sub.complete();
+          closedSse.add(sub);
         } catch {
           /* ignore */
         }
@@ -124,5 +138,5 @@ export function closeMatchingConnections(
       sseClients.delete(key);
     }
   }
-  return closedCount;
+  return { ws: closedWs.size, sse: closedSse.size };
 }

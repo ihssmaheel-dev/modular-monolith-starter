@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UpdateUserCommand } from "./update-user.command";
 import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
-import { GetUserByEmailQuery } from "../queries/get-user-by-email.query";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { User } from "../../domain/entities/user.entity";
 import { ok, err } from "neverthrow";
@@ -15,7 +14,6 @@ describe("UpdateUserCommand", () => {
   let command: UpdateUserCommand;
   let repository: UsersRepository;
   let getUserById: GetUserByIdQuery;
-  let getUserByEmail: GetUserByEmailQuery;
   let eventEmitter: EventEmitter2;
   let distributedCacheService: DistributedCacheService;
   let outbox: OutboxService;
@@ -28,10 +26,6 @@ describe("UpdateUserCommand", () => {
     getUserById = {
       execute: vi.fn(),
     } as unknown as GetUserByIdQuery;
-
-    getUserByEmail = {
-      execute: vi.fn(),
-    } as unknown as GetUserByEmailQuery;
 
     eventEmitter = {
       emit: vi.fn(),
@@ -48,7 +42,6 @@ describe("UpdateUserCommand", () => {
     command = new UpdateUserCommand(
       repository,
       getUserById,
-      getUserByEmail,
       eventEmitter,
       distributedCacheService,
       outbox,
@@ -84,36 +77,11 @@ describe("UpdateUserCommand", () => {
     expect(result.isErr()).toBe(true);
   });
 
-  it("should return EMAIL_TAKEN if changing email to an existing one", async () => {
-    // Arrange
-    const user = User.fromPersistence({
-      id: "123",
-      email: "old@example.com",
-      name: "Old",
-      role: "user",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
-
-    const otherUser = User.fromPersistence({
-      id: "456",
-      email: "new@example.com",
-      name: "Other",
-      role: "user",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    vi.mocked(getUserByEmail.execute).mockResolvedValue(ok(otherUser));
-
-    // Act
+  it("requires verified email-change flow even for administrators", async () => {
     const result = await command.execute("123", { email: "new@example.com" }, admin);
 
-    // Assert
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toEqual({ type: "EMAIL_TAKEN", email: "new@example.com" });
-    }
+    expect(result).toMatchObject({ error: { type: "USER_FORBIDDEN", userId: "123" } });
+    expect(repository.updateById).not.toHaveBeenCalled();
   });
 
   it("should update user, emit event, and return ok", async () => {

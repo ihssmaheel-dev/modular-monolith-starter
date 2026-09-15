@@ -35,7 +35,8 @@ describe("requestFingerprint", () => {
     const first = requestFingerprint(request({ url: "/api/v1/notes/one" }));
     const retry = requestFingerprint(request({ url: "/api/v1/notes/one" }));
 
-    expect(retry).toEqual(first);
+    expect(retry.digest).toBe(first.digest);
+    expect(retry.claimId).not.toBe(first.claimId);
   });
 
   it("distinguishes query parameters regardless of key order", () => {

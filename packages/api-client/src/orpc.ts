@@ -33,7 +33,7 @@ export function createOrpcClient(
 
       const refreshed = await coordinator.refresh();
       if (!refreshed) {
-        coordinator.handleFailure();
+        await coordinator.handleFailure();
         return response;
       }
 

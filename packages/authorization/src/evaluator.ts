@@ -14,11 +14,13 @@ export function normalizeResource<T>(
   if (!resource) return undefined;
   if (typeof resource === "object" && "type" in (resource as Record<string, unknown>)) {
     const descriptor = resource as ResourceDescriptor<T>;
-    if (descriptor.ownerId) return descriptor;
     const source = descriptor.attributes ?? descriptor.data ?? descriptor;
     return {
       ...descriptor,
-      ownerId: resolveResourceOwnerId(descriptor.type, source as Record<string, unknown>),
+      ownerId:
+        descriptor.ownerId ??
+        resolveResourceOwnerId(descriptor.type, source as Record<string, unknown>),
+      attributes: descriptor.attributes ?? (source as Record<string, unknown>),
     };
   }
   const obj = resource as Record<string, unknown>;
@@ -38,7 +40,8 @@ function matchesAction(policyAction: Policy["action"], requestAction: string): b
 }
 
 function matchesResourceType(policyType?: string | string[], reqType?: string): boolean {
-  if (!policyType || !reqType) return true;
+  if (!policyType) return true;
+  if (!reqType) return false;
   const types = Array.isArray(policyType) ? policyType : [policyType];
   return types.includes("*") || types.includes(reqType);
 }
@@ -53,45 +56,48 @@ export function evaluateAuthorization<
   const { principal, action } = request;
   const resource = normalizeResource(request.resource, request.resourceType);
 
-  // 1. Tenant isolation check: Tenant-bound principals cannot cross tenant boundaries
-  if (resource?.tenantId && principal.tenantId && resource.tenantId !== principal.tenantId) {
-    return { allowed: false, reason: "TENANT_MISMATCH", details: "Cross-tenant access forbidden" };
-  }
-
-  // 2. Superadmin bypass (global admins or admins within their active tenant)
-  if (principal.role === "admin" || principal.role === "*") {
-    return { allowed: true, reason: "SUPERADMIN" };
-  }
-
   const matchingPolicies = policies.filter(
     (p) => matchesAction(p.action, action) && matchesResourceType(p.resourceType, resource?.type),
   );
 
-  // 3. Explicit DENY policies evaluation
+  // Explicit denials apply even to deliberately designated super administrators.
   for (const policy of matchingPolicies.filter((p) => p.effect === "DENY")) {
     if (policy.condition({ principal, resource, context: request.context })) {
       return { allowed: false, reason: "EXPLICIT_DENY", matchedPolicyId: policy.id };
     }
   }
 
-  // 4. ReBAC Ownership relation
-  if (resource?.ownerId && resource.ownerId === principal.id) {
-    return { allowed: true, reason: "REBAC_RELATION", details: "resource_owner" };
+  if (principal.role === "*" || principal.attributes?.superAdmin === true) {
+    return { allowed: true, reason: "SUPERADMIN" };
   }
 
-  // 5. ABAC Declarative ALLOW policies
+  // A tenant-owned resource always requires an active matching tenant.
+  if (resource?.tenantId && resource.tenantId !== principal.tenantId) {
+    return { allowed: false, reason: "TENANT_MISMATCH", details: "Cross-tenant access forbidden" };
+  }
+  if (principal.tenantId && resource && !resource.tenantId && resource.type !== "request") {
+    return { allowed: false, reason: "TENANT_MISMATCH", details: "Missing tenant scope" };
+  }
+
+  // Ownership and other relationships are action-specific ALLOW policies.
   for (const policy of matchingPolicies.filter((p) => p.effect === "ALLOW")) {
     if (policy.condition({ principal, resource, context: request.context })) {
-      return { allowed: true, reason: "ABAC_POLICY", matchedPolicyId: policy.id };
+      const relation = resource?.ownerId === principal.id ? "REBAC_RELATION" : "ABAC_POLICY";
+      return { allowed: true, reason: relation, matchedPolicyId: policy.id };
     }
   }
 
-  // 6. RBAC Role-to-Permission vocabulary
-  const userPerms = resolveUserPermissions(principal.role, principal.tenantRole);
-  if (hasPermission(userPerms, action)) {
-    return { allowed: true, reason: "RBAC_ROLE" };
+  if (!resource || resource.type === "request") {
+    const userPerms = resolveUserPermissions(
+      principal.role,
+      principal.tenantRole,
+      [],
+      principal.tenantId ? "tenant" : "global",
+    );
+    if (hasPermission(userPerms, action)) {
+      return { allowed: true, reason: "RBAC_ROLE" };
+    }
   }
 
-  // 7. Default closed-world Deny
   return { allowed: false, reason: "DEFAULT_DENY" };
 }

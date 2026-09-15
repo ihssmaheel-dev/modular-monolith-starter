@@ -20,6 +20,7 @@ export class RealtimeAuthListener implements OnModuleInit, OnModuleDestroy {
   private readonly logger: PinoLoggerService;
   private readonly origin = randomUUID();
   private subscriber: Redis | null = null;
+  private unsubscribeReady?: () => void;
 
   constructor(
     private readonly realtime: RealtimeService,
@@ -30,6 +31,12 @@ export class RealtimeAuthListener implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
+    this.unsubscribeReady = this.redis?.onReady?.(() => this.ensureSubscriber());
+    await this.ensureSubscriber();
+  }
+
+  private async ensureSubscriber(): Promise<void> {
+    if (this.subscriber) return;
     const client = this.redis?.getClient();
     if (!client) return;
     try {
@@ -83,6 +90,11 @@ export class RealtimeAuthListener implements OnModuleInit, OnModuleDestroy {
     if (tid) {
       this.revokeTenant(tid, "organization purged");
     }
+  }
+
+  @OnEvent("privacy.organization.purged")
+  handlePrivacyOrganizationPurged(payload: { organizationId?: string }): void {
+    if (payload?.organizationId) this.revokeTenant(payload.organizationId, "organization purged");
   }
 
   private revoke(userId: string, reason: string): void {
@@ -163,6 +175,8 @@ export class RealtimeAuthListener implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
+    this.unsubscribeReady?.();
+    this.unsubscribeReady = undefined;
     if (this.subscriber) await this.subscriber.quit();
   }
 }

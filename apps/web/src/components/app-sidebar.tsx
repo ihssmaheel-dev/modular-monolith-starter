@@ -16,10 +16,12 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@repo/ui/components/ui/sidebar";
+import { getWebEnv } from "@/lib/env";
 
 export function AppSidebar() {
   const { t } = useTranslation();
   const location = useLocation();
+  const examplesEnabled = getWebEnv().VITE_EXAMPLE_FEATURES_ENABLED;
 
   const isNotesActive = location.pathname.startsWith("/notes");
 
@@ -45,16 +47,18 @@ export function AppSidebar() {
           <SidebarGroupLabel>{t("navigation.workspace")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to={FRONTEND_ROUTES.dashboard} />}
-                  isActive={location.pathname === "/dashboard"}
-                  tooltip={t("dashboard.title")}
-                >
-                  <LayoutDashboard />
-                  <span>{t("dashboard.title")}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {examplesEnabled && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link to={FRONTEND_ROUTES.dashboard} />}
+                    isActive={location.pathname === "/dashboard"}
+                    tooltip={t("dashboard.title")}
+                  >
+                    <LayoutDashboard />
+                    <span>{t("dashboard.title")}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               <SidebarMenuItem>
                 <SidebarMenuButton

@@ -3,6 +3,7 @@ import { GetNoteByIdQuery } from "./get-note-by-id.query";
 import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
 import { Note } from "../../domain/entities/note.entity";
 import { ok } from "neverthrow";
+import type { AuthorizationService } from "../../../../infrastructure/authorization";
 
 const ACTOR = { sub: "admin-1", email: "admin@example.com", role: "admin" } as const;
 
@@ -15,7 +16,10 @@ describe("GetNoteByIdQuery", () => {
       findById: vi.fn(),
     } as unknown as NotesRepository;
 
-    query = new GetNoteByIdQuery(repository);
+    const authorization = {
+      check: vi.fn().mockReturnValue({ allowed: true }),
+    } as unknown as AuthorizationService;
+    query = new GetNoteByIdQuery(repository, authorization);
   });
 
   it("should return NOTE_NOT_FOUND if repository returns null", async () => {

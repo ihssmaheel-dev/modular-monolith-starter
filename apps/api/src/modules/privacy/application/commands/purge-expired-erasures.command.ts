@@ -1,28 +1,24 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { err, ok, Result } from "neverthrow";
 import { env } from "../../../../config/env";
-import { DatabaseService } from "../../../../infrastructure/database";
+import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { DeleteUserCommand } from "../../../users/application/commands/delete-user.command";
 import { HardDeleteOrganizationCommand } from "../../../tenancy/application/commands/hard-delete-organization.command";
-import { PurgeUserNotificationsCommand } from "../../../notifications/application/commands/purge-user-notifications.command";
-import { PurgeUserNotesCommand } from "../../../notes/application/commands/purge-user-notes.command";
-import { PurgeUserFilesCommand } from "../../../files/application/commands/purge-user-files.command";
-import { PurgeTenantNotesCommand } from "../../../notes/application/commands/purge-tenant-notes.command";
-import { PurgeTenantFilesCommand } from "../../../files/application/commands/purge-tenant-files.command";
+import { DataLifecycleRegistry } from "../../../../infrastructure/lifecycle/data-lifecycle.registry";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { AccountPurgedEvent, OrganizationPurgedEvent } from "../../domain/events/privacy.events";
 import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import type { DsrRequest } from "../../domain/entities/dsr.entity";
 
-const PURGE_BATCH_LIMIT = 25;
+const PURGE_BATCH_LIMIT = 1_000;
 
 /**
  * GDPR Art. 17 grace enforcement: hard-delete subjects whose erasure grace
- * period expired, and age out stale export snapshots. Runs nightly; also
+ * period expired, and age out stale export snapshots. Runs hourly; also
  * exposed to admins via POST /privacy/admin/purge-expired.
  */
 @Injectable()
@@ -33,20 +29,17 @@ export class PurgeExpiredErasuresCommand {
     private readonly requests: PrivacyRepository,
     private readonly deleteUser: DeleteUserCommand,
     private readonly hardDeleteOrganization: HardDeleteOrganizationCommand,
-    private readonly purgeNotifications: PurgeUserNotificationsCommand,
-    @Optional() private readonly purgeUserNotes: PurgeUserNotesCommand | undefined,
-    @Optional() private readonly purgeUserFiles: PurgeUserFilesCommand | undefined,
-    @Optional() private readonly purgeTenantNotes: PurgeTenantNotesCommand | undefined,
-    @Optional() private readonly purgeTenantFiles: PurgeTenantFilesCommand | undefined,
+    private readonly lifecycle: DataLifecycleRegistry,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
     logger: PinoLoggerService,
-    @Optional() private readonly database?: DatabaseService,
+    private readonly database: DatabaseService,
+    private readonly tenantContext: TenantContextService,
   ) {
     this.logger = logger.child({ module: "PurgeExpiredErasures" });
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_HOUR)
   async purgeScheduled(): Promise<void> {
     if (env.PROCESS_ROLE === "api") return;
     const result = await this.execute();
@@ -56,18 +49,18 @@ export class PurgeExpiredErasuresCommand {
   }
 
   async execute(): Promise<Result<{ purged: number }, PrivacyError>> {
-    // No wrapping transaction: every request is an independent bounded unit
-    // of work (its own transaction inside), so one poison request can never
-    // roll back or block the other 24.
-    const operation = () => this.persist();
-    if (!this.database) return operation();
-    return this.database.withSystemScope(operation);
+    const context =
+      env.TENANCY_MODE === "single" ? { mode: "single" as const } : { mode: "multi" as const };
+    return this.tenantContext.runSystem(context, () => this.persist());
   }
 
   private async persist(): Promise<Result<{ purged: number }, PrivacyError>> {
-    const expired = await this.requests.findExpiredErasureBatch(PURGE_BATCH_LIMIT);
+    const batch = await this.database.withTransaction(() =>
+      this.requests.findExpiredErasureBatch(PURGE_BATCH_LIMIT),
+    );
+    if (batch.isErr()) return err({ type: "PURGE_FAILED" });
     let purged = 0;
-    for (const request of expired) {
+    for (const request of batch.value) {
       const outcome = await this.fulfillRequest(request);
       if (outcome === "fulfilled") purged += 1;
     }
@@ -99,13 +92,15 @@ export class PurgeExpiredErasuresCommand {
   }
 
   private async scrubExpiredExports(): Promise<Result<void, PrivacyError>> {
-    const stale = await this.requests.findExpiredExportBatch(PURGE_BATCH_LIMIT);
-    for (const request of stale) {
+    const stale = await this.database.withTransaction(() =>
+      this.requests.findExpiredExportBatch(PURGE_BATCH_LIMIT),
+    );
+    if (stale.isErr()) return err({ type: "PURGE_FAILED" });
+    for (const request of stale.value) {
       // One poisoned snapshot must not block the rest of the batch.
-      const updated = await this.requests.updateById(request.id, {
-        status: "EXPIRED",
-        payload: null,
-      });
+      const updated = await this.database.withResultTransaction(() =>
+        this.requests.updateById(request.id, { status: "EXPIRED", payload: null }),
+      );
       if (updated.isErr() || !updated.value) {
         this.logger.error({ requestId: request.id }, "Export snapshot scrub failed");
       }
@@ -122,20 +117,19 @@ export class PurgeExpiredErasuresCommand {
    */
   private async fulfillAccount(request: DsrRequest): Promise<"fulfilled" | "retry" | "failed"> {
     const plan = readTenantPlan(request.payload);
-    const scopes = plan.length > 0 ? plan : [undefined];
-    for (const tenantId of scopes) {
-      const destroyed = await this.destroyUserScope(request.subjectUserId, tenantId);
-      if (destroyed.isErr()) {
-        this.logger.error(
-          { requestId: request.id, tenantId },
-          "Account data destruction failed, retrying next cycle",
-        );
-        return "retry";
-      }
+    if (!plan) {
+      this.logger.error({ requestId: request.id }, "Account erasure plan is invalid");
+      return "failed";
+    }
+    const destroyed = await this.lifecycle.purgeSubject(request.subjectUserId, plan);
+    if (destroyed.isErr()) {
+      this.logger.error(
+        { requestId: request.id, contributor: destroyed.error.contributor },
+        "Account data destruction failed, retrying next cycle",
+      );
+      return "retry";
     }
     const finalize = async (): Promise<Result<"fulfilled" | "failed", PrivacyError>> => {
-      const cleared = await this.purgeNotifications.execute(request.subjectUserId);
-      if (cleared.isErr()) return err({ type: "PURGE_FAILED" });
       const deleted = await this.deleteUser.execute(request.subjectUserId);
       if (deleted.isErr() && deleted.error.type !== "USER_NOT_FOUND") {
         // Ownership gained during grace needs a human (transfer first):
@@ -164,9 +158,7 @@ export class PurgeExpiredErasuresCommand {
       });
       return ok("fulfilled" as const);
     };
-    const result = this.database
-      ? await this.database.withSystemScope(() => this.database!.withResultTransaction(finalize))
-      : await finalize();
+    const result = await this.database.withResultTransaction(finalize);
     if (result.isErr()) {
       this.logger.error({ requestId: request.id }, "Account finalize failed, retrying next cycle");
       return "retry";
@@ -178,25 +170,6 @@ export class PurgeExpiredErasuresCommand {
     return "fulfilled";
   }
 
-  private async destroyUserScope(
-    userId: string,
-    tenantId: string | undefined,
-  ): Promise<Result<void, PrivacyError>> {
-    const run = async (): Promise<Result<void, PrivacyError>> => {
-      if (this.purgeUserNotes) {
-        const notes = await this.purgeUserNotes.execute(userId);
-        if (notes.isErr()) return err({ type: "PURGE_FAILED" });
-      }
-      if (this.purgeUserFiles) {
-        const files = await this.purgeUserFiles.execute(userId);
-        if (files.isErr()) return err({ type: "PURGE_FAILED" });
-      }
-      return ok(undefined);
-    };
-    if (tenantId === undefined || !this.database) return run();
-    return this.database.withTenantScope(tenantId, run);
-  }
-
   private async fulfillOrganization(
     request: DsrRequest,
   ): Promise<"fulfilled" | "retry" | "failed"> {
@@ -206,27 +179,12 @@ export class PurgeExpiredErasuresCommand {
       await this.markFailed(request.id);
       return "failed";
     }
-    const destroy = async (): Promise<Result<void, PrivacyError>> => {
-      if (this.purgeTenantNotes) {
-        const notes = await this.purgeTenantNotes.execute();
-        if (notes.isErr()) return err({ type: "PURGE_FAILED" });
-      }
-      if (this.purgeTenantFiles) {
-        const files = await this.purgeTenantFiles.execute();
-        if (files.isErr()) return err({ type: "PURGE_FAILED" });
-      }
-      return ok(undefined);
-    };
-    const destroyed = this.database
-      ? await this.database.withTenantScope(tenantId, destroy)
-      : await destroy();
+    const destroyed = await this.lifecycle.purgeTenant(tenantId);
     if (destroyed.isErr()) {
       this.logger.error({ requestId: request.id, tenantId }, "Tenant data destruction failed");
       return "retry";
     }
     const finalize = async (): Promise<Result<void, PrivacyError>> => {
-      const notificationsPurged = await this.purgeNotifications.purgeTenant(tenantId);
-      if (notificationsPurged.isErr()) return err({ type: "PURGE_FAILED" });
       const deleted = await this.hardDeleteOrganization.execute(tenantId);
       if (deleted.isErr()) return err({ type: "PURGE_FAILED" });
       const marked = await this.requests.updateById(request.id, {
@@ -241,9 +199,7 @@ export class PurgeExpiredErasuresCommand {
       if (dispatched.isErr()) return err({ type: "PURGE_FAILED" });
       return ok(undefined);
     };
-    const result = this.database
-      ? await this.database.withSystemScope(() => this.database!.withResultTransaction(finalize))
-      : await finalize();
+    const result = await this.database.withResultTransaction(finalize);
     if (result.isErr()) {
       this.logger.error({ requestId: request.id, tenantId }, "Organization finalize failed");
       return "retry";
@@ -252,18 +208,16 @@ export class PurgeExpiredErasuresCommand {
   }
 
   private async markFailed(requestId: string): Promise<void> {
-    const marked = await this.requests.updateById(requestId, { status: "FAILED", payload: null });
+    const marked = await this.database.withResultTransaction(() =>
+      this.requests.updateById(requestId, { status: "FAILED", payload: null }),
+    );
     if (marked.isErr() || !marked.value) {
       this.logger.error({ requestId }, "Erasure request could not be marked failed");
     }
   }
 
   private async emitMutated(payload: Record<string, unknown>): Promise<void> {
-    if (this.database) {
-      await this.database.emitAfterCommit(this.events, "database.mutated", payload);
-      return;
-    }
-    await this.events.emitAsync("database.mutated", payload);
+    await this.database.emitAfterCommit(this.events, "database.mutated", payload);
   }
 }
 
@@ -271,9 +225,10 @@ export class PurgeExpiredErasuresCommand {
  * Reads the erasure plan committed at request time. Unknown shapes mean a
  * corrupt or foreign request row: the caller purges nothing and fails it.
  */
-function readTenantPlan(payload: unknown): string[] {
-  if (typeof payload !== "object" || payload === null) return [];
+function readTenantPlan(payload: unknown): string[] | null {
+  if (typeof payload !== "object" || payload === null) return null;
   const tenantIds = (payload as Record<string, unknown>).tenantIds;
-  if (!Array.isArray(tenantIds)) return [];
-  return tenantIds.filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (!Array.isArray(tenantIds)) return null;
+  if (!tenantIds.every((id) => typeof id === "string" && id.length > 0)) return null;
+  return [...new Set(tenantIds as string[])];
 }

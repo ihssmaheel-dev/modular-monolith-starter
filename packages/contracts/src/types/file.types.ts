@@ -26,4 +26,5 @@ export type FileErrorType =
   | { type: "INVALID_FILE_TYPE"; message: string }
   | { type: "FILE_TOO_LARGE"; message: string }
   | { type: "QUOTA_EXCEEDED"; message: string }
+  | { type: "ADMISSION_DISABLED"; message: string }
   | { type: "UNAUTHORIZED"; message: string };

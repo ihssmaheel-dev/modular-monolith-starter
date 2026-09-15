@@ -38,7 +38,7 @@ describe("LoginCommand", () => {
     } as unknown as AccountLockoutService;
 
     sessions = {
-      create: vi.fn().mockResolvedValue({ id: "session-1", userId: "user-123" }),
+      create: vi.fn().mockResolvedValue(ok({ id: "session-1", userId: "user-123" })),
     } as unknown as SessionService;
     command = new LoginCommand(verifyCredentials, metricsService, lockoutService, sessions);
   });

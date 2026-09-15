@@ -20,11 +20,23 @@ const EXPORT_FILENAME = "my-data-export.json";
 export function ExportCard() {
   const { t } = useTranslation();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const requestsQuery = useQuery(privacyRequestsQuery(1, 20));
+  const requestsQuery = useQuery({
+    ...privacyRequestsQuery(1, 20),
+    refetchInterval: (query) => {
+      const requests = query.state.data?.requests ?? [];
+      return requests.some(
+        (request) =>
+          request.type === "EXPORT" &&
+          (request.status === "REQUESTED" || request.status === "PROCESSING"),
+      )
+        ? 5_000
+        : false;
+    },
+  });
   const exportMutation = useRequestExportMutation();
 
   const readyExports = (requestsQuery.data?.requests ?? []).filter(
-    (r) => r.type === "EXPORT" && r.status === "READY",
+    (r) => r.type === "EXPORT" && (r.status === "READY" || r.status === "PARTIAL"),
   );
 
   const download = async (id: string) => {

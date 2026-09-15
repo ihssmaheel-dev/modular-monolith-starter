@@ -6,7 +6,8 @@ import {
   StorageError,
   UploadResult,
   FileInput,
-  PRESIGN_TTL_SECONDS,
+  UPLOAD_PRESIGN_TTL_SECONDS,
+  DOWNLOAD_PRESIGN_TTL_SECONDS,
   StoredObjectMetadata,
 } from "./storage.types";
 import { S3Driver } from "./drivers/s3.driver";
@@ -59,12 +60,18 @@ export class StorageService {
   async getPresignedUploadUrl(
     key: string,
     contentType: string,
-    ttlSeconds = PRESIGN_TTL_SECONDS,
+    contentLength: number,
+    ttlSeconds = UPLOAD_PRESIGN_TTL_SECONDS,
   ): Promise<Result<string, StorageError>> {
     return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
-          const url = await this.driver.getPresignedUploadUrl(key, contentType, ttlSeconds);
+          const url = await this.driver.getPresignedUploadUrl(
+            key,
+            contentType,
+            contentLength,
+            ttlSeconds,
+          );
           return ok(url);
         } catch (error) {
           this.logger.error({ key, error }, "Presign upload failed");
@@ -95,7 +102,7 @@ export class StorageService {
 
   async getPresignedDownloadUrl(
     key: string,
-    ttlSeconds = PRESIGN_TTL_SECONDS,
+    ttlSeconds = DOWNLOAD_PRESIGN_TTL_SECONDS,
   ): Promise<Result<string, StorageError>> {
     return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
@@ -130,11 +137,15 @@ export class StorageService {
    * to the final key, so a still-valid presigned upload URL (which points at
    * the quarantine key) can never overwrite served content afterwards.
    */
-  async copy(sourceKey: string, destinationKey: string): Promise<Result<void, StorageError>> {
+  async copy(
+    sourceKey: string,
+    destinationKey: string,
+    source: Pick<StoredObjectMetadata, "etag" | "versionId">,
+  ): Promise<Result<void, StorageError>> {
     return this.guarded(() =>
       this.circuitBreaker.execute(async () => {
         try {
-          await this.driver.copy(sourceKey, destinationKey);
+          await this.driver.copy(sourceKey, destinationKey, source);
           this.logger.info({ sourceKey, destinationKey }, "File promoted from quarantine");
           return ok(undefined);
         } catch (error) {

@@ -10,6 +10,7 @@ function loadEnv(): WebEnv {
   const parsed = webEnvSchema.safeParse({
     VITE_API_URL: raw.VITE_API_URL,
     VITE_APP_NAME: raw.VITE_APP_NAME,
+    VITE_EXAMPLE_FEATURES_ENABLED: raw.VITE_EXAMPLE_FEATURES_ENABLED,
   });
   if (!parsed.success) throw new Error("Invalid web environment configuration");
   return parsed.data;
@@ -27,6 +28,7 @@ export function getWebEnv(): WebEnv {
     const serverRaw = {
       VITE_API_URL: runtime.process?.env?.VITE_API_URL,
       VITE_APP_NAME: runtime.process?.env?.VITE_APP_NAME,
+      VITE_EXAMPLE_FEATURES_ENABLED: runtime.process?.env?.VITE_EXAMPLE_FEATURES_ENABLED,
     };
     const parsed = webEnvSchema.safeParse(serverRaw);
     if (!parsed.success) throw new Error("Invalid web environment configuration");

@@ -41,7 +41,7 @@ describe("GetNotesQuery", () => {
       expect(result.value).toBe(paginatedResult);
     }
     expect(repository.paginate).toHaveBeenCalledWith(
-      {},
+      { createdBy: "admin-1" },
       {
         page: 1,
         limit: 20,
@@ -69,7 +69,7 @@ describe("GetNotesQuery", () => {
     // Assert
     expect(result.isOk()).toBe(true);
     expect(repository.paginate).toHaveBeenCalledWith(
-      {},
+      { createdBy: "admin-1" },
       {
         page: 2,
         limit: 10,

@@ -22,7 +22,9 @@ export const memberships = pgTable(
   "memberships",
   {
     id: text("id").primaryKey(),
-    tenantId: text("tenant_id").notNull(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull(),
     userEmail: text("user_email").notNull(),
     userName: text("user_name").notNull(),
@@ -41,7 +43,9 @@ export const invitations = pgTable(
   "invitations",
   {
     id: text("id").primaryKey(),
-    tenantId: text("tenant_id").notNull(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: invitationRoleEnum("role").notNull(),
     tokenHash: text("token_hash").notNull(),

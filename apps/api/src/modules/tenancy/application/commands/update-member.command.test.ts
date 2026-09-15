@@ -90,7 +90,7 @@ describe("UpdateMemberCommand", () => {
     expect(order).toEqual(["lock:tenancy:owners:org-1", "count"]);
   });
 
-  it("skips the lock when the change cannot remove the last owner", async () => {
+  it("uses the shared organization lock for every role change", async () => {
     const database = {
       withResultTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
       withAdvisoryLock: vi.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
@@ -102,7 +102,10 @@ describe("UpdateMemberCommand", () => {
     const result = await locked.execute("user-2", "admin");
 
     expect(result.isOk()).toBe(true);
-    expect(database.withAdvisoryLock).not.toHaveBeenCalled();
+    expect(database.withAdvisoryLock).toHaveBeenCalledWith(
+      "tenancy:owners:org-1",
+      expect.any(Function),
+    );
   });
 });
 

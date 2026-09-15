@@ -35,7 +35,7 @@ Test contract for the codebase. Quality without ceremony.
 - Assert translated output (interpolated strings, never raw keys), loading/error/empty tri-states, disabled-while-pending, and per-status error keys.
 
 ### Unit Tests (mobile logic)
-- Run under `apps/mobile/vitest.config.ts` (node, globals). Never hit the network or native modules.
+- Run under `apps/mobile/vitest.config.mts` (node, globals). Never hit the network or native modules.
 - Native seams are mocked once in `src/test/setup.ts` (`expo-secure-store`, `expo-notifications`, `expo-device`, `expo-constants`, `expo-localization`, `expo-file-system`, `react-native`); tests drive them through `src/test/native-state.ts`, never by re-mocking.
 - Mock `@/lib/api` (`getApiClient`) and `uploadFile`; stub global `fetch` only for the presigned-PUT path (`putBytesNative`).
 - One test file per source file, co-located next to it (`*.test.ts`).
@@ -59,7 +59,7 @@ Test contract for the codebase. Quality without ceremony.
 
 ## Vitest Configuration
 
-Create `vitest.config.ts` in `apps/api/`:
+Create `vitest.config.mts` in `apps/api/`:
 
 ```typescript
 import { defineConfig } from "vitest/config";
@@ -80,7 +80,7 @@ export default defineConfig({
 });
 ```
 
-For integration tests, create `vitest.integration.config.ts`:
+For integration tests, create `vitest.integration.config.mts`:
 
 ```typescript
 import { defineConfig } from "vitest/config";
@@ -251,11 +251,13 @@ describeRouteParity({
 ```json
 {
   "test": "vitest run",
-  "test:unit": "vitest run --config vitest.config.ts",
-  "test:integration": "vitest run --config vitest.integration.config.ts",
-  "test:e2e": "vitest run --config vitest.e2e.config.ts",
+  "test:unit": "vitest run --config vitest.config.mts",
+  "test:integration": "vitest run --config vitest.integration.config.mts",
+  "test:e2e": "vitest run --config vitest.e2e.config.mts",
   "test:watch": "vitest watch"
 }
 ```
 
-**Note:** each layer has its own config (`vitest.config.ts`, `vitest.integration.config.ts`, `vitest.e2e.config.ts`). Always pass `--config` explicitly instead of `--dir` or `--include`.
+**Note:** the API uses ESM config files (`vitest.config.mts`, `vitest.integration.config.mts`,
+`vitest.e2e.config.mts`); web uses `vitest.config.ts` and mobile uses `vitest.config.mts`. Always pass `--config`
+explicitly instead of `--dir` or `--include`.

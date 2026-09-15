@@ -83,7 +83,7 @@ pnpm --filter web start # Run the built SSR web bundle
 
 ```bash
 # Automatically wires contracts, REST + oRPC, API client, backend module, web slice, and mobile slice
-pnpm generate:feature <module> <feature>
+pnpm generate:feature <module> <feature> --access=tenant-shared
 ```
 
 ### Build & Verification
@@ -121,6 +121,8 @@ pnpm test:api:watch   # Run API unit tests in watch mode
 pnpm db:generate      # Generate SQL migrations from Drizzle schemas
 pnpm db:migrate       # Apply pending migrations to PostgreSQL
 pnpm db:migrate:status # Inspect migration status
+pnpm db:migrate:lineage # Verify journal/snapshot/checksum lineage and immutable history
+pnpm db:migrate:freeze # Record checksums after adding a new append-only migration
 pnpm db:migrate:dev   # Push schema changes directly during development
 pnpm db:seed          # Seed database with initial development data
 pnpm db:studio        # Open Drizzle Studio database viewer
@@ -129,7 +131,7 @@ pnpm db:studio        # Open Drizzle Studio database viewer
 ### Docker & Infrastructure
 
 ```bash
-pnpm docker:up        # Start PostgreSQL, Redis, MinIO, Mailpit, pgAdmin
+pnpm docker:up        # Start local PostgreSQL, Redis, S3 fixture, Mailpit, pgAdmin
 pnpm docker:down      # Stop core infrastructure
 pnpm docker:logs      # View infrastructure logs
 ```
@@ -146,21 +148,21 @@ pnpm observability:logs # Tail telemetry logs
 
 ## Local Service Directory
 
-| Service                  | Local URL / Port                 | Credentials / Purpose                          |
-| :----------------------- | :------------------------------- | :--------------------------------------------- |
-| **API Backend**          | `http://localhost:5156`          | Fastify API Server (`/health/*`, `/api/v1/*`)  |
-| **Web (TanStack Start)** | `http://localhost:5155`          | Vite + SSR (dev) `pnpm --filter web dev`       |
-| **Scalar API Reference** | `http://localhost:5156/api/docs` | Interactive OpenAPI 3.1 Docs                   |
-| **Grafana Dashboard**    | `http://localhost:3001`          | `admin / admin` (API, DB, Redis, Traces, Logs) |
-| **Tempo Trace Engine**   | `http://localhost:3200`          | OTLP Traces (`:4318` HTTP / `:4317` gRPC)      |
-| **Alloy Telemetry UI**   | `http://localhost:12345`         | Live Pipeline Graph & Collector Status         |
-| **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                     |
-| **Loki Log Engine**      | `http://localhost:3100`          | High-performance Log Aggregator                |
-| **cAdvisor UI**          | `http://localhost:8080`          | Container Resource & OOM Metrics (`cadvisor`)  |
-| **Mailpit Web UI**       | `http://localhost:8025`          | Local SMTP Email Inbox (`:1025`)               |
-| **Email Preview**        | `http://localhost:3002`          | React Email workshop (`pnpm dev:email`)        |
-| **MinIO Console**        | `http://localhost:9001`          | `minioadmin / minioadmin` (S3: `:9000`)        |
-| **pgAdmin 4**            | `http://localhost:5050`          | `admin@example.com / admin`                    |
+| Service                  | Local URL / Port                 | Credentials / Purpose                                      |
+| :----------------------- | :------------------------------- | :--------------------------------------------------------- |
+| **API Backend**          | `http://localhost:5156`          | Fastify API Server (`/api/v1/*`)                           |
+| **Web (TanStack Start)** | `http://localhost:5155`          | Vite + SSR (dev) `pnpm --filter web dev`                   |
+| **Scalar API Reference** | `http://localhost:5156/api/docs` | Interactive OpenAPI 3.1 Docs                               |
+| **Grafana Dashboard**    | `http://localhost:3001`          | `admin / admin` (API, DB, Redis, Traces, Logs)             |
+| **Tempo Trace Engine**   | `http://localhost:3200`          | OTLP Traces (`:4318` HTTP / `:4317` gRPC)                  |
+| **Alloy Telemetry UI**   | `http://localhost:12345`         | Live Pipeline Graph & Collector Status                     |
+| **Prometheus Metrics**   | `http://localhost:9090`          | Time-series Metrics Server                                 |
+| **Loki Log Engine**      | `http://localhost:3100`          | High-performance Log Aggregator                            |
+| **cAdvisor UI**          | `http://localhost:8080`          | Container Resource & OOM Metrics (`cadvisor`)              |
+| **Mailpit Web UI**       | `http://localhost:8025`          | Local SMTP Email Inbox (`:1025`)                           |
+| **Email Preview**        | `http://localhost:3002`          | React Email workshop (`pnpm dev:email`)                    |
+| **MinIO Console**        | `http://localhost:9001`          | Local S3 fixture only; `minioadmin / minioadmin` (`:9000`) |
+| **pgAdmin 4**            | `http://localhost:5050`          | `admin@example.com / admin`                                |
 
 ---
 
@@ -186,7 +188,8 @@ The web client (`apps/web`, TanStack Start) consumes the same schemas/contracts 
 
 Unified **RBAC + ReBAC + ABAC** engine:
 
-- **Action Vocabulary**: Granular permissions (e.g., `notes:create`, `team:invite`, `privacy:erase:self`).
+- **Action Vocabulary**: Core permissions live in `@repo/authorization`; feature modules own their
+  explicit actions (for example, the reference Notes module owns `notes:create`).
 - **Relationship-Based Access Control**: Resource ownership (`resource.ownerId === principal.id`).
 - **Attribute-Based Access Control**: Dynamic policy predicates (tenant scoping, department matching).
 - **Backend Protection**: Controller `@RequirePermission('notes:create')` and application `AuthorizationService.check(...)`.
@@ -206,7 +209,9 @@ Unified **RBAC + ReBAC + ABAC** engine:
 - One deployable modular API and one SSR web image; modules remain independently testable without prematurely splitting into services.
 - Every HTTP request runs inside a bounded transaction unless it is a long-lived stream; background jobs use explicit system scope.
 - PostgreSQL RLS is defense in depth for tenant-owned tables, while application authorization remains the source of business decisions.
-- Access tokens stay in memory in the web client; refresh tokens are `HttpOnly`, `Secure`, `SameSite=Strict` cookies and rotate on use.
+- Access tokens stay in memory in the web client; refresh tokens use host-only `HttpOnly`,
+  `Secure` production, `SameSite=Lax` cookies and rotate on use. Mutations also require the readable
+  host-only CSRF cookie through a double-submit header.
 - Migrations are journaled, locked, and applied before the API starts; images run as non-root users with health checks.
 
 For a new product or module, follow [Starting a New Project](docs/STARTING_A_NEW_PROJECT.md).
@@ -218,9 +223,12 @@ For delivery, TLS, secrets, alerting, backups, and load shedding, follow [Produc
 
 Mounted at both root and versioned prefixes:
 
-- **Liveness:** `GET /health/live` or `GET /api/v1/health/live`
-- **Readiness:** `GET /health/ready` or `GET /api/v1/health/ready`
-- **Full Diagnostics:** `GET /health` or `GET /api/v1/health`
+- **Liveness:** `GET /api/v1/health/live`
+- **Readiness:** `GET /api/v1/health/ready`
+- **Full Diagnostics:** `GET /api/v1/health`
+
+The supplied NGINX deployment also exposes `/health/*` as a stable proxy alias.
+
 - **Prometheus Metrics:** `GET /metrics`
 
 ---

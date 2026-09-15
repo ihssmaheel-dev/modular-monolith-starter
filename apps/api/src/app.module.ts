@@ -26,6 +26,8 @@ import { SecurityModule } from "./infrastructure/security/security.module";
 import { I18nModule } from "./infrastructure/i18n/i18n.module";
 import { FeatureFlagsModule } from "./infrastructure/feature-flags";
 import { AuditModule } from "./infrastructure/audit/audit.module";
+import { OperationReceiptModule } from "./infrastructure/idempotency/operation-receipt.module";
+import { DataLifecycleModule } from "./infrastructure/lifecycle/data-lifecycle.module";
 import { OutboxModule } from "./infrastructure/outbox/outbox.module";
 import { ErrorReportingModule } from "./infrastructure/error-reporting";
 import { AuthorizationModule } from "./infrastructure/authorization";
@@ -39,6 +41,7 @@ import {
   PermissionsGuard,
   IdempotencyInterceptor,
   RateLimitGuard,
+  AggregateRateLimitGuard,
   TenantContextGuard,
   OriginValidationInterceptor,
   RequestIdInterceptor,
@@ -47,6 +50,21 @@ import {
   ResponseValidationInterceptor,
 } from "./common";
 import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
+import { env } from "./config/env";
+
+export const REFERENCE_FEATURE_MODULES = [NotesModule] as const;
+
+export function applicationFeatureModules(includeExamples = env.EXAMPLE_FEATURES_ENABLED) {
+  return [
+    TenancyModule.forRoot(),
+    UsersModule,
+    AuthModule,
+    FilesModule,
+    PrivacyModule,
+    NotificationsModule,
+    ...(includeExamples ? REFERENCE_FEATURE_MODULES : []),
+  ];
+}
 
 @Module({
   imports: [
@@ -72,27 +90,23 @@ import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
     FeatureFlagsModule,
     MetricsModule,
     AuditModule,
+    OperationReceiptModule,
+    DataLifecycleModule,
     OutboxModule,
     ErrorReportingModule,
     AuthorizationModule,
-    TenancyModule.forRoot(),
-    UsersModule,
-    AuthModule,
-    NotesModule,
-    FilesModule,
-    PrivacyModule,
-    NotificationsModule,
+    ...applicationFeatureModules(),
   ],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: AuthGuard,
+      useClass: RateLimitGuard,
     },
     // Rate limiting runs before any expensive work (tenant resolution,
     // permission evaluation) so unauthenticated floods are shed cheaply.
     {
       provide: APP_GUARD,
-      useClass: RateLimitGuard,
+      useClass: AuthGuard,
     },
     {
       provide: APP_GUARD,
@@ -104,7 +118,19 @@ import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
     },
     {
       provide: APP_GUARD,
+      useClass: AggregateRateLimitGuard,
+    },
+    {
+      provide: APP_GUARD,
       useClass: PermissionsGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestIdInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: OriginValidationInterceptor,
     },
     {
       provide: APP_INTERCEPTOR,
@@ -121,14 +147,6 @@ import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
     {
       provide: APP_INTERCEPTOR,
       useClass: IdempotencyInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: OriginValidationInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestIdInterceptor,
     },
     {
       provide: APP_INTERCEPTOR,

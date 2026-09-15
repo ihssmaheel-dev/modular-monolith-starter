@@ -30,13 +30,17 @@ export class ResetUserPasswordCommand {
     if (result.isErr() || !result.value) {
       return err({ type: "INVALID_PASSWORD_RESET_TOKEN" });
     }
-    await this.cacheService.invalidateGlobal(`user:${result.value.id}`);
-    if (this.events) {
-      await this.events.emitAsync("user.password.reset", {
-        userId: result.value.id,
-        authVersion: result.value.authVersion,
-      });
-    }
-    return ok(result.value);
+    const updated = result.value;
+    const invalidate = () => this.cacheService.invalidateGlobal(`user:${updated.id}`);
+    if (this.database) await this.database.runAfterCommit(invalidate, "user:password-cache");
+    else await invalidate();
+    const payload = {
+      userId: updated.id,
+      authVersion: updated.authVersion,
+    };
+    if (this.events && this.database) {
+      await this.database.emitAfterCommit(this.events, "user.password.reset", payload);
+    } else if (this.events) await this.events.emitAsync("user.password.reset", payload);
+    return ok(updated);
   }
 }

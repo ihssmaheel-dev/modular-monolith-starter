@@ -31,7 +31,7 @@ describe("FileReconciliationWorker", () => {
     const tenantContext = {
       runSystem: vi.fn(async (_context, callback: () => Promise<unknown>) => callback()),
     } as unknown as TenantContextService;
-    const metrics = { incrementCounter: vi.fn() } as unknown as MetricsService;
+    const metrics = { incrementCounter: vi.fn(), setGauge: vi.fn() } as unknown as MetricsService;
     const logger = {
       child: vi.fn().mockReturnThis(),
       warn: vi.fn(),

@@ -1,4 +1,4 @@
-# RB-04: Disk full (postgres / minio / logs)
+# RB-04: Disk full (PostgreSQL / object storage / logs)
 
 - **Severity:** SEV-1 if the database volume is full; SEV-2 for object storage or logs
 - **Owner:** backend on-call
@@ -15,14 +15,14 @@
 ## Blast radius
 
 Depends entirely on _which_ disk: database volume full halts all writes (reads survive
-briefly); MinIO full breaks uploads and avatars only; log volume full blinds observability
+briefly); object-storage capacity exhaustion breaks uploads and avatars only; log volume full blinds observability
 first and crashes shippers second. Identify the volume before acting.
 
 ## Triage in 5 minutes
 
 1. `df -h` on the host (and `docker system df -v` for Docker disk usage). Healthy: every
    mounted volume under 80%.
-2. Name the fullest volume: `postgres_data`, `minio_data`, or log paths (Loki chunks,
+2. Name the fullest volume or service: `postgres_data`, the object-storage provider, or log paths (Loki chunks,
    container json logs). `du -sh <path>/* | sort -rh | head` for the culprit directory.
 3. If Postgres: `SELECT pg_size_pretty(pg_database_size(current_database()));` for scale,
    and check for runaway audit/outbox retention (see retention workers).

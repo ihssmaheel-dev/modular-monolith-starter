@@ -69,7 +69,7 @@ export async function requestRefresh(
 
 export interface RefreshCoordinator {
   refresh: () => Promise<AuthResponse | null>;
-  handleFailure: () => void;
+  handleFailure: () => Promise<void>;
   handleSuccess: (response: AuthResponse) => void;
 }
 
@@ -90,13 +90,13 @@ export function createRefreshCoordinator(
       });
       return pending;
     },
-    handleFailure: () => {
+    handleFailure: async () => {
       if (failureNotified) return;
       failureNotified = true;
       queueMicrotask(() => {
         failureNotified = false;
       });
-      options.onAuthFailure?.();
+      await options.onAuthFailure?.();
     },
     handleSuccess: (response: AuthResponse) => {
       failureNotified = false;

@@ -7,6 +7,8 @@ import { HardDeleteOrganizationCommand } from "../../../tenancy/application/comm
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
+import type { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
+import type { DataLifecycleRegistry } from "../../../../infrastructure/lifecycle/data-lifecycle.registry";
 
 function staleExport() {
   return DsrRequest.fromPersistence({
@@ -25,7 +27,7 @@ describe("PurgeExpiredErasuresCommand", () => {
   let command: PurgeExpiredErasuresCommand;
   let requests: PrivacyRepository;
   let deleteUser: { execute: ReturnType<typeof vi.fn> };
-  let purgeNotifications: { execute: ReturnType<typeof vi.fn> };
+  let lifecycle: { purgeSubject: ReturnType<typeof vi.fn>; purgeTenant: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     requests = {
@@ -36,11 +38,10 @@ describe("PurgeExpiredErasuresCommand", () => {
     const deleteUserMock = { execute: vi.fn().mockResolvedValue(ok(undefined)) };
     deleteUser = deleteUserMock;
     const hardDeleteOrganization = {} as HardDeleteOrganizationCommand;
-    purgeNotifications = { execute: vi.fn().mockResolvedValue(ok(undefined)) };
-    const purgeUserNotes = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
-    const purgeUserFiles = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
-    const purgeTenantNotes = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
-    const purgeTenantFiles = { execute: vi.fn().mockResolvedValue(ok({ deleted: 0 })) };
+    lifecycle = {
+      purgeSubject: vi.fn().mockResolvedValue(ok({ deleted: 0 })),
+      purgeTenant: vi.fn().mockResolvedValue(ok({ deleted: 0 })),
+    };
     const outbox = {
       dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as OutboxService;
@@ -48,18 +49,25 @@ describe("PurgeExpiredErasuresCommand", () => {
     const logger = {
       child: vi.fn().mockReturnValue({ error: vi.fn(), info: vi.fn() }),
     } as unknown as PinoLoggerService;
+    const database = {
+      withTransaction: vi.fn(async (operation: () => Promise<unknown>) => ok(await operation())),
+      withResultTransaction: vi.fn((operation: () => Promise<unknown>) => operation()),
+      emitAfterCommit: vi.fn(),
+    } as unknown as DatabaseService;
+    const tenantContext = {
+      runSystem: vi.fn((_context: unknown, operation: () => unknown) => operation()),
+      run: vi.fn((_context: unknown, operation: () => unknown) => operation()),
+    } as unknown as TenantContextService;
     command = new PurgeExpiredErasuresCommand(
       requests,
       deleteUser as never,
       hardDeleteOrganization,
-      purgeNotifications as never,
-      purgeUserNotes as never,
-      purgeUserFiles as never,
-      purgeTenantNotes as never,
-      purgeTenantFiles as never,
+      lifecycle as unknown as DataLifecycleRegistry,
       outbox,
       events,
       logger,
+      database,
+      tenantContext,
     );
   });
 
@@ -84,12 +92,13 @@ describe("PurgeExpiredErasuresCommand", () => {
     expect(requests.updateById).not.toHaveBeenCalled();
   });
 
-  it("should purge notification artifacts before hard-deleting the user", async () => {
+  it("should purge registered lifecycle contributors before hard-deleting the user", async () => {
     const erasure = DsrRequest.fromPersistence({
       id: "dsr-erase",
       type: "ACCOUNT_ERASURE",
       status: "REQUESTED",
       subjectUserId: "user-9",
+      payload: { tenantIds: [] },
       expiresAt: new Date("2026-01-01T00:00:00Z"),
       createdAt: new Date("2025-12-01T00:00:00Z"),
       updatedAt: new Date("2025-12-01T00:00:00Z"),
@@ -100,7 +109,31 @@ describe("PurgeExpiredErasuresCommand", () => {
     const result = await command.execute();
 
     expect(result.isOk()).toBe(true);
-    expect(purgeNotifications.execute).toHaveBeenCalledWith("user-9");
+    expect(lifecycle.purgeSubject).toHaveBeenCalledWith("user-9", []);
     expect(deleteUser.execute).toHaveBeenCalledWith("user-9");
+  });
+
+  it("should fail closed when the persisted tenant plan is malformed", async () => {
+    const erasure = DsrRequest.fromPersistence({
+      id: "dsr-corrupt",
+      type: "ACCOUNT_ERASURE",
+      status: "REQUESTED",
+      subjectUserId: "user-9",
+      payload: { tenantIds: ["tenant-1", 42] },
+      expiresAt: new Date("2026-01-01T00:00:00Z"),
+      createdAt: new Date("2025-12-01T00:00:00Z"),
+      updatedAt: new Date("2025-12-01T00:00:00Z"),
+    });
+    vi.mocked(requests.findExpiredErasureBatch).mockResolvedValue([erasure]);
+    vi.mocked(requests.updateById).mockResolvedValue(ok(erasure));
+
+    const result = await command.execute();
+
+    expect(result.isOk()).toBe(true);
+    expect(deleteUser.execute).not.toHaveBeenCalled();
+    expect(requests.updateById).toHaveBeenCalledWith("dsr-corrupt", {
+      status: "FAILED",
+      payload: null,
+    });
   });
 });

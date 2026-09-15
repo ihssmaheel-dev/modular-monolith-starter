@@ -1,18 +1,19 @@
 import { z } from "zod";
+import { EmailInputSchema } from "./common.schema";
 
 export const CreateUserSchema = z.object({
-  email: z.string().email(),
+  email: EmailInputSchema,
   name: z.string().min(1).max(100),
   password: z.string().min(8).max(128),
 });
 
 export const UpdateUserSchema = z.object({
-  email: z.string().email().optional(),
+  email: EmailInputSchema.optional(),
   name: z.string().min(1).max(100).optional(),
 });
 
 export const RequestEmailChangeSchema = z.object({
-  email: z.string().trim().toLowerCase().email().max(255),
+  email: EmailInputSchema,
 });
 
 export const VerifyEmailChangeSchema = z.object({

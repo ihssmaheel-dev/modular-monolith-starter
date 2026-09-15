@@ -25,6 +25,8 @@ New runbook? Copy `TEMPLATE.md`, fill every section, add the row below.
 | RB-15 | [OOM / container restarts](RB-15-oom-restarts.md)          | SEV-1/2  | heap errors, restart loops                     |
 | RB-16 | [Realtime lag high](RB-16-realtime-lag.md)                 | SEV-2    | consumer lag metric, fan-out health            |
 | RB-17 | [File reconciliation errors](RB-17-file-reconciliation.md) | SEV-2    | `FileReconciliationErrors/Repairs`             |
+| RB-18 | [Notification delivery](RB-18-notification-delivery.md)    | SEV-2→1  | `NotificationDeliveryBacklog/DeadLetters`      |
+| RB-19 | [Privacy exports](RB-19-privacy-export.md)                 | SEV-2→1  | `PrivacyExportBacklog/Failures`                |
 
 ## Planned
 

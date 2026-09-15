@@ -10,6 +10,8 @@ export interface SendEmailParams {
   subject: string;
   html: string;
   text?: string;
+  /** Stable operation identifier used for provider-side deduplication where supported. */
+  operationId?: string;
 }
 
 export interface SendEmailResult {

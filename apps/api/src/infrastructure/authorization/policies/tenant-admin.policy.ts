@@ -1,15 +1,18 @@
-import type { Policy } from "@repo/authorization";
+import { TenantAdministrativePermissions, type Policy } from "@repo/authorization";
 
 export const genericTenantAdminPolicy: Policy = {
   id: "generic-tenant-admin-manage",
-  description: "Tenant owner or admin has management access to all tenant resources",
+  description: "Tenant administrators have the enumerated tenant capabilities",
   resourceType: "*",
-  action: "*",
+  action: TenantAdministrativePermissions,
   effect: "ALLOW",
   condition: ({ principal, resource }) => {
     if (!resource) return false;
-    const isTenantAdmin = principal.tenantRole === "admin" || principal.tenantRole === "owner";
-    const isSameTenant = !resource.tenantId || resource.tenantId === principal.tenantId;
+    const isTenantAdmin =
+      principal.role === "admin" ||
+      principal.tenantRole === "admin" ||
+      principal.tenantRole === "owner";
+    const isSameTenant = resource.tenantId === principal.tenantId;
     return isTenantAdmin && isSameTenant;
   },
 };

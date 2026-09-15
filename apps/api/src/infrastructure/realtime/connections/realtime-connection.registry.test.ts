@@ -25,6 +25,7 @@ describe("RealtimeConnectionRegistry", () => {
     const logger = {
       child: vi.fn().mockReturnThis(),
       debug: vi.fn(),
+      info: vi.fn(),
       warn: vi.fn(),
     } as unknown as PinoLoggerService;
     registry = new RealtimeConnectionRegistry(metrics, logger);
@@ -96,5 +97,29 @@ describe("RealtimeConnectionRegistry", () => {
     registry.dispatchToUser("user-1", "tenant-1", "note.updated", { id: "note-1" });
 
     expect(globalSocket.send).not.toHaveBeenCalled();
+  });
+
+  it("removes closed connections from gauges during revocation", () => {
+    const socket = createSocket();
+    const subject = new Subject<NestMessageEvent>();
+    registry.addWsClient("user-1", "tenant-1", socket);
+    registry.addWsAlias("user-1", socket);
+    registry.addSseClient("user-1", "tenant-1", subject);
+    registry.addSseAlias("user-1", subject);
+
+    expect(registry.disconnectUser("user-1")).toBe(2);
+    expect(registry.getUserCount()).toBe(0);
+    expect(metrics.decrementGauge).toHaveBeenCalledWith(
+      "realtime_active_connections_total",
+      "Active realtime connections",
+      1,
+      { type: "ws" },
+    );
+    expect(metrics.decrementGauge).toHaveBeenCalledWith(
+      "realtime_active_connections_total",
+      "Active realtime connections",
+      1,
+      { type: "sse" },
+    );
   });
 });

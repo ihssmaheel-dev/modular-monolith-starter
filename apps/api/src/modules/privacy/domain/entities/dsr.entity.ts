@@ -8,6 +8,8 @@ export interface DsrData {
   subjectUserId: string;
   tenantId?: string | null;
   payload?: unknown;
+  attempts?: number;
+  lockedAt?: Date | null;
   expiresAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +67,10 @@ export class DsrRequest {
 
   get expiresAt() {
     return this.data.expiresAt ?? undefined;
+  }
+
+  get attempts() {
+    return this.data.attempts ?? 0;
   }
 
   isExpired(now: Date = new Date()): boolean {

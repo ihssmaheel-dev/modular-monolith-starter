@@ -3,7 +3,7 @@ import type { FastifyReply } from "fastify";
 import { clearAuthCookies, setAuthCookies } from "./auth.cookies";
 
 describe("auth cookies", () => {
-  it("scopes the refresh cookie to every API transport", () => {
+  it("exposes only the access cookie to the WebSocket path", () => {
     const reply = mockReply();
 
     setAuthCookies(reply, "access", "refresh");
@@ -12,7 +12,7 @@ describe("auth cookies", () => {
       1,
       "access_token",
       "access",
-      expect.objectContaining({ path: "/api" }),
+      expect.objectContaining({ path: "/" }),
     );
     expect(reply.setCookie).toHaveBeenNthCalledWith(
       2,
@@ -30,7 +30,7 @@ describe("auth cookies", () => {
     expect(reply.clearCookie).toHaveBeenNthCalledWith(
       1,
       "access_token",
-      expect.objectContaining({ path: "/api" }),
+      expect.objectContaining({ path: "/" }),
     );
     expect(reply.clearCookie).toHaveBeenNthCalledWith(
       2,

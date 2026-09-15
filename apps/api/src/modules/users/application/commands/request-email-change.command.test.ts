@@ -9,6 +9,7 @@ import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { User } from "../../domain/entities/user.entity";
 import type { AuthenticatedUser } from "@repo/contracts";
+import type { DatabaseService } from "../../../../infrastructure/database";
 
 const actor = {
   sub: "user-1",
@@ -38,16 +39,22 @@ describe("RequestEmailChangeCommand", () => {
     getUserByEmail = { execute: vi.fn() } as unknown as GetUserByEmailQuery;
     repository = {
       setEmailChangeRequest: vi.fn().mockResolvedValue(ok(true)),
+      findOne: vi.fn().mockResolvedValue(ok(null)),
     } as unknown as UsersRepository;
     emailService = { send: vi.fn().mockResolvedValue(ok({ id: "email-1" })) } as never;
     const i18n = { t: vi.fn((key: string) => key) } as unknown as I18nService;
     const logger = {
       child: vi.fn().mockReturnValue({ warn: vi.fn(), info: vi.fn() }),
     } as unknown as PinoLoggerService;
+    const database = {
+      withResultTransaction: vi.fn((operation: () => Promise<unknown>) => operation()),
+      withAdvisoryLock: vi.fn((_key: string, operation: () => Promise<unknown>) => operation()),
+    } as unknown as DatabaseService;
     command = new RequestEmailChangeCommand(
       getUserById,
       getUserByEmail,
       repository,
+      database,
       emailService,
       i18n,
       logger,

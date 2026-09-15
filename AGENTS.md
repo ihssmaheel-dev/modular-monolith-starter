@@ -27,12 +27,12 @@ Same order as `ai_instructions/README.md` (the table there is the single source 
 - The stack is locked. Do not add, replace, or suggest alternatives without approval.
 - Never throw in application/domain layers. Use neverthrow Result.
 - Never import another module's Drizzle table or direct database model.
-- Every Zod schema, type, and contract lives in packages/contracts (@repo/contracts).
+- Every public transport Zod schema, DTO, and contract lives in packages/contracts (@repo/contracts). Runtime-private implementation types stay with their owning capability.
 - **All user-facing text must use i18n.** Translations live in packages/i18n (@repo/i18n).
 - **All error messages must use I18nService.** Never hardcode.
 - Ask in every PR: "Is this the simplest structure that could work?"
 - Keep files small and single-responsibility. Limits per area live in `ai_instructions/CODE_QUALITY_RULES.md` (app code 400 lines, web routes 150, web lib 250, stores 200, tests 800) — that table is the single source, not this list.
-- Functions under 30 lines. No deep nesting.
+- Function and file limits have one source: `ai_instructions/CODE_QUALITY_RULES.md`. No deep nesting.
 - No magic numbers, no copy-paste, no `any`, no `console.log`.
 - **Every new file must land in the correct location on first creation.** See `FILE_PLACEMENT_RULES.md`.
 

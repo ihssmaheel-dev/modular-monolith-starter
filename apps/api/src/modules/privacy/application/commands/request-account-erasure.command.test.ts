@@ -62,9 +62,6 @@ describe("RequestAccountErasureCommand", () => {
     const purgeTenancy = {
       execute: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as PurgeUserTenancyDataCommand;
-    const purgeNotifications = {
-      execute: vi.fn().mockResolvedValue(ok(undefined)),
-    } as never;
     const cache = { invalidateGlobal: vi.fn() } as unknown as DistributedCacheService;
     outbox = {
       dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)),
@@ -81,7 +78,6 @@ describe("RequestAccountErasureCommand", () => {
       listOrganizations,
       canDeleteUser,
       purgeTenancy,
-      purgeNotifications,
       cache,
       outbox,
       events,
@@ -145,7 +141,6 @@ describe("RequestAccountErasureCommand", () => {
       pagedList,
       { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
       { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
-      { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
       { invalidateGlobal: vi.fn() } as never,
       outbox,
       { emitAsync: vi.fn().mockResolvedValue([]) } as never,
@@ -179,7 +174,6 @@ describe("RequestAccountErasureCommand", () => {
       } as never,
       {} as never,
       {} as never,
-      {} as never,
       outbox,
       {} as never,
     );
@@ -195,7 +189,6 @@ describe("RequestAccountErasureCommand", () => {
       requests,
       { execute: vi.fn().mockResolvedValue(err({ type: "USER_NOT_FOUND", userId: "x" })) } as never,
       verifyCredentials,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,

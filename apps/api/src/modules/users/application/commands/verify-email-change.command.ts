@@ -3,6 +3,10 @@ import { err, ok, Result } from "neverthrow";
 import { User } from "../../domain/entities/user.entity";
 import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { hashSha256Token } from "../../../../infrastructure/security/token.utils";
+import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
+import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
+import { SessionService } from "../../../../infrastructure/session/session.service";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 
 import type { InvalidEmailChangeToken } from "../../domain/errors/user.errors";
 
@@ -15,12 +19,33 @@ import type { InvalidEmailChangeToken } from "../../domain/errors/user.errors";
  */
 @Injectable()
 export class VerifyEmailChangeCommand {
-  constructor(private readonly repository: UsersRepository) {}
+  constructor(
+    private readonly repository: UsersRepository,
+    private readonly database: DatabaseService,
+    private readonly cache: DistributedCacheService,
+    private readonly sessions: SessionService,
+    private readonly events: EventEmitter2,
+  ) {}
 
-  async execute(token: string): Promise<Result<User, InvalidEmailChangeToken>> {
-    const user = await this.repository.applyEmailChangeByToken(hashSha256Token(token));
+  async execute(token: string): Promise<Result<User, InvalidEmailChangeToken | TransactionError>> {
+    const user = await this.database.withResultTransaction(() =>
+      this.repository.applyEmailChangeByToken(hashSha256Token(token)),
+    );
     if (user.isErr()) return err(user.error);
     if (!user.value) return err({ type: "INVALID_EMAIL_CHANGE_TOKEN" });
-    return ok(user.value);
+    const updated = user.value;
+    await this.database.runAfterCommit(
+      () => this.cache.invalidateGlobal(`user:${updated.id}`),
+      "user:email-change-cache",
+    );
+    await this.database.runAfterCommit(
+      () => this.sessions.revokeAllForUser(updated.id),
+      "user:email-change-sessions",
+    );
+    await this.database.emitAfterCommit(this.events, "user.auth-version.incremented", {
+      userId: updated.id,
+      authVersion: updated.authVersion,
+    });
+    return ok(updated);
   }
 }

@@ -62,7 +62,7 @@ describe("StorageService", () => {
   });
 
   it("should get presigned upload url", async () => {
-    const result = await service.getPresignedUploadUrl("file.txt", "text/plain");
+    const result = await service.getPresignedUploadUrl("file.txt", "text/plain", 12);
     expect(result.isOk()).toBe(true);
   });
 

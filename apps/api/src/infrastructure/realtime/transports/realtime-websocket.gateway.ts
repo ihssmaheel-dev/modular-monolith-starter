@@ -42,7 +42,11 @@ interface SocketIdentity {
 
 // Declared handshake origins come from the same trust source as HTTP CORS;
 // the handshake below additionally enforces Origin per connection.
-@WebSocketGateway({ cors: { origin: clientOrigins() }, maxPayload: WS_MAX_INBOUND_BYTES })
+@WebSocketGateway({
+  path: "/ws",
+  cors: { origin: clientOrigins() },
+  maxPayload: WS_MAX_INBOUND_BYTES,
+})
 export class RealtimeWebsocketGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
 {
@@ -51,6 +55,7 @@ export class RealtimeWebsocketGateway
 
   private socketIdentity = new Map<WebSocket, SocketIdentity>();
   private revalidateTimer?: NodeJS.Timeout;
+  private revalidating = false;
 
   constructor(
     private readonly realtime: RealtimeService,
@@ -112,14 +117,12 @@ export class RealtimeWebsocketGateway
 
   handleDisconnect(@ConnectedSocket() client: WebSocket, reason?: string): void {
     const identity = this.socketIdentity.get(client);
-    if (identity) {
-      this.realtime.removeWsClient(identity.userId, identity.tenantId, client);
-      this.socketIdentity.delete(client);
-      this.logger.debug(
-        { userId: identity.userId, tenantId: identity.tenantId, reason },
-        "WS disconnected",
-      );
-    }
+    if (!identity) return;
+    this.unregister(client, identity);
+    this.logger.debug(
+      { userId: identity.userId, tenantId: identity.tenantId, reason },
+      "WS disconnected",
+    );
   }
 
   /**
@@ -128,27 +131,35 @@ export class RealtimeWebsocketGateway
    * empty sweep is the common case and touches no sockets.
    */
   private async revalidateConnections(): Promise<void> {
-    if (this.socketIdentity.size === 0) return;
-    const now = Date.now();
-    for (const [socket, identity] of this.socketIdentity) {
-      if (socket.readyState !== WS_READY_STATE_OPEN) {
-        this.socketIdentity.delete(socket);
-        continue;
-      }
-      if (identity.expiresAt !== null && identity.expiresAt <= now) {
-        this.logger.debug({ userId: identity.userId }, "Closing expired realtime socket");
-        socket.close(WS_CLOSE_TOKEN_EXPIRED, "token expired");
-        this.socketIdentity.delete(socket);
-        continue;
-      }
-      if (identity.tenantId !== undefined) {
-        const access = await this.tenantAccess.execute(identity.userId, identity.tenantId);
-        if (access.isErr()) {
-          this.logger.debug({ userId: identity.userId }, "Closing revoked realtime socket");
-          socket.close(WS_CLOSE_MEMBERSHIP_REVOKED, "membership revoked");
-          this.socketIdentity.delete(socket);
+    if (this.socketIdentity.size === 0 || this.revalidating) return;
+    this.revalidating = true;
+    try {
+      const now = Date.now();
+      for (const [socket, identity] of this.socketIdentity) {
+        if (socket.readyState !== WS_READY_STATE_OPEN) {
+          this.unregister(socket, identity);
+          continue;
+        }
+        if (identity.expiresAt === null || identity.expiresAt <= now) {
+          this.logger.debug({ userId: identity.userId }, "Closing expired realtime socket");
+          this.closeAndUnregister(socket, identity, WS_CLOSE_TOKEN_EXPIRED, "token expired");
+          continue;
+        }
+        if (identity.tenantId !== undefined) {
+          const access = await this.tenantAccess.execute(identity.userId, identity.tenantId);
+          if (access.isErr()) {
+            this.logger.debug({ userId: identity.userId }, "Closing revoked realtime socket");
+            this.closeAndUnregister(
+              socket,
+              identity,
+              WS_CLOSE_MEMBERSHIP_REVOKED,
+              "membership revoked",
+            );
+          }
         }
       }
+    } finally {
+      this.revalidating = false;
     }
   }
 
@@ -177,13 +188,6 @@ export class RealtimeWebsocketGateway
       if (fromCookie) return fromCookie;
     }
 
-    // Browser fallback: the WebSocket constructor cannot set headers, and
-    // auth cookies scoped to Path=/api are never sent to /ws. Short-lived
-    // access tokens only — never put refresh tokens in URLs.
-    if (request?.url) {
-      const token = new URL(request.url, "http://localhost").searchParams.get("token");
-      if (token) return token;
-    }
     return null;
   }
 
@@ -200,5 +204,20 @@ export class RealtimeWebsocketGateway
     if (typeof header === "string" && header) return header;
     if (!request?.url) return undefined;
     return new URL(request.url, "http://localhost").searchParams.get("tenantId") ?? undefined;
+  }
+
+  private closeAndUnregister(
+    socket: WebSocket,
+    identity: SocketIdentity,
+    code: number,
+    reason: string,
+  ): void {
+    this.unregister(socket, identity);
+    socket.close(code, reason);
+  }
+
+  private unregister(socket: WebSocket, identity: SocketIdentity): void {
+    this.realtime.removeWsClient(identity.userId, identity.tenantId, socket);
+    this.socketIdentity.delete(socket);
   }
 }

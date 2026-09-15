@@ -10,12 +10,13 @@ import {
 } from "react-native";
 import { useTheme } from "@/theme/theme-provider";
 import { mobileTokens } from "@/theme/tokens.generated";
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import { noteDetailPath } from "@repo/contracts";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { notesListQuery } from "@/features/notes/notes.queries";
 import { useDeleteNoteMutation } from "@/features/notes/notes.mutations";
+import { getMobileEnv } from "@/lib/env";
 
 export default function Notes() {
   const { t } = useTranslation();
@@ -23,8 +24,11 @@ export default function Notes() {
   const colors = mobileTokens[resolvedTheme];
   const [page, setPage] = useState(1);
   const limit = 20;
-  const notesQuery = useQuery({ ...notesListQuery(page, limit) });
+  const examplesEnabled = getMobileEnv().EXPO_PUBLIC_EXAMPLE_FEATURES_ENABLED;
+  const notesQuery = useQuery({ ...notesListQuery(page, limit), enabled: examplesEnabled });
   const deleteMutation = useDeleteNoteMutation();
+
+  if (!examplesEnabled) return <Redirect href="/(tabs)" />;
 
   const confirmDelete = (id: string, title: string) => {
     Alert.alert(t("common.delete"), t("notes.deleteConfirm", { title }), [

@@ -2,7 +2,13 @@ import { Controller, Req } from "@nestjs/common";
 import { Implement, implement } from "../../../../infrastructure/orpc/orpc-runtime";
 import type { FastifyRequest } from "fastify";
 import { privacyContract } from "@repo/contracts";
-import { Idempotent, RequirePermission, TenantAgnostic } from "../../../../common";
+import {
+  Idempotent,
+  NoDatabaseTransaction,
+  RateLimit,
+  RequirePermission,
+  TenantAgnostic,
+} from "../../../../common";
 import { invokeOrpc } from "../../../../infrastructure/orpc";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PrivacyController } from "../controllers/privacy.controller";
@@ -16,6 +22,8 @@ export class PrivacyOrpcController {
   ) {}
 
   @Implement(privacyContract.requestExport)
+  @Idempotent()
+  @RateLimit(10, 60)
   @RequirePermission("privacy:export:self")
   requestExport(@Req() request: FastifyRequest) {
     return implement(privacyContract.requestExport).handler(() =>
@@ -28,6 +36,7 @@ export class PrivacyOrpcController {
   }
 
   @Implement(privacyContract.downloadExport)
+  @RateLimit(30, 60)
   @RequirePermission("privacy:export:self")
   downloadExport(@Req() request: FastifyRequest) {
     return implement(privacyContract.downloadExport).handler(({ input }) =>
@@ -53,6 +62,7 @@ export class PrivacyOrpcController {
 
   @Implement(privacyContract.requestAccountErasure)
   @Idempotent()
+  @RateLimit(5, 900)
   @RequirePermission("privacy:erase:self")
   requestAccountErasure(@Req() request: FastifyRequest) {
     return implement(privacyContract.requestAccountErasure).handler(({ input }) =>
@@ -66,6 +76,7 @@ export class PrivacyOrpcController {
 
   @Implement(privacyContract.requestOrganizationErasure)
   @Idempotent()
+  @RateLimit(5, 900)
   requestOrganizationErasure(@Req() request: FastifyRequest) {
     // No coarse permission: TenantAgnostic routes carry no tenant role, so
     // owners could never satisfy privacy:erase:tenant at the guard. The
@@ -92,6 +103,8 @@ export class PrivacyOrpcController {
   }
 
   @Implement(privacyContract.purgeExpired)
+  @NoDatabaseTransaction()
+  @RateLimit(5, 60)
   @RequirePermission("privacy:requests:read")
   purgeExpired(@Req() request: FastifyRequest) {
     return implement(privacyContract.purgeExpired).handler(() =>

@@ -10,6 +10,7 @@ export interface SessionData {
   deviceName: string;
   createdAt: number;
   lastAccessedAt: number;
+  expiresAt: number;
 }
 
 export interface CreateSessionInput {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { INVITABLE_TENANT_ROLES, TENANCY_MODES, TENANT_ROLES } from "../constants";
+import { EmailInputSchema } from "./common.schema";
 
 const PageFields = {
   total: z.number().int().nonnegative(),
@@ -61,7 +62,7 @@ export const MemberListResponseSchema = z.object({
 });
 
 export const InviteMemberSchema = z.object({
-  email: z.string().trim().email(),
+  email: EmailInputSchema,
   role: z.enum(INVITABLE_TENANT_ROLES).default("member"),
 });
 

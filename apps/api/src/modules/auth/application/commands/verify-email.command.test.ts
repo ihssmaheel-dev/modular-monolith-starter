@@ -20,7 +20,7 @@ describe("VerifyEmailCommand", () => {
     vi.clearAllMocks();
     users = { execute: vi.fn() } as unknown as VerifyUserEmailCommand;
     sessions = {
-      create: vi.fn().mockResolvedValue({ id: "session-9", userId: "u-2" }),
+      create: vi.fn().mockResolvedValue(ok({ id: "session-9", userId: "u-2" })),
     } as unknown as SessionService;
     command = new VerifyEmailCommand(users, sessions);
   });

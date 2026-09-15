@@ -3,6 +3,7 @@ import { GetFileByIdQuery } from "./get-file-by-id.query";
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok } from "neverthrow";
+import type { AuthorizationService } from "../../../../infrastructure/authorization";
 
 const ACTOR = { sub: "user-1", email: "user@example.com", role: "user" } as const;
 
@@ -30,7 +31,10 @@ describe("GetFileByIdQuery", () => {
       findById: vi.fn(),
     } as unknown as FilesRepository;
 
-    query = new GetFileByIdQuery(filesRepo);
+    const authorization = {
+      check: vi.fn().mockReturnValue({ allowed: true }),
+    } as unknown as AuthorizationService;
+    query = new GetFileByIdQuery(filesRepo, authorization);
   });
 
   it("should return FILE_NOT_FOUND when file does not exist", async () => {

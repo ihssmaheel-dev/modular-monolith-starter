@@ -1,4 +1,6 @@
 import { pgTable, text, timestamp, integer, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "user"]);
 
@@ -25,7 +27,15 @@ export const users = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex("users_email_unique").on(t.email),
+    uniqueIndex("users_email_unique").on(sql`lower(${t.email})`),
+    uniqueIndex("users_pending_email_unique")
+      .on(sql`lower(${t.pendingEmail})`)
+      .where(sql`${t.pendingEmail} IS NOT NULL`),
+    check("users_email_normalized", sql`${t.email} = lower(btrim(${t.email}))`),
+    check(
+      "users_pending_email_normalized",
+      sql`${t.pendingEmail} IS NULL OR ${t.pendingEmail} = lower(btrim(${t.pendingEmail}))`,
+    ),
     index("users_avatar_file_id_idx").on(t.avatarFileId),
     index("users_deleted_at_idx").on(t.deletedAt),
   ],

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
@@ -61,7 +61,9 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       db as unknown as {
         select: () => {
           from: (t: unknown) => {
-            where: (c: unknown) => { limit: (n: number) => Promise<FileRow[]> };
+            where: (c: unknown) => {
+              orderBy: (column: unknown) => { limit: (n: number) => Promise<FileRow[]> };
+            };
           };
         };
       }
@@ -75,6 +77,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
           lt(files.createdAt, cutoff),
         ),
       )
+      .orderBy(asc(files.createdAt))
       .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
   }
@@ -86,7 +89,9 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       db as unknown as {
         select: () => {
           from: (t: unknown) => {
-            where: (c: unknown) => { limit: (n: number) => Promise<FileRow[]> };
+            where: (c: unknown) => {
+              orderBy: (column: unknown) => { limit: (n: number) => Promise<FileRow[]> };
+            };
           };
         };
       }
@@ -101,25 +106,39 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
           lt(files.createdAt, cutoff),
         ),
       )
+      .orderBy(asc(files.createdAt))
       .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
   }
 
-  async findUploadedFiles(limit: number, systemScope = false): Promise<FileEntity[]> {
+  async findUploadedFiles(
+    limit: number,
+    systemScope = false,
+    afterId?: string,
+  ): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
     const rows = await (
       db as unknown as {
         select: () => {
           from: (t: unknown) => {
-            where: (c: unknown) => { limit: (value: number) => Promise<FileRow[]> };
+            where: (c: unknown) => {
+              orderBy: (column: unknown) => { limit: (value: number) => Promise<FileRow[]> };
+            };
           };
         };
       }
     )
       .select()
       .from(files)
-      .where(and(eq(files.status, "uploaded"), isNull(files.deletedAt)))
+      .where(
+        and(
+          eq(files.status, "uploaded"),
+          isNull(files.deletedAt),
+          afterId ? gt(files.id, afterId) : undefined,
+        ),
+      )
+      .orderBy(asc(files.id))
       .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
   }
@@ -171,7 +190,9 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       db as unknown as {
         select: () => {
           from: (t: unknown) => {
-            where: (c: unknown) => { limit: (value: number) => Promise<FileRow[]> };
+            where: (c: unknown) => {
+              orderBy: (column: unknown) => { limit: (value: number) => Promise<FileRow[]> };
+            };
           };
         };
       }
@@ -179,19 +200,46 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       .select()
       .from(files)
       .where(isNotNull(files.deletedAt))
+      .orderBy(asc(files.deletedAt))
       .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
   }
 
-  async sumActiveBytes(uploadedBy: string): Promise<number> {
+  async getActiveUsage(
+    uploadedBy: string,
+  ): Promise<{ userBytes: number; tenantBytes: number; tenantObjects: number }> {
     const db = this.getDb();
     const result = await (
       db as unknown as {
-        execute: (query: unknown) => Promise<{ rows: Array<{ total: number | string }> }>;
+        execute: (query: unknown) => Promise<{
+          rows: Array<{
+            userBytes: number | string;
+            tenantBytes: number | string;
+            tenantObjects: number | string;
+          }>;
+        }>;
       }
     ).execute(
-      sql`select coalesce(sum(file_size), 0) as total from files where uploaded_by = ${uploadedBy} and deleted_at is null`,
+      sql`select
+        coalesce(sum(file_size) filter (where uploaded_by = ${uploadedBy}), 0) as "userBytes",
+        coalesce(sum(file_size), 0) as "tenantBytes",
+        count(*) as "tenantObjects"
+      from files
+      where deleted_at is null`,
     );
-    return Number(result.rows[0]?.total ?? 0);
+    const row = result.rows[0];
+    return {
+      userBytes: Number(row?.userBytes ?? 0),
+      tenantBytes: Number(row?.tenantBytes ?? 0),
+      tenantObjects: Number(row?.tenantObjects ?? 0),
+    };
+  }
+
+  async getGlobalUserActiveBytes(uploadedBy: string, systemScope = false): Promise<number> {
+    if (!systemScope || !this.tenantContext.isSystemScope()) return 0;
+    const result = await this.getDb().execute(sql`select coalesce(sum(file_size), 0) as bytes
+      from files
+      where uploaded_by = ${uploadedBy} and deleted_at is null`);
+    return Number((result.rows[0] as { bytes?: number | string } | undefined)?.bytes ?? 0);
   }
 }

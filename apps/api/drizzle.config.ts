@@ -3,6 +3,7 @@ import { defineConfig } from "drizzle-kit";
 export default defineConfig({
   schema: [
     "./src/infrastructure/audit/schemas/*.ts",
+    "./src/infrastructure/idempotency/schemas/*.ts",
     "./src/infrastructure/outbox/schemas/*.ts",
     "./src/modules/*/infrastructure/schemas/*.schema.ts",
   ],
@@ -13,7 +14,7 @@ export default defineConfig({
     url:
       process.env.DB_DIRECT_URL ??
       process.env.DATABASE_URL ??
-      "postgres://postgres:postgres@localhost:5432/app",
+      "postgres://postgres:postgres@127.0.0.1:5432/app",
   },
   verbose: true,
   strict: true,

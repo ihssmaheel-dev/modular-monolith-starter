@@ -3,6 +3,10 @@ import type { ErrorMap } from "../../../../common/utils/presentation.utils";
 
 export const EXPORT_ERRORS: ErrorMap = {
   EXPORT_FAILED: { status: HttpStatus.INTERNAL_SERVER_ERROR, i18nKey: "api.privacy.exportFailed" },
+  EXPORT_ADMISSION_DISABLED: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    i18nKey: "api.error.serviceUnavailable",
+  },
   DSR_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.privacy.requestNotFound" },
   DSR_FORBIDDEN: { status: HttpStatus.FORBIDDEN, i18nKey: "api.error.forbidden" },
   DSR_EXPIRED: { status: HttpStatus.GONE, i18nKey: "api.privacy.exportExpired" },

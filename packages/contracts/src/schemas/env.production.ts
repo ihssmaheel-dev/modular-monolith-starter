@@ -17,15 +17,15 @@ export function validateProductionEndpoints(
   if (isLocalUrl(env.CLIENT_URL))
     addIssue(context, "CLIENT_URL", "Production client URL is required");
   if (isLocalUrl(env.API_URL)) addIssue(context, "API_URL", "Production API URL is required");
-  if (isLocalUrl(env.S3_ENDPOINT))
+  if (env.S3_ENDPOINT && isLocalUrl(env.S3_ENDPOINT))
     addIssue(context, "S3_ENDPOINT", "Production storage endpoint is required");
-  if (!isHttpsUrl(env.S3_ENDPOINT))
+  if (env.S3_ENDPOINT && !isHttpsUrl(env.S3_ENDPOINT))
     addIssue(context, "S3_ENDPOINT", "S3_ENDPOINT must use HTTPS in production");
   if (hasExampleHost(env.CLIENT_URL))
     addIssue(context, "CLIENT_URL", "CLIENT_URL must use a real production domain");
   if (hasExampleHost(env.API_URL))
     addIssue(context, "API_URL", "API_URL must use a real production domain");
-  if (hasExampleHost(env.S3_ENDPOINT))
+  if (env.S3_ENDPOINT && hasExampleHost(env.S3_ENDPOINT))
     addIssue(context, "S3_ENDPOINT", "S3_ENDPOINT must use a real production domain");
   if (env.EMAIL_DRIVER === "resend" && !env.RESEND_API_KEY.trim()) {
     addIssue(context, "RESEND_API_KEY", "RESEND_API_KEY is required when EMAIL_DRIVER=resend");
@@ -44,9 +44,6 @@ export function validateProductionEndpoints(
   }
   if (hasExampleEmailDomain(env.EMAIL_FROM))
     addIssue(context, "EMAIL_FROM", "EMAIL_FROM must use a verified production domain");
-  if (env.CDN_ENABLED && !env.CDN_DOMAIN?.trim()) {
-    addIssue(context, "CDN_DOMAIN", "CDN_DOMAIN is required when CDN_ENABLED=true");
-  }
   if (!env.S3_BUCKET.trim() || !env.S3_REGION.trim()) {
     addIssue(context, "S3_BUCKET", "Production storage bucket and region are required");
   }

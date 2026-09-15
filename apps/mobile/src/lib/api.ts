@@ -3,6 +3,7 @@ import { getMobileEnv } from "./env";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLocaleStore } from "@/stores/locale.store";
 import { useTenantStore } from "@/stores/tenant.store";
+import { clearIdentityBoundary } from "./identity-boundary";
 
 let client: ApiClient | null = null;
 
@@ -19,9 +20,7 @@ export function getApiClient(): ApiClient {
     onAuthRefreshed: (response) => {
       useAuthStore.getState().setAuth(response);
     },
-    onAuthFailure: () => {
-      useAuthStore.getState().clearAuth();
-    },
+    onAuthFailure: clearIdentityBoundary,
   });
 
   return client;

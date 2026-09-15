@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 
 export const CACHE_KEY_PREFIX = "idempotency:v2";
@@ -10,7 +10,7 @@ export const FINALIZE_IDEMPOTENCY_SCRIPT = `
   local current = redis.call('GET', KEYS[1])
   if not current then return 0 end
   local record = cjson.decode(current)
-  if record.state ~= 'processing' or record.fingerprint ~= ARGV[1] then return 0 end
+  if record.state ~= 'processing' or record.claimId ~= ARGV[1] then return 0 end
   redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
   return 1
 `;
@@ -18,7 +18,7 @@ export const RELEASE_IDEMPOTENCY_SCRIPT = `
   local current = redis.call('GET', KEYS[1])
   if not current then return 0 end
   local record = cjson.decode(current)
-  if record.state ~= 'processing' or record.fingerprint ~= ARGV[1] then return 0 end
+  if record.state ~= 'processing' or record.claimId ~= ARGV[1] then return 0 end
   return redis.call('DEL', KEYS[1])
 `;
 export const RECOVER_IDEMPOTENCY_SCRIPT = `
@@ -29,6 +29,8 @@ export const RECOVER_IDEMPOTENCY_SCRIPT = `
 `;
 
 export type RequestFingerprint = {
+  /** Unique lease generation; excluded from the deterministic request digest. */
+  claimId: string;
   digest: string;
   method: string;
   /** Route template (grouping label, e.g. /notes/:id). */
@@ -42,6 +44,7 @@ export type RequestFingerprint = {
 
 export type ProcessingRecord = {
   state: "processing";
+  claimId: string;
   fingerprint: string;
   method: string;
   route: string;
@@ -62,6 +65,7 @@ export type CompletedRecord = {
   body: unknown;
   bodyBytes: number;
   completedAt: number;
+  replayable?: boolean;
 };
 
 export type IdempotencyRecord = ProcessingRecord | CompletedRecord;
@@ -77,6 +81,7 @@ export function requestFingerprint(request: FastifyRequest): RequestFingerprint 
     .digest("hex");
   const bodyHash = createHash("sha256").update(stableSerialize(request.body)).digest("hex");
   return {
+    claimId: randomUUID(),
     digest: createHash("sha256")
       .update(`${method}\n${route}\n${path}\n${queryHash}\n${bodyHash}`)
       .digest("hex"),

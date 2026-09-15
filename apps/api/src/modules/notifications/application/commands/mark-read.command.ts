@@ -27,22 +27,32 @@ export class MarkReadCommand {
         if (updated.isErr() || !updated.value) {
           return err({ type: "NOTIFICATION_NOT_FOUND", notificationId: id });
         }
-        await this.cache.invalidateGlobal(`notifications:unread:${userId}`);
         return ok(updated.value);
       }
       return ok(found.value);
     };
-    if (!this.database) return operation();
-    return this.database.withResultTransaction(operation);
+    const result = this.database
+      ? await this.database.withResultTransaction(operation)
+      : await operation();
+    if (result.isOk()) await this.invalidateUnread(userId);
+    return result;
   }
 
   async markAllRead(userId: string): Promise<Result<void, NotificationError | TransactionError>> {
     try {
-      await this.notifications.markAllRead(userId);
-      await this.cache.invalidateGlobal(`notifications:unread:${userId}`);
+      const update = () => this.notifications.markAllRead(userId);
+      if (this.database) await this.database.runTransaction(update);
+      else await update();
+      await this.invalidateUnread(userId);
       return ok(undefined);
     } catch {
       return err({ type: "TRANSACTION_FAILED" });
     }
+  }
+
+  private async invalidateUnread(userId: string): Promise<void> {
+    const invalidate = () => this.cache.invalidateGlobal(`notifications:unread:${userId}`);
+    if (this.database) await this.database.runAfterCommit(invalidate, "notifications:read-cache");
+    else await invalidate();
   }
 }

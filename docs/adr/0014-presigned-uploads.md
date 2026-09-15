@@ -11,7 +11,7 @@ Proxying file bytes through the API burns memory, CPU, and request timeouts — 
 
 ## Decision
 
-Upload-then-attach: the API mints a presigned S3-compatible URL (MinIO locally, S3 in cloud), the client PUTs bytes directly to storage, then links the file ID to its parent (note/avatar slot) with ownership verified server-side. A metadata check rejects byte/request mismatches; orphaned uploads are reaped by workers.
+Upload-then-attach: the API mints a presigned S3-compatible URL (an archived, pinned MinIO fixture locally; a supported external service in production), the client PUTs bytes directly to storage, then links the file ID to its parent (note/avatar slot) with ownership verified server-side. A metadata check rejects byte/request mismatches; orphaned uploads are reaped by workers. The local fixture is not a production deployment choice.
 
 ## Consequences
 

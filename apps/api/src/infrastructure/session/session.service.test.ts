@@ -4,11 +4,14 @@ import type { RedisService } from "../redis/redis.service";
 import type { PinoLoggerService } from "../logger/logger.service";
 
 const mockSetex = vi.fn();
+const mockSet = vi.fn();
 const mockGet = vi.fn();
 const mockDel = vi.fn();
 const mockSadd = vi.fn();
 const mockSrem = vi.fn();
 const mockSmembers = vi.fn();
+const mockZrem = vi.fn();
+const mockZrange = vi.fn();
 const mockEval = vi.fn();
 
 vi.mock("../../config/env", () => ({
@@ -36,11 +39,14 @@ describe("SessionService", () => {
       {
         getClient: () => ({
           setex: mockSetex,
+          set: mockSet,
           get: mockGet,
           sadd: mockSadd,
           del: mockDel,
           srem: mockSrem,
           smembers: mockSmembers,
+          zrem: mockZrem,
+          zrange: mockZrange,
           eval: mockEval,
           pipeline: () => ({
             del: mockDel,
@@ -64,11 +70,14 @@ describe("SessionService", () => {
       deviceName: "Chrome",
     });
 
-    expect(session.userId).toBe("user1");
-    expect(session.ip).toBe("127.0.0.1");
-    expect(session.deviceName).toBe("Chrome");
-    expect(mockSetex).toHaveBeenCalled();
-    expect(mockSadd).toHaveBeenCalled();
+    expect(session.isOk()).toBe(true);
+    if (session.isOk()) {
+      expect(session.value.userId).toBe("user1");
+      expect(session.value.ip).toBe("127.0.0.1");
+      expect(session.value.deviceName).toBe("Chrome");
+      expect(session.value.expiresAt).toBeGreaterThan(session.value.createdAt);
+    }
+    expect(mockEval).toHaveBeenCalled();
   });
 
   it("should get session by id", async () => {
@@ -110,11 +119,11 @@ describe("SessionService", () => {
 
     await service.revoke("abc123");
     expect(mockDel).toHaveBeenCalled();
-    expect(mockSrem).toHaveBeenCalled();
+    expect(mockZrem).toHaveBeenCalled();
   });
 
   it("should revoke all sessions for a user", async () => {
-    mockSmembers.mockResolvedValue(["sess1", "sess2"]);
+    mockZrange.mockResolvedValue(["sess1", "sess2"]);
     mockGet
       .mockResolvedValueOnce(JSON.stringify({ id: "sess1", userId: "user1" }))
       .mockResolvedValueOnce(JSON.stringify({ id: "sess2", userId: "user1" }));
@@ -122,7 +131,7 @@ describe("SessionService", () => {
     mockSetex.mockResolvedValue("OK");
 
     await service.revokeAllForUser("user1");
-    expect(mockSmembers).toHaveBeenCalledWith("user:user1:sessions");
+    expect(mockZrange).toHaveBeenCalledWith("user:user1:sessions", "0", "-1");
   });
 
   it("rotates a session refresh chain atomically", async () => {
@@ -131,15 +140,17 @@ describe("SessionService", () => {
     const result = await service.rotateSessionRefresh("user1", "sess1", "jti-old", "jti-new");
 
     expect(result).toBe("rotated");
-    const [script, keyCount, familyKey, usedKey, presented, next, ttl] = mockEval.mock.calls[0]!;
+    const [script, keyCount, familyKey, usedKey, sessionKeyValue, presented, next] =
+      mockEval.mock.calls[0]!;
     expect(script).toContain("EXISTS");
     expect(script).toContain("reused");
-    expect(keyCount).toBe(2);
+    expect(script).toContain("TTL");
+    expect(keyCount).toBe(3);
     expect(familyKey).toBe("auth:refresh:family:user1:sess1");
     expect(usedKey).toBe("auth:refresh:used:user1:sess1:jti-old");
+    expect(sessionKeyValue).toBe("session:sess1");
     expect(presented).toBe("jti-old");
     expect(next).toBe("jti-new");
-    expect(ttl).toBe(String(7 * 24 * 60 * 60));
   });
 
   it("reports reuse when the presented token was superseded", async () => {
@@ -200,11 +211,7 @@ describe("SessionService", () => {
       deviceName: "Chrome",
     });
 
-    // 7d from the mocked JWT_REFRESH_EXPIRES_IN, not a hardcoded constant.
-    expect(mockSetex).toHaveBeenCalledWith(
-      expect.stringContaining("session:"),
-      7 * 24 * 60 * 60,
-      expect.any(String),
-    );
+    const [, , , , ttl] = mockEval.mock.calls[0]!;
+    expect(ttl).toBe(String(7 * 24 * 60 * 60));
   });
 });

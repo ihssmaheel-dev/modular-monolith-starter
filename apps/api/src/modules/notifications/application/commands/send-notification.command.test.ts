@@ -45,32 +45,28 @@ describe("SendNotificationCommand", () => {
       create: vi.fn().mockResolvedValue(ok(created)),
       updateById: vi.fn().mockResolvedValue(ok(created)),
     } as never;
+    const deliveryIntents = {
+      createForNotification: vi.fn().mockResolvedValue(undefined),
+    } as never;
     const preferences = {
       findByUser: vi.fn().mockResolvedValue(ok([preferenceRow()])),
     } as never;
-    const devices = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
     const batches = {} as never;
     const getUserById = {
       execute: vi.fn().mockResolvedValue(ok({ id: "user-1" })),
     } as never;
     realtime = { sendToUser: vi.fn() } as never;
-    const email = {} as never;
-    const push = { get: vi.fn() } as never;
-    const i18n = { t: vi.fn((key: string) => key) } as never;
     outbox = { dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)) } as never;
     events = { emitAsync: vi.fn().mockResolvedValue([]) } as never;
     const logger = { child: vi.fn().mockReturnThis() } as never;
 
     command = new SendNotificationCommand(
       notifications,
+      deliveryIntents,
       preferences,
-      devices,
       batches,
       getUserById,
       realtime,
-      email,
-      push,
-      i18n,
       outbox,
       events,
       logger,
@@ -130,14 +126,11 @@ describe("SendNotificationCommand", () => {
     };
     const cmd = new SendNotificationCommand(
       notifications,
+      { createForNotification: vi.fn() } as never,
       prefs as never,
-      {} as never,
       {} as never,
       { execute: vi.fn().mockResolvedValue(ok({ id: "user-1" })) } as never,
       realtime,
-      {} as never,
-      {} as never,
-      { t: (k: string) => k } as never,
       outbox,
       events,
       { child: () => ({}) } as never,
@@ -197,14 +190,11 @@ describe("SendNotificationCommand", () => {
     const realtime = { sendToUser: vi.fn() } as unknown as RealtimeService;
     const batched = new SendNotificationCommand(
       notifications,
+      { createForNotification: vi.fn() } as never,
       preferences,
-      {} as never,
       batches,
       getUserById,
       realtime,
-      {} as never,
-      {} as never,
-      { t: (k: string) => k } as never,
       outbox,
       events,
       { child: () => ({}) } as never,
@@ -264,14 +254,11 @@ describe("SendNotificationCommand", () => {
     } as unknown as DatabaseService;
     const raced = new SendNotificationCommand(
       notifications,
+      { createForNotification: vi.fn() } as never,
       preferences,
-      {} as never,
       batches,
       getUserById,
       realtime,
-      {} as never,
-      {} as never,
-      { t: (k: string) => k } as never,
       outbox,
       events,
       { child: () => ({}) } as never,
@@ -301,14 +288,11 @@ describe("SendNotificationCommand", () => {
     const findByUser = vi.fn();
     const cmd = new SendNotificationCommand(
       notifications,
+      { createForNotification: vi.fn() } as never,
       { findByUser } as never,
-      {} as never,
       {} as never,
       getUserById,
       realtime,
-      {} as never,
-      {} as never,
-      { t: (k: string) => k } as never,
       outbox,
       events,
       { child: () => ({}) } as never,

@@ -7,6 +7,7 @@ import {
   type OpenMetricsContentType,
 } from "prom-client";
 import { MetricsService } from "./metrics.service";
+import { WorkerMetricsServer } from "./worker-metrics.server";
 
 try {
   (register as unknown as Registry<OpenMetricsContentType>).setContentType(openMetricsContentType);
@@ -24,7 +25,7 @@ try {
       },
     }),
   ],
-  providers: [MetricsService],
+  providers: [MetricsService, WorkerMetricsServer],
   exports: [MetricsService, PrometheusModule],
 })
 export class MetricsModule {}

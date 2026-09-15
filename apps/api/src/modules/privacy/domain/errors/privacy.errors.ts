@@ -7,6 +7,7 @@ export type OrgEraseForbidden = { type: "ORG_ERASE_FORBIDDEN" };
 export type ErasureAlreadyRequested = { type: "ERASURE_ALREADY_REQUESTED" };
 export type LastOwnerBlocked = { type: "LAST_OWNER_BLOCKED" };
 export type ExportFailed = { type: "EXPORT_FAILED" };
+export type ExportAdmissionDisabled = { type: "EXPORT_ADMISSION_DISABLED" };
 export type ErasureFailed = { type: "ERASURE_FAILED" };
 export type PurgeFailed = { type: "PURGE_FAILED" };
 
@@ -20,5 +21,6 @@ export type PrivacyError =
   | ErasureAlreadyRequested
   | LastOwnerBlocked
   | ExportFailed
+  | ExportAdmissionDisabled
   | ErasureFailed
   | PurgeFailed;

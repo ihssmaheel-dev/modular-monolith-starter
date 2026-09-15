@@ -93,13 +93,49 @@ groups:
           description: One or more jobs stalled or failed repeatedly in the background queue worker.
 
       - alert: WorkerSilentDeath
-        expr: worker_heartbeats_active == 0
+        expr: absent(up{job="worker-service"}) or up{job="worker-service"} == 0 or (time() - worker_heartbeat_timestamp_seconds > 60)
         for: 3m
         labels:
           severity: critical
         annotations:
           summary: No active worker heartbeats detected
-          description: Worker heartbeat keys are missing or expired in Redis for over 3 minutes.
+          description: Worker metrics are unreachable or the process heartbeat has stopped for over 3 minutes.
+
+      - alert: NotificationDeliveryBacklog
+        expr: notification_delivery_pending_depth > 1000 or notification_delivery_oldest_pending_age_seconds > 300
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Notification delivery backlog is growing
+          description: Notification delivery depth or oldest-item age exceeded the operating budget.
+
+      - alert: NotificationDeliveryDeadLetters
+        expr: notification_delivery_dead_depth > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Notification delivery intents exhausted their retries
+          description: At least one email or push delivery requires an operator decision.
+
+      - alert: PrivacyExportBacklog
+        expr: privacy_export_pending_depth > 100 or privacy_export_oldest_pending_age_seconds > 900
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Privacy export backlog is outside its operating budget
+          description: Export depth exceeds 100 or the oldest request has waited over 15 minutes.
+
+      - alert: PrivacyExportFailures
+        expr: privacy_export_failed_depth > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Privacy exports exhausted their retries
+          description: At least one privacy export needs an operator decision.
 
   - name: database-and-cache-health
     rules:
@@ -157,4 +193,3 @@ groups:
         annotations:
           summary: Container CPU utilization is sustained above 85%
           description: "Container is consuming more than 85% CPU capacity for over 5 minutes."
-

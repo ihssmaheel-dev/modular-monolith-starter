@@ -10,6 +10,10 @@ export const EMAIL_TAKEN_ERRORS: ErrorMap = {
 };
 
 export const LOGIN_ERRORS: ErrorMap = {
+  SESSION_UNAVAILABLE: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    i18nKey: "api.error.serviceUnavailable",
+  },
   INVALID_CREDENTIALS: {
     status: HttpStatus.UNAUTHORIZED,
     i18nKey: "auth.invalidCredentials",
@@ -25,6 +29,10 @@ export const LOGIN_ERRORS: ErrorMap = {
 };
 
 export const INVALID_TOKEN_ERRORS: ErrorMap = {
+  SESSION_UNAVAILABLE: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    i18nKey: "api.error.serviceUnavailable",
+  },
   INVALID_TOKEN: { status: HttpStatus.UNAUTHORIZED, i18nKey: "auth.invalidToken" },
   USER_NOT_FOUND: { status: HttpStatus.UNAUTHORIZED, i18nKey: "auth.invalidToken" },
 };

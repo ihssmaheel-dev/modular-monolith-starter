@@ -31,7 +31,9 @@ describe("FileScanWorker", () => {
     storage = {
       copy: vi.fn().mockResolvedValue(ok(undefined)),
       delete: vi.fn().mockResolvedValue(ok(undefined)),
-      getMetadata: vi.fn().mockResolvedValue(ok({ size: 10, contentType: "text/plain" })),
+      getMetadata: vi
+        .fn()
+        .mockResolvedValue(ok({ size: 10, contentType: "text/plain", etag: '"approved"' })),
     } as unknown as StorageService;
     database = {
       runTransaction: vi.fn(async (callback: () => Promise<unknown>) => callback()),
@@ -60,6 +62,7 @@ describe("FileScanWorker", () => {
     expect(storage.copy).toHaveBeenCalledWith(
       "general/user-1/abc.pdf.quarantine",
       "general/user-1/abc.pdf",
+      expect.objectContaining({ etag: '"approved"' }),
     );
     expect(files.updateById).toHaveBeenCalledWith("file-1", { status: "uploaded" });
     expect(storage.delete).toHaveBeenCalledWith("general/user-1/abc.pdf.quarantine");
@@ -83,5 +86,24 @@ describe("FileScanWorker", () => {
     await worker().scanQuarantinedFiles();
 
     expect(files.updateById).not.toHaveBeenCalled();
+  });
+
+  it("binds promotion to the object identity that was scanned", async () => {
+    const scanStarted = new Promise<void>((resolve) => {
+      vi.mocked(scanner.scan).mockImplementation(async (file) => {
+        expect(file).toEqual(expect.objectContaining({ etag: '"approved"' }));
+        resolve();
+        return { result: "clean" };
+      });
+    });
+
+    await worker().scanQuarantinedFiles();
+    await scanStarted;
+
+    expect(storage.copy).toHaveBeenCalledWith(
+      "general/user-1/abc.pdf.quarantine",
+      "general/user-1/abc.pdf",
+      expect.objectContaining({ etag: '"approved"' }),
+    );
   });
 });

@@ -17,6 +17,8 @@ import { NotesController } from "./presentation/controllers/notes.controller";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { FilesModule } from "../files/files.module";
 import { NotesOrpcController } from "./presentation/orpc/notes.orpc.controller";
+import { DataLifecycleRegistry } from "../../infrastructure/lifecycle/data-lifecycle.registry";
+import { NotesLifecycleContributor } from "./application/adapters/notes-lifecycle.contributor";
 
 @Module({
   imports: [OutboxModule, FilesModule],
@@ -34,6 +36,7 @@ import { NotesOrpcController } from "./presentation/orpc/notes.orpc.controller";
     GetNoteByIdQuery,
     ListNoteAttachmentsQuery,
     NotesRealtimeListener,
+    NotesLifecycleContributor,
   ],
   exports: [
     NotesRepository,
@@ -48,10 +51,13 @@ export class NotesModule implements OnModuleInit {
     private readonly authService: AuthorizationService,
     private readonly fileAccess: FileAccessRegistry,
     private readonly getNoteById: GetNoteByIdQuery,
+    private readonly lifecycle: DataLifecycleRegistry,
+    private readonly lifecycleContributor: NotesLifecycleContributor,
   ) {}
 
   onModuleInit(): void {
     this.authService.registerPolicies(notePolicies);
+    this.lifecycle.register(this.lifecycleContributor);
     // Note attachments inherit note readability at download time: the
     // checker re-evaluates notes:read against the live parent record.
     this.fileAccess.registerParentAccess("note", async (file, actor) => {

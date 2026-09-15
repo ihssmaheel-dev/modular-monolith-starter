@@ -18,11 +18,20 @@ export class PurgeUserNotificationsCommand {
   async execute(userId: string): Promise<Result<void, NotificationError | TransactionError>> {
     const operation = async (): Promise<Result<void, NotificationError>> => {
       await this.notifications.deleteByUser(userId);
-      await this.cache.invalidateGlobal(`notifications:unread:${userId}`);
       return ok(undefined);
     };
-    if (!this.database) return operation();
-    return this.database.withResultTransaction(operation);
+    const result = this.database
+      ? await this.database.withResultTransaction(operation)
+      : await operation();
+    if (result.isOk()) {
+      const invalidate = () => this.cache.invalidateGlobal(`notifications:unread:${userId}`);
+      if (this.database) {
+        await this.database.runAfterCommit(invalidate, "notifications:purge-cache");
+      } else {
+        await invalidate();
+      }
+    }
+    return result;
   }
 
   async purgeTenant(tenantId: string): Promise<Result<void, NotificationError | TransactionError>> {

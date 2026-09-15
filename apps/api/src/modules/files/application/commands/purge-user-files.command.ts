@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import type { TransactionError } from "../../../../infrastructure/database";
+import { DatabaseService } from "../../../../infrastructure/database";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { FileError } from "../../domain/errors/file.errors";
@@ -23,6 +24,7 @@ export class PurgeUserFilesCommand {
     private readonly files: FilesRepository,
     private readonly storage: StorageService,
     private readonly logger: PinoLoggerService,
+    private readonly database: DatabaseService,
   ) {}
 
   async execute(
@@ -30,7 +32,11 @@ export class PurgeUserFilesCommand {
   ): Promise<Result<{ deleted: number }, FileError | TransactionError>> {
     let deleted = 0;
     for (;;) {
-      const items = await this.files.findByUploader(userId, PURGE_BATCH_LIMIT);
+      const batch = await this.database.withTransaction(() =>
+        this.files.findByUploader(userId, PURGE_BATCH_LIMIT),
+      );
+      if (batch.isErr()) return err(batch.error);
+      const items = batch.value;
       if (items.length === 0) break;
       for (const file of items) {
         const purged = await this.purgeOne(file);
@@ -48,7 +54,9 @@ export class PurgeUserFilesCommand {
       this.logger.error({ key: file.key }, "Erasure storage delete failed");
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });
     }
-    const rowResult = await this.files.deleteById(file.id);
+    const rowResult = await this.database.withResultTransaction(() =>
+      this.files.deleteById(file.id),
+    );
     if (rowResult.isErr() || !rowResult.value) {
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });
     }

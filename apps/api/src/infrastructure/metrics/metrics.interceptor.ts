@@ -1,6 +1,6 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from "@nestjs/common";
 import { Observable } from "rxjs";
-import { tap, catchError } from "rxjs/operators";
+import { finalize, tap } from "rxjs/operators";
 import { trace } from "@opentelemetry/api";
 import { MetricsService } from "./metrics.service";
 import type { FastifyRequest, FastifyReply } from "fastify";
@@ -31,17 +31,10 @@ export class MetricsInterceptor implements NestInterceptor {
       },
     );
 
+    let errorStatus: number | undefined;
     return next.handle().pipe(
-      tap(() => {
-        this.recordMetrics(startTime, method, route, res.statusCode);
-      }),
-      catchError((error: unknown) => {
-        // If an exception is thrown, it typically results in a 500 or is handled by an exception filter.
-        // We record the status from the exception if available, else 500.
-        const status = this.getErrorStatus(error);
-        this.recordMetrics(startTime, method, route, status);
-        throw error;
-      }),
+      tap({ error: (error: unknown) => (errorStatus = this.getErrorStatus(error)) }),
+      finalize(() => this.recordMetrics(startTime, method, route, errorStatus ?? res.statusCode)),
     );
   }
 

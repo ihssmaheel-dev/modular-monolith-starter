@@ -34,7 +34,9 @@ apps/api/src/modules/orders/
 
 The generator cannot infer business rules, public contracts, persistence fields, or indexes. The
 module is not complete until the following steps are implemented. Running
-`pnpm generate:feature orders order` later replaces the scaffold with a complete vertical slice.
+`pnpm generate:feature orders order --access=tenant-shared` later replaces the scaffold with a
+complete vertical slice. Use `--access=owner` when only the creating user may read or mutate a row;
+the generator requires this decision so a private resource cannot accidentally use tenant-wide access.
 
 ## 2. Define the public API first
 

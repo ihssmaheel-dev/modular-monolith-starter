@@ -40,6 +40,7 @@ export class NotificationsOrpcController {
   }
 
   @Implement(notificationsContract.markRead)
+  @Idempotent()
   @RequirePermission("notifications:write")
   markRead(@Req() request: FastifyRequest) {
     return implement(notificationsContract.markRead).handler(({ input }) =>
@@ -52,6 +53,7 @@ export class NotificationsOrpcController {
   }
 
   @Implement(notificationsContract.markAllRead)
+  @Idempotent()
   @RequirePermission("notifications:write")
   markAllRead(@Req() request: FastifyRequest) {
     return implement(notificationsContract.markAllRead).handler(() =>
@@ -76,6 +78,7 @@ export class NotificationsOrpcController {
   }
 
   @Implement(notificationsContract.updatePreferences)
+  @Idempotent()
   @RequirePermission("notifications:write")
   updatePreferences(@Req() request: FastifyRequest) {
     return implement(notificationsContract.updatePreferences).handler(({ input }) =>

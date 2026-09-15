@@ -7,9 +7,8 @@ import { MetricsService } from "../../infrastructure/metrics/metrics.service";
 import { RATE_LIMIT_KEY, RateLimitMetadata } from "../decorators/rate-limit.decorator";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { HttpException } from "@nestjs/common";
+import { env } from "../../config/env";
 
-const DEFAULT_MAX_REQUESTS = 100;
-const DEFAULT_WINDOW_SECONDS = 60;
 const MILLISECONDS_PER_SECOND = 1000;
 
 const RATE_LIMIT_HEADERS = {
@@ -37,8 +36,8 @@ export class RateLimitGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    const maxRequests = metadata?.maxRequests ?? DEFAULT_MAX_REQUESTS;
-    const windowSeconds = metadata?.windowSeconds ?? DEFAULT_WINDOW_SECONDS;
+    const maxRequests = metadata?.maxRequests ?? env.RATE_LIMIT_MAX;
+    const windowSeconds = metadata?.windowSeconds ?? env.RATE_LIMIT_TTL;
 
     const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
     // Prefer the route template: raw URLs carry resource IDs and would

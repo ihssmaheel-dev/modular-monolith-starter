@@ -24,6 +24,18 @@ function emptyStringAsUndefined(value: unknown): unknown {
   return value === "" ? undefined : value;
 }
 
+function parseEnvironmentBoolean(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return value;
+}
+
+function environmentBoolean(defaultValue: boolean) {
+  return z.preprocess(parseEnvironmentBoolean, z.boolean()).default(defaultValue);
+}
+
 function isFeatureFlagsJson(value: string): boolean {
   try {
     const parsed: unknown = JSON.parse(value);
@@ -42,15 +54,16 @@ export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PROCESS_ROLE: z.enum(["all", "api", "worker"]).default("all"),
+    EXAMPLE_FEATURES_ENABLED: environmentBoolean(false),
     PORT: z.coerce.number().int().min(1).max(MAX_PORT).default(5156),
-    TRUST_PROXY: z.coerce.boolean().default(false),
+    TRUST_PROXY: environmentBoolean(false),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
     TENANCY_MODE: z.enum(["single", "multi"]).default("single"),
     CLIENT_URL: z.string().url().default("http://localhost:5155"),
 
     API_URL: z.string().url().default("http://localhost:5156"),
 
-    DATABASE_URL: z.string().url().default("postgres://postgres:postgres@localhost:5432/app"),
+    DATABASE_URL: z.string().url().default("postgres://postgres:postgres@127.0.0.1:5432/app"),
     DB_DIRECT_URL: z
       .string()
       .url()
@@ -91,6 +104,7 @@ export const envSchema = z
 
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
     RATE_LIMIT_TTL: z.coerce.number().int().positive().default(60),
+    WORKER_METRICS_PORT: z.coerce.number().int().min(1).max(MAX_PORT).default(9464),
 
     IDEMPOTENCY_TTL_SECONDS: z.coerce
       .number()
@@ -121,31 +135,33 @@ export const envSchema = z
     LOCKOUT_DURATION_MINUTES: z.coerce.number().int().positive().default(15),
 
     OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default("http://localhost:4318/v1/traces"),
-    LOKI_HOST: z.string().url().default("http://localhost:3100"),
+    LOKI_HOST: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     ERROR_REPORTING_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     ERROR_REPORTING_TOKEN: z.preprocess(emptyStringAsUndefined, z.string().min(16).optional()),
 
     STORAGE_DRIVER: z.enum(["s3"]).default("s3"),
-    S3_ENDPOINT: z.string().url().default("http://localhost:9000"),
+    S3_ENDPOINT: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     S3_REGION: z.string().default("us-east-1"),
     S3_BUCKET: z.string().default("uploads"),
-    S3_ACCESS_KEY_ID: z.string().default("minioadmin"),
-    S3_SECRET_ACCESS_KEY: z.string().default("minioadmin"),
-    S3_FORCE_PATH_STYLE: z.coerce.boolean().default(true),
+    S3_ACCESS_KEY_ID: z.preprocess(emptyStringAsUndefined, z.string().optional()),
+    S3_SECRET_ACCESS_KEY: z.preprocess(emptyStringAsUndefined, z.string().optional()),
+    S3_FORCE_PATH_STYLE: environmentBoolean(false),
     FILE_USER_QUOTA_BYTES: z.coerce
       .number()
       .int()
       .positive()
       .default(100 * 1024 * 1024),
-    FILE_AV_ENABLED: z.coerce.boolean().default(false),
+    FILE_TENANT_QUOTA_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(10 * 1024 * 1024 * 1024),
+    FILE_TENANT_MAX_OBJECTS: z.coerce.number().int().positive().default(100_000),
+    FILE_AV_ENABLED: environmentBoolean(false),
     FILE_AV_URL: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().url().optional(),
     ),
-
-    CDN_ENABLED: z.coerce.boolean().default(false),
-    CDN_DOMAIN: z.string().optional(),
-    CDN_BUCKET_PATH: z.string().default("uploads"),
 
     EMAIL_DRIVER: z.enum(["resend", "smtp"]).default("smtp"),
     RESEND_API_KEY: z.string().default(""),

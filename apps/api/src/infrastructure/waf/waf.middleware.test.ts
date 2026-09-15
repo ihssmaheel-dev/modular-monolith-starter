@@ -47,7 +47,7 @@ describe("WafMiddleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("blocks stacked SQL injection attacks in body", async () => {
+  it("allows SQL-like text because parameterization and output escaping are the boundary", async () => {
     const middleware = new WafMiddleware(mockI18n);
     const req = createRequest({
       body: {
@@ -59,17 +59,29 @@ describe("WafMiddleware", () => {
 
     await middleware.use(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("blocks UNION SELECT attacks in body", async () => {
+  it("allows query documentation containing UNION SELECT", async () => {
     const middleware = new WafMiddleware(mockI18n);
     const req = createRequest({
       body: {
         search: "' UNION SELECT username, password FROM users--",
       },
     });
+    const res = createReply();
+    const next = vi.fn();
+
+    await middleware.use(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("blocks operator keys that could change query semantics", async () => {
+    const middleware = new WafMiddleware(mockI18n);
+    const req = createRequest({ body: { filter: { $where: "true" } } });
     const res = createReply();
     const next = vi.fn();
 

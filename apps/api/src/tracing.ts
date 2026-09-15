@@ -17,7 +17,7 @@ const traceExporter =
     : undefined;
 
 export const otelSDK = new NodeSDK({
-  serviceName: "api-service",
+  serviceName: `app-${env.PROCESS_ROLE}`,
   sampler: new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(env.NODE_ENV === "production" ? 0.2 : 1.0),
   }),

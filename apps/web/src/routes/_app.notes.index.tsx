@@ -1,10 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { PaginationQuerySchema } from "@repo/contracts";
 import { RouteErrorFallback } from "@/components/error-boundary";
 import { notesListQuery } from "@/features/notes/notes.queries";
 import { NotesList } from "@/features/notes/components/notes-list";
+import { getWebEnv } from "@/lib/env";
 
 export const Route = createFileRoute("/_app/notes/")({
+  beforeLoad: () => {
+    if (!getWebEnv().VITE_EXAMPLE_FEATURES_ENABLED) throw redirect({ to: "/dashboard" });
+  },
   validateSearch: PaginationQuerySchema,
   loaderDeps: ({ search }) => ({ page: search.page, limit: search.limit }),
   loader: ({ deps, context }) =>

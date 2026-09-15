@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { PurgeUserNotesCommand } from "./purge-user-notes.command";
 import { NotesRepository } from "../../infrastructure/repositories/notes.repository";
+import type { DatabaseService } from "../../../../infrastructure/database";
 
 function page(ids: string[], totalPages: number) {
   return {
@@ -24,7 +25,10 @@ describe("PurgeUserNotesCommand", () => {
       paginate: vi.fn(),
       deleteById: vi.fn(),
     } as unknown as NotesRepository;
-    command = new PurgeUserNotesCommand(repository);
+    const database = {
+      withResultTransaction: vi.fn((operation: () => Promise<unknown>) => operation()),
+    } as unknown as DatabaseService;
+    command = new PurgeUserNotesCommand(repository, database);
   });
 
   it("should delete every page without holding one transaction", async () => {

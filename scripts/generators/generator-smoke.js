@@ -15,7 +15,8 @@ const generators = [
   ["mobile", "generateMobile"],
 ].map(([file, name]) => require(`./${file}.generator`)[name]);
 
-const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "architecture-generator-"));
+const repositoryRoot = path.resolve(__dirname, "../..");
+const rootPath = fs.mkdtempSync(path.join(repositoryRoot, ".generator-smoke-"));
 
 try {
   const context = createContext(rootPath);
@@ -30,6 +31,7 @@ try {
     });
     assert.equal(result.diagnostics?.length ?? 0, 0, `Invalid generated syntax: ${file}`);
   }
+  assertRelativeImportsResolve(files, rootPath, repositoryRoot);
 
   const client = fs.readFileSync(path.join(context.clientPath, "src/subclients/tasks.ts"), "utf8");
   const registry = fs.readFileSync(
@@ -56,6 +58,7 @@ function createContext(rootPath) {
     Feature: "Task",
     featurePlural: "tasks",
     FeaturePlural: "Tasks",
+    accessModel: "owner",
     contractsPath: path.join(rootPath, "packages/contracts"),
     clientPath: path.join(rootPath, "packages/api-client"),
     mobilePath: path.join(rootPath, "apps/mobile"),
@@ -88,4 +91,23 @@ function collectTypeScriptFiles(rootPath) {
   };
   visit(rootPath);
   return files;
+}
+
+function assertRelativeImportsResolve(files, generatedRoot, sourceRoot) {
+  const extensions = ["", ".ts", ".tsx", ".js", "/index.ts", "/index.tsx"];
+  for (const file of files) {
+    const source = fs.readFileSync(file, "utf8");
+    const imports = source.matchAll(/from\s+["'](\.{1,2}\/[^"']+)["']/g);
+    for (const match of imports) {
+      const target = path.resolve(path.dirname(file), match[1]);
+      const sourceTarget = path.join(sourceRoot, path.relative(generatedRoot, target));
+      assert.ok(
+        extensions.some(
+          (extension) =>
+            fs.existsSync(`${target}${extension}`) || fs.existsSync(`${sourceTarget}${extension}`),
+        ),
+        `Missing relative import ${match[1]} in ${file}`,
+      );
+    }
+  }
 }

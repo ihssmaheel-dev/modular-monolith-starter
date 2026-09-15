@@ -2,7 +2,13 @@ import { Controller, Req } from "@nestjs/common";
 import { Implement, implement } from "../../../../infrastructure/orpc/orpc-runtime";
 import type { FastifyRequest } from "fastify";
 import { usersContract } from "@repo/contracts";
-import { Idempotent, Public, RequirePermission, TenantAgnostic } from "../../../../common";
+import {
+  Idempotent,
+  NoDatabaseTransaction,
+  Public,
+  RequirePermission,
+  TenantAgnostic,
+} from "../../../../common";
 import { invokeOrpc } from "../../../../infrastructure/orpc";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { UsersController } from "../controllers/users.controller";
@@ -94,6 +100,7 @@ export class UsersOrpcController {
 
   @Implement(usersContract.requestEmailChange)
   @Idempotent()
+  @NoDatabaseTransaction()
   requestEmailChange(@Req() request: FastifyRequest) {
     return implement(usersContract.requestEmailChange).handler(({ input }) =>
       invokeOrpc(
@@ -106,6 +113,7 @@ export class UsersOrpcController {
 
   @Implement(usersContract.verifyEmailChange)
   @Idempotent()
+  @NoDatabaseTransaction()
   @Public()
   verifyEmailChange(@Req() request: FastifyRequest) {
     return implement(usersContract.verifyEmailChange).handler(({ input }) =>

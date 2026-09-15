@@ -64,7 +64,7 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 
 - `BroadcastChannel` is constructed only in `src/lib/cross-tab/channel.ts`; the query broadcast client is wired only in `src/lib/cross-tab/query-sync.tsx` (both enforced by `pnpm rules:check`).
 - Channel scope table: `app:auth` and `app:theme` are global (last-write-wins; auth receivers guard by user id); `tanstack-query:{userId}:{tenantId}` is identity-scoped — different users can never share a channel, logged-out tabs never subscribe.
-- `app:locale` and `app:tenant` adapters are deferred: no language-switcher UI exists (and nothing calls `changeLanguage` yet), and tenant switching has no producer UI — adapters ship with the UI that drives them, not before.
+- `app:locale` synchronizes the language selector globally. `app:tenant:{userId}:-` synchronizes the active tenant only between tabs for the same authenticated identity; applying a received tenant clears the private query cache through the tenant store.
 - New adapters reuse `createBroadcastChannel()` plus `scopedChannel()` and `isSyncMessage()` from `src/lib/cross-tab/`; every adapter ships co-located tests proving delivery, isolation, and cleanup.
 - This is not leader election: simultaneous mounts may still fetch twice. That is documented in code, not a bug.
 

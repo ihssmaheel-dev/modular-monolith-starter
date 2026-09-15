@@ -19,9 +19,9 @@ describe("Permissions Engine", () => {
       expect(matchesPermission("notes:*", "files:read")).toBe(false);
     });
 
-    it("matches legacy aliases e.g. notes:write", () => {
-      expect(matchesPermission("notes:write", "notes:create")).toBe(true);
-      expect(matchesPermission("notes:write", "notes:delete")).toBe(true);
+    it("limits write aliases to non-destructive actions", () => {
+      expect(matchesPermission("files:write", "files:upload")).toBe(true);
+      expect(matchesPermission("files:write", "files:delete")).toBe(false);
       expect(matchesPermission("team:manage", "team:invite")).toBe(true);
     });
   });
@@ -53,7 +53,7 @@ describe("Permissions Engine", () => {
 
     it("resolves tenant member permissions", () => {
       const perms = resolveUserPermissions("user", "member");
-      expect(perms).toContain(Permissions.NOTES_CREATE);
+      expect(perms).toContain(Permissions.FILES_UPLOAD);
       expect(perms).toContain(Permissions.TEAM_READ);
       expect(perms).not.toContain(Permissions.TEAM_MANAGE);
     });

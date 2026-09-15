@@ -10,6 +10,7 @@ import type { AuthenticatedUser, RequestUploadInput } from "@repo/contracts";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
+import { FeatureFlagsService } from "../../../../infrastructure/feature-flags";
 import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
 // Short-lived: with quarantine promotion the URL only needs to cover the
@@ -31,6 +32,7 @@ export class RequestUploadCommand {
     private readonly tenantContext: TenantContextService,
     @Optional() private readonly database?: DatabaseService,
     @Optional() logger?: PinoLoggerService,
+    @Optional() private readonly featureFlags?: FeatureFlagsService,
   ) {
     this.logger = logger?.child({ module: "RequestUploadCommand" });
   }
@@ -41,6 +43,9 @@ export class RequestUploadCommand {
     input: RequestUploadInput,
     actor: AuthenticatedUser,
   ): Promise<Result<RequestUploadResult, FileError>> {
+    if (this.featureFlags?.isEnabled("admission.stop.file-uploads")) {
+      return err({ type: "ADMISSION_DISABLED", message: "api.error.serviceUnavailable" });
+    }
     const userId = actor.sub;
     const fileKey = this.buildKey(input, userId);
 
@@ -53,7 +58,7 @@ export class RequestUploadCommand {
       });
     }
 
-    const transfer = await this.createTransfer(fileKey, input.contentType);
+    const transfer = await this.createTransfer(fileKey, input.contentType, input.fileSize);
     if (transfer.isErr()) {
       await this.markFailed(createResult.value.id);
       return err({
@@ -89,10 +94,12 @@ export class RequestUploadCommand {
         }
         return ok(created.value);
       };
-      // Serialize quota check + reservation per user so concurrent uploads
-      // cannot each observe headroom and jointly exceed the quota.
+      // Serialize tenant then user admission in one stable lock order.
       if (this.database) {
-        return this.database.withAdvisoryLock(`upload-quota:${userId}`, reserve);
+        const tenantKey = this.tenantContext.get().tenantId ?? "single";
+        return this.database.withAdvisoryLock(`upload-quota:tenant:${tenantKey}`, () =>
+          this.database!.withAdvisoryLock(`upload-quota:user:${userId}`, reserve),
+        );
       }
       return reserve();
     };
@@ -114,17 +121,25 @@ export class RequestUploadCommand {
   }
 
   private async checkQuota(fileSize: number, userId: string): Promise<boolean> {
-    const repository = this.filesRepo as unknown as {
-      sumActiveBytes?: (uploadedBy: string) => Promise<number>;
-    };
-    if (!repository.sumActiveBytes) return true;
+    const scope = this.tenantContext.get();
+    if (scope.mode === "multi" && !scope.tenantId) return false;
     // Runs inside the caller's unit of work (under the quota lock), so the
     // sum and the subsequent insert observe the same serialized state.
-    const current = await repository.sumActiveBytes(userId);
-    return current + fileSize <= env.FILE_USER_QUOTA_BYTES;
+    const usage = await this.filesRepo.getActiveUsage(userId);
+    const userBytes =
+      scope.mode === "multi" && this.database
+        ? await this.database.withSystemScope(() =>
+            this.filesRepo.getGlobalUserActiveBytes(userId, true),
+          )
+        : usage.userBytes;
+    return (
+      userBytes + fileSize <= env.FILE_USER_QUOTA_BYTES &&
+      usage.tenantBytes + fileSize <= env.FILE_TENANT_QUOTA_BYTES &&
+      usage.tenantObjects + 1 <= env.FILE_TENANT_MAX_OBJECTS
+    );
   }
 
-  private async createTransfer(fileKey: string, contentType: string) {
+  private async createTransfer(fileKey: string, contentType: string, contentLength: number) {
     // Presign the quarantine object, never the final key: only the scan
     // worker promotes approved bytes, so post-approval overwrites through
     // this URL cannot reach served content.
@@ -132,6 +147,7 @@ export class RequestUploadCommand {
     const result = await this.storage.getPresignedUploadUrl(
       quarantineKey,
       contentType,
+      contentLength,
       PRESIGNED_UPLOAD_TTL_SECONDS,
     );
     if (result.isErr()) return err(result.error);

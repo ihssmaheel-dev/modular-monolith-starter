@@ -156,7 +156,10 @@ describe("IdempotencyInterceptor", () => {
     const request = createContext({ "idempotency-key": "req-1" });
     redisClient.set.mockResolvedValueOnce("OK");
     await firstValueFrom(await interceptor.intercept(request, handler({ ok: true })));
-    const fingerprint = redisClient.eval.mock.calls[0]![3] as string;
+    const firstProcessing = JSON.parse(redisClient.set.mock.calls[0]![1] as string) as {
+      fingerprint: string;
+    };
+    const fingerprint = firstProcessing.fingerprint;
     const completed = JSON.parse(redisClient.eval.mock.calls[0]![4] as string) as {
       bodyHash: string;
       path: string;
@@ -169,6 +172,7 @@ describe("IdempotencyInterceptor", () => {
     redisClient.get.mockResolvedValueOnce(
       JSON.stringify({
         state: "processing",
+        claimId: "expired-claim",
         fingerprint,
         method: "POST",
         route: "/notes",

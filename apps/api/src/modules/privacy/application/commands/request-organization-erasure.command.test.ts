@@ -27,14 +27,12 @@ describe("RequestOrganizationErasureCommand", () => {
         .mockResolvedValue(ok({ items: [], total: 0, page: 1, limit: 100, totalPages: 1 })),
     };
     const deleteOrganizationData = { execute: vi.fn().mockResolvedValue(ok(undefined)) };
-    const purgeNotifications = { purgeTenant: vi.fn().mockResolvedValue(ok(undefined)) };
     const outbox = { dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)) };
     const events = { emitAsync: vi.fn().mockResolvedValue([]) };
     command = new RequestOrganizationErasureCommand(
       requests as never,
       listOrganizations as never,
       deleteOrganizationData as never,
-      purgeNotifications as never,
       outbox as never,
       events as never,
     );

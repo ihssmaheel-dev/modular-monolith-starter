@@ -14,7 +14,12 @@ export function parseIdempotencyRecord(raw: string): IdempotencyRecord {
   if (!hasFingerprint(parsed)) {
     throw new Error("invalid fingerprint");
   }
-  if (parsed.state === "processing" && isTimestamp(parsed.startedAt)) {
+  if (
+    parsed.state === "processing" &&
+    isTimestamp(parsed.startedAt) &&
+    typeof parsed.claimId === "string" &&
+    parsed.claimId.length > 0
+  ) {
     return parsed as IdempotencyRecord;
   }
   if (

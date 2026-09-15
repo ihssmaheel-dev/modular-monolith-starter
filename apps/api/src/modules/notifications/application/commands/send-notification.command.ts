@@ -5,14 +5,13 @@ import { getNotificationType, type DigestCadence, type NotificationChannel } fro
 import { env } from "../../../../config/env";
 import {
   DatabaseService,
+  isPostgresUniqueViolation,
   TenantContextService,
   type TransactionError,
 } from "../../../../infrastructure/database";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { RealtimeService } from "../../../../infrastructure/realtime/realtime.service";
-import { EmailService } from "../../../../infrastructure/email/email.service";
-import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { Notification } from "../../domain/entities/notification.entity";
@@ -24,10 +23,8 @@ import type { NotificationError } from "../../domain/errors/notification.errors"
 import { NotificationCreatedEvent } from "../../domain/events/notification.events";
 import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
-import { DeviceTokensRepository } from "../../infrastructure/repositories/device-tokens.repository";
 import { BatchesRepository } from "../../infrastructure/repositories/batches.repository";
-import { PushDriverFactory } from "../../infrastructure/push/push.factory";
-import { renderNotificationEmail } from "./notification-email.renderer";
+import { DeliveryIntentsRepository } from "../../infrastructure/repositories/delivery-intents.repository";
 
 export interface SendNotificationInput {
   userId: string;
@@ -57,14 +54,11 @@ export class SendNotificationCommand {
 
   constructor(
     private readonly notifications: NotificationsRepository,
+    private readonly deliveryIntents: DeliveryIntentsRepository,
     private readonly preferences: PreferencesRepository,
-    private readonly devices: DeviceTokensRepository,
     private readonly batches: BatchesRepository,
     private readonly getUserById: GetUserByIdQuery,
     private readonly realtime: RealtimeService,
-    private readonly email: EmailService,
-    private readonly push: PushDriverFactory,
-    private readonly i18n: I18nService,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
     logger: PinoLoggerService,
@@ -160,6 +154,14 @@ export class SendNotificationCommand {
       channels,
     });
     if (created.isErr()) return err({ type: "NOTIFICATION_SEND_FAILED" });
+    if (!batched) {
+      await this.deliveryIntents.createForNotification(
+        created.value.id,
+        input.userId,
+        input.tenantId,
+        channels,
+      );
+    }
     await this.emitMutated({
       collectionName: "notifications",
       documentId: created.value.id,
@@ -238,7 +240,7 @@ export class SendNotificationCommand {
       if (this.database) await this.database.withSavepoint(createWindow);
       else await createWindow();
     } catch (error) {
-      if (!isUniqueViolation(error)) return err({ type: "TRANSACTION_FAILED" });
+      if (!isPostgresUniqueViolation(error)) return err({ type: "TRANSACTION_FAILED" });
       const reopened = await this.batches.findOpenWindow(input.userId, groupingKey);
       if (reopened.isOk() && reopened.value) {
         await this.batches.appendToWindow(
@@ -280,21 +282,6 @@ export class SendNotificationCommand {
         if (channel === "inApp") {
           this.realtime.sendToUser(data.userId, "notification.created", payload, tenantId);
           delivered.push(channel);
-        } else if (channel === "email") {
-          if (await this.deliverEmail(data.userId, data.titleKey, data.titleParams ?? undefined)) {
-            delivered.push(channel);
-          }
-        } else if (channel === "push") {
-          if (
-            await this.deliverPush(
-              data.userId,
-              data.titleKey,
-              data.titleParams ?? undefined,
-              tenantId,
-            )
-          ) {
-            delivered.push(channel);
-          }
         }
       } catch (error) {
         this.logger.error({ error, channel, notificationId: data.id }, "Channel delivery failed");
@@ -309,73 +296,4 @@ export class SendNotificationCommand {
       }
     }
   }
-
-  private async deliverEmail(
-    userId: string,
-    titleKey: string,
-    titleParams?: Record<string, unknown>,
-  ): Promise<boolean> {
-    const user = await this.getUserById.execute(userId);
-    if (user.isErr() || !user.value) return false;
-    const translate = (key: string, params?: Record<string, unknown>) =>
-      this.i18n.t(key, undefined, params as Record<string, string | number> | undefined);
-    const subject = translate(titleKey, titleParams);
-    const html = await renderNotificationEmail({
-      subject,
-      items: [{ titleKey, titleParams }],
-      count: 1,
-      translate,
-    });
-    const result = await this.email.send({ to: user.value.email, subject, html });
-    if (result.isErr()) {
-      this.logger.warn({ userId }, "Notification email failed");
-      return false;
-    }
-    return true;
-  }
-
-  private async deliverPush(
-    userId: string,
-    titleKey: string,
-    titleParams: Record<string, unknown> | undefined,
-    tenantId?: string,
-  ): Promise<boolean> {
-    const tokens = await this.devices.findByUser(userId);
-    if (tokens.isErr() || tokens.value.length === 0) return false;
-    const driver = this.push.get();
-    const expoTokens = tokens.value.filter((token) => token.provider === driver.provider);
-    if (expoTokens.length === 0) return false;
-    const title = this.i18n.t(
-      titleKey,
-      undefined,
-      titleParams as Record<string, string | number> | undefined,
-    );
-    const results = await driver.send(
-      expoTokens.map((token) => ({
-        token: token.token,
-        title,
-        body: title,
-        data: { userId, tenantId },
-      })),
-    );
-    const dead = expoTokens.filter((_, index) => results[index]?.status === "invalid-token");
-    for (const token of dead) {
-      await this.devices.deleteByUserAndToken(userId, token.token);
-    }
-    let delivered = false;
-    for (const result of results) {
-      if (result?.status === "failed") {
-        this.logger.warn({ userId, reason: result.reason }, "Notification push failed");
-      } else {
-        delivered = true;
-      }
-    }
-    return delivered;
-  }
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && (error as { code?: unknown }).code === "23505"
-  );
 }

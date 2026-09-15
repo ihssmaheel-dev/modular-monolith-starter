@@ -37,7 +37,7 @@ Supreme laws of this codebase. These are never negotiable.
 3. Import another module's Drizzle schema or repository.
 4. Put business logic in `infrastructure/`.
 5. Throw in application/domain layers — use `Result`.
-6. Duplicate schemas/types — use `@repo/contracts`, `@repo/authorization`, `@repo/i18n`.
+6. Duplicate public transport schemas/DTOs — use `@repo/contracts`; keep private implementation types with their owning capability.
 7. Use `any` in production code.
 8. Skip Zod validation on API inputs.
 9. Use `console.log` in production — use Pino.
@@ -65,7 +65,7 @@ Supreme laws of this codebase. These are never negotiable.
 
 ## Single Source of Truth
 
-- **`@repo/contracts`**: Zod 4 schemas, DTO types, oRPC contracts, and error constants. Env schemas for the API and web (`VITE_*`).
+- **`@repo/contracts`**: Public transport Zod schemas, DTO types, oRPC contracts, and error constants. Runtime-private types stay local. Env schemas cover API, web (`VITE_*`), and mobile (`EXPO_PUBLIC_*`).
 - **`@repo/authorization`**: FGA types, action permissions vocabulary, and pure evaluator.
 - **`@repo/i18n`**: Multi-language locale dictionaries (JSON) and locale config. Consumed via backend `I18nService` and frontend `react-i18next`.
 - **`@repo/api-client`**: Canonical typed oRPC client factory with centralized auth refresh, CSRF,
@@ -79,4 +79,3 @@ Supreme laws of this codebase. These are never negotiable.
 ## Enforcement
 
 Run `pnpm rules:check` to verify compliance before committing.
-

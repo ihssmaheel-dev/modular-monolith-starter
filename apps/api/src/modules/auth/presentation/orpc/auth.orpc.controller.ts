@@ -2,7 +2,7 @@ import { Controller, Req, Res } from "@nestjs/common";
 import { Implement, implement } from "../../../../infrastructure/orpc/orpc-runtime";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { authContract } from "@repo/contracts";
-import { NoDatabaseTransaction, Public, TenantAgnostic } from "../../../../common";
+import { Idempotent, NoDatabaseTransaction, Public, TenantAgnostic } from "../../../../common";
 import { AuthRateLimit } from "../helpers/auth-rate-limit.decorator";
 import { invokeOrpc } from "../../../../infrastructure/orpc";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
@@ -19,6 +19,7 @@ export class AuthOrpcController {
   ) {}
 
   @Implement(authContract.register)
+  @Idempotent()
   @Public()
   @AuthRateLimit("register")
   register(@Req() request: FastifyRequest) {
@@ -82,6 +83,7 @@ export class AuthOrpcController {
   }
 
   @Implement(authContract.forgotPassword)
+  @Idempotent()
   @Public()
   @NoDatabaseTransaction()
   @AuthRateLimit("forgotPassword")
@@ -96,6 +98,7 @@ export class AuthOrpcController {
   }
 
   @Implement(authContract.resetPassword)
+  @Idempotent()
   @Public()
   @NoDatabaseTransaction()
   @AuthRateLimit("resetPassword")

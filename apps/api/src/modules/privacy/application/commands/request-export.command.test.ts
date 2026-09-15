@@ -1,160 +1,124 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { err, ok } from "neverthrow";
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import type { AuthenticatedUser } from "@repo/contracts";
 import { RequestExportCommand } from "./request-export.command";
-import { Note } from "../../../notes/domain/entities/note.entity";
 import { PrivacyRepository } from "../../infrastructure/repositories/privacy.repository";
 import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { ListOrganizationsQuery } from "../../../tenancy/application/queries/list-organizations.query";
 import { ListInvitationsByEmailQuery } from "../../../tenancy/application/queries/list-invitations-by-email.query";
-import { GetNotesQuery } from "../../../notes/application/queries/get-notes.query";
-import { ListFilesByUploaderQuery } from "../../../files/application/queries/list-files-by-uploader.query";
-import { TenantContextService } from "../../../../infrastructure/database";
+import type { DataLifecycleRegistry } from "../../../../infrastructure/lifecycle/data-lifecycle.registry";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { User } from "../../../users/domain/entities/user.entity";
-import type { AuthenticatedUser } from "@repo/contracts";
+import { DsrRequest } from "../../domain/entities/dsr.entity";
 
 const ACTOR = { sub: "user-1", email: "a@example.com", role: "user" } as AuthenticatedUser;
+
+function request(status: "REQUESTED" | "PROCESSING" = "REQUESTED") {
+  return DsrRequest.fromPersistence({
+    id: "dsr-1",
+    type: "EXPORT",
+    status,
+    subjectUserId: ACTOR.sub,
+    attempts: status === "PROCESSING" ? 1 : 0,
+    expiresAt: new Date("2027-01-01T00:00:00Z"),
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+  });
+}
 
 describe("RequestExportCommand", () => {
   let command: RequestExportCommand;
   let requests: PrivacyRepository;
-  let getNotes: GetNotesQuery;
+  let lifecycle: DataLifecycleRegistry;
   let outbox: OutboxService;
-  let events: EventEmitter2;
-
-  const user = User.fromPersistence({
-    id: "user-1",
-    email: "a@example.com",
-    name: "A",
-    role: "user",
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    updatedAt: new Date("2026-01-02T00:00:00Z"),
-  });
 
   beforeEach(() => {
-    requests = { create: vi.fn() } as unknown as PrivacyRepository;
-    const getUserById = {
-      execute: vi.fn().mockResolvedValue(ok(user)),
-    } as unknown as GetUserByIdQuery;
-    const listOrganizations = {
+    requests = {
+      create: vi.fn().mockResolvedValue(ok(request())),
+      findActiveExportForSubject: vi.fn().mockResolvedValue(null),
+      completeExport: vi.fn().mockResolvedValue(ok(request("PROCESSING"))),
+    } as unknown as PrivacyRepository;
+    const user = User.fromPersistence({
+      id: ACTOR.sub,
+      email: ACTOR.email,
+      name: "A",
+      role: "user",
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      updatedAt: new Date("2026-01-02T00:00:00Z"),
+    });
+    const getUser = { execute: vi.fn().mockResolvedValue(ok(user)) } as unknown as GetUserByIdQuery;
+    const organizations = {
       execute: vi
         .fn()
         .mockResolvedValue(ok({ items: [], total: 0, page: 1, limit: 100, totalPages: 1 })),
     } as unknown as ListOrganizationsQuery;
-    const listInvitationsByEmail = {
+    const invitations = {
       execute: vi.fn().mockResolvedValue(ok([])),
     } as unknown as ListInvitationsByEmailQuery;
-    const getNotesMock = {
-      execute: vi
-        .fn()
-        .mockResolvedValue(ok({ items: [], total: 0, page: 1, limit: 100, totalPages: 1 })),
-    } as unknown as GetNotesQuery;
-    getNotes = getNotesMock;
-    const listFilesByUploader = {
-      execute: vi.fn().mockResolvedValue(ok([])),
-    } as unknown as ListFilesByUploaderQuery;
-    const getPreferences = {
-      execute: vi.fn().mockResolvedValue(ok([])),
-    } as never;
-    const exportNotifications = {
-      execute: vi
-        .fn()
-        .mockResolvedValue(ok({ notifications: [], devices: [], batches: [], truncated: false })),
-    } as never;
-    const tenantContext = {
-      get: vi.fn().mockReturnValue({ mode: "single" }),
-      run: vi.fn((_ctx, cb) => cb()),
-    } as unknown as TenantContextService;
+    lifecycle = {
+      exportSubject: vi.fn().mockResolvedValue(ok({ data: {}, truncated: false })),
+    } as unknown as DataLifecycleRegistry;
     outbox = {
       dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as OutboxService;
-    events = { emitAsync: vi.fn().mockResolvedValue([]) } as unknown as EventEmitter2;
-
+    const events = { emitAsync: vi.fn().mockResolvedValue([]) } as unknown as EventEmitter2;
     command = new RequestExportCommand(
       requests,
-      getUserById,
-      listOrganizations,
-      listInvitationsByEmail,
-      getNotes,
-      listFilesByUploader,
-      getPreferences,
-      exportNotifications,
-      tenantContext,
+      getUser,
+      organizations,
+      invitations,
+      lifecycle,
       outbox,
       events,
     );
   });
 
-  it("should assemble a snapshot and dispatch export.ready", async () => {
-    vi.mocked(requests.create).mockResolvedValue(ok({ id: "dsr-1" }) as never);
-
+  it("enqueues an export and returns immediately", async () => {
     const result = await command.execute(ACTOR);
 
     expect(result.isOk()).toBe(true);
     expect(requests.create).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "EXPORT", status: "READY", subjectUserId: "user-1" }),
+      expect.objectContaining({ type: "EXPORT", status: "REQUESTED", subjectUserId: ACTOR.sub }),
+    );
+    expect(outbox.dispatchGlobal).toHaveBeenCalledWith(
+      "privacy.export.requested",
+      expect.anything(),
+    );
+    expect(lifecycle.exportSubject).not.toHaveBeenCalled();
+  });
+
+  it("returns the active export instead of enqueueing a duplicate", async () => {
+    vi.mocked(requests.findActiveExportForSubject).mockResolvedValue(request());
+
+    const result = await command.execute(ACTOR);
+
+    expect(result.isOk()).toBe(true);
+    expect(requests.create).not.toHaveBeenCalled();
+  });
+
+  it("processes contributors into a module-keyed snapshot", async () => {
+    vi.mocked(lifecycle.exportSubject).mockResolvedValue(
+      ok({ data: { notes: { items: [{ id: "n1" }] } }, truncated: false }),
+    );
+
+    const result = await command.process(request("PROCESSING"));
+
+    expect(result.isOk()).toBe(true);
+    expect(requests.completeExport).toHaveBeenCalledWith(
+      "dsr-1",
+      expect.objectContaining({ modules: { notes: { items: [{ id: "n1" }] } } }),
+      false,
+      expect.any(Date),
     );
     expect(outbox.dispatchGlobal).toHaveBeenCalledWith("privacy.export.ready", expect.anything());
   });
 
-  it("should return EXPORT_FAILED when the event cannot dispatch", async () => {
-    vi.mocked(requests.create).mockResolvedValue(ok({ id: "dsr-1" }) as never);
+  it("fails the enqueue when its durable event cannot be recorded", async () => {
     vi.mocked(outbox.dispatchGlobal).mockResolvedValue(err({ type: "OUTBOX_WRITE_FAILED" }));
 
     const result = await command.execute(ACTOR);
 
     expect(result.isErr()).toBe(true);
-  });
-
-  it("should scope notes to the subject and collect every page", async () => {
-    const note = (id: string) =>
-      Note.fromPersistence({
-        id,
-        title: `T${id}`,
-        content: "C",
-        createdBy: "user-1",
-        createdAt: new Date("2026-01-01T00:00:00Z"),
-        updatedAt: new Date("2026-01-02T00:00:00Z"),
-      });
-    vi.mocked(getNotes.execute).mockImplementation(async (options: { page?: number }) =>
-      options.page === 1
-        ? ok({
-            items: [note("n1")],
-            total: 2,
-            page: 1,
-            limit: 100,
-            totalPages: 2,
-            hasNextPage: true,
-            hasPrevPage: false,
-          })
-        : ok({
-            items: [note("n2")],
-            total: 2,
-            page: 2,
-            limit: 100,
-            totalPages: 2,
-            hasNextPage: false,
-            hasPrevPage: true,
-          }),
-    );
-    vi.mocked(requests.create).mockResolvedValue(ok({ id: "dsr-2" }) as never);
-
-    const result = await command.execute(ACTOR);
-
-    expect(result.isOk()).toBe(true);
-    expect(getNotes.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ createdBy: "user-1" }),
-      ACTOR,
-    );
-    expect(requests.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({ truncated: false }),
-      }),
-    );
-    const payload = vi.mocked(requests.create).mock.calls[0]?.[0] as {
-      payload: { notes: Array<{ id: string }> };
-    };
-    expect(payload.payload.notes.map((n) => n.id)).toEqual(["n1", "n2"]);
   });
 });

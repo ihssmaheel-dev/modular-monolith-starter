@@ -1,18 +1,28 @@
 const path = require("path");
 const { writeFileIfMissing } = require("./utils");
 
-function generateApplication({ modulePath, feature, Feature, featurePlural, FeaturePlural }) {
+function generateApplication({
+  modulePath,
+  feature,
+  Feature,
+  featurePlural,
+  FeaturePlural,
+  accessModel = "tenant-shared",
+}) {
+  const ownedFilter = accessModel === "owner" ? ", createdBy: actor.sub" : "";
+  const accessComment = `/** Access model: ${accessModel}. Tenant RLS remains the database boundary. */`;
   const createCmd = `import { Injectable } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { err, type Result } from "neverthrow";
 import type { AuthenticatedUser, Create${Feature}Dto } from "@repo/contracts";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
 import { ${Feature}CreatedEvent } from "../../domain/events/${feature}.events";
-import { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { DatabaseService } from "../../../../infrastructure/database";
 
 @Injectable()
+${accessComment}
 export class Create${Feature}Command {
   constructor(
     private readonly repository: ${FeaturePlural}Repository,
@@ -34,7 +44,7 @@ export class Create${Feature}Command {
         new ${Feature}CreatedEvent(result.value.id, actor.sub, result.value.name, result.value.tenantId),
       );
       if (dispatched.isErr()) return err({ type: "EVENT_DISPATCH_FAILED" });
-      await this.eventEmitter.emitAsync("database.mutated", {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", {
         collectionName: "${featurePlural}",
         documentId: result.value.id,
         action: "CREATE",
@@ -54,7 +64,7 @@ import { ok } from "neverthrow";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { Create${Feature}Command } from "./create-${feature}.command";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
-import type { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import type { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 import type { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import type { DatabaseService } from "../../../../infrastructure/database";
 
@@ -70,7 +80,7 @@ describe("Create${Feature}Command", () => {
     const repo = { create: vi.fn().mockResolvedValue(ok(mockEntity)) } as unknown as ${FeaturePlural}Repository;
     const outbox = { dispatchTenant: vi.fn().mockResolvedValue(ok(undefined)) } as unknown as OutboxService;
     const eventEmitter = { emitAsync: vi.fn().mockResolvedValue([]) } as unknown as EventEmitter2;
-    const database = { withResultTransaction: vi.fn((fn) => fn()) } as unknown as DatabaseService;
+    const database = { withResultTransaction: vi.fn((fn) => fn()), emitAfterCommit: vi.fn().mockResolvedValue(undefined) } as unknown as DatabaseService;
     const cmd = new Create${Feature}Command(repo, outbox, eventEmitter, database);
 
     const res = await cmd.execute({ name: "Test" }, { sub: "user-1", email: "a@b.com", role: "user" });
@@ -86,11 +96,12 @@ import { err, type Result } from "neverthrow";
 import type { AuthenticatedUser, Update${Feature}Dto } from "@repo/contracts";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
 import { ${Feature}UpdatedEvent } from "../../domain/events/${feature}.events";
-import { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { DatabaseService } from "../../../../infrastructure/database";
 
 @Injectable()
+${accessComment}
 export class Update${Feature}Command {
   constructor(
     private readonly repository: ${FeaturePlural}Repository,
@@ -105,7 +116,7 @@ export class Update${Feature}Command {
     actor: AuthenticatedUser,
   ): Promise<Result<${Feature}, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | { type: "CONFLICT" } | { type: "EVENT_DISPATCH_FAILED" } | { type: "TRANSACTION_FAILED" } | Error>> {
     return this.database.withResultTransaction(async () => {
-      const existing = await this.repository.findById(id);
+      const existing = await this.repository.findOne({ id${ownedFilter} });
       if (existing.isErr()) return err(existing.error);
       if (!existing.value) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });
 
@@ -121,7 +132,7 @@ export class Update${Feature}Command {
         new ${Feature}UpdatedEvent(id, actor.sub, updated.value.name, updated.value.tenantId),
       );
       if (dispatched.isErr()) return err({ type: "EVENT_DISPATCH_FAILED" });
-      await this.eventEmitter.emitAsync("database.mutated", {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", {
         collectionName: "${featurePlural}",
         documentId: updated.value.id,
         action: "UPDATE",
@@ -141,7 +152,7 @@ import { ok } from "neverthrow";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { Update${Feature}Command } from "./update-${feature}.command";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
-import type { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import type { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 import type { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import type { DatabaseService } from "../../../../infrastructure/database";
 
@@ -165,7 +176,7 @@ describe("Update${Feature}Command", () => {
     } as unknown as ${FeaturePlural}Repository;
     const outbox = { dispatchTenant: vi.fn().mockResolvedValue(ok(undefined)) } as unknown as OutboxService;
     const eventEmitter = { emitAsync: vi.fn().mockResolvedValue([]) } as unknown as EventEmitter2;
-    const database = { withResultTransaction: vi.fn((fn) => fn()) } as unknown as DatabaseService;
+    const database = { withResultTransaction: vi.fn((fn) => fn()), emitAfterCommit: vi.fn().mockResolvedValue(undefined) } as unknown as DatabaseService;
     const cmd = new Update${Feature}Command(repo, outbox, eventEmitter, database);
 
     const res = await cmd.execute("1", { name: "New" }, { sub: "u1", email: "a@b.com", role: "user" });
@@ -179,11 +190,12 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { err, ok, type Result } from "neverthrow";
 import type { AuthenticatedUser } from "@repo/contracts";
 import { ${Feature}DeletedEvent } from "../../domain/events/${feature}.events";
-import { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { DatabaseService } from "../../../../infrastructure/database";
 
 @Injectable()
+${accessComment}
 export class Delete${Feature}Command {
   constructor(
     private readonly repository: ${FeaturePlural}Repository,
@@ -197,7 +209,7 @@ export class Delete${Feature}Command {
     actor: AuthenticatedUser,
   ): Promise<Result<void, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | { type: "EVENT_DISPATCH_FAILED" } | { type: "TRANSACTION_FAILED" } | Error>> {
     return this.database.withResultTransaction(async () => {
-      const existing = await this.repository.findById(id);
+      const existing = await this.repository.findOne({ id${ownedFilter} });
       if (existing.isErr()) return err(existing.error);
       if (!existing.value) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });
 
@@ -209,7 +221,7 @@ export class Delete${Feature}Command {
         new ${Feature}DeletedEvent(id, actor.sub, existing.value.tenantId),
       );
       if (dispatched.isErr()) return err({ type: "EVENT_DISPATCH_FAILED" });
-      await this.eventEmitter.emitAsync("database.mutated", {
+      await this.database.emitAfterCommit(this.eventEmitter, "database.mutated", {
         collectionName: "${featurePlural}",
         documentId: existing.value.id,
         action: "DELETE",
@@ -229,7 +241,7 @@ import { ok } from "neverthrow";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { Delete${Feature}Command } from "./delete-${feature}.command";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
-import type { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import type { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 import type { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import type { DatabaseService } from "../../../../infrastructure/database";
 
@@ -247,7 +259,7 @@ describe("Delete${Feature}Command", () => {
     } as unknown as ${FeaturePlural}Repository;
     const outbox = { dispatchTenant: vi.fn().mockResolvedValue(ok(undefined)) } as unknown as OutboxService;
     const eventEmitter = { emitAsync: vi.fn().mockResolvedValue([]) } as unknown as EventEmitter2;
-    const database = { withResultTransaction: vi.fn((fn) => fn()) } as unknown as DatabaseService;
+    const database = { withResultTransaction: vi.fn((fn) => fn()), emitAfterCommit: vi.fn().mockResolvedValue(undefined) } as unknown as DatabaseService;
     const cmd = new Delete${Feature}Command(repo, outbox, eventEmitter, database);
 
     const res = await cmd.execute("1", { sub: "u1", email: "a@b.com", role: "user" });
@@ -260,17 +272,18 @@ describe("Delete${Feature}Command", () => {
 import { err, ok, type Result } from "neverthrow";
 import type { AuthenticatedUser } from "@repo/contracts";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
-import { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 
 @Injectable()
+${accessComment}
 export class Get${Feature}ByIdQuery {
   constructor(private readonly repository: ${FeaturePlural}Repository) {}
 
   async execute(
     id: string,
-    _actor: AuthenticatedUser,
+    ${accessModel === "owner" ? "actor" : "_actor"}: AuthenticatedUser,
   ): Promise<Result<${Feature}, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | Error>> {
-    const result = await this.repository.findById(id);
+    const result = await this.repository.findOne({ id${ownedFilter} });
     if (result.isErr()) return err(result.error);
     if (!result.value) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });
     return ok(result.value);
@@ -282,7 +295,7 @@ export class Get${Feature}ByIdQuery {
 import { ok } from "neverthrow";
 import { Get${Feature}ByIdQuery } from "./get-${feature}-by-id.query";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
-import type { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import type { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 
 describe("Get${Feature}ByIdQuery", () => {
   it("returns entity when found", async () => {
@@ -306,19 +319,20 @@ import type { Result } from "neverthrow";
 import type { AuthenticatedUser, PaginationQuery } from "@repo/contracts";
 import type { PaginatedResult } from "../../../../infrastructure/database";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
-import { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 
 @Injectable()
+${accessComment}
 export class Get${FeaturePlural}Query {
   constructor(private readonly repository: ${FeaturePlural}Repository) {}
 
   async execute(
     pagination: PaginationQuery,
-    _actor: AuthenticatedUser,
+    ${accessModel === "owner" ? "actor" : "_actor"}: AuthenticatedUser,
   ): Promise<Result<PaginatedResult<${Feature}>, Error>> {
     const page = Math.max(1, Number(pagination.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(pagination.limit ?? 20)));
-    return this.repository.paginate({}, { page, limit });
+    return this.repository.paginate({${accessModel === "owner" ? " createdBy: actor.sub " : ""}}, { page, limit });
   }
 }
 `;
@@ -326,7 +340,7 @@ export class Get${FeaturePlural}Query {
   const listQueryTest = `import { describe, expect, it, vi } from "vitest";
 import { ok } from "neverthrow";
 import { Get${FeaturePlural}Query } from "./get-${featurePlural}.query";
-import type { ${FeaturePlural}Repository } from "../../infrastructure/${featurePlural}.repository";
+import type { ${FeaturePlural}Repository } from "../../infrastructure/repositories/${featurePlural}.repository";
 
 describe("Get${FeaturePlural}Query", () => {
   it("returns paginated list", async () => {

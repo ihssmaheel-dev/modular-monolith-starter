@@ -96,7 +96,7 @@ describe("RemoveMemberCommand", () => {
     expect(order).toEqual(["lock:tenancy:owners:org-1", "count"]);
   });
 
-  it("skips the lock when removing a non-owner", async () => {
+  it("uses the shared organization lock when removing a non-owner", async () => {
     const database = {
       withResultTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
       withAdvisoryLock: vi.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
@@ -108,7 +108,10 @@ describe("RemoveMemberCommand", () => {
     const result = await locked.execute("user-2");
 
     expect(result.isOk()).toBe(true);
-    expect(database.withAdvisoryLock).not.toHaveBeenCalled();
+    expect(database.withAdvisoryLock).toHaveBeenCalledWith(
+      "tenancy:owners:org-1",
+      expect.any(Function),
+    );
   });
 });
 

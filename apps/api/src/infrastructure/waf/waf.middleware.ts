@@ -1,13 +1,6 @@
 import { BadRequestException, Injectable, NestMiddleware, HttpStatus } from "@nestjs/common";
 import type { FastifyRequest, FastifyReply } from "fastify";
-import {
-  XSS_PATTERNS,
-  SQL_INJECTION_PATTERNS,
-  NOSQL_INJECTION_PATTERNS,
-  HEADER_INJECTION_PATTERNS,
-  scanObject,
-  containsPattern,
-} from "./waf.patterns";
+import { HEADER_INJECTION_PATTERNS, scanObject, containsPattern } from "./waf.patterns";
 import { I18nService } from "../i18n/i18n.service";
 import { createApiErrorEnvelope } from "../../common/utils/error-envelope.utils";
 import { REQUEST_ID_HEADER, resolveRequestId } from "../../common/utils/request-id.utils";
@@ -27,17 +20,6 @@ export class WafMiddleware implements NestMiddleware {
       return;
     }
 
-    if (
-      containsPattern(url, [
-        ...XSS_PATTERNS,
-        ...SQL_INJECTION_PATTERNS,
-        ...NOSQL_INJECTION_PATTERNS,
-      ])
-    ) {
-      this.reject(res, req, "api.error.invalidRequest", lang);
-      return;
-    }
-
     const query = (req.query ?? {}) as Record<string, unknown>;
     if (Object.keys(query).length > 0) {
       if (scanObject(query).length > 0) {
@@ -49,7 +31,7 @@ export class WafMiddleware implements NestMiddleware {
     const body = req.body as Record<string, unknown> | undefined;
     if (body && typeof body === "object") {
       if (scanObject(body).length > 0) {
-        this.reject(res, req, "api.error.blockedContent", lang);
+        this.reject(res, req, "api.error.invalidRequest", lang);
         return;
       }
     }

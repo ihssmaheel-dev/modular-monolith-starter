@@ -20,6 +20,12 @@ import {
   generateSecureToken,
   hashSha256Token,
 } from "../../../../infrastructure/security/token.utils";
+import {
+  DatabaseService,
+  isPostgresUniqueViolation,
+  type TransactionError,
+} from "../../../../infrastructure/database";
+import { emailIdentityLockKey } from "../../../../common/utils/lock-keys.utils";
 
 import type { EmailTaken, UserNotFound } from "../../domain/errors/user.errors";
 
@@ -39,6 +45,7 @@ export class RequestEmailChangeCommand {
     private readonly getUserById: GetUserByIdQuery,
     private readonly getUserByEmail: GetUserByEmailQuery,
     private readonly repository: UsersRepository,
+    private readonly database: DatabaseService,
     private readonly emailService: EmailService,
     private readonly i18n: I18nService,
     logger: PinoLoggerService,
@@ -49,32 +56,24 @@ export class RequestEmailChangeCommand {
   async execute(
     actor: AuthenticatedUser,
     newEmail: string,
-  ): Promise<Result<void, UserNotFound | EmailTaken>> {
-    // Normalize before the uniqueness check. Legacy rows written before
-    // normalization may still carry mixed case; a backfill plus a
-    // case-insensitive unique index is tracked follow-up work.
+  ): Promise<Result<void, UserNotFound | EmailTaken | TransactionError>> {
+    // Normalize before the uniqueness check; the database also enforces
+    // normalization and case-insensitive uniqueness for concurrent writes.
     const email = newEmail.toLowerCase().trim();
     const userResult = await this.getUserById.execute(actor.sub);
     if (userResult.isErr() || !userResult.value)
       return err({ type: "USER_NOT_FOUND", userId: actor.sub });
     if (userResult.value.email.toLowerCase() === email) return ok(undefined);
 
-    const taken = await this.getUserByEmail.execute(email);
-    if (taken.isErr()) return err(taken.error);
-    if (taken.value) return err({ type: "EMAIL_TAKEN", email });
-
-    const token = generateSecureToken();
-    const expiresAt = new Date(Date.now() + EMAIL_CHANGE_TTL_HOURS * MILLISECONDS_PER_HOUR);
-    const stored = await this.repository.setEmailChangeRequest(
-      actor.sub,
-      email,
-      hashSha256Token(token),
-      expiresAt,
+    const reserved = await this.database.withResultTransaction(() =>
+      this.database.withAdvisoryLock(emailIdentityLockKey(email), () =>
+        this.reserve(actor.sub, email),
+      ),
     );
-    if (stored.isErr()) return err({ type: "EMAIL_TAKEN", email });
+    if (reserved.isErr()) return err(reserved.error);
 
     const confirmLink = buildFrontendUrl(env.CLIENT_URL, FRONTEND_ROUTES.confirmEmailChange, {
-      token,
+      token: reserved.value,
     });
     const html = await render(
       React.createElement(VerifyEmail, {
@@ -93,11 +92,41 @@ export class RequestEmailChangeCommand {
         html,
       });
       if (sent.isErr()) {
-        this.logger.warn({ code: sent.error.code, email }, "Email change request failed");
+        this.logger.warn(
+          { code: sent.error.code, userId: actor.sub },
+          "Email change request failed",
+        );
       }
     } catch (error) {
-      this.logger.warn({ error, email }, "Email change request failed");
+      this.logger.warn({ error, userId: actor.sub }, "Email change request failed");
     }
     return ok(undefined);
+  }
+
+  private async reserve(
+    userId: string,
+    email: string,
+  ): Promise<Result<string, EmailTaken | TransactionError>> {
+    const taken = await this.getUserByEmail.execute(email);
+    const pending = await this.repository.findOne({ pendingEmail: email });
+    if (taken.isErr() || pending.isErr()) return err({ type: "TRANSACTION_FAILED" });
+    if (taken.value || (pending.value && pending.value.id !== userId)) {
+      return err({ type: "EMAIL_TAKEN", email });
+    }
+
+    const token = generateSecureToken();
+    const expiresAt = new Date(Date.now() + EMAIL_CHANGE_TTL_HOURS * MILLISECONDS_PER_HOUR);
+    try {
+      const stored = await this.repository.setEmailChangeRequest(
+        userId,
+        email,
+        hashSha256Token(token),
+        expiresAt,
+      );
+      return stored.isErr() ? err({ type: "TRANSACTION_FAILED" }) : ok(token);
+    } catch (error) {
+      if (isPostgresUniqueViolation(error)) return err({ type: "EMAIL_TAKEN", email });
+      return err({ type: "TRANSACTION_FAILED" });
+    }
   }
 }

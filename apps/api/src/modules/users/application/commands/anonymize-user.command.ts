@@ -53,8 +53,19 @@ export class AnonymizeUserCommand {
     });
     if (updated.isErr() || !updated.value) return err({ type: "USER_NOT_FOUND", userId });
 
-    await this.cacheService.invalidateGlobal(`user:${userId}`);
-    if (this.events) {
+    const invalidate = () => this.cacheService.invalidateGlobal(`user:${userId}`);
+    if (this.database) await this.database.runAfterCommit(invalidate, "user:anonymize-cache");
+    else await invalidate();
+    if (this.events && this.database) {
+      await this.database.emitAfterCommit(
+        this.events,
+        "user.updated",
+        new UserUpdatedEvent(userId, {
+          email: anonymizedEmail(userId),
+          name: ANONYMIZED_USER_NAME,
+        }),
+      );
+    } else if (this.events) {
       await this.events.emitAsync(
         "user.updated",
         new UserUpdatedEvent(userId, {

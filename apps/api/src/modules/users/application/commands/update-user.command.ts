@@ -8,7 +8,6 @@ import { EmailTaken, UserForbidden, UserNotFound } from "../../domain/errors/use
 import { UserUpdatedEvent } from "../../domain/events/user.events";
 import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { GetUserByIdQuery } from "../queries/get-user-by-id.query";
-import { GetUserByEmailQuery } from "../queries/get-user-by-email.query";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import type { UserEventDispatchFailed } from "../../domain/errors/user.errors";
@@ -19,7 +18,6 @@ export class UpdateUserCommand {
   constructor(
     private readonly repository: UsersRepository,
     private readonly getUserById: GetUserByIdQuery,
-    private readonly getUserByEmail: GetUserByEmailQuery,
     private readonly eventEmitter: EventEmitter2,
     private readonly cacheService: DistributedCacheService,
     private readonly outbox: OutboxService,
@@ -45,7 +43,10 @@ export class UpdateUserCommand {
         error.type === "TRANSACTION_FAILED" ? { type: "USER_EVENT_DISPATCH_FAILED" } : error,
       );
     }
-    await this.cacheService.invalidateGlobal(`user:${id}`);
+    await this.database.runAfterCommit(
+      () => this.cacheService.invalidateGlobal(`user:${id}`),
+      "user:update-cache",
+    );
     return ok(result.value);
   }
 
@@ -60,9 +61,9 @@ export class UpdateUserCommand {
     data: z.infer<typeof UpdateUserSchema>,
     actor: AuthenticatedUser,
   ): Result<z.infer<typeof UpdateUserSchema>, UserForbidden> {
+    if (data.email !== undefined) return err({ type: "USER_FORBIDDEN", userId: id });
     if (actor.role === "admin") return ok(data);
     if (actor.sub !== id) return err({ type: "USER_FORBIDDEN", userId: id });
-    if (data.email !== undefined) return err({ type: "USER_FORBIDDEN", userId: id });
     return ok({ name: data.name });
   }
 
@@ -73,12 +74,6 @@ export class UpdateUserCommand {
   ): Promise<Result<User, UserNotFound | EmailTaken | UserEventDispatchFailed>> {
     const existing = await this.getUserById.execute(id);
     if (existing.isErr()) return err(existing.error);
-
-    if (data.email && data.email !== existing.value.email) {
-      const emailTaken = await this.getUserByEmail.execute(data.email);
-      if (emailTaken.isErr()) return err(emailTaken.error);
-      if (emailTaken.value) return err({ type: "EMAIL_TAKEN", email: data.email });
-    }
 
     existing.value.update(data);
     const saved = await this.repository.updateById(existing.value.id, {

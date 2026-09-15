@@ -98,7 +98,7 @@ Every domain module **must** implement a strict CQRS architecture. We do not use
 
 | Location | Responsibility |
 |----------|----------------|
-| `src/infrastructure/` | Cross-cutting: Redis connection, BullMQ root config, MinIO/S3 client, email transport, logger, Postgres connection |
+| `src/infrastructure/` | Cross-cutting: Redis connection, BullMQ root config, S3-compatible client, email transport, logger, Postgres connection |
 | `modules/[domain]/infrastructure/` | Domain-specific: Drizzle schemas, repositories, mappers, external API adapters |
 
 ### Shared Infrastructure Modules
@@ -121,7 +121,7 @@ All shared infrastructure modules:
 | `queue/` | BullMQ root config |
 | `workers/` | Piscina worker pools |
 | `cache/` | Redis caching (cache-aside pattern) |
-| `storage/` | S3 / MinIO file storage |
+| `storage/` | S3-compatible file storage; local emulators are development fixtures |
 | `email/` | SMTP/Resend email transport |
 | `realtime/` | WebSocket gateway and streams |
 | `session/` | Session management |

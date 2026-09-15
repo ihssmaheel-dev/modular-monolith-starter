@@ -8,6 +8,7 @@ import { FRONTEND_ROUTES } from "@repo/contracts";
 import { useAuthStore } from "@/stores/auth.store";
 import { useTenantStore } from "@/stores/tenant.store";
 import { organizationsListQuery, tenancyStatusQuery } from "@/features/tenancy/tenancy.queries";
+import { getWebEnv } from "@/lib/env";
 
 export function DashboardHeader() {
   const { t } = useTranslation();
@@ -24,6 +25,7 @@ export function DashboardHeader() {
   });
 
   const organizations = orgsQuery.data?.items ?? [];
+  const examplesEnabled = getWebEnv().VITE_EXAMPLE_FEATURES_ENABLED;
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
@@ -49,14 +51,16 @@ export function DashboardHeader() {
             ))}
           </NativeSelect>
         )}
-        <Button
-          size="sm"
-          className="gap-1.5 text-xs shadow-xs"
-          render={<Link to={FRONTEND_ROUTES.newNote} />}
-        >
-          <Plus className="size-3.5" />
-          <span>{t("notes.newNote")}</span>
-        </Button>
+        {examplesEnabled && (
+          <Button
+            size="sm"
+            className="gap-1.5 text-xs shadow-xs"
+            render={<Link to={FRONTEND_ROUTES.newNote} />}
+          >
+            <Plus className="size-3.5" />
+            <span>{t("notes.newNote")}</span>
+          </Button>
+        )}
       </div>
     </div>
   );

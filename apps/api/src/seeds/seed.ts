@@ -16,15 +16,16 @@ async function bootstrap(): Promise<void> {
     }
 
     const repository = app.get(UsersRepository);
-    const existing = await repository.findOne({ email: env.SEED_ADMIN_EMAIL });
+    const email = env.SEED_ADMIN_EMAIL.toLowerCase().trim();
+    const existing = await repository.findOne({ email });
     if (existing.isOk() && existing.value) {
-      logger.info({ email: env.SEED_ADMIN_EMAIL }, "Administrative user already exists");
+      logger.info({}, "Administrative user already exists");
       return;
     }
 
     const passwordHash = await hash(env.SEED_ADMIN_PASSWORD);
     const result = await repository.create({
-      email: env.SEED_ADMIN_EMAIL,
+      email,
       name: "System Admin",
       passwordHash,
       role: "admin",

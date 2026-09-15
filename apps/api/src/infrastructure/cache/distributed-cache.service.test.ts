@@ -3,7 +3,6 @@ import { DistributedCacheService, MAX_CACHE_SIZE } from "./distributed-cache.ser
 import type { RedisService } from "../redis/redis.service";
 import type { CacheMetricsService } from "./cache-metrics.service";
 import type { PinoLoggerService } from "../logger/logger.service";
-import { ok } from "neverthrow";
 
 describe("DistributedCacheService", () => {
   let service: DistributedCacheService;
@@ -103,20 +102,13 @@ describe("DistributedCacheService", () => {
     expect(service.size).toBe(0);
   });
 
-  it("caches successful Result from getOrSet", async () => {
-    const fetcher = vi.fn().mockResolvedValue(ok({ id: 1 }));
-    const result = await service.getOrSet("calc", 60, fetcher);
+  it("returns isolated snapshots instead of shared mutable objects", () => {
+    service.set("object", { nested: { value: 1 } }, 60);
 
-    expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value).toEqual({ id: 1 });
-    }
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    const first = service.get<{ nested: { value: number } }>("object")!;
+    first.nested.value = 2;
 
-    // Subsequent call should hit cache
-    const cached = await service.getOrSet("calc", 60, fetcher);
-    expect(cached.isOk()).toBe(true);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(service.get("object")).toEqual({ nested: { value: 1 } });
   });
 
   it("evicts oldest entry when reaching MAX_CACHE_SIZE", () => {
