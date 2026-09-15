@@ -1,5 +1,6 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
-import path from "path";
 
 export default defineConfig({
   test: {
@@ -7,6 +8,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["**/*.e2e.*"],
+    pool: "threads",
+    maxWorkers: 2,
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",
@@ -32,7 +35,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
 });

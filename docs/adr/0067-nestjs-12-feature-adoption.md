@@ -18,7 +18,9 @@ We adopt three high-leverage features, enhance shutdown lifecycle safety, and de
 3. **WebSocket Disconnect Reasons (`realtime-websocket.gateway.ts`)**: Accept `reason?: string` in `handleDisconnect` and record it in debug logs with tenant and user context, distinguishing client network drops from server token-expiry sweeps.
 4. **Shutdown Teardown Hardening (`main.ts`)**: Enable `return503OnClosing: true` in `NestApplicationOptions`, ensuring new HTTP connections receive 503 while in-flight requests and `BeforeApplicationShutdown` drains complete.
 5. **Retain Custom Response Interceptor & Pipe**: Keep our 41-line `ResponseValidationInterceptor` and `ZodValidationPipe` instead of `StandardSchemaSerializerInterceptor`. Nest's native interceptor throws untyped errors concatenating validation messages (risking internal schema leaks) and lacks structured Pino/Loki logging.
-6. **Skip In-Source ESM Migration**: Compile TypeScript with `"module": "nodenext"`, allowing Node 24 to natively require ESM packages without churn across internal imports.
+6. **Skip In-Source ESM Migration**: Compile TypeScript with `"module": "nodenext"` on the pinned,
+   CI-tested Node 22.12 runtime, allowing Node to consume ESM packages without churn across internal
+   imports. A Node major upgrade is a coordinated toolchain change, not an assumption in this ADR.
 
 ## Consequences
 

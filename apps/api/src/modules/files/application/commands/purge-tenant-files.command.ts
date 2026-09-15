@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import type { TransactionError } from "../../../../infrastructure/database";
+import { DatabaseService } from "../../../../infrastructure/database";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { FileError } from "../../domain/errors/file.errors";
@@ -20,12 +21,15 @@ export class PurgeTenantFilesCommand {
     private readonly files: FilesRepository,
     private readonly storage: StorageService,
     private readonly logger: PinoLoggerService,
+    private readonly database: DatabaseService,
   ) {}
 
   async execute(): Promise<Result<{ deleted: number }, FileError | TransactionError>> {
     let deleted = 0;
     for (;;) {
-      const page = await this.files.paginate({}, { page: 1, limit: PURGE_BATCH_LIMIT });
+      const page = await this.database.withResultTransaction(() =>
+        this.files.paginate({}, { page: 1, limit: PURGE_BATCH_LIMIT }),
+      );
       if (page.isErr() || page.value.items.length === 0) break;
       for (const file of page.value.items) {
         const purged = await this.purgeOne(file);
@@ -43,7 +47,9 @@ export class PurgeTenantFilesCommand {
       this.logger.error({ key: file.key }, "Tenant erasure storage delete failed");
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });
     }
-    const rowResult = await this.files.deleteById(file.id);
+    const rowResult = await this.database.withResultTransaction(() =>
+      this.files.deleteById(file.id),
+    );
     if (rowResult.isErr() || !rowResult.value) {
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });
     }

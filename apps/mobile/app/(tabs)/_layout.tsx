@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth.store";
 import { unreadCountQuery } from "@/features/notifications/notifications.queries";
+import { getMobileEnv } from "@/lib/env";
 
 export default function TabsLayout() {
   const { t } = useTranslation();
@@ -17,7 +18,13 @@ export default function TabsLayout() {
   return (
     <Tabs screenOptions={{ headerShown: true }}>
       <Tabs.Screen name="index" options={{ title: t("dashboard.title") }} />
-      <Tabs.Screen name="notes" options={{ title: t("notes.title") }} />
+      <Tabs.Screen
+        name="notes"
+        options={{
+          title: t("notes.title"),
+          href: getMobileEnv().EXPO_PUBLIC_EXAMPLE_FEATURES_ENABLED ? undefined : null,
+        }}
+      />
       <Tabs.Screen
         name="notifications"
         options={{ title: t("notifications.title"), tabBarBadge: unread ? unread : undefined }}

@@ -1,0 +1,55 @@
+# Overlay for: docker compose -f docker-compose.prod.yml -f docker-compose.observability.yml
+# -f docker-compose.prod.observability.yml --profile observability up -d
+services:
+  prometheus:
+    profiles: [observability]
+    volumes:
+      - ./observability/prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ${METRICS_TOKEN_FILE:?set METRICS_TOKEN_FILE}:/run/secrets/metrics_token:ro
+    networks:
+      - app-network
+
+  alertmanager:
+    profiles: [observability]
+    networks:
+      - app-network
+
+  loki:
+    profiles: [observability]
+    networks:
+      - app-network
+
+  alloy:
+    profiles: [observability]
+    networks:
+      - app-network
+
+  tempo:
+    profiles: [observability]
+    networks:
+      - app-network
+
+  grafana:
+    profiles: [observability]
+    networks:
+      - app-network
+
+  postgres-exporter:
+    profiles: [observability]
+    networks:
+      - app-network
+
+  redis-exporter:
+    profiles: [observability]
+    networks:
+      - app-network
+
+  cadvisor:
+    profiles: [observability]
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: false

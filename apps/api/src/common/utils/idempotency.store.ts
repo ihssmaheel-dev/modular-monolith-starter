@@ -40,6 +40,7 @@ export class IdempotencyStore {
     const now = Date.now();
     const processing: ProcessingRecord = {
       state: "processing",
+      claimId: fingerprint.claimId,
       fingerprint: fingerprint.digest,
       method: fingerprint.method,
       route: fingerprint.route,
@@ -66,7 +67,12 @@ export class IdempotencyStore {
       throw idempotencyConflict("IDEMPOTENCY_RECORD_INVALID");
     }
     if (!recordMatches(record, fingerprint)) throw idempotencyConflict("IDEMPOTENCY_KEY_REUSED");
-    if (record.state === "completed") return record.body;
+    if (record.state === "completed") {
+      if (record.replayable === false) {
+        throw idempotencyConflict("IDEMPOTENCY_RESPONSE_UNAVAILABLE");
+      }
+      return record.body;
+    }
     const age = now - record.startedAt;
     if (age < env.IDEMPOTENCY_STALE_AFTER_SECONDS * MILLISECONDS_PER_SECOND) {
       throw idempotencyInProgress(age);
@@ -90,12 +96,12 @@ export class IdempotencyStore {
       serialized = JSON.stringify(body === undefined ? null : body);
     } catch (error) {
       this.logger.warn({ key, error }, "Idempotent response is not serializable");
-      await this.release(key, fingerprint);
+      await this.cacheUnavailableResponse(key, fingerprint);
       return;
     }
     if (serialized === undefined) {
       this.logger.warn({ key }, "Idempotent response is not serializable");
-      await this.release(key, fingerprint);
+      await this.cacheUnavailableResponse(key, fingerprint);
       return;
     }
     const bodyBytes = Buffer.byteLength(serialized, "utf8");
@@ -122,7 +128,7 @@ export class IdempotencyStore {
         FINALIZE_IDEMPOTENCY_SCRIPT,
         1,
         key,
-        fingerprint.digest,
+        fingerprint.claimId,
         JSON.stringify(record),
         env.IDEMPOTENCY_TTL_SECONDS.toString(),
       );
@@ -138,7 +144,7 @@ export class IdempotencyStore {
     const redis = this.redisService.getClient();
     if (!redis) return;
     await redis
-      .eval(RELEASE_IDEMPOTENCY_SCRIPT, 1, key, fingerprint.digest)
+      .eval(RELEASE_IDEMPOTENCY_SCRIPT, 1, key, fingerprint.claimId)
       .catch((error: unknown) => {
         this.logger.warn({ key, error }, "Failed to release idempotency lock");
       });
@@ -150,5 +156,34 @@ export class IdempotencyStore {
   ): Promise<unknown | undefined> {
     if (attempt >= 2) throw idempotencyConflict("IDEMPOTENCY_RECORD_INVALID");
     return this.claimOrRead(key, fingerprint, attempt + 1);
+  }
+
+  private async cacheUnavailableResponse(
+    key: string,
+    fingerprint: RequestFingerprint,
+  ): Promise<void> {
+    const redis = this.redisService.getClient();
+    if (!redis) return;
+    const record: CompletedRecord = {
+      state: "completed",
+      fingerprint: fingerprint.digest,
+      method: fingerprint.method,
+      route: fingerprint.route,
+      path: fingerprint.path,
+      queryHash: fingerprint.queryHash,
+      bodyHash: fingerprint.bodyHash,
+      body: null,
+      bodyBytes: 0,
+      completedAt: Date.now(),
+      replayable: false,
+    };
+    await redis.eval(
+      FINALIZE_IDEMPOTENCY_SCRIPT,
+      1,
+      key,
+      fingerprint.claimId,
+      JSON.stringify(record),
+      env.IDEMPOTENCY_TTL_SECONDS.toString(),
+    );
   }
 }

@@ -13,10 +13,11 @@ pnpm project:init --name "Acme Portal" --slug acme-portal --reset-local-env --ye
 
 The command updates package/mobile identifiers, local display names, Docker service names, and
 observability labels. `--reset-local-env` recreates ignored local `.env` files with fresh secrets;
-it never resets a database or deletes tracked source without an explicit migration plan. The notes
-slice remains intentionally available as a reference implementation so its immutable baseline
-migration and contract tests stay coherent. Remove that slice only after replacing its migration
-with a new product baseline and updating the associated contract, client, UI, and test surfaces.
+it never resets a database or deletes tracked source without an explicit migration plan. The Notes
+source and tables remain as a reference slice, while production disables its API and web/mobile
+navigation by default through the three example-feature environment flags. A product can delete the
+slice in its initial fork before production data exists; after a release, remove tables only through
+an appended migration.
 
 ## Choose the deployment tenancy model first
 
@@ -26,16 +27,26 @@ Set `TENANCY_MODE=single` for a product with one logical workspace, or `TENANCY_
 
 1. Define the domain language, invariants, aggregate boundaries, ownership rules, and lifecycle states.
 2. Create `apps/api/src/modules/<module>/` with `domain`, `application`, `infrastructure`, and `presentation` layers.
-3. Put every input, output, pagination, and error contract in `packages/contracts`; export it from the package barrel.
+3. Put public transport schemas and types in `packages/contracts`; keep private domain and
+   implementation types in the owning module. Add application contracts to `coreApiContracts` or
+   optional/example contracts to `exampleApiContracts`.
 4. Add the Drizzle schema and repository inside the module. Tenant-owned tables must use `TenantScopedRepository`; never import another module's table.
 5. Add commands and queries that return `neverthrow` `Result` values. Keep controllers thin and map errors through `I18nService`.
-6. Add authorization actions and policies before adding endpoints. Protect routes with `@RequirePermission` and enforce resource ownership/ABAC in the application layer.
+6. Add explicit authorization actions and policies before adding endpoints. Protect routes with
+   `@RequirePermission` and enforce resource ownership/ABAC in the application layer. Never depend on
+   a future-action wildcard.
 7. Put state changes and critical domain events in one database transaction. Use `dispatchTenant` for tenant-owned events and `dispatchGlobal` for global events; never accept scope from request data. Persist a stable, versioned payload and add actor, correlation, causation, and idempotency metadata when the event contract or integration requires it.
-8. Add the migration through Drizzle, update the migration journal, and test both single- and multi-tenant behavior.
+8. Add an append-only migration through Drizzle, freeze its checksum, and test both fresh/upgrade and
+   single/multi-tenant behavior. Never edit a frozen migration.
 9. Add unit, integration, contract, and end-to-end tests before wiring the web feature.
 10. Add the web route, tenant-aware query keys, localized labels/errors, loading/empty/error states, and an accessible UI using `@repo/ui`.
-11. Add the module to the API module composition root and register its policies/listeners explicitly.
-12. Run `pnpm rules:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, and the full test suite before review.
+11. Add the module to the API composition root and register its policies/listeners explicitly. If it
+    owns personal data, register a `DataLifecycleContributor` from the owning module.
+12. Run `pnpm rules:check`, `pnpm db:migrate:lineage`, `pnpm lint`, `pnpm typecheck`,
+    `pnpm build`, bundle budgets, and the full test suite before review.
+
+Use `pnpm generate:feature <module> <resource> --access=owner` for private records or
+`--access=tenant-shared` for deliberately shared tenant records. The generator refuses to guess.
 
 ## Product bootstrap checklist
 
@@ -63,5 +74,5 @@ presentation handler, REST compatibility mapping when needed, and a parity/smoke
 
 `v1` is the stable public API surface. Keep contracts and module code version-neutral; add a new
 version at the transport boundary when a breaking change is required. The Scalar documentation
-stays at `/api/docs`, while application health is mounted at `/health/*` (with `/api/v1/health/*` alias) and metrics stay at
+stays at `/api/docs`, while application health is mounted at `/api/v1/health/*` (the supplied reverse proxy aliases `/health/*`) and metrics stay at
 `/metrics`.

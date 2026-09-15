@@ -4,6 +4,8 @@ import { FilesRepository } from "../../infrastructure/repositories/files.reposit
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok, err } from "neverthrow";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
+import type { AuthorizationService } from "../../../../infrastructure/authorization";
+import type { TenantContextService } from "../../../../infrastructure/database";
 
 const ACTOR = { sub: "user-1", email: "user@example.com", role: "user" } as const;
 
@@ -11,6 +13,8 @@ describe("ConfirmUploadCommand", () => {
   let command: ConfirmUploadCommand;
   let filesRepo: FilesRepository;
   let storage: StorageService;
+  let authorization: AuthorizationService;
+  let tenantContext: TenantContextService;
 
   beforeEach(() => {
     filesRepo = {
@@ -20,8 +24,14 @@ describe("ConfirmUploadCommand", () => {
     storage = {
       getMetadata: vi.fn().mockResolvedValue(ok({ size: 1024, contentType: "application/pdf" })),
     } as unknown as StorageService;
+    authorization = {
+      check: vi.fn().mockReturnValue({ allowed: true, reason: "REBAC_RELATION" }),
+    } as unknown as AuthorizationService;
+    tenantContext = {
+      get: vi.fn().mockReturnValue({ mode: "single" }),
+    } as unknown as TenantContextService;
 
-    command = new ConfirmUploadCommand(filesRepo, storage);
+    command = new ConfirmUploadCommand(filesRepo, storage, undefined, authorization, tenantContext);
   });
 
   it("should return FILE_NOT_FOUND when file does not exist", async () => {
@@ -129,8 +139,8 @@ describe("ConfirmUploadCommand", () => {
       filesRepo,
       storage,
       undefined,
-      undefined,
-      undefined,
+      authorization,
+      tenantContext,
       scanWorker as never,
     );
 

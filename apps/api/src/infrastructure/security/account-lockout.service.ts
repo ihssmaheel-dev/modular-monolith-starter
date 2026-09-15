@@ -2,6 +2,7 @@ import { Injectable, OnApplicationShutdown } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
 import { PinoLoggerService } from "../logger/logger.service";
 import { env } from "../../config/env";
+import { createHash } from "node:crypto";
 
 const LOCKOUT_PREFIX = "lockout:";
 export const MAX_MEMORY_LOCKOUT_ENTRIES = 5_000;
@@ -35,7 +36,10 @@ export class AccountLockoutService implements OnApplicationShutdown {
         return false;
       }
       if (entry.count >= env.LOCKOUT_MAX_ATTEMPTS) {
-        this.logger.warn({ email, attempts: entry.count }, "Account locked out (memory fallback)");
+        this.logger.warn(
+          { identityHash: hashIdentity(email), attempts: entry.count },
+          "Account locked out (memory fallback)",
+        );
         return true;
       }
       return false;
@@ -48,7 +52,10 @@ export class AccountLockoutService implements OnApplicationShutdown {
     if (Number(attempts) >= env.LOCKOUT_MAX_ATTEMPTS) {
       const ttl = await client.ttl(key);
       if (ttl > 0) {
-        this.logger.warn({ email, attempts: Number(attempts), ttl }, "Account locked out");
+        this.logger.warn(
+          { identityHash: hashIdentity(email), attempts: Number(attempts), ttl },
+          "Account locked out",
+        );
         return true;
       }
       await client.del(key);
@@ -81,7 +88,7 @@ export class AccountLockoutService implements OnApplicationShutdown {
         existing.count += 1;
       }
       this.logger.warn(
-        { email, attempts: this.memoryStore.get(email)?.count },
+        { identityHash: hashIdentity(email), attempts: this.memoryStore.get(email)?.count },
         "Failed login recorded (memory)",
       );
       return;
@@ -94,7 +101,10 @@ export class AccountLockoutService implements OnApplicationShutdown {
       await client.expire(key, ttlSeconds);
     }
 
-    this.logger.warn({ email, attempts: current }, "Failed login attempt recorded");
+    this.logger.warn(
+      { identityHash: hashIdentity(email), attempts: current },
+      "Failed login attempt recorded",
+    );
   }
 
   async resetAttempts(email: string): Promise<void> {
@@ -132,4 +142,8 @@ export class AccountLockoutService implements OnApplicationShutdown {
     this.sweepTimer = setInterval(() => this.sweepExpired(), MEMORY_SWEEP_INTERVAL_MS);
     this.sweepTimer.unref?.();
   }
+}
+
+function hashIdentity(value: string): string {
+  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex").slice(0, 16);
 }

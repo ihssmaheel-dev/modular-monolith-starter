@@ -40,14 +40,16 @@ describe("RealtimeSseController", () => {
     expect(observable).toBeDefined();
   });
 
-  it("degrades to the user-global scope when the tenant is unresolvable (H16)", async () => {
+  it("rejects the stream when the requested tenant is unresolvable", async () => {
     vi.mocked(tenantAccess.execute).mockResolvedValue(
       err({ type: "MEMBERSHIP_NOT_FOUND" } as never),
     );
 
-    await controller.sse(request({ tenantId: "tenant-evil" }));
+    await expect(controller.sse(request({ tenantId: "tenant-evil" }))).rejects.toThrow(
+      "api.error.forbidden",
+    );
 
-    expect(realtime.addSseClient).toHaveBeenCalledWith("user-1", undefined, expect.anything());
+    expect(realtime.addSseClient).not.toHaveBeenCalled();
   });
 
   it("subscribes without a tenant when none is requested", async () => {

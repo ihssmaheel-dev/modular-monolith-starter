@@ -9,7 +9,6 @@ import {
   type OrganizationAccess,
 } from "../../../tenancy/application/queries/list-organizations.query";
 import { DeleteOrganizationDataCommand } from "../../../tenancy/application/commands/delete-organization-data.command";
-import { PurgeUserNotificationsCommand } from "../../../notifications/application/commands/purge-user-notifications.command";
 import { DsrRequest } from "../../domain/entities/dsr.entity";
 import type { PrivacyError } from "../../domain/errors/privacy.errors";
 import { OrganizationErasureRequestedEvent } from "../../domain/events/privacy.events";
@@ -31,7 +30,6 @@ export class RequestOrganizationErasureCommand {
     private readonly requests: PrivacyRepository,
     private readonly listOrganizations: ListOrganizationsQuery,
     private readonly deleteOrganizationData: DeleteOrganizationDataCommand,
-    private readonly purgeNotifications: PurgeUserNotificationsCommand,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
     @Optional() private readonly database?: DatabaseService,
@@ -67,9 +65,6 @@ export class RequestOrganizationErasureCommand {
     if (access.value.organization.data.name !== confirmationName) {
       return err({ type: "INVALID_CONFIRMATION" });
     }
-
-    const notificationsPurged = await this.purgeNotifications.purgeTenant(organizationId);
-    if (notificationsPurged.isErr()) return err({ type: "ERASURE_FAILED" });
 
     const scrubbed = await this.deleteOrganizationData.execute(organizationId);
     if (scrubbed.isErr()) return err({ type: "ERASURE_FAILED" });

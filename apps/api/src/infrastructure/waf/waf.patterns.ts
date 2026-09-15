@@ -27,7 +27,7 @@ export function containsPattern(input: string, patterns: RegExp[]): boolean {
 }
 
 export function scanObject(obj: Record<string, unknown>, depth = 0): string[] {
-  if (depth > MAX_SCAN_DEPTH) return [];
+  if (depth > MAX_SCAN_DEPTH) return ["Maximum object depth exceeded"];
   const violations: string[] = [];
 
   for (const [key, value] of Object.entries(obj)) {
@@ -35,26 +35,12 @@ export function scanObject(obj: Record<string, unknown>, depth = 0): string[] {
       violations.push(`Suspicious key: ${key}`);
     }
 
-    if (typeof value === "string") {
-      if (
-        containsPattern(value, [
-          ...XSS_PATTERNS,
-          ...SQL_INJECTION_PATTERNS,
-          ...NOSQL_INJECTION_PATTERNS,
-        ])
-      ) {
-        violations.push(`Suspicious value in key: ${key}`);
-      }
-    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
       violations.push(...scanObject(value as Record<string, unknown>, depth + 1));
     } else if (Array.isArray(value)) {
       for (const item of value) {
         if (typeof item === "object" && item !== null) {
           violations.push(...scanObject(item as Record<string, unknown>, depth + 1));
-        } else if (typeof item === "string") {
-          if (containsPattern(item, [...XSS_PATTERNS, ...SQL_INJECTION_PATTERNS])) {
-            violations.push(`Suspicious array item in key: ${key}`);
-          }
         }
       }
     }

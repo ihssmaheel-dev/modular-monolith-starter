@@ -12,6 +12,7 @@ const RECONCILIATION_BATCH_SIZE = 100;
 @Injectable()
 export class FileReconciliationWorker {
   private running = false;
+  private afterId: string | undefined;
   private readonly logger: PinoLoggerService;
 
   constructor(
@@ -34,7 +35,7 @@ export class FileReconciliationWorker {
     try {
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
         const files = await this.database.runTransaction(() =>
-          this.files.findUploadedFiles(RECONCILIATION_BATCH_SIZE, true),
+          this.files.findUploadedFiles(RECONCILIATION_BATCH_SIZE, true, this.afterId),
         );
         for (const file of files) {
           checked += 1;
@@ -57,6 +58,7 @@ export class FileReconciliationWorker {
           );
           if (result.isOk() && result.value) repaired += 1;
         }
+        this.afterId = files.length === RECONCILIATION_BATCH_SIZE ? files.at(-1)?.id : undefined;
       });
     } catch (error) {
       this.logger.error({ error }, "File reconciliation failed");
@@ -71,6 +73,11 @@ export class FileReconciliationWorker {
       );
       this.logger.warn({ checked, repaired }, "File reconciliation repaired metadata drift");
     }
+    this.metrics.setGauge(
+      "file_reconciliation_checked_last_run",
+      "Files checked in the most recent reconciliation batch",
+      checked,
+    );
     return { checked, repaired };
   }
 }

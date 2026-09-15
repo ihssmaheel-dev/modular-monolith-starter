@@ -11,7 +11,11 @@ Tokens must survive XSS scrutiny and theft response: long-lived bearer tokens in
 
 ## Decision
 
-Short-lived access tokens live in JS memory only (never persisted). Refresh tokens are rotating HttpOnly, Secure, SameSite=Strict cookies with single-use `jti`; each refresh mints a new pair and invalidates the old. Frontend stores persist the user profile, never the credentials.
+Short-lived access tokens live in JS memory only (never persisted). Refresh tokens are rotating,
+host-only, HttpOnly cookies with `Secure` enabled in production and `SameSite=Lax`; every mutation
+also requires the host-only readable CSRF cookie through a double-submit header. Each refresh uses a
+single-use `jti`, mints a new pair, and invalidates the old. Frontend stores persist the user profile,
+never the credentials.
 
 ## Consequences
 

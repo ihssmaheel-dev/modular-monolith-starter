@@ -21,10 +21,15 @@ describe("LoggingInterceptor", () => {
     interceptor = new LoggingInterceptor(mockLogger as unknown as PinoLoggerService);
   });
 
-  function createMockContext(url: string, method = "GET", statusCode = 200): ExecutionContext {
+  function createMockContext(
+    url: string,
+    method = "GET",
+    statusCode = 200,
+    routeUrl?: string,
+  ): ExecutionContext {
     return {
       switchToHttp: () => ({
-        getRequest: () => ({ url, method }),
+        getRequest: () => ({ url, method, routeOptions: routeUrl ? { url: routeUrl } : undefined }),
         getResponse: () => ({ statusCode }),
       }),
     } as unknown as ExecutionContext;
@@ -43,7 +48,7 @@ describe("LoggingInterceptor", () => {
           if (!call) return;
           const [data, message] = call;
           expect((data as { method: string }).method).toBe("GET");
-          expect((data as { url: string }).url).toBe("/api/v1/rpc/notes");
+          expect((data as { route: string }).route).toBe("/api/v1/rpc/notes");
           expect((data as { statusCode: number }).statusCode).toBe(200);
           expect(message).toMatch(/GET \/api\/v1\/rpc\/notes 200 - \d+ms/);
           expect(mockLogger.debug).not.toHaveBeenCalled();
@@ -66,8 +71,45 @@ describe("LoggingInterceptor", () => {
           expect(call).toBeDefined();
           if (!call) return;
           const [data, message] = call;
-          expect((data as { url: string }).url).toBe("/metrics");
+          expect((data as { route: string }).route).toBe("/metrics");
           expect(message).toMatch(/GET \/metrics 200 - \d+ms/);
+          resolve();
+        },
+      });
+    });
+  });
+
+  it("keeps versioned health-probe traffic at debug level", async () => {
+    const context = createMockContext("/api/v1/health/ready", "GET", 200);
+    const next: CallHandler = { handle: () => of({ status: "ok" }) };
+
+    await new Promise<void>((resolve) => {
+      interceptor.intercept(context, next).subscribe({
+        complete: () => {
+          expect(mockLogger.info).not.toHaveBeenCalled();
+          expect(mockLogger.debug).toHaveBeenCalledTimes(1);
+          resolve();
+        },
+      });
+    });
+  });
+
+  it("does not log query strings or concrete route parameters", async () => {
+    const context = createMockContext(
+      "/api/v1/users/user-secret?token=secret-value",
+      "GET",
+      200,
+      "/api/v1/users/:id",
+    );
+    const next: CallHandler = { handle: () => of({ success: true }) };
+
+    await new Promise<void>((resolve) => {
+      interceptor.intercept(context, next).subscribe({
+        complete: () => {
+          const serialized = JSON.stringify(mockLogger.info.mock.calls[0]);
+          expect(serialized).toContain("/api/v1/users/:id");
+          expect(serialized).not.toContain("user-secret");
+          expect(serialized).not.toContain("secret-value");
           resolve();
         },
       });

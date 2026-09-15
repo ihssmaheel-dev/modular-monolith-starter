@@ -3,21 +3,14 @@ import { ok } from "neverthrow";
 import { GetUserByIdQuery } from "./get-user-by-id.query";
 import { User } from "../../domain/entities/user.entity";
 import type { UsersRepository } from "../../infrastructure/repositories/users.repository";
-import type { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 
 describe("GetUserByIdQuery", () => {
   let query: GetUserByIdQuery;
   const mockFindById = vi.fn();
-  const mockCacheGetOrSet = vi.fn((_key: string, _ttl: number, fetcher: () => Promise<unknown>) =>
-    fetcher(),
-  );
 
   beforeEach(() => {
     vi.clearAllMocks();
-    query = new GetUserByIdQuery(
-      { findById: mockFindById } as unknown as UsersRepository,
-      { getOrSet: mockCacheGetOrSet } as unknown as DistributedCacheService,
-    );
+    query = new GetUserByIdQuery({ findById: mockFindById } as unknown as UsersRepository);
   });
 
   it("should return USER_NOT_FOUND if user not found", async () => {
@@ -57,7 +50,7 @@ describe("GetUserByIdQuery", () => {
     expect(mockFindById).toHaveBeenCalledWith("123");
   });
 
-  it("can bypass the cache for security-sensitive token validation", async () => {
+  it("always uses fresh state for security-sensitive token validation", async () => {
     const user = User.fromPersistence({
       id: "fresh-user",
       email: "fresh@example.com",
@@ -72,7 +65,6 @@ describe("GetUserByIdQuery", () => {
     const result = await query.executeFresh("fresh-user");
 
     expect(result.isOk()).toBe(true);
-    expect(mockCacheGetOrSet).not.toHaveBeenCalled();
     expect(mockFindById).toHaveBeenCalledWith("fresh-user");
   });
 });

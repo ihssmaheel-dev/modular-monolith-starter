@@ -1,10 +1,16 @@
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import { WsAdapter } from "@nestjs/platform-ws";
+import { ClsService } from "nestjs-cls";
 import cookie from "@fastify/cookie";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { API_GLOBAL_PREFIX } from "@repo/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+import { ErrorReporterService } from "./infrastructure/error-reporting";
+import { I18nService } from "./infrastructure/i18n/i18n.service";
+import { PinoLoggerService } from "./infrastructure/logger/logger.service";
 
 let AppModule: typeof import("./app.module.js").AppModule;
 let env: typeof import("./config/env.js").env;
@@ -21,6 +27,15 @@ describe("API liveness", () => {
     env.TENANCY_MODE = "multi";
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.useWebSocketAdapter(new WsAdapter(app));
+    app.useGlobalFilters(
+      new AllExceptionsFilter(
+        app.get(PinoLoggerService),
+        app.get(I18nService),
+        app.get(ClsService),
+        app.get(ErrorReporterService),
+      ),
+    );
     await app.register(cookie as unknown as never, {
       secret: env.JWT_SECRET,
       hook: "onRequest",
@@ -47,17 +62,9 @@ describe("API liveness", () => {
         done();
       });
     app.setGlobalPrefix(API_GLOBAL_PREFIX, {
-      exclude: [
-        "metrics",
-        "docs",
-        "api/docs",
-        "health",
-        "health/(.*)",
-        `${API_GLOBAL_PREFIX}/health`,
-        `${API_GLOBAL_PREFIX}/health/(.*)`,
-      ],
+      exclude: ["metrics", "docs", "api/docs"],
     });
-    await app.init();
+    await app.listen(0, "127.0.0.1");
     pool = new Pool({ connectionString: env.DATABASE_URL, max: 1 });
   });
 
@@ -67,16 +74,12 @@ describe("API liveness", () => {
     await app?.close();
   });
 
-  it("returns a liveness response without database dependencies at /health/live and /api/v1/health/live", async () => {
+  it("returns the versioned liveness response without database dependencies", async () => {
     const instance = app.getHttpAdapter().getInstance();
-    const [rootRes, prefixedRes] = await Promise.all([
-      instance.inject({ method: "GET", url: "/health/live" }),
-      instance.inject({ method: "GET", url: "/api/v1/health/live" }),
-    ]);
-    expect(rootRes.statusCode).toBe(200);
-    expect(rootRes.json()).toEqual({ status: "ok" });
-    expect(prefixedRes.statusCode).toBe(200);
-    expect(prefixedRes.json()).toEqual({ status: "ok" });
+    expect(instance.hasRoute({ method: "GET", url: "/api/v1/health/live" })).toBe(true);
+    const response = await instance.inject({ method: "GET", url: "/api/v1/health/live" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "ok" });
   });
 
   it("serves the tenancy status through REST and oRPC transports", async () => {

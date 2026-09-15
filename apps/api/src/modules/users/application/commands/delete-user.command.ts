@@ -42,7 +42,10 @@ export class DeleteUserCommand {
         error.type === "TRANSACTION_FAILED" ? { type: "USER_EVENT_DISPATCH_FAILED" } : error,
       );
     }
-    await this.cacheService.invalidateGlobal(`user:${id}`);
+    await this.database.runAfterCommit(
+      () => this.cacheService.invalidateGlobal(`user:${id}`),
+      "user:delete-cache",
+    );
     return ok(result.value);
   }
 
@@ -57,7 +60,14 @@ export class DeleteUserCommand {
     }
 
     if (this.incrementAuthVersion) await this.incrementAuthVersion.execute(id);
-    if (this.sessions) await this.sessions.revokeAllForUser(id);
+    if (this.sessions && this.database) {
+      await this.database.runAfterCommit(
+        () => this.sessions!.revokeAllForUser(id),
+        "user:revoke-sessions",
+      );
+    } else if (this.sessions) {
+      await this.sessions.revokeAllForUser(id);
+    }
 
     const deleted = await this.repository.deleteById(id);
     if (deleted.isErr()) return err({ type: "USER_NOT_FOUND", userId: id });

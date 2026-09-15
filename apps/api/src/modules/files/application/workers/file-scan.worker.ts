@@ -53,19 +53,28 @@ export class FileScanWorker {
     contentType: string;
   }): Promise<boolean> {
     const quarantineKey = quarantineKeyFor(file.key);
-    const scan = await this.scanner.scan({ ...file, key: quarantineKey });
+    const source = await this.storage.getMetadata(quarantineKey);
+    if (source.isErr() || !source.value || !this.matches(file, source.value)) {
+      await this.markFailed(file.id);
+      return false;
+    }
+    const scan = await this.scanner.scan({ ...file, ...source.value, key: quarantineKey });
     const clean = "result" in scan && scan.result === "clean";
     if (clean) {
       // Promote by server-side copy, then verify the promoted bytes still
       // match: anything overwritten through the (still-valid) upload URL in
       // between only ever touched the quarantine object.
-      const copied = await this.storage.copy(quarantineKey, file.key);
+      const copied = await this.storage.copy(quarantineKey, file.key, source.value);
       if (copied.isErr()) {
         this.logger.error({ fileId: file.id, key: file.key }, "Quarantine promote failed");
         return false;
       }
       const promoted = await this.storage.getMetadata(file.key);
-      if (promoted.isErr() || !promoted.value || promoted.value.size !== file.fileSize) {
+      if (
+        promoted.isErr() ||
+        !promoted.value ||
+        !this.matchesPromoted(source.value, promoted.value)
+      ) {
         this.logger.error({ fileId: file.id, key: file.key }, "Promoted bytes mismatch");
         await this.storage.delete(file.key);
         await this.markFailed(file.id);
@@ -94,5 +103,21 @@ export class FileScanWorker {
 
   private async markFailed(fileId: string): Promise<void> {
     await this.database.runTransaction(() => this.files.updateById(fileId, { status: "failed" }));
+  }
+
+  private matches(
+    file: { fileSize: number; contentType: string },
+    metadata: { size: number; contentType?: string },
+  ): boolean {
+    return metadata.size === file.fileSize && metadata.contentType === file.contentType;
+  }
+
+  private matchesPromoted(
+    source: { size: number; contentType?: string; checksumSha256?: string },
+    promoted: { size: number; contentType?: string; checksumSha256?: string },
+  ): boolean {
+    if (source.size !== promoted.size || source.contentType !== promoted.contentType) return false;
+    if (!source.checksumSha256) return true;
+    return source.checksumSha256 === promoted.checksumSha256;
   }
 }

@@ -4,6 +4,8 @@ import { NotesModule } from "../../notes.module";
 import { FileAccessRegistry } from "../../../../common/file-access/file-access.registry";
 import type { AuthorizationService } from "../../../../infrastructure/authorization";
 import type { GetNoteByIdQuery } from "../queries/get-note-by-id.query";
+import type { DataLifecycleRegistry } from "../../../../infrastructure/lifecycle/data-lifecycle.registry";
+import type { NotesLifecycleContributor } from "../adapters/notes-lifecycle.contributor";
 
 const ACTOR = { sub: "user-1", email: "user@example.com", role: "user" } as const;
 
@@ -21,7 +23,9 @@ describe("NotesModule file access registration (H10)", () => {
     const authService = { registerPolicies: vi.fn() } as unknown as AuthorizationService;
     const registry = new FileAccessRegistry();
     const getNoteById = { execute: vi.fn() } as unknown as GetNoteByIdQuery;
-    const module = new NotesModule(authService, registry, getNoteById);
+    const lifecycle = { register: vi.fn() } as unknown as DataLifecycleRegistry;
+    const contributor = {} as NotesLifecycleContributor;
+    const module = new NotesModule(authService, registry, getNoteById, lifecycle, contributor);
     module.onModuleInit();
     return { registry, getNoteById };
   }

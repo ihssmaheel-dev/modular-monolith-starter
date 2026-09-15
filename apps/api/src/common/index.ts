@@ -9,6 +9,7 @@ export * from "./guards/auth.guard";
 export * from "./guards/csrf.guard";
 export * from "./guards/permissions.guard";
 export * from "./guards/rate-limit.guard";
+export * from "./guards/aggregate-rate-limit.guard";
 export * from "./guards/tenant-context.guard";
 export * from "./decorators/database-transaction.decorator";
 export * from "./interceptors/database-transaction.interceptor";

@@ -32,6 +32,7 @@ const session = {
   deviceName: "test",
   createdAt: Date.now(),
   lastAccessedAt: Date.now(),
+  expiresAt: Date.now() + 60_000,
 };
 
 function decoded(overrides: Record<string, unknown> = {}) {

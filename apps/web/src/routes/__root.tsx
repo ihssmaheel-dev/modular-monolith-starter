@@ -27,6 +27,8 @@ import { RouteErrorFallback } from "@/components/error-boundary";
 import { initAuthSync } from "@/lib/cross-tab/auth-sync";
 import { QueryBroadcaster } from "@/lib/cross-tab/query-sync";
 import { ThemeSync } from "@/lib/cross-tab/theme-sync";
+import { LocaleSync } from "@/lib/cross-tab/locale-sync";
+import { TenantSync } from "@/lib/cross-tab/tenant-sync";
 import { initGlobalErrorListeners } from "@/lib/client-beacon";
 import { useEffect } from "react";
 import "@repo/ui/globals.css";
@@ -128,8 +130,10 @@ function RootComponent() {
         <QueryProvider>
           <QueryBroadcaster />
           <I18nProvider>
+            <LocaleSync />
             <ThemeProvider defaultTheme="system" storageKey="theme">
               <ThemeSync />
+              <TenantSync />
               <div id="root">
                 <Outlet />
               </div>

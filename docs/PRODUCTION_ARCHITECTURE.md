@@ -20,7 +20,7 @@ oRPC client → OpenAPI link → Nest @orpc/nest adapter → guards/interceptors
 
 `v1` is the stable public API surface. Contracts and module controllers are version-neutral; a
 breaking API change creates a new transport version without modifying the previous version's
-contract. API documentation remains at `/api/docs`, health checks use `/health/*` (with `/api/v1/health/*` alias), and
+contract. API documentation remains at `/api/docs`, the application serves health checks at `/api/v1/health/*` (NGINX aliases `/health/*`), and
 metrics use `/metrics`.
 
 Authentication, tenant, locale, CSRF, and idempotency headers are injected by the shared client;
@@ -68,7 +68,11 @@ claims, conflicts, replay, stale recovery, and lock release.
 
 ## Request security pipeline
 
-Guards run in registration order — authentication, origin/CSRF checks, tenant resolution, permission evaluation — followed by rate limiting; interceptors establish request ID/trace context, logging, idempotency, origin validation, the database transaction, and response validation before Zod validation and the application command/query. Controllers contain no business logic.
+Guards run in registration order: the cheap IP limit, authentication, CSRF, tenant resolution,
+explicit actor/tenant aggregate limits, then permissions. Interceptors establish the request ID,
+validate mutation origins, record metrics/traces/logs, deduplicate eligible HTTP requests, establish
+the database transaction, and validate responses. Zod validates transport input before the thin
+controller delegates to an application command or query.
 
 ## Modules
 
@@ -80,7 +84,11 @@ Single mode carries no tenant identity (`{ mode: "single" }` — there is no def
 
 ## Events and side effects
 
-Critical events are written to the transactional outbox in the same database transaction as the state change. Event payloads are versioned and carry stable domain/tenant identifiers; request IDs are logged for correlation. Integrations should add persisted actor, correlation, causation, and idempotency metadata to the event contract before publishing outside the process. Consumers are idempotent and dead-lettered events are replayable.
+Critical events are written to the transactional outbox in the same database transaction as the
+state change. Event payloads are versioned and carry stable domain/tenant identifiers; request IDs are
+logged for correlation. Delivery is at least once. Consumers must make their own effects idempotent;
+the core provides durable SQL operation receipts for effects that need a transactionally recorded
+claim/result. Dead-lettered outbox events are replayable.
 
 ## Authentication
 
@@ -92,7 +100,12 @@ HTTP requests use a short transaction by default so PostgreSQL RLS context is al
 
 ## File lifecycle
 
-Uploads are recorded as `pending`, confirmed as `uploading` quarantine records only after an S3 metadata check, and promoted to `uploaded` by the scheduled scanner. Failed or stale records are marked/removed by reconciliation workers. Deletion marks the database row first, then removes the object; retries reconcile deleted rows so an S3 failure cannot silently lose metadata. Per-user quotas and MIME/size contracts are enforced before presigning.
+Uploads are recorded as `pending`, confirmed as `uploading` quarantine records only after an S3
+metadata check, and promoted to `uploaded` by the scheduled scanner. The presigned PUT binds content
+length/type and quarantine tagging. Promotion binds the scanned object version, ETag, and checksum.
+Failed or stale records are marked/removed by bounded cleanup and cursor-based reconciliation.
+Deletion marks the database row first, then removes the object; deleted rows remain retryable when S3
+fails. Per-user and per-tenant quota locks serialize reservations.
 
 ## Durable events and realtime
 
@@ -100,7 +113,11 @@ The outbox relay claims rows briefly, validates a versioned envelope, and publis
 
 ## Worker separation
 
-Queue and scheduled workers are infrastructure providers so they can run in a dedicated worker deployment using the same AppModule and configuration, while the API process remains stateless. Production orchestration should scale API and worker replicas independently and expose queue depth, outbox age, retry, dead-letter, and realtime lag metrics. The bundled Prometheus configuration loads `docker/observability/prometheus/alerts.yml` for outbox lag/dead-letter/retry and file-reconciliation alerts; route those alerts to the on-call channel before production traffic.
+Queue and scheduled workers run in a dedicated worker deployment using the same AppModule while the
+API process remains stateless. The worker exposes authenticated Prometheus metrics and dependency
+readiness on its own port. Production orchestration scales API and worker replicas independently and
+monitors queue depth, outbox age, retry/dead-letter state, notification delivery, privacy export,
+realtime lag, and worker heartbeat. Every bundled alert maps to a runbook.
 
 ## Verification gate
 

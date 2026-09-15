@@ -3,7 +3,6 @@ import { RedisService } from "../redis/redis.service";
 import { PinoLoggerService } from "../logger/logger.service";
 import Redis from "ioredis";
 import { CacheMetricsService } from "./cache-metrics.service";
-import { Result } from "neverthrow";
 
 const CACHE_CHANNEL = "cache:invalidation";
 export const MAX_CACHE_SIZE = 10_000;
@@ -15,6 +14,7 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
   private logger: PinoLoggerService;
   private cache = new Map<string, { value: unknown; exp: number }>();
   private sweepTimer: NodeJS.Timeout | null = null;
+  private unsubscribeReady?: () => void;
 
   constructor(
     private readonly redisService: RedisService,
@@ -28,6 +28,12 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
     this.sweepTimer = setInterval(() => this.sweepExpired(), CACHE_SWEEP_INTERVAL_MS);
     this.sweepTimer.unref?.();
 
+    this.unsubscribeReady = this.redisService.onReady?.(() => this.ensureSubscriber());
+    await this.ensureSubscriber();
+  }
+
+  private async ensureSubscriber(): Promise<void> {
+    if (this.subscriber) return;
     const client = this.redisService.getClient();
     if (!client) {
       this.logger.warn(
@@ -61,6 +67,8 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
   }
 
   async onApplicationShutdown() {
+    this.unsubscribeReady?.();
+    this.unsubscribeReady = undefined;
     if (this.sweepTimer) {
       clearInterval(this.sweepTimer);
       this.sweepTimer = null;
@@ -86,7 +94,7 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
     }
 
     this.cacheMetrics.recordHit("memory");
-    return item.value as T;
+    return structuredClone(item.value) as T;
   }
 
   get size(): number {
@@ -105,7 +113,7 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
       }
     }
     this.cache.set(key, {
-      value,
+      value: structuredClone(value),
       exp: Date.now() + ttlSeconds * 1000,
     });
     this.cacheMetrics.recordSet("memory");
@@ -129,27 +137,6 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
       this.cache.delete(key);
       this.cacheMetrics.recordEvict("memory");
     }
-  }
-
-  /**
-   * Automatically executes a method and caches successful `Result.ok()` values in memory.
-   */
-  async getOrSet<T, E>(
-    key: string,
-    ttlSeconds: number,
-    fetcher: () => Promise<Result<T, E>>,
-  ): Promise<Result<T, E>> {
-    const cached = this.get<Result<T, E>>(key);
-    if (cached !== undefined) {
-      return cached; // Already wrapped in `Result.ok()` when it was saved
-    }
-
-    const result = await fetcher();
-    if (result.isOk()) {
-      this.set(key, result, ttlSeconds); // We cache the entire Result object directly in memory
-    }
-
-    return result;
   }
 
   /**

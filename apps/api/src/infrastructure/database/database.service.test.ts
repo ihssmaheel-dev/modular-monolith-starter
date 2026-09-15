@@ -95,6 +95,50 @@ describe("DatabaseService", () => {
     expect(emitter.emitAsync).toHaveBeenCalledWith("test.event", { id: 1 });
   });
 
+  it("writes mutation audit evidence in the active business transaction", async () => {
+    const values = vi.fn().mockResolvedValue(undefined);
+    const tx = { insert: vi.fn().mockReturnValue({ values }) };
+    const scoped = scopedService({ databaseTx: tx, systemScope: true });
+    const emitter = { emitAsync: vi.fn() };
+
+    await scoped.emitAfterCommit(emitter as never, "database.mutated", {
+      collectionName: "users",
+      documentId: "user-1",
+      action: "UPDATE",
+      actorId: "user-1",
+      before: { refreshToken: "old" },
+      after: { refreshToken: "new" },
+    });
+
+    expect(tx.insert).toHaveBeenCalledTimes(1);
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        before: { refreshToken: "[REDACTED]" },
+        after: { refreshToken: "[REDACTED]" },
+      }),
+    );
+    expect(emitter.emitAsync).not.toHaveBeenCalled();
+  });
+
+  it("fails the business unit when its required audit write fails", async () => {
+    const tx = {
+      insert: vi
+        .fn()
+        .mockReturnValue({ values: vi.fn().mockRejectedValue(new Error("audit down")) }),
+    };
+    const scoped = scopedService({ databaseTx: tx, systemScope: true });
+
+    await expect(
+      scoped.emitAfterCommit({} as never, "database.mutated", {
+        collectionName: "invoices",
+        documentId: "invoice-1",
+        action: "CREATE",
+        before: null,
+        after: { id: "invoice-1" },
+      }),
+    ).rejects.toThrow("audit down");
+  });
+
   it("should swallow listener errors without throwing", async () => {
     const emitter = { emitAsync: vi.fn().mockRejectedValue(new Error("boom")) };
 
@@ -171,6 +215,27 @@ describe("DatabaseService", () => {
     expect(executed.some((sql) => sql.includes("RELEASE"))).toBe(false);
   });
 
+  it("discards after-commit effects registered by a rolled-back savepoint", async () => {
+    const scoped = scopedService({ afterCommit: [] });
+    const emitter = { emitAsync: vi.fn().mockResolvedValue([]) };
+    const tx = { execute: vi.fn().mockResolvedValue([]) };
+    const context = (scoped as unknown as { cls: { set: (key: string, value: unknown) => void } })
+      .cls;
+    context.set("databaseTx", tx);
+
+    const result = await scoped.withResultTransaction(async () => {
+      await scoped.emitAfterCommit(emitter as never, "rolled-back.event", {});
+      return err({ type: "EXPECTED" } as never);
+    });
+
+    expect(result.isErr()).toBe(true);
+    const callbacks = (
+      scoped as unknown as { cls: { get: (key: string) => Array<() => Promise<void>> } }
+    ).cls.get("afterCommit");
+    expect(callbacks).toHaveLength(0);
+    expect(emitter.emitAsync).not.toHaveBeenCalled();
+  });
+
   it("should release the savepoint when nested work succeeds", async () => {
     const executed: string[] = [];
     const tx = {
@@ -245,12 +310,14 @@ describe("DatabaseService", () => {
     expect(lockCall).toContain("tenancy:owners:org-1");
   });
 
-  it("should run fn directly without a transaction to serialize against", async () => {
+  it("should fail closed without a transaction to serialize against", async () => {
     const scoped = scopedService();
     const fn = vi.fn(async () => "value");
 
-    await expect(scoped.withAdvisoryLock("tenancy:owners:org-1", fn)).resolves.toBe("value");
-    expect(fn).toHaveBeenCalledTimes(1);
+    await expect(scoped.withAdvisoryLock("tenancy:owners:org-1", fn)).rejects.toThrow(
+      "ADVISORY_LOCK_REQUIRES_TRANSACTION",
+    );
+    expect(fn).not.toHaveBeenCalled();
   });
 
   it("should run fn unchanged without CLS", async () => {

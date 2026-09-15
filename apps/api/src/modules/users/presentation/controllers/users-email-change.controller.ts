@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post, Req } from "@nestjs/commo
 import type { FastifyRequest } from "fastify";
 import {
   Idempotent,
+  NoDatabaseTransaction,
   Public,
   TenantAgnostic,
   requireAuthenticatedUser,
@@ -31,6 +32,7 @@ import { toUserResponse } from "../mappers/users.mapper";
  */
 @Controller("users")
 @TenantAgnostic()
+@NoDatabaseTransaction()
 export class UsersEmailChangeController {
   constructor(
     private readonly requestEmailChangeCommand: RequestEmailChangeCommand,
@@ -56,6 +58,10 @@ export class UsersEmailChangeController {
       {
         USER_NOT_FOUND: { status: HttpStatus.NOT_FOUND, i18nKey: "api.user.notFound" },
         EMAIL_TAKEN: { status: HttpStatus.CONFLICT, i18nKey: "api.user.emailTaken" },
+        TRANSACTION_FAILED: {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          i18nKey: "api.error.transactionFailed",
+        },
       },
       this.i18n,
       lang,
@@ -81,6 +87,10 @@ export class UsersEmailChangeController {
         INVALID_EMAIL_CHANGE_TOKEN: {
           status: HttpStatus.UNAUTHORIZED,
           i18nKey: "api.user.invalidEmailChangeToken",
+        },
+        TRANSACTION_FAILED: {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          i18nKey: "api.error.transactionFailed",
         },
       },
       this.i18n,

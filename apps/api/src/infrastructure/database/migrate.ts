@@ -7,10 +7,12 @@ import { env } from "../../config/env";
 
 const MIGRATION_LOCK_ID = 884729104;
 
-export async function runMigrations(): Promise<void> {
+export async function runMigrations(
+  connectionString = env.DB_DIRECT_URL ?? env.DATABASE_URL,
+): Promise<void> {
   // Advisory locks need a direct connection: never run migrations through PgBouncer.
   const pool = new Pool({
-    connectionString: env.DB_DIRECT_URL ?? env.DATABASE_URL,
+    connectionString,
     max: 1,
   });
 
@@ -60,7 +62,12 @@ export function resolveMigrationsFolder(): string {
   return path.resolve(process.cwd(), "migrations/pg");
 }
 
-if (process.argv[1]?.includes("migrate")) {
+const entrypoint = process.argv[1]?.replace(/\\/g, "/");
+const isMigrationEntrypoint =
+  entrypoint?.endsWith("/infrastructure/database/migrate.ts") ||
+  entrypoint?.endsWith("/infrastructure/database/migrate.js");
+
+if (isMigrationEntrypoint) {
   runMigrations()
     .then(() => {
       process.stdout.write("[Migrator] Migration process finished.\n");

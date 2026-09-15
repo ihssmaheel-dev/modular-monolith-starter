@@ -12,11 +12,19 @@ const { generateMobile } = require("./generators/mobile.generator");
 
 const rawModule = process.argv[2];
 const rawFeature = process.argv[3] || rawModule;
+const accessArgument = process.argv.find((value) => value.startsWith("--access="));
+const accessModel = accessArgument?.split("=")[1];
 
 if (!rawModule) {
   console.error("Error: Module name is required.");
   console.error("Usage: pnpm generate:feature <module> [feature]");
   console.error("Example: pnpm generate:feature tasks task");
+  process.exit(1);
+}
+
+if (accessModel !== "tenant-shared" && accessModel !== "owner") {
+  console.error("Error: --access=tenant-shared or --access=owner is required.");
+  console.error("Choose who may read and mutate a resource before generating the slice.");
   process.exit(1);
 }
 
@@ -49,6 +57,7 @@ const context = {
   Feature,
   featurePlural,
   FeaturePlural,
+  accessModel,
   contractsPath,
   clientPath,
   mobilePath,

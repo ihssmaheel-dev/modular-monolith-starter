@@ -1,6 +1,7 @@
 import { setGlobalDispatcher, Agent } from "undici";
 import { randomUUID } from "node:crypto";
 import "./tracing";
+import { ServiceUnavailableException } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { WsAdapter } from "@nestjs/platform-ws";
@@ -25,6 +26,8 @@ import {
 import { ClsService } from "nestjs-cls";
 import { ErrorReporterService } from "./infrastructure/error-reporting";
 import { DatabaseService, verifyTenancyMode } from "./infrastructure/database";
+import { createApiErrorEnvelope } from "./common/utils/error-envelope.utils";
+import { REQUEST_ID_HEADER, resolveRequestId } from "./common/utils/request-id.utils";
 
 // Configure high-performance global HTTP agent
 setGlobalDispatcher(
@@ -56,8 +59,32 @@ interface FastifyPressureRequest {
 
 interface FastifyPressureReply {
   code: (status: number) => FastifyPressureReply;
-  header: (name: string, value: number) => FastifyPressureReply;
+  header: (name: string, value: string | number) => FastifyPressureReply;
   send: (payload: unknown) => void;
+}
+
+function pressureEnvelope(
+  request: FastifyPressureRequest,
+  i18n: I18nService,
+  type: string,
+): { requestId: string; body: unknown } {
+  const requestId = resolveRequestId(request.headers?.[REQUEST_ID_HEADER]);
+  const error = new ServiceUnavailableException({
+    code: "UNDER_PRESSURE",
+    i18nKey: "api.error.serviceUnavailable",
+    fieldErrors: {},
+    details: { type },
+  });
+  return {
+    requestId,
+    body: createApiErrorEnvelope(
+      error,
+      503,
+      request.headers?.["accept-language"]?.toString(),
+      requestId,
+      i18n,
+    ),
+  };
 }
 
 async function bootstrap() {
@@ -160,30 +187,17 @@ async function bootstrap() {
       // Fastify handle the request normally.
       if (UNDER_PRESSURE_BYPASS_PREFIXES.some((prefix) => url.startsWith(prefix))) return;
       logger.warn({ pressureType: type, url }, "Shedding load: server under pressure");
+      const envelope = pressureEnvelope(request, i18n, type);
       reply
         .code(503)
         .header("Retry-After", UNDER_PRESSURE_RETRY_AFTER_SECONDS)
-        .send({
-          statusCode: 503,
-          message: i18n.t(
-            "api.error.serviceUnavailable",
-            request.headers?.["accept-language"]?.toString(),
-          ),
-          error: "UNDER_PRESSURE",
-        });
+        .header(REQUEST_ID_HEADER, envelope.requestId)
+        .send(envelope.body);
     },
   });
 
   app.setGlobalPrefix(API_GLOBAL_PREFIX, {
-    exclude: [
-      "metrics",
-      "docs",
-      "api/docs",
-      "health",
-      "health/(.*)",
-      `${API_GLOBAL_PREFIX}/health`,
-      `${API_GLOBAL_PREFIX}/health/(.*)`,
-    ],
+    exclude: ["metrics", "docs", "api/docs"],
   });
   app.enableCors({
     origin: (origin, callback) => {

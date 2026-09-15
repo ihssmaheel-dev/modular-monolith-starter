@@ -1,66 +1,85 @@
-# Privacy — GDPR Export & Erasure
+# Privacy lifecycle foundation
 
-How this monolith honors data-subject rights: export-my-data (Art. 15/20) and
-erasure (Art. 17) for accounts and organizations.
+The privacy module supplies reusable orchestration for data export and erasure. It is a technical
+foundation, not a statement that every product is automatically compliant with a particular law.
+Each product must define its legal basis, retention schedule, data inventory, holds, and response
+process with qualified counsel.
 
-## Data inventory (Art. 30 RoPA draft)
+## Data lifecycle boundary
 
-| Store                           | Personal data                               | Erasure handling                                                                                                                                                               |
-| ------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `users`                         | email, name, password/reset hashes, role    | Anonymized immediately (`deleted+{id}@deleted.local` / `Deleted User`, secrets cleared, `authVersion` bumped); row hard-deleted after 30-day grace                             |
-| `memberships`                   | userEmail, userName (denormalized snapshot) | Deleted with the account; synced from anonymized profile via `user.updated`                                                                                                    |
-| `invitations`                   | email, invitedBy, acceptedBy                | Deleted by subject email on account erasure; all deleted on org erasure                                                                                                        |
-| `notes`                         | title, content, createdBy                   | Hard-deleted per subject (account) or per tenant (org)                                                                                                                         |
-| `files` + S3                    | fileName, uploadedBy, object bytes          | S3 object deleted first, then row; orphans reconciled by `FileReconciliationWorker`                                                                                            |
-| Redis sessions/tokens           | userId, ip, userAgent, deviceName, jti      | `revokeAllForUser` immediately on erasure request                                                                                                                              |
-| `notifications` + batches       | userId, titleParams/data, tenant context    | Purged with the account; tenant rows + unscoped rows purged on org erasure                                                                                                     |
-| `notification prefs/devices`    | userId, tokens, category toggles            | Account-scoped by design: purged with the account, survive org erasure                                                                                                         |
-| `outbox_events` payloads        | May carry emails/titles while PENDING       | Relayed payloads are immutable; pending subject payloads are consumed before purge                                                                                             |
-| `audit_logs` before/after       | May carry emails/names (immutable trigger)  | **Retained** under Art. 17(3)(b)/(e) (legal obligation / legal claims) with `purge_audit_logs_older_than` retention; new privacy events carry ids/statuses only, never raw PII |
-| Email jobs                      | to/subject/html                             | Transient BullMQ payloads with retries; no local archive                                                                                                                       |
-| Backups (`pg_dump` gz)          | Full snapshot                               | Age out via `BACKUP_RETENTION_COUNT`; a restore must run the erasure purge before going live                                                                                   |
-| Cache (`user:{id}`, query keys) | Profile copies                              | Invalidated on erase; TTL-bounded otherwise                                                                                                                                    |
-| Logs (Pino/Loki)                | userId/email fields                         | Operational logs; Loki retention applies                                                                                                                                       |
+Privacy does not import Notes, Files, Notifications, or future business modules. A module that owns
+personal data registers a `DataLifecycleContributor` with a unique key and implements the operations
+it supports:
 
-## Flows
+- `exportSubject` returns bounded, machine-readable data and a `truncated` flag.
+- `purgeSubject` removes data owned by one user after the erasure grace period.
+- `purgeTenant` removes tenant-owned data after an organization grace period.
 
-- **Export**: `POST /privacy/export` (rate-limited) → snapshot (profile, memberships,
-  invitations, **own** notes across all pages/tenants up to 1000, own file manifests up to
-  1000, notification preferences, inbox rows, device manifests, batch manifests,
-  `truncated` flag when capped) stored on the DSR, `READY` for 7 days →
-  `GET /privacy/export/:id/download` (**owner-only**, even for admins; stale snapshots
-  are scrubbed nightly by `PurgeExpiredErasuresCommand`).
-- **Delete account**: `POST /privacy/erase-account {password}` (password re-auth,
-  rate-limited) → sole-ownership check first (last remaining owner is blocked with
-  `409 ownsOrganization` until ownership is transferred) → sessions revoked + tokens
-  invalidated now, profile anonymized now, tenancy/notes/files/notifications purged now,
-  DSR `REQUESTED` with 30-day grace → nightly `PurgeExpiredErasuresCommand`
-  hard-deletes the user row and marks `FULFILLED`. One pending request per subject.
-- **Delete organization**: `POST /privacy/organizations/:id/erase {confirmationName}`
-  (owner only, exact name match) → tenant notes/files/memberships/invitations/notification
-  rows purged now (preferences and device tokens are account-scoped and survive),
-  org soft-deleted now, shell hard-deleted after grace.
-- **Admin**: `GET /privacy/admin/requests` (`privacy:requests:read`) for the Art. 12(3)
-  one-month clock; `POST /privacy/admin/purge-expired` triggers the worker on demand.
-- Self-service UI lives in Settings on web (`ExportCard`, `EraseAccountCard`,
-  `EraseOrganizationCard`) and mobile (privacy card).
+The current contributors are `notes`, `files`, and `notifications`. Notes is an example contributor
+and is absent when `EXAMPLE_FEATURES_ENABLED=false`. Export payloads place contributor output under
+`modules.<key>`, so adding a domain does not change the core privacy contract.
 
-## Retention schedule
+New modules holding personal data must register a contributor or document why retention and export
+are governed elsewhere. Registration alone does not decide whether a business record may legally be
+deleted. Preserve required records with tombstoned subject references and implement product policy in
+the owning module.
 
-| Data                           | Retention                                                |
-| ------------------------------ | -------------------------------------------------------- |
-| Export snapshots (DSR payload) | 7 days (`EXPIRED`, payload scrubbed)                     |
-| Erasure grace                  | 30 days, then hard-delete                                |
-| Audit logs                     | `AUDIT_RETENTION_DAYS` via `purge_audit_logs_older_than` |
-| Backups                        | `BACKUP_RETENTION_COUNT` archives                        |
-| Sessions/tokens                | TTL + immediate revoke on erase/logout                   |
+## Export flow
+
+1. `POST /privacy/export` applies explicit IP, actor, and tenant rate limits. The optional feature
+   flag `admission.stop.privacy-exports` stops new export work during an incident.
+2. The command takes a subject advisory lock, returns an existing active export when present, and
+   commits one `REQUESTED` DSR plus a transactional `privacy.export.requested` outbox event.
+3. The worker claims at most 10 requests each minute with `FOR UPDATE SKIP LOCKED`. Stale
+   `PROCESSING` claims recover automatically. A request receives at most three attempts.
+4. Reads run in short, explicit database transactions. Contributors paginate and cap their output.
+   The complete JSON snapshot is capped at 5 MiB.
+5. The final transaction stores the snapshot as `READY` or `PARTIAL`, sets a seven-day expiry, writes
+   the critical mutation audit atomically, and emits `privacy.export.ready` through the outbox.
+6. `GET /privacy/export/:id/download` is owner-only and accepts only unexpired `READY` or `PARTIAL`
+   requests. Queued exports that do not finish within 24 hours expire without a snapshot.
+
+`PARTIAL` is explicit and means at least one contributor reached its documented item cap. A failed
+dependency does not silently produce a successful export.
+
+## Erasure flow
+
+Account erasure re-authenticates the subject, blocks deletion of a last organization owner, captures
+the complete tenant plan, revokes sessions, increments `authVersion`, anonymizes the profile, removes
+tenancy identity rows, and commits a 30-day `REQUESTED` DSR. Organization erasure requires the owner
+and exact organization-name confirmation, then soft-deletes the organization and commits its plan.
+
+The hourly purge worker claims at most 100 expired requests. It validates the persisted plan before
+destructive work. Each lifecycle contributor performs idempotent deletion; S3 calls happen outside
+rollback-capable SQL transactions, and progress/final status is committed in fresh transactions.
+Malformed plans fail closed. This ordering avoids reporting a database rollback after irreversible
+object deletion.
+
+## Retention and operations
+
+| Data                         | Default repository behavior                                                         |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| Export request awaiting work | Expires after 24 hours                                                              |
+| Export snapshot              | Available for 7 days, then payload is scrubbed                                      |
+| Erasure grace                | 30 days, followed by bounded hourly purge                                           |
+| Audit log                    | `AUDIT_RETENTION_DAYS`; deletion only through the restricted retention function     |
+| Invitations                  | `INVITATION_RETENTION_DAYS`                                                         |
+| Operation receipts           | Expiry-based bounded hourly cleanup                                                 |
+| Database backups             | Newest `BACKUP_RETENTION_COUNT` local archives; cloud retention is deployment-owned |
+| Logs and object versions     | Configure the production log backend and bucket lifecycle explicitly                |
+
+Prometheus tracks export pending depth, oldest age, and failed depth. Alerts map to
+[RB-19](runbooks/RB-19-privacy-export.md). Operators can stop intake with the feature flag while the
+worker drains existing requests. Never log or attach export payloads to incident tickets.
 
 ## Verification
 
 ```bash
-pnpm --filter api db:migrate:check   # fresh + upgrade, incl. dsr_requests
-pnpm --filter api test:unit          # privacy + anonymize suites
+pnpm --filter api exec vitest run src/modules/privacy
+pnpm db:migrate:lineage
+pnpm db:migrate:check
 ```
 
-New-product checklist: every new module holding personal data must add a purge path
-and register it in the erasure orchestrators, or document why it is out of scope.
+A production release must also exercise export and erasure against a representative dataset, verify
+object deletion, restore a matching database backup into an isolated environment, and confirm that
+the restored release reapplies completed erasure before traffic is enabled.

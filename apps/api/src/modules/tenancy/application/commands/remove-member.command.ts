@@ -4,6 +4,8 @@ import { TenantContextService } from "../../../../infrastructure/database";
 import type { TenancyError } from "../../domain/errors/tenancy.errors";
 import { MembershipsRepository } from "../../infrastructure/repositories/memberships.repository";
 import { DatabaseService } from "../../../../infrastructure/database";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { TenantMemberRemovedEvent } from "../../domain/events/tenancy.events";
 
 @Injectable()
 export class RemoveMemberCommand {
@@ -11,6 +13,7 @@ export class RemoveMemberCommand {
     private readonly memberships: MembershipsRepository,
     private readonly context: TenantContextService,
     @Optional() private readonly database?: DatabaseService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   async execute(userId: string): Promise<Result<void, TenancyError>> {
@@ -24,15 +27,9 @@ export class RemoveMemberCommand {
   private async persist(userId: string): Promise<Result<void, TenancyError>> {
     const tenant = this.context.get();
     if (!tenant.tenantId) return err({ type: "TENANT_REQUIRED" });
-    const target = await this.memberships.findMembership(tenant.tenantId, userId);
-    if (target.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
-    if (!target.value) return err({ type: "MEMBERSHIP_NOT_FOUND" });
-    if (target.value.data.role === "owner" && tenant.role !== "owner") {
-      return err({ type: "TENANT_FORBIDDEN" });
-    }
-    // Owner removals change the last-owner invariant: serialize them per
-    // organization so concurrent removals cannot each observe two owners.
-    if (target.value.data.role === "owner" && this.database) {
+    // Every membership-role mutation takes the same organization lock. The
+    // decision to lock cannot depend on a stale pre-lock role read.
+    if (this.database) {
       return this.database.withAdvisoryLock(`tenancy:owners:${tenant.tenantId}`, () =>
         this.removePersisted(tenant.tenantId!, userId, tenant.role),
       );
@@ -48,17 +45,32 @@ export class RemoveMemberCommand {
     const target = await this.memberships.findMembership(tenantId, userId);
     if (target.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
     if (!target.value) return err({ type: "MEMBERSHIP_NOT_FOUND" });
+    if (target.value.data.role === "owner" && actorRole !== "owner") {
+      return err({ type: "TENANT_FORBIDDEN" });
+    }
+    if (actorRole !== "owner" && actorRole !== "admin") {
+      return err({ type: "TENANT_FORBIDDEN" });
+    }
     if (target.value.data.role === "owner") {
       const owners = await this.memberships.countOwners(tenantId);
       if (owners.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
       if (owners.value <= 1) return err({ type: "LAST_OWNER" });
     }
-    if (actorRole !== "owner" && actorRole !== "admin") {
-      return err({ type: "TENANT_FORBIDDEN" });
-    }
     const removed = await this.memberships.remove(tenantId, userId);
     if (removed.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
     if (!removed.value) return err({ type: "MEMBERSHIP_NOT_FOUND" });
+    if (this.events && this.database) {
+      await this.database.emitAfterCommit(
+        this.events,
+        "tenant.member.removed",
+        new TenantMemberRemovedEvent(tenantId, userId),
+      );
+    } else if (this.events) {
+      await this.events.emitAsync(
+        "tenant.member.removed",
+        new TenantMemberRemovedEvent(tenantId, userId),
+      );
+    }
     return ok(undefined);
   }
 }

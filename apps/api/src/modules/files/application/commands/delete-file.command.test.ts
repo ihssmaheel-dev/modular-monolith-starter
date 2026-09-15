@@ -4,6 +4,7 @@ import { StorageService } from "../../../../infrastructure/storage/storage.servi
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileEntity } from "../../domain/entities/file.entity";
 import { ok } from "neverthrow";
+import type { AuthorizationService } from "../../../../infrastructure/authorization";
 
 const ACTOR = { sub: "user-1", email: "user@example.com", role: "user" } as const;
 const OTHER_ACTOR = { ...ACTOR, sub: "other-user" };
@@ -38,7 +39,12 @@ describe("DeleteFileCommand", () => {
       softDeleteById: vi.fn(),
     } as unknown as FilesRepository;
 
-    command = new DeleteFileCommand(storage, filesRepo);
+    const authorization = {
+      check: vi.fn((request: { principal: { id: string } }) => ({
+        allowed: request.principal.id === ACTOR.sub,
+      })),
+    } as unknown as AuthorizationService;
+    command = new DeleteFileCommand(storage, filesRepo, undefined, authorization);
   });
 
   it("should return FILE_NOT_FOUND when file does not exist", async () => {

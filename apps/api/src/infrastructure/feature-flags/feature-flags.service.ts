@@ -33,6 +33,7 @@ export class FeatureFlagsService
   private readonly flags = new Map<string, boolean>();
   private subscriber: Redis | null = null;
   private readonly logger: PinoLoggerService;
+  private unsubscribeReady?: () => void;
 
   constructor(
     logger: PinoLoggerService,
@@ -44,9 +45,15 @@ export class FeatureFlagsService
   async onModuleInit(): Promise<void> {
     await this.loadInitialFlags();
     await this.setupSubscriber();
+    this.unsubscribeReady = this.redisService?.onReady?.(async () => {
+      await this.loadInitialFlags();
+      await this.setupSubscriber();
+    });
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.unsubscribeReady?.();
+    this.unsubscribeReady = undefined;
     if (this.subscriber) {
       await this.subscriber.quit();
       this.subscriber = null;
@@ -71,6 +78,7 @@ export class FeatureFlagsService
   }
 
   private async setupSubscriber(): Promise<void> {
+    if (this.subscriber) return;
     const client = this.redisService?.getClient();
     if (!client) return;
     try {

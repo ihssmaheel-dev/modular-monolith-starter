@@ -2,7 +2,12 @@ import { Controller, Req } from "@nestjs/common";
 import { Implement, implement } from "../../../../infrastructure/orpc/orpc-runtime";
 import type { FastifyRequest } from "fastify";
 import { filesContract } from "@repo/contracts";
-import { Idempotent, NoDatabaseTransaction, RequirePermission } from "../../../../common";
+import {
+  Idempotent,
+  NoDatabaseTransaction,
+  RateLimit,
+  RequirePermission,
+} from "../../../../common";
 import { invokeOrpc } from "../../../../infrastructure/orpc";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { FilesController } from "../controllers/files.controller";
@@ -17,6 +22,7 @@ export class FilesOrpcController {
   @Implement(filesContract.requestUpload)
   @NoDatabaseTransaction()
   @Idempotent()
+  @RateLimit(20, 60)
   @RequirePermission("files:upload")
   requestUpload(@Req() request: FastifyRequest) {
     return implement(filesContract.requestUpload).handler(({ input }) =>
@@ -44,6 +50,7 @@ export class FilesOrpcController {
 
   @Implement(filesContract.getDownloadUrl)
   @NoDatabaseTransaction()
+  @RateLimit(60, 60)
   @RequirePermission("files:read")
   getDownloadUrl(@Req() request: FastifyRequest) {
     return implement(filesContract.getDownloadUrl).handler(({ input }) =>

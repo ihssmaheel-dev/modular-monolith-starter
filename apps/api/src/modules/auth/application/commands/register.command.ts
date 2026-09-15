@@ -21,7 +21,7 @@ export class RegisterCommand {
     data: z.infer<typeof RegisterSchema>,
     locale: Locale = DEFAULT_LOCALE,
   ): Promise<Result<RegisterResponse, AuthError>> {
-    const existing = await this.getUserByEmail.execute(data.email);
+    const existing = await this.getUserByEmail.execute(data.email.trim().toLowerCase());
     if (existing.isErr() || existing.value) {
       return err({ type: "EMAIL_TAKEN" });
     }

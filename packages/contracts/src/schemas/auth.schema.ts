@@ -1,18 +1,19 @@
 import { z } from "zod";
+import { EmailInputSchema } from "./common.schema";
 
 export const RegisterSchema = z.object({
   name: z.string().min(1).max(100),
-  email: z.string().email(),
+  email: EmailInputSchema,
   password: z.string().min(8).max(128),
 });
 
 export const LoginSchema = z.object({
-  email: z.string().email(),
+  email: EmailInputSchema,
   password: z.string().min(1),
 });
 
 export const ForgotPasswordSchema = z.object({
-  email: z.string().email(),
+  email: EmailInputSchema,
 });
 
 export const ResetPasswordSchema = z.object({
@@ -29,7 +30,7 @@ export const VerifyEmailSchema = z.object({
 });
 
 export const ResendVerificationSchema = z.object({
-  email: z.string().email(),
+  email: EmailInputSchema,
 });
 
 export const AuthResponseSchema = z.object({

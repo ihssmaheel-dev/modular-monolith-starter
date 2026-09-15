@@ -21,9 +21,7 @@ function payload() {
     },
     memberships: [],
     invitations: [],
-    notes: [],
-    files: [],
-    notificationPreferences: [],
+    modules: {},
     truncated: false,
   };
 }

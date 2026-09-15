@@ -4,6 +4,7 @@ import { err, type Result } from "neverthrow";
 import type { DrizzleDb } from "./database.service";
 import type { TransactionError } from "./database.types";
 import type { PinoLoggerService } from "../logger/logger.service";
+import { databaseErrorMetadata } from "./database-error.utils";
 
 /**
  * Advisory-lock namespace for all withAdvisoryLock critical sections.
@@ -12,6 +13,9 @@ import type { PinoLoggerService } from "../logger/logger.service";
  * migration lock) live in a different overload space.
  */
 export const ADVISORY_LOCK_NAMESPACE = 12100;
+export const ADVISORY_LOCK_REQUIRES_TRANSACTION = "ADVISORY_LOCK_REQUIRES_TRANSACTION";
+
+type AfterCommitCallback = () => Promise<void>;
 
 /**
  * Nested-transaction mechanics for one ambient Drizzle transaction:
@@ -22,6 +26,7 @@ export class TransactionScopes {
   constructor(
     private readonly getTx: () => DrizzleDb | undefined,
     private readonly logger: Pick<PinoLoggerService, "error">,
+    private readonly getAfterCommit: () => AfterCommitCallback[] | undefined,
   ) {}
 
   /**
@@ -35,17 +40,20 @@ export class TransactionScopes {
     fn: () => Promise<Result<T, E>>,
   ): Promise<Result<T, E | TransactionError>> {
     const name = this.nextSavepointName();
+    const callbackCheckpoint = this.afterCommitCheckpoint();
     try {
       await this.runTxCommand(`SAVEPOINT "${name}"`);
       const inner = await fn();
       if (inner.isErr()) {
         await this.runTxCommand(`ROLLBACK TO SAVEPOINT "${name}"`);
+        this.discardAfterCommitSince(callbackCheckpoint);
         return inner;
       }
       await this.runTxCommand(`RELEASE SAVEPOINT "${name}"`);
       return inner;
     } catch {
       await this.safeRollbackToSavepoint(name);
+      this.discardAfterCommitSince(callbackCheckpoint);
       return err({ type: "TRANSACTION_FAILED" } as TransactionError);
     }
   }
@@ -57,6 +65,7 @@ export class TransactionScopes {
    */
   async withSavepoint<T>(fn: () => Promise<T>): Promise<T> {
     const name = this.nextSavepointName();
+    const callbackCheckpoint = this.afterCommitCheckpoint();
     await this.runTxCommand(`SAVEPOINT "${name}"`);
     try {
       const value = await fn();
@@ -64,6 +73,7 @@ export class TransactionScopes {
       return value;
     } catch (error) {
       await this.safeRollbackToSavepoint(name);
+      this.discardAfterCommitSince(callbackCheckpoint);
       throw error;
     }
   }
@@ -72,14 +82,16 @@ export class TransactionScopes {
    * Serializes a critical section per key with a transaction-scoped advisory
    * lock (pg_advisory_xact_lock). The lock releases automatically at COMMIT
    * or ROLLBACK, so it cannot leak. Callers must hold a unit of work: without
-   * an ambient transaction there is nothing to serialize against, so fn runs
-   * directly. Use sparingly for check-then-write invariants (last owner,
-   * quota reservations) — never as a general mutation lock.
+   * an ambient transaction the invariant cannot be protected, so this fails
+   * closed. Use sparingly for check-then-write invariants (last owner, quota
+   * reservations) — never as a general mutation lock.
    */
   async withAdvisoryLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const tx = this.getTx();
     const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> })?.execute;
-    if (!tx || typeof execute !== "function") return fn();
+    if (!tx || typeof execute !== "function") {
+      throw new Error(ADVISORY_LOCK_REQUIRES_TRANSACTION);
+    }
     await execute.call(
       tx,
       sql`select pg_advisory_xact_lock(${ADVISORY_LOCK_NAMESPACE}, hashtext(${key}))`,
@@ -89,6 +101,15 @@ export class TransactionScopes {
 
   private nextSavepointName(): string {
     return `sp_${randomUUID().replace(/-/g, "")}`;
+  }
+
+  private afterCommitCheckpoint(): number {
+    return this.getAfterCommit()?.length ?? 0;
+  }
+
+  private discardAfterCommitSince(checkpoint: number): void {
+    const callbacks = this.getAfterCommit();
+    if (callbacks && callbacks.length > checkpoint) callbacks.splice(checkpoint);
   }
 
   /** Drains queued after-commit callbacks; failures are logged, never thrown. */
@@ -113,7 +134,7 @@ export class TransactionScopes {
     try {
       await this.runTxCommand(`ROLLBACK TO SAVEPOINT "${name}"`);
     } catch (error) {
-      this.logger.error({ error: String(error) }, "Savepoint rollback failed");
+      this.logger.error(databaseErrorMetadata(error), "Savepoint rollback failed");
     }
   }
 }

@@ -2,10 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
 import { MetricsService } from "../metrics/metrics.service";
 import { PinoLoggerService } from "../logger/logger.service";
+import { env } from "../../config/env";
 
 const SLIDING_WINDOW_LOG_PREFIX = "ratelimit:";
-const DEFAULT_MAX_REQUESTS = 100;
-const DEFAULT_WINDOW_SECONDS = 60;
 const MS_PER_SECOND = 1000;
 /**
  * Headroom above the limit retained in the sliding-window log. Counting
@@ -17,6 +16,7 @@ const WINDOW_LOG_HEADROOM = 100;
 export interface RateLimitConfig {
   windowSeconds?: number;
   maxRequests?: number;
+  failClosed?: boolean;
 }
 
 export interface RateLimitResult {
@@ -38,8 +38,8 @@ export class RateLimitService {
   private readonly logger: PinoLoggerService;
 
   async check(key: string, config: RateLimitConfig = {}): Promise<RateLimitResult> {
-    const windowSeconds = config.windowSeconds ?? DEFAULT_WINDOW_SECONDS;
-    const maxRequests = config.maxRequests ?? DEFAULT_MAX_REQUESTS;
+    const windowSeconds = config.windowSeconds ?? env.RATE_LIMIT_TTL;
+    const maxRequests = config.maxRequests ?? env.RATE_LIMIT_MAX;
     const now = Date.now();
     const windowStart = now - windowSeconds * MS_PER_SECOND;
     const redisKey = `${SLIDING_WINDOW_LOG_PREFIX}${key}`;
@@ -58,7 +58,7 @@ export class RateLimitService {
       );
       this.logger.warn({ key }, "Rate limit Redis unavailable");
       const isAuth = key.includes("/auth/") || key.includes("auth:");
-      if (isAuth) {
+      if (isAuth || config.failClosed) {
         return {
           allowed: false,
           remaining: 0,

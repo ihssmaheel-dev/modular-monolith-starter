@@ -7,7 +7,7 @@ export interface ApiClientOptions {
   getLocale?: () => string | null;
   getTenantId?: () => string | null;
   onAuthRefreshed?: (response: AuthResponse) => void;
-  onAuthFailure?: () => void;
+  onAuthFailure?: () => void | Promise<void>;
 }
 
 export interface ApiResponse<T> {

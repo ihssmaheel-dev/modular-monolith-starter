@@ -7,6 +7,8 @@ vi.mock("../../config/env", () => ({
   env: {
     NODE_ENV: "test",
     REDIS_URL: "redis://localhost:6379",
+    RATE_LIMIT_TTL: 60,
+    RATE_LIMIT_MAX: 100,
   },
 }));
 

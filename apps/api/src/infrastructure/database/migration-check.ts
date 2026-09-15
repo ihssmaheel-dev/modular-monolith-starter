@@ -22,6 +22,8 @@ const HARDENED_TABLES = [
   "notification_preferences",
   "device_tokens",
   "notification_batches",
+  "notification_delivery_intents",
+  "operation_receipts",
 ] as const;
 const HARDENING_POLICIES = [
   "audit_system_scope",
@@ -36,6 +38,8 @@ const HARDENING_POLICIES = [
   "subject_isolation_notification_preferences",
   "subject_isolation_device_tokens",
   "subject_isolation_notification_batches",
+  "subject_isolation_notification_delivery",
+  "operation_receipt_scope",
 ] as const;
 
 type MigrationEntry = { tag: string };

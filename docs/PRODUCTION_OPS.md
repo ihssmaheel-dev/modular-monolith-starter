@@ -1,110 +1,179 @@
 # Production operations
 
-How this monolith ships and survives production: delivery, TLS, secrets, workers, migrations,
-alerting, backups, and load shedding. Architecture rationale lives in `PRODUCTION_ARCHITECTURE.md`;
-this file is the operator runbook.
+This is the provider-neutral production contract for the starter. Docker Compose is a reference
+single-host topology and a configuration smoke test. A real cloud deployment must translate the same
+process roles, health probes, immutable images, secrets, limits, and release order into its
+orchestrator.
 
-## Continuous delivery (`.github/workflows/cd.yml`)
+## Release pipeline
 
-On every push to `main` (or manual dispatch):
+`.github/workflows/ci.yml` runs architecture rules, formatting, lint, builds, unit/integration/E2E
+tests, migration lineage and upgrade checks, a real backup/restore check, dependency audit, bundle
+budgets, Compose validation, image builds, Storybook, and a generated feature typecheck. Third-party
+actions are pinned to commits.
 
-1. Build API + web images, tag with the short SHA plus `latest`, push to GHCR.
-2. Scan both images with Trivy (`HIGH,CRITICAL` fails the run).
-3. Validate `docker/docker-compose.prod.yml` config with placeholder prod values.
+`.github/workflows/cd.yml` runs after a successful CI workflow on `main`, or by manual dispatch. It:
 
-Deploy on your host with the published tag:
+1. checks out the exact successful commit;
+2. builds API and web images with a 12-character commit tag;
+3. pushes and scans those immutable tags with Trivy;
+4. validates normal, pooling, and staging Compose profiles using the resulting digests; and
+5. uploads `release-manifest.json` containing the full commit and both registry digests.
 
-```bash
-TAG=<sha> docker compose -f docker/docker-compose.prod.yml up -d --wait
+Production Compose requires complete `API_IMAGE_REF` and `WEB_IMAGE_REF` digest references, so a
+mutable tag cannot accidentally select a different artifact. The example CD workflow deliberately
+does not mutate a cloud account. The deployment adapter for ECS,
+Kubernetes, Nomad, or another platform must deploy the `image@sha256:...` values from the manifest,
+and retain the manifest with release evidence.
+
+Release order:
+
+1. Back up and verify the current database according to the product RPO.
+2. Run the migration image once using `DB_DIRECT_URL` and a restricted migration role.
+3. Deploy worker and API images by digest with readiness gates and graceful draining.
+4. Deploy the web image by digest.
+5. Verify `/health/live`, `/health/ready`, worker `/health/ready`, and a product canary.
+6. Monitor errors, latency, queues, outbox, database connections, and spend during the rollout.
+
+Schema changes must follow expand/contract so the previous application digest remains usable during
+rollback. A rollback is incomplete if only the application image is reverted while its schema is no
+longer backward compatible.
+
+## Process topology and scaling
+
+Run separate instances of the same API image:
+
+- `PROCESS_ROLE=api` serves HTTP, oRPC, SSE, and WebSocket traffic.
+- `PROCESS_ROLE=worker` runs scheduled work and consumers, and exposes metrics and health on
+  `WORKER_METRICS_PORT` (default `9464`).
+- `migrate` is a one-shot process and never uses PgBouncer transaction pooling.
+
+Budget PostgreSQL connections across the whole fleet:
+
+```text
+required connections = (API replicas + worker replicas) × DB_MAX_POOL_SIZE
+                     + migrations + exporters + operator reserve
 ```
 
-Migrations run first via the `migrate` service (`service_completed_successfully` gate), so API
-and worker never start against an unmigrated database. Verify with `GET /health/live` (or `/api/v1/health/live`)
-and `GET /` afterwards. Roll back by re-running with the previous `TAG`.
+The optional Compose `pooling` profile demonstrates PgBouncer. Cloud-managed proxies are valid when
+they preserve the transaction semantics and prepared-statement behavior used by the application.
+Scale workers only after checking database, Redis, storage, and provider quotas; extra replicas can
+turn a backlog into an expensive retry burst.
 
-## TLS (`docker/nginx.conf`, `docker/ssl/`)
+The worker health endpoint checks PostgreSQL and Redis. `worker_process_up`, heartbeat timestamp,
+queue, notification-delivery, privacy-export, and outbox metrics distinguish a live process from one
+that is making progress. The worker container healthcheck uses `/health/ready`.
 
-- Port `80` always serves plain HTTP (LB-terminated TLS or local smoke tests).
-- Port `443` serves HTTPS with strong ciphers and HSTS when `docker/ssl/cert.pem` +
-  `docker/ssl/key.pem` are mounted (`./ssl:/etc/nginx/ssl:ro` in prod compose).
-- `docker/nginx-entrypoint.sh` strips the 443 block at startup when certs are absent, so the
-  same compose file works with and without certificates. Never commit real certs; provide them
-  via your host, Vault, or ACME sidecar writing into `docker/ssl/`.
+## Ingress, TLS, and proxy trust
 
-## Secrets
+The supported browser topology is one public origin: NGINX serves web traffic and proxies `/api/` and
+`/ws`. Host-only cookies make direct split-host cookie authentication unsupported. Mobile and service
+clients use bearer tokens.
 
-Prefer file-mounted secrets over inline env in production: set `<NAME>_FILE` to a secret path
-(Docker secrets, Vault Agent, AWS SM mounts). Supported: `DATABASE_URL`, `REDIS_URL`,
-`JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_SIGNING_KEYS`, `JWT_REFRESH_SIGNING_KEYS`,
-`METRICS_TOKEN`, `ERROR_REPORTING_TOKEN`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
-`SMTP_USER`, `SMTP_PASS`, `RESEND_API_KEY`, `SEED_ADMIN_PASSWORD`. File content wins and faces
-the same Zod validation. See `docs/ENVIRONMENT.md` and `docker/.env.prod.example`.
+Two explicit ingress modes exist:
 
-## Error reporting
+- With `docker/ssl/cert.pem` and `key.pem`, NGINX serves TLS on 443, sends HSTS, and redirects port 80
+  to HTTPS except for the ACME challenge path.
+- Behind a trusted cloud TLS terminator, set `ALLOW_INSECURE_HTTP=true`. The entrypoint then selects
+  `nginx-insecure.conf`, which treats the upstream connection as HTTPS. Restrict container port 80 to
+  the load balancer security group/network; never expose it directly.
 
-The API always emits structured error logs. Set `ERROR_REPORTING_URL` to optionally forward only
-unhandled server errors to any HTTP JSON collector; `ERROR_REPORTING_TOKEN` adds a bearer token.
-The payload has a documented `schemaVersion`, sanitized request context, request ID, and optional
-trace/user/tenant IDs, but never includes request headers or bodies. Delivery is asynchronous,
-bounded by a short timeout, and protected by a circuit breaker so an unavailable collector cannot
-impact API requests. Keep logs as the baseline signal and adapt the neutral payload at the
-collector boundary for the chosen observability provider.
+NGINX replaces incoming forwarding headers with the immediate peer address. The application enables
+proxy trust only in the production Compose topology. A cloud adapter must constrain trusted hops and
+must not pass an unsanitized client `X-Forwarded-For` chain.
 
-### Error reference IDs and trace correlation
+The reference NGINX upstream has passive failure handling. Open-source NGINX does not perform active
+readiness discovery for a single static upstream. A multi-instance cloud deployment must register
+only ready tasks/pods/instances with its load balancer and drain them before termination. Compose
+startup health dependencies do not provide zero-downtime rolling deployment by themselves.
 
-When errors occur on the API or in the frontend, an 8-character error reference (e.g. `ref #a3f9c1e4`) is generated and displayed on user-facing error boundaries:
+## Secrets and cloud identity
 
-- **Trace correlation**: On API failures with an active OpenTelemetry span, the reference is derived from the first 8 hex characters of the `trace_id`.
-- **Loki lookup**: Search Loki for `{application="api-service"} |= "a3f9c1e4"` to immediately locate the exact structured error log and stack trace.
-- **Tempo link**: In Grafana Loki, the derived `TraceID` field links directly into Tempo in Grafana to inspect the full distributed trace waterfall.
-- **Support copy**: Users or testers can click "Copy error details" on any error boundary (`RouteErrorFallback` or `RootError`) to copy a structured text payload containing the reference, trace ID, request ID, and timestamp.
+Prefer workload identity for cloud APIs. When S3 endpoint and static credentials are absent, the AWS
+SDK uses its default credential chain. Static S3 keys are intended for local or non-AWS S3-compatible
+providers. Grant only required bucket/key actions and block all public access.
+The repository's pinned MinIO container is an archived local/staging test fixture and is excluded
+from the production Compose topology. Do not promote it into a production deployment.
 
-## Workers and migrations
+For secrets without a workload-identity equivalent, use a platform secret mount and set
+`<NAME>_FILE`. Supported values include database/Redis URLs, JWT keys, metrics/error-reporting tokens,
+S3 credentials, SMTP/Resend credentials, Expo access token, and seed password. File content takes
+precedence and passes the same Zod validation. Do not place production values in Compose files,
+workflow variables, image layers, or Vite public variables.
 
-- Prod compose runs three API-image roles: `api` (`PROCESS_ROLE=api`), `worker`
-  (`PROCESS_ROLE=worker`, outbox relay + queue consumers), and one-shot `migrate`.
-- The worker has no HTTP port; its healthcheck asserts the Node process is alive. Do not
-  disable it — a silent worker stalls the outbox.
-- Migrations use the compiled output: `node apps/api/dist/apps/api/src/infrastructure/database/migrate.js`
-  (`pnpm --filter api db:migrate:prod`). Never run `tsx`/dev tooling in production images.
-- Web starts without pnpm: `node /app/node_modules/srvx/dist/cli.mjs --prod` from
-  `/app/apps/web` (see `apps/web/Dockerfile`).
+Rotate signing keys through `JWT_SIGNING_KEYS`/`JWT_REFRESH_SIGNING_KEYS`: add a new key, change the
+active key ID, wait through token expiry, then remove the old key. Keep access and refresh keys
+separate.
 
-## Alerting (`docker/observability/prometheus/` and `alertmanager/`)
+## Storage and spend controls
 
-- `alerts.yml` covers service availability, HTTP error rates, p95 latencies, outbox lag/dead-letter/retry, worker fleet liveness (`WorkerSilentDeath`), BullMQ queue health (`QueueStalledJobs`), container health (`ContainerOomKilled`, `ContainerHighMemoryUsage`, `ContainerHighCpuUsage`), file reconciliation, and database/cache health.
-- `prometheus.yml` actively routes alerts to Alertmanager (`alertmanager:9093`).
-- In local development (`pnpm observability:up`), Alertmanager routes all email alerts to local Mailpit (`mailpit:1025`, accessible at `http://localhost:8025`).
-- For production paging: update `docker/observability/alertmanager/alertmanager.yml` to route critical alerts to your team's PagerDuty, Opsgenie, or Slack incoming webhooks.
+The file module enforces declared size, per-user bytes, per-tenant bytes/object quotas, IP/actor/tenant
+rate limits, quarantined upload keys, signed content length/type, immutable version/digest promotion,
+virus scanning hooks, and bounded reconciliation/cleanup. `admission.stop.file-uploads` stops new
+reservations during abuse or a cost incident.
 
-## Incident runbooks (`docs/runbooks/`)
+Repository code cannot configure cloud billing. Before enabling files:
 
-When an alert fires, start in `docs/runbooks/` (index in `README.md`), not here — each
-runbook names its alert, triage commands, fix paths, and escalation triggers. Every
-Prometheus alert must map to exactly one runbook; `pnpm rules:check` enforces the mapping.
+1. Apply `docker/storage-lifecycle.example.json` or an equivalent policy to abort multipart uploads,
+   expire quarantine objects, and bound noncurrent versions.
+2. Configure bucket request/byte/egress alerts and organization/account budgets in the cloud provider.
+3. Decide whether downloads need CDN signed URLs, per-download authorization, shorter TTLs, or an
+   application proxy for strict egress accounting.
+4. Cap CDN origin egress and cache retention according to product data sensitivity.
+5. Run the orphan reconciliation and lifecycle-deletion canary.
 
-## Backups (`scripts/db-backup.sh`, `scripts/db-restore.sh`, `scripts/db-restore-verify.sh`)
+Presigned URLs remain reusable until expiry. Strict one-download semantics or byte-perfect egress
+budgets require a project-specific delivery policy; the generic file module does not claim those.
+
+Also configure budgets/alarms for database storage and I/O, Redis memory/commands, NAT/data transfer,
+logs/traces/metrics ingestion and retention, email/SMS/push providers, queue operations, and container
+CPU/memory. Container limits and bounded batches prevent one process from consuming unlimited host
+resources; cloud budgets and admission flags limit account-level financial exposure.
+
+## Observability and incident response
+
+Production logs always go to structured stdout. `LOKI_HOST` adds direct Loki delivery, but the
+preferred cloud pattern is a node/task log collector. Pino redacts credentials and tokens centrally.
+Request IDs and OpenTelemetry trace/span IDs correlate API, error, and audit signals.
+
+Prometheus scrapes API and worker metrics in the production observability overlay. Alert rules cover
+availability, errors, latency, outbox/queue health, notification delivery, privacy export, worker
+liveness, files, dependencies, and container pressure. Every alert maps to one file in
+`docs/runbooks/`; `pnpm rules:check` enforces the mapping.
+
+The bundled production observability overlay is optional. Managed Prometheus, logs, tracing, and
+error reporting are valid if the same signals, retention, access control, and alerts exist. Do not
+expose metrics or Grafana publicly. Metrics endpoints require `METRICS_TOKEN` in production.
+
+`@fastify/under-pressure` returns the common localized error envelope with a request ID and
+`Retry-After` when event-loop delay/utilization crosses the configured limits. Health and metrics
+remain reachable so an orchestrator can distinguish overload from process death.
+
+## Backups and recovery
 
 ```bash
-DATABASE_URL=... pnpm db:backup [./backups]     # pg_dump → gzip → verify → retain
-DATABASE_URL=... pnpm db:restore ./backups/pg_backup_<ts>.sql.gz
+DATABASE_URL=... pnpm db:backup [./backups]
+DATABASE_URL=... pnpm db:restore ./backups/pg_backup_<timestamp>.sql.gz
 RESTORE_VERIFY_DATABASE_URL=... RESTORE_VERIFY_ALLOW_RESET=true \
-  pnpm db:restore:verify ./backups/pg_backup_<ts>.sql.gz
+  pnpm db:restore:verify ./backups/pg_backup_<timestamp>.sql.gz
 ```
 
-Every backup is integrity-checked (`gzip -t`, non-empty) and retention keeps the newest
-`BACKUP_RETENTION_COUNT` archives (default 7). Backup artifacts are git-ignored. Schedule
-`db:backup` from cron/systemd on the database host. Run `db:restore:verify` against a disposable
-database whose name contains `restore`, `scratch`, or `test`; the command refuses other names,
-requires the explicit reset flag, restores in one transaction, and verifies that tables are
-queryable. The CI pipeline exercises this flow on every change, so a backup format or restore
-regression is caught before release.
+Backups are gzip-tested and retained locally according to `BACKUP_RETENTION_COUNT`. Restore refuses a
+non-disposable verification database, restores transactionally, applies matching forward migrations,
+and verifies required tables, migration journal, forced RLS/policy counts, and audit immutability.
+CI runs this database exercise.
 
-## Load shedding (`apps/api/src/main.ts`)
+Production recovery additionally requires encrypted off-site backups, point-in-time recovery where
+the RPO requires it, a matching release manifest, object-storage version/backup policy, queue/outbox
+reconciliation, and a timed restore drill. The repository cannot prove RPO/RTO until that drill runs
+in the chosen cloud environment.
 
-`@fastify/under-pressure` sheds traffic with `503 + Retry-After: 30` when the event loop
-exceeds 1000ms delay or 0.98 utilization (container-size-independent signals; no heap/RSS
-byte thresholds by design). Probes and docs (`/health`, `/api/v1/health`, `/metrics`, `/api/docs`, `/docs`)
-bypass shedding so the orchestrator never restarts a merely busy process. Shed events log a
-Pino warning with `pressureType`. Tune thresholds from Grafana event-loop panels under real
-traffic; the 503 envelope is `{ statusCode: 503, message, error: "UNDER_PRESSURE" }`.
+## Required pre-traffic evidence
+
+- CI is green for the exact release commit and the digest manifest is retained.
+- Fresh and upgrade migrations pass against the production PostgreSQL major version.
+- API and worker readiness pass with production-like network policy and credentials.
+- Restore drill, object lifecycle, audit immutability, and tenant-isolation probes pass.
+- Load tests establish replica, pool, queue, and rate-limit settings.
+- Cloud budgets, anomaly detection, retention, and kill-switch access are configured and tested.
+- Dashboards and paging routes reach the responsible on-call engineer.

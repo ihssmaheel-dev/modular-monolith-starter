@@ -19,8 +19,9 @@ export class DownloadExportQuery {
 
     if (request.subjectUserId !== actor.sub) return err({ type: "DSR_FORBIDDEN" });
     if (request.type !== "EXPORT") return err({ type: "DSR_NOT_FOUND", requestId: id });
-    if (request.status !== "READY" || request.isExpired()) {
-      if (request.status === "READY") await this.requests.updateById(id, { status: "EXPIRED" });
+    const downloadable = request.status === "READY" || request.status === "PARTIAL";
+    if (!downloadable || request.isExpired()) {
+      if (downloadable) await this.requests.updateById(id, { status: "EXPIRED" });
       return err({ type: "DSR_EXPIRED", requestId: id });
     }
 

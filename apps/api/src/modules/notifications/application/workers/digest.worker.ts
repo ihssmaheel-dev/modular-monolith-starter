@@ -6,20 +6,31 @@ import { env } from "../../../../config/env";
 import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import { OutboxService } from "../../../../infrastructure/outbox/outbox.service";
 import { RealtimeService } from "../../../../infrastructure/realtime/realtime.service";
-import { EmailService } from "../../../../infrastructure/email/email.service";
-import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
-import { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
 import { NotificationDigestReadyEvent } from "../../domain/events/notification.events";
 import { BatchesRepository } from "../../infrastructure/repositories/batches.repository";
-import { DeviceTokensRepository } from "../../infrastructure/repositories/device-tokens.repository";
 import { NotificationsRepository } from "../../infrastructure/repositories/notifications.repository";
 import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
-import { PushDriverFactory } from "../../infrastructure/push/push.factory";
-import { renderNotificationEmail } from "../commands/notification-email.renderer";
+import { DeliveryIntentsRepository } from "../../infrastructure/repositories/delivery-intents.repository";
 
 const DIGEST_BATCH_LIMIT = 100;
+
+interface PreparedDigest {
+  window: {
+    id: string;
+    userId: string;
+    tenantId?: string | null;
+    type: string;
+  };
+  items: Array<{
+    titleKey: string;
+    titleParams?: Record<string, unknown>;
+    data?: Record<string, unknown>;
+  }>;
+  enabled: Array<"inApp" | "email" | "push">;
+  notificationId: string;
+}
 
 /**
  * Closes expired batch-on-write windows and delivers one digest per window:
@@ -36,13 +47,9 @@ export class DigestWorker {
   constructor(
     private readonly batches: BatchesRepository,
     private readonly notifications: NotificationsRepository,
+    private readonly deliveryIntents: DeliveryIntentsRepository,
     private readonly preferences: PreferencesRepository,
-    private readonly devices: DeviceTokensRepository,
-    private readonly push: PushDriverFactory,
-    private readonly getUserById: GetUserByIdQuery,
     private readonly realtime: RealtimeService,
-    private readonly email: EmailService,
-    private readonly i18n: I18nService,
     private readonly outbox: OutboxService,
     private readonly events: EventEmitter2,
     private readonly tenantContext: TenantContextService,
@@ -92,18 +99,53 @@ export class DigestWorker {
   }
 
   private async deliverWindow(batchId: string): Promise<boolean> {
+    const prepared = await this.database.runTransaction(() => this.prepareWindow(batchId));
+    if (prepared === "complete") return true;
+    if (!prepared) return false;
+    const { window, items, enabled, notificationId } = prepared;
+
+    const delivered: Array<"inApp" | "email" | "push"> = [];
+    if (enabled.includes("inApp")) {
+      try {
+        this.realtime.sendToUser(
+          window.userId,
+          "notification.created",
+          {
+            id: notificationId,
+            type: window.type,
+            titleKey: "notifications.digestTitle",
+            titleParams: { count: items.length },
+          },
+          window.tenantId ?? undefined,
+        );
+        delivered.push("inApp");
+      } catch (error) {
+        this.logger.warn({ error, batchId: window.id }, "Digest realtime failed");
+      }
+    }
+    if (delivered.length > 0) {
+      const recorded = await this.database.withResultTransaction(() =>
+        this.notifications.updateById(notificationId, { deliveredChannels: delivered }),
+      );
+      if (recorded.isErr())
+        this.logger.warn({ batchId: window.id }, "Digest channels not recorded");
+    }
+    return this.dispatchReadyEvent(prepared);
+  }
+
+  private async prepareWindow(batchId: string): Promise<PreparedDigest | "complete" | null> {
     const found = await this.batches.findById(batchId);
-    if (found.isErr() || !found.value || found.value.items.length === 0) return false;
+    if (found.isErr() || !found.value || found.value.items.length === 0) return null;
     const window = found.value;
 
     const duplicate = await this.notifications.findDigestByBatchId(batchId);
     if (duplicate.isOk() && duplicate.value) {
       await this.batches.updateOne({ id: batchId, status: "open" }, { status: "delivered" });
-      return true;
+      return "complete";
     }
 
     const definition = getNotificationType(window.type);
-    if (!definition) return false;
+    if (!definition) return null;
 
     const prefs = await this.preferences.findByUser(window.userId);
     const row = prefs.isOk()
@@ -112,7 +154,7 @@ export class DigestWorker {
     const enabled = definition.defaultChannels.filter(
       (channel) => row?.toJSON()[channel] !== false,
     );
-    if (enabled.length === 0) return false;
+    if (enabled.length === 0) return null;
 
     const items = window.items.map((item) => ({
       titleKey: item.titleKey,
@@ -129,7 +171,13 @@ export class DigestWorker {
       data: { batchId: window.id, count: items.length, items },
       channels: enabled,
     });
-    if (created.isErr()) return false;
+    if (created.isErr()) return null;
+    await this.deliveryIntents.createForNotification(
+      created.value.id,
+      window.userId,
+      window.tenantId ?? undefined,
+      enabled,
+    );
 
     const claimed = await this.batches.updateOne(
       { id: batchId, status: "open" },
@@ -137,64 +185,13 @@ export class DigestWorker {
     );
     if (claimed.isErr() || !claimed.value) {
       await this.notifications.deleteById(created.value.id);
-      return true;
+      return "complete";
     }
+    return { window, items, enabled, notificationId: created.value.id };
+  }
 
-    const translate = (key: string, params?: Record<string, unknown>) =>
-      this.i18n.t(key, undefined, params as Record<string, string | number> | undefined);
-
-    // Durable per-channel state, mirroring SendNotificationCommand: a crash
-    // between channels must leave an observable record of what went out.
-    const delivered: Array<"inApp" | "email" | "push"> = [];
-    if (enabled.includes("inApp")) {
-      try {
-        this.realtime.sendToUser(
-          window.userId,
-          "notification.created",
-          {
-            id: created.value.id,
-            type: window.type,
-            titleKey: "notifications.digestTitle",
-            titleParams: { count: items.length },
-          },
-          window.tenantId ?? undefined,
-        );
-        delivered.push("inApp");
-      } catch (error) {
-        this.logger.warn({ error, batchId: window.id }, "Digest realtime failed");
-      }
-    }
-    if (enabled.includes("email")) {
-      const user = await this.getUserById.execute(window.userId);
-      if (user.isOk() && user.value) {
-        const subject = translate("notifications.digestTitle", { count: items.length });
-        const html = await renderNotificationEmail({
-          subject,
-          items,
-          count: items.length,
-          translate,
-        });
-        const sent = await this.email.send({ to: user.value.email, subject, html });
-        if (sent.isErr()) {
-          this.logger.warn({ batchId: window.id }, "Digest email failed");
-        } else {
-          delivered.push("email");
-        }
-      }
-    }
-    if (enabled.includes("push")) {
-      if (await this.deliverDigestPush(window.userId, items.length)) {
-        delivered.push("push");
-      }
-    }
-    if (delivered.length > 0) {
-      const recorded = await this.notifications.updateById(created.value.id, {
-        deliveredChannels: delivered,
-      });
-      if (recorded.isErr()) {
-        this.logger.warn({ batchId: window.id }, "Digest channels not recorded");
-      }
-    }
+  private async dispatchReadyEvent(prepared: PreparedDigest): Promise<boolean> {
+    const { window, items, notificationId } = prepared;
     const event = new NotificationDigestReadyEvent(
       window.id,
       window.userId,
@@ -202,55 +199,31 @@ export class DigestWorker {
       items.length,
       window.tenantId ?? undefined,
     );
-    const dispatched = window.tenantId
-      ? await this.dispatchTenantScoped(window.tenantId, () =>
-          this.outbox.dispatchTenant("notification.digest.ready", event),
-        )
-      : await this.outbox.dispatchGlobal("notification.digest.ready", event);
+    const dispatch = () =>
+      window.tenantId
+        ? this.dispatchTenantScoped(window.tenantId, () =>
+            this.outbox.dispatchTenant("notification.digest.ready", event),
+          )
+        : this.outbox.dispatchGlobal("notification.digest.ready", event);
+    const dispatched = await this.database.withResultTransaction(async () => {
+      const result = await dispatch();
+      if (result.isErr()) return result;
+      await this.emitMutated({
+        collectionName: "notifications",
+        documentId: notificationId,
+        action: "CREATE",
+        actorId: undefined,
+        tenantId: window.tenantId ?? undefined,
+        before: null,
+        after: { id: notificationId, type: window.type, digest: true },
+      });
+      return result;
+    });
     if (dispatched.isErr()) {
       this.logger.warn({ batchId: window.id }, "Digest event dispatch failed");
       return false;
     }
-    await this.emitMutated({
-      collectionName: "notifications",
-      documentId: created.value.id,
-      action: "CREATE",
-      actorId: undefined,
-      tenantId: window.tenantId ?? undefined,
-      before: null,
-      after: { id: created.value.id, type: window.type, digest: true },
-    });
     return true;
-  }
-
-  private async deliverDigestPush(userId: string, count: number): Promise<boolean> {
-    const tokens = await this.devices.findByUser(userId);
-    if (tokens.isErr() || tokens.value.length === 0) return false;
-    const driver = this.push.get();
-    const expoTokens = tokens.value.filter((token) => token.provider === driver.provider);
-    if (expoTokens.length === 0) return false;
-    const title = this.i18n.t("notifications.digestTitle", undefined, { count });
-    const results = await driver.send(
-      expoTokens.map((token) => ({
-        token: token.token,
-        title,
-        body: title,
-        data: { count },
-      })),
-    );
-    let delivered = false;
-    for (const [index, result] of results.entries()) {
-      const token = expoTokens[index];
-      if (!token) continue;
-      if (result?.status === "invalid-token") {
-        await this.devices.deleteByUserAndToken(userId, token.token);
-      } else if (result?.status === "failed") {
-        this.logger.warn({ userId, reason: result.reason }, "Digest push failed");
-      } else {
-        delivered = true;
-      }
-    }
-    return delivered;
   }
 
   private async dispatchTenantScoped<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {

@@ -60,7 +60,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     if (res.status === 401 && canRefresh) {
       const refreshed = await coordinator.refresh();
       if (!refreshed) {
-        coordinator.handleFailure();
+        await coordinator.handleFailure();
         let body: unknown = null;
         try {
           body = await res.json();

@@ -9,6 +9,7 @@ its public `index.ts` barrel and do not import its internal files.
 database/
 ├── context/                  tenant context backed by CLS
 ├── repositories/             shared repository primitives and query helpers
+├── database-pool.ts          bounded pool and query instrumentation
 ├── database.module.ts        connection and provider ownership
 ├── database.service.ts       transactions and connection lifecycle
 ├── database.types.ts
@@ -35,8 +36,10 @@ same soft-delete policy.
 Tenant-scoped repositories derive `tenantId` from trusted CLS context in multi-tenant mode. They
 overwrite caller-provided tenant filters and fail closed when no tenant is active.
 
-Indexes belong exclusively in migrations (`migrations/pg/*.sql`); schema files do not declare
-indexes in Drizzle to ensure concurrent index creation in production and clean separation.
+Declare indexes with the owning Drizzle schema so generated snapshots remain accurate, then review
+and apply them only through append-only SQL migrations (`migrations/pg/*.sql`). For very large
+production tables, split blocking index work into a deliberate operational migration using the
+provider's concurrent-index procedure.
 
 ## Transactions
 
@@ -56,8 +59,8 @@ Transactions return `{ type: "TRANSACTION_FAILED" }` for infrastructure failures
 
 ## Connection pooling (PgBouncer)
 
-Production and staging run traffic through PgBouncer in transaction mode; the app needs
-no code changes for it, by design:
+Staging exercises PgBouncer in transaction mode. Production offers it through the optional
+`pooling` profile; managed database proxies are also valid. The app needs no code changes:
 
 - **Why it is safe here:** RLS tenant context is set per transaction (`set_config(..., true)`
   inside `runWithTransactionContext`), so nothing leaks across pooled sessions. No app code
@@ -73,8 +76,9 @@ no code changes for it, by design:
   direct URL by construction.
 - **Sizing:** `(replicas x DB_MAX_POOL_SIZE 5-10) -> pgbouncer pool 25-50 -> Postgres
 max_connections`. Start small; grow on pool-wait metrics, not guesses.
-- **Health story:** the pooler has no healthcheck by design - the API readiness probe runs
-  through it, so a dead pooler surfaces as API-unhealthy and nginx stops routing there.
+- **Health story:** the API and worker readiness probes run through the configured connection, so a
+  dead pooler makes them unhealthy. The deployment load balancer/orchestrator must deregister
+  unhealthy replicas; the single-host static NGINX reference does not perform active discovery.
 - Session mode is a documented fallback only, not built: transaction mode is correct here
   because all RLS context is transaction-local; revisit only if a future workload needs
   session-pinned features.
@@ -88,4 +92,5 @@ max_connections`. Start small; grow on pool-wait metrics, not guesses.
 3. Import the public database barrel from feature modules.
 4. Add unit tests for pure helpers and integration tests for real repository behavior.
 5. Add or change indexes only through a migration.
-6. Run `pnpm rules:check`, API tests, lint, and build.
+6. Freeze and verify migration checksums with `pnpm db:migrate:freeze` and
+   `pnpm db:migrate:lineage`; run API tests, lint, typecheck, and build.

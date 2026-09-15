@@ -56,12 +56,19 @@ pnpm --filter web build && pnpm --filter web start # standalone production-like 
 
 Local endpoints:
 
-- API `http://localhost:5156/api/v1` (health probes: `http://localhost:5156/health` and `/api/v1/health`), Scalar `http://localhost:5156/api/docs`
+- API `http://localhost:5156/api/v1` (health probes: `/api/v1/health`), Scalar `http://localhost:5156/api/docs`
 - Web `http://localhost:5155`
 - MinIO console `http://localhost:9001`, Mailpit `http://localhost:8025`
 - Observability: Grafana `http://localhost:3001`, Prometheus `http://localhost:9090`, Loki `http://localhost:3100`, Tempo `http://localhost:3200`, cAdvisor `http://localhost:8080`
 
 Stop infrastructure with `pnpm docker:down`.
+
+The pinned MinIO containers are an archived, local compatibility fixture. They
+exist to exercise the S3 adapter during development and disposable staging
+tests. Do not deploy them as the production object store. Production must use a
+managed or independently operated S3-compatible service with supported security
+updates, durable backups, lifecycle rules, capacity alarms, and provider-level
+request and cost monitoring.
 
 Browser topology: web and API are same-origin in production (nginx serves
 the app and proxies `/api/`), and same-host across ports locally
@@ -95,7 +102,7 @@ curl http://localhost:8080/
 
 Mailpit captures staging email at `http://localhost:8026`, MinIO console at
 `http://localhost:9003`. Differences from prod, all deliberate: no TLS (plain HTTP
-on `:8080`), local Postgres/Redis/MinIO instead of managed services, weak committed
+on `:8080`), local Postgres/Redis and an archived S3 compatibility fixture instead of managed services, weak committed
 secrets in `docker/.env.staging.example` (copy to gitignored `docker/.env.staging`
 for custom values — never production secrets).
 
@@ -132,6 +139,8 @@ The API reads `DATABASE_URL` from `apps/api/.env`. Migration files live in `migr
 pnpm --filter api db:migrate:status  # check schema status
 pnpm --filter api db:migrate         # apply every pending migration
 pnpm --filter api db:generate        # generate new migration from schemas
+pnpm db:migrate:freeze               # record checksums for newly reviewed migrations
+pnpm db:migrate:lineage              # reject edits to frozen migration history
 pnpm --filter api db:migrate:dev     # push schema changes directly in dev
 pnpm --filter api db:migrate:check   # verify fresh + upgrade migration paths
 ```
@@ -168,7 +177,7 @@ Integration tests require `TEST_DATABASE_URL` in `apps/api/.env`; its database n
 Both suites fail fast when their required infrastructure is unavailable. Run one API test with:
 
 ```sh
-pnpm --filter api exec vitest run src/path/file.test.ts --config vitest.config.ts
+pnpm --filter api exec vitest run src/path/file.test.ts --config vitest.config.mts
 ```
 
 Use `pnpm test:api:watch` while developing.

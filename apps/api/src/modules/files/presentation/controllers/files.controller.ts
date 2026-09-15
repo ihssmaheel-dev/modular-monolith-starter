@@ -13,6 +13,7 @@ import {
 import type { FastifyRequest } from "fastify";
 import {
   Idempotent,
+  RateLimit,
   NoDatabaseTransaction,
   RequirePermission,
   requireAuthenticatedUser,
@@ -70,6 +71,7 @@ export class FilesController {
   @HttpCode(HttpStatus.CREATED)
   @NoDatabaseTransaction()
   @Idempotent()
+  @RateLimit(20, 60)
   @RequirePermission("files:upload")
   @ResponseSchema(PresignedUrlResponseSchema)
   async requestUpload(
@@ -101,6 +103,7 @@ export class FilesController {
 
   @Get(":id/download-url")
   @NoDatabaseTransaction()
+  @RateLimit(60, 60)
   @RequirePermission("files:read")
   @ResponseSchema(DownloadUrlResponseSchema)
   async getDownloadUrl(

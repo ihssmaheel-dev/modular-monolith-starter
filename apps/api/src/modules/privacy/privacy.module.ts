@@ -3,9 +3,6 @@ import { EventEmitterModule } from "@nestjs/event-emitter";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { DatabaseModule } from "../../infrastructure/database";
 import { UsersModule } from "../users/users.module";
-import { NotesModule } from "../notes/notes.module";
-import { FilesModule } from "../files/files.module";
-import { NotificationsModule } from "../notifications/notifications.module";
 import { PrivacyController } from "./presentation/controllers/privacy.controller";
 import { PrivacyOrpcController } from "./presentation/orpc/privacy.orpc.controller";
 import { RequestExportCommand } from "./application/commands/request-export.command";
@@ -15,17 +12,10 @@ import { PurgeExpiredErasuresCommand } from "./application/commands/purge-expire
 import { DownloadExportQuery } from "./application/queries/download-export.query";
 import { ListRequestsQuery } from "./application/queries/list-requests.query";
 import { PrivacyRepository } from "./infrastructure/repositories/privacy.repository";
+import { PrivacyExportWorker } from "./application/workers/privacy-export.worker";
 
 @Module({
-  imports: [
-    EventEmitterModule,
-    OutboxModule,
-    DatabaseModule,
-    UsersModule,
-    NotesModule,
-    FilesModule,
-    NotificationsModule,
-  ],
+  imports: [EventEmitterModule, OutboxModule, DatabaseModule, UsersModule],
   controllers: [PrivacyController, PrivacyOrpcController],
   providers: [
     PrivacyController,
@@ -36,6 +26,7 @@ import { PrivacyRepository } from "./infrastructure/repositories/privacy.reposit
     DownloadExportQuery,
     ListRequestsQuery,
     PrivacyRepository,
+    PrivacyExportWorker,
   ],
   exports: [RequestExportCommand, PurgeExpiredErasuresCommand],
 })

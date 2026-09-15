@@ -3,6 +3,7 @@ import { ok } from "neverthrow";
 import { VerifyEmailChangeCommand } from "./verify-email-change.command";
 import { UsersRepository } from "../../infrastructure/repositories/users.repository";
 import { User } from "../../domain/entities/user.entity";
+import type { DatabaseService } from "../../../../infrastructure/database";
 
 const user = User.fromPersistence({
   id: "user-1",
@@ -22,7 +23,18 @@ describe("VerifyEmailChangeCommand", () => {
     repository = {
       applyEmailChangeByToken: vi.fn(),
     } as unknown as UsersRepository;
-    command = new VerifyEmailChangeCommand(repository);
+    const database = {
+      withResultTransaction: vi.fn((operation: () => Promise<unknown>) => operation()),
+      runAfterCommit: vi.fn((operation: () => Promise<unknown>) => operation()),
+      emitAfterCommit: vi.fn(),
+    } as unknown as DatabaseService;
+    command = new VerifyEmailChangeCommand(
+      repository,
+      database,
+      { invalidateGlobal: vi.fn() } as never,
+      { revokeAllForUser: vi.fn() } as never,
+      { emitAsync: vi.fn() } as never,
+    );
   });
 
   it("applies the pending address by token hash", async () => {

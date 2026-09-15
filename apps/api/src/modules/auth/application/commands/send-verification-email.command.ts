@@ -72,14 +72,17 @@ export class SendVerificationEmailCommand {
         html,
       });
       if (sent.isErr()) {
-        this.logger.warn({ code: sent.error.code, email }, "Verification email failed");
+        this.logger.warn(
+          { code: sent.error.code, userId: result.value.id },
+          "Verification email failed",
+        );
       } else {
         delivered = true;
       }
     } catch (error) {
-      this.logger.warn({ error, email }, "Verification email failed");
+      this.logger.warn({ error, userId: result.value.id }, "Verification email failed");
     }
-    this.logger.info({ email, delivered }, "Verification email processed");
+    this.logger.info({ userId: result.value.id, delivered }, "Verification email processed");
 
     return ok(undefined);
   }

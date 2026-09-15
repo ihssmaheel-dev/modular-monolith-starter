@@ -19,6 +19,8 @@ import { FilesRepository } from "./infrastructure/repositories/files.repository"
 import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
 import { DatabaseModule } from "../../infrastructure/database";
 import { FilesOrpcController } from "./presentation/orpc/files.orpc.controller";
+import { DataLifecycleRegistry } from "../../infrastructure/lifecycle/data-lifecycle.registry";
+import { FilesLifecycleContributor } from "./application/adapters/files-lifecycle.contributor";
 
 @Module({
   imports: [DatabaseModule],
@@ -40,6 +42,7 @@ import { FilesOrpcController } from "./presentation/orpc/files.orpc.controller";
     FileReconciliationWorker,
     FilesRepository,
     FileAccessRegistry,
+    FilesLifecycleContributor,
   ],
   exports: [
     RequestUploadCommand,
@@ -59,9 +62,14 @@ import { FilesOrpcController } from "./presentation/orpc/files.orpc.controller";
   ],
 })
 export class FilesModule implements OnModuleInit {
-  constructor(private readonly authService: AuthorizationService) {}
+  constructor(
+    private readonly authService: AuthorizationService,
+    private readonly lifecycle: DataLifecycleRegistry,
+    private readonly lifecycleContributor: FilesLifecycleContributor,
+  ) {}
 
   onModuleInit(): void {
     this.authService.registerPolicies(filePolicies);
+    this.lifecycle.register(this.lifecycleContributor);
   }
 }

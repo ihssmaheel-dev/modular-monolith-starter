@@ -4,6 +4,7 @@ import { envSchema, type Env } from "@repo/contracts";
 
 const SECRET_FILE_VARS = [
   "DATABASE_URL",
+  "DB_DIRECT_URL",
   "REDIS_URL",
   "JWT_SECRET",
   "JWT_REFRESH_SECRET",

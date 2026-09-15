@@ -67,6 +67,38 @@ export const DeviceIdParamSchema = z.object({
   id: z.string().min(1),
 });
 
+export const ExportedNotificationSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  category: z.string(),
+  titleKey: z.string(),
+  titleParams: z.record(z.string(), z.unknown()).nullable(),
+  data: z.record(z.string(), z.unknown()).nullable(),
+  tenantId: z.string().nullable(),
+  readAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+});
+
+export const ExportedDeviceSchema = z.object({
+  platform: z.string(),
+  provider: z.string(),
+  createdAt: z.string().datetime(),
+});
+
+export const ExportedBatchSchema = z.object({
+  type: z.string(),
+  groupingKey: z.string(),
+  status: z.string(),
+  items: z.array(
+    z.object({
+      titleKey: z.string(),
+      titleParams: z.record(z.string(), z.unknown()).optional(),
+      data: z.record(z.string(), z.unknown()).optional(),
+    }),
+  ),
+  windowEndsAt: z.string().datetime(),
+});
+
 export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
 export type DigestCadence = z.infer<typeof DigestCadenceSchema>;
 export type DevicePlatform = z.infer<typeof DevicePlatformSchema>;
@@ -79,4 +111,7 @@ export type PreferenceItem = z.infer<typeof PreferenceItemSchema>;
 export type UpdatePreferencesInput = z.infer<typeof UpdatePreferencesSchema>;
 export type RegisterDeviceInput = z.infer<typeof RegisterDeviceSchema>;
 export type DeviceResponse = z.infer<typeof DeviceResponseSchema>;
+export type ExportedNotification = z.infer<typeof ExportedNotificationSchema>;
+export type ExportedDevice = z.infer<typeof ExportedDeviceSchema>;
+export type ExportedBatch = z.infer<typeof ExportedBatchSchema>;
 export type NotificationsPaginationQuery = z.infer<typeof PaginationQuerySchema>;

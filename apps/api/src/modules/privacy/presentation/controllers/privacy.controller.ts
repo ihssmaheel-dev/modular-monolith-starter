@@ -13,6 +13,7 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   Idempotent,
+  NoDatabaseTransaction,
   RateLimit,
   RequirePermission,
   TenantAgnostic,
@@ -168,6 +169,7 @@ export class PrivacyController {
 
   @Post("admin/purge-expired")
   @HttpCode(HttpStatus.OK)
+  @NoDatabaseTransaction()
   @RateLimit(5, 60)
   @RequirePermission("privacy:requests:read")
   @ResponseSchema(EmptyResponseSchema)

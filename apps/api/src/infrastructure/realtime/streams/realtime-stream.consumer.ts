@@ -44,6 +44,7 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
    */
   readonly groupName = `${GROUP_PREFIX}${this.instanceId}`;
   private readonly consumerName = this.instanceId;
+  private unsubscribeReady?: () => void;
 
   constructor(
     private readonly redis: RedisService,
@@ -56,6 +57,12 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     if (env.PROCESS_ROLE === "worker") return;
+    this.unsubscribeReady = this.redis.onReady?.(() => this.ensureStarted());
+    await this.ensureStarted();
+  }
+
+  private async ensureStarted(): Promise<void> {
+    if (this.subscriber || this.isShuttingDown) return;
     const client = this.redis.getClient();
     if (!client) {
       this.logger.warn({}, "Redis client not available, stream realtime features disabled");
@@ -212,6 +219,8 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     this.isShuttingDown = true;
+    this.unsubscribeReady?.();
+    this.unsubscribeReady = undefined;
     if (this.subscriber) {
       await this.subscriber.quit();
     }

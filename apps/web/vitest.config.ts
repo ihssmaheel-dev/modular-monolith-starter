@@ -1,13 +1,20 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
-import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [tsConfigPaths()],
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   test: {
     globals: true,
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["e2e/**", "src/**/*.e2e.*"],
+    pool: "threads",
+    maxWorkers: 2,
     setupFiles: ["./src/test/setup.ts"],
     testTimeout: 15000,
     hookTimeout: 15000,

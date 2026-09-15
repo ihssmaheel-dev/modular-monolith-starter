@@ -3,12 +3,6 @@ export const Permissions = {
   USERS_READ: "users:read",
   USERS_WRITE: "users:write",
   USERS_DELETE: "users:delete",
-  // Notes
-  NOTES_READ: "notes:read",
-  NOTES_CREATE: "notes:create",
-  NOTES_UPDATE: "notes:update",
-  NOTES_DELETE: "notes:delete",
-  NOTES_WRITE: "notes:write",
   // Files
   FILES_READ: "files:read",
   FILES_UPLOAD: "files:upload",
@@ -39,13 +33,32 @@ export const Permissions = {
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
 
 export const RolePermissions: Record<string, Permission[]> = {
-  admin: Object.values(Permissions),
+  admin: [
+    Permissions.USERS_READ,
+    Permissions.USERS_WRITE,
+    Permissions.USERS_DELETE,
+    Permissions.FILES_READ,
+    Permissions.FILES_UPLOAD,
+    Permissions.FILES_DELETE,
+    Permissions.ORGANIZATIONS_READ,
+    Permissions.ORGANIZATIONS_WRITE,
+    Permissions.ORGANIZATIONS_DELETE,
+    Permissions.TEAM_READ,
+    Permissions.TEAM_INVITE,
+    Permissions.TEAM_MANAGE,
+    Permissions.TEAM_REMOVE,
+    Permissions.MEMBERS_READ,
+    Permissions.MEMBERS_WRITE,
+    Permissions.INVITATIONS_READ,
+    Permissions.INVITATIONS_WRITE,
+    Permissions.PRIVACY_EXPORT_SELF,
+    Permissions.PRIVACY_ERASE_SELF,
+    Permissions.PRIVACY_ERASE_TENANT,
+    Permissions.PRIVACY_REQUESTS_READ,
+    Permissions.NOTIFICATIONS_READ,
+    Permissions.NOTIFICATIONS_WRITE,
+  ],
   user: [
-    Permissions.NOTES_READ,
-    Permissions.NOTES_CREATE,
-    Permissions.NOTES_UPDATE,
-    Permissions.NOTES_DELETE,
-    Permissions.NOTES_WRITE,
     Permissions.FILES_READ,
     Permissions.FILES_UPLOAD,
     Permissions.FILES_DELETE,
@@ -57,8 +70,40 @@ export const RolePermissions: Record<string, Permission[]> = {
   ],
 };
 
+export const TenantAdministrativePermissions: Permission[] = [
+  Permissions.ORGANIZATIONS_READ,
+  Permissions.ORGANIZATIONS_WRITE,
+  Permissions.ORGANIZATIONS_DELETE,
+  Permissions.TEAM_READ,
+  Permissions.TEAM_INVITE,
+  Permissions.TEAM_MANAGE,
+  Permissions.TEAM_REMOVE,
+  Permissions.MEMBERS_READ,
+  Permissions.MEMBERS_WRITE,
+  Permissions.INVITATIONS_READ,
+  Permissions.INVITATIONS_WRITE,
+  Permissions.FILES_READ,
+  Permissions.FILES_UPLOAD,
+  Permissions.FILES_DELETE,
+  Permissions.PRIVACY_ERASE_TENANT,
+  Permissions.NOTIFICATIONS_READ,
+  Permissions.NOTIFICATIONS_WRITE,
+];
+
+const PLATFORM_ROLE_PERMISSIONS: Record<string, Permission[]> = {
+  admin: [
+    Permissions.USERS_READ,
+    Permissions.USERS_WRITE,
+    Permissions.USERS_DELETE,
+    Permissions.PRIVACY_EXPORT_SELF,
+    Permissions.PRIVACY_ERASE_SELF,
+    Permissions.PRIVACY_REQUESTS_READ,
+  ],
+  user: [Permissions.PRIVACY_EXPORT_SELF, Permissions.PRIVACY_ERASE_SELF],
+};
+
 export const TenantRolePermissions: Record<string, Permission[]> = {
-  owner: Object.values(Permissions),
+  owner: TenantAdministrativePermissions,
   admin: [
     Permissions.ORGANIZATIONS_READ,
     Permissions.ORGANIZATIONS_WRITE,
@@ -70,11 +115,6 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.MEMBERS_WRITE,
     Permissions.INVITATIONS_READ,
     Permissions.INVITATIONS_WRITE,
-    Permissions.NOTES_READ,
-    Permissions.NOTES_CREATE,
-    Permissions.NOTES_UPDATE,
-    Permissions.NOTES_DELETE,
-    Permissions.NOTES_WRITE,
     Permissions.FILES_READ,
     Permissions.FILES_UPLOAD,
     Permissions.FILES_DELETE,
@@ -90,14 +130,8 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.ORGANIZATIONS_READ,
     Permissions.TEAM_READ,
     Permissions.MEMBERS_READ,
-    Permissions.NOTES_READ,
-    Permissions.NOTES_CREATE,
-    Permissions.NOTES_UPDATE,
-    Permissions.NOTES_DELETE,
-    Permissions.NOTES_WRITE,
     Permissions.FILES_READ,
     Permissions.FILES_UPLOAD,
-    Permissions.FILES_WRITE,
     Permissions.PRIVACY_EXPORT_SELF,
     Permissions.PRIVACY_ERASE_SELF,
     Permissions.NOTIFICATIONS_READ,
@@ -111,9 +145,7 @@ export function matchesPermission(userPerm: string, requiredPerm: string): boole
     const prefix = userPerm.slice(0, -1);
     if (requiredPerm.startsWith(prefix)) return true;
   }
-  if (userPerm === "notes:write" && requiredPerm.startsWith("notes:")) return true;
-  if (userPerm === "files:write" && requiredPerm.startsWith("files:")) return true;
-  if (userPerm === "notifications:write" && requiredPerm.startsWith("notifications:")) return true;
+  if (userPerm === "files:write") return requiredPerm === "files:upload";
   if (
     userPerm === "team:manage" &&
     (requiredPerm.startsWith("team:") ||
@@ -149,10 +181,12 @@ export function resolveUserPermissions(
   role?: string,
   tenantRole?: string,
   extraPermissions: string[] = [],
+  scope: "global" | "tenant" = "global",
 ): Permission[] {
   const perms = new Set<Permission>();
-  if (role && RolePermissions[role.toLowerCase()]) {
-    for (const p of RolePermissions[role.toLowerCase()] ?? []) perms.add(p);
+  const roleMap = scope === "tenant" ? PLATFORM_ROLE_PERMISSIONS : RolePermissions;
+  if (role && roleMap[role.toLowerCase()]) {
+    for (const p of roleMap[role.toLowerCase()] ?? []) perms.add(p);
   }
   if (tenantRole && TenantRolePermissions[tenantRole.toLowerCase()]) {
     for (const p of TenantRolePermissions[tenantRole.toLowerCase()] ?? []) perms.add(p);

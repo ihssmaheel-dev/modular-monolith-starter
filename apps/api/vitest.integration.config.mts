@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import path from "path";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   test: {
@@ -8,10 +8,12 @@ export default defineConfig({
     include: ["src/**/*.integration.test.ts"],
     setupFiles: ["test/setup.integration.ts"],
     testTimeout: 30000,
+    pool: "threads",
+    maxWorkers: 1,
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
 });

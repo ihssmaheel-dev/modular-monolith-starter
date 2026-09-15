@@ -103,7 +103,7 @@ describe("SendVerificationEmailCommand", () => {
 
     expect(result.isOk()).toBe(true);
     expect(loggerWarn).toHaveBeenCalledWith(
-      expect.objectContaining({ email: "grace@example.com" }),
+      expect.objectContaining({ userId: "u-2" }),
       "Verification email failed",
     );
   });
@@ -119,7 +119,7 @@ describe("SendVerificationEmailCommand", () => {
 
     expect(result.isOk()).toBe(true);
     expect(loggerWarn).toHaveBeenCalledWith(
-      { code: "PROVIDER_ERROR", email: "grace@example.com" },
+      { code: "PROVIDER_ERROR", userId: "u-2" },
       "Verification email failed",
     );
   });

@@ -6,4 +6,5 @@ export type AuthError =
   | { type: "EMAIL_NOT_FOUND" }
   | { type: "ACCOUNT_LOCKED" }
   | { type: "EMAIL_NOT_VERIFIED" }
+  | { type: "SESSION_UNAVAILABLE" }
   | { type: "TRANSACTION_FAILED" };

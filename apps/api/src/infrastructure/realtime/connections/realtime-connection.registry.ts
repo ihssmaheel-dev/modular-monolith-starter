@@ -157,25 +157,29 @@ export class RealtimeConnectionRegistry {
   }
 
   disconnectUser(userId: string): number {
-    const closedCount = closeMatchingConnections(
+    const closed = closeMatchingConnections(
       this.wsClients,
       this.sseClients,
       (key) => key.endsWith(`:${userId}`),
       4001,
       "Session invalidated",
     );
+    this.recordClosed(closed);
+    const closedCount = closed.ws + closed.sse;
     if (closedCount > 0) this.logger.info({ userId, closedCount }, "Disconnected realtime clients");
     return closedCount;
   }
 
   disconnectTenantUser(tenantId: string, userId: string): number {
-    const closedCount = closeKeyConnections(
+    const closed = closeKeyConnections(
       this.wsClients,
       this.sseClients,
       connectionKey(userId, tenantId),
       4003,
       "Membership revoked",
     );
+    this.recordClosed(closed);
+    const closedCount = closed.ws + closed.sse;
     if (closedCount > 0) {
       this.logger.info(
         { tenantId, userId, closedCount },
@@ -187,13 +191,15 @@ export class RealtimeConnectionRegistry {
 
   disconnectTenant(tenantId: string): number {
     const prefix = `${tenantId}:`;
-    const closedCount = closeMatchingConnections(
+    const closed = closeMatchingConnections(
       this.wsClients,
       this.sseClients,
       (key) => key.startsWith(prefix),
       4004,
       "Organization purged",
     );
+    this.recordClosed(closed);
+    const closedCount = closed.ws + closed.sse;
     if (closedCount > 0) {
       this.logger.info({ tenantId, closedCount }, "Disconnected purged tenant sockets");
     }
@@ -208,6 +214,19 @@ export class RealtimeConnectionRegistry {
       users.add(key.split(":").pop() ?? key);
     }
     return users.size;
+  }
+
+  private recordClosed(closed: { ws: number; sse: number }): void {
+    for (const [type, count] of Object.entries(closed)) {
+      if (count > 0) {
+        this.metrics.decrementGauge(
+          "realtime_active_connections_total",
+          "Active realtime connections",
+          count,
+          { type },
+        );
+      }
+    }
   }
 }
 

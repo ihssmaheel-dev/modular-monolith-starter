@@ -19,6 +19,10 @@ export const REQUEST_UPLOAD_ERRORS: ErrorMap = {
     status: HttpStatus.PAYLOAD_TOO_LARGE,
     i18nKey: "api.error.quotaExceeded",
   },
+  ADMISSION_DISABLED: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    i18nKey: "api.error.serviceUnavailable",
+  },
 };
 
 export const CONFIRM_UPLOAD_ERRORS: ErrorMap = {

@@ -8,7 +8,7 @@ describe("production environment validation", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues.map((issue) => issue.path.join("."))).toEqual(
-        expect.arrayContaining(["DATABASE_URL", "CLIENT_URL", "API_URL", "S3_ENDPOINT"]),
+        expect.arrayContaining(["DATABASE_URL", "CLIENT_URL", "API_URL"]),
       );
     }
   });
@@ -26,6 +26,29 @@ describe("production environment validation", () => {
     const result = envSchema.safeParse(validProductionEnv());
 
     expect(result.success).toBe(true);
+  });
+
+  it("parses explicit boolean strings without treating false as truthy", () => {
+    const result = envSchema.safeParse({
+      NODE_ENV: "test",
+      TRUST_PROXY: "false",
+      FILE_AV_ENABLED: "false",
+      FILE_AV_URL: "",
+      S3_FORCE_PATH_STYLE: "0",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.TRUST_PROXY).toBe(false);
+      expect(result.data.FILE_AV_ENABLED).toBe(false);
+      expect(result.data.S3_FORCE_PATH_STYLE).toBe(false);
+    }
+  });
+
+  it("rejects ambiguous environment boolean values", () => {
+    const result = envSchema.safeParse({ NODE_ENV: "test", TRUST_PROXY: "yes" });
+
+    expect(result.success).toBe(false);
   });
 
   it("accepts overlapping access and refresh signing keyrings", () => {
@@ -115,6 +138,23 @@ describe("production environment validation", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues.map((issue) => issue.path.join("."))).toContain("SMTP_PORT");
+    }
+  });
+
+  it("allows the cloud SDK workload identity credential chain", () => {
+    const production = validProductionEnv();
+    delete production.S3_ENDPOINT;
+    delete production.S3_ACCESS_KEY_ID;
+    delete production.S3_SECRET_ACCESS_KEY;
+
+    const result = envSchema.safeParse(production);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.S3_ENDPOINT).toBeUndefined();
+      expect(result.data.S3_ACCESS_KEY_ID).toBeUndefined();
+      expect(result.data.S3_SECRET_ACCESS_KEY).toBeUndefined();
+      expect(result.data.S3_FORCE_PATH_STYLE).toBe(false);
     }
   });
 });

@@ -24,7 +24,7 @@ internals — they copy the 3-step recipe below.
    → row linked (parentType "note", parentId, slot)
 
 3. REAP (janitor)
-   FileCleanupWorker nightly: pending > 24h, never-linked uploaded > 7d,
+   FileCleanupWorker hourly in bounded batches: pending > 24h, never-linked uploaded > 7d,
    soft-deleted rows → S3 delete + row delete.
 ```
 
@@ -146,4 +146,22 @@ same idea as Supabase `foldername[1] = uid` RLS).
 
 `pending → uploading → scanning → uploaded | failed`. The UI polls
 `listByParent` until `uploaded`/`failed`. Retries re-request a presigned URL;
-never reuse a URL past its 1-hour expiry.
+never reuse a URL past its 15-minute expiry.
+
+## Required bucket controls
+
+Apply `docker/storage-lifecycle.example.json` (or an equivalent provider
+policy) to every non-local bucket. Presigned uploads receive a
+`lifecycle=quarantine` tag; scan promotion replaces it with
+`lifecycle=active`. The policy removes abandoned quarantine bytes after two
+days, aborts incomplete multipart uploads after one day, and bounds
+noncurrent-version storage. Enable object versioning only when the
+application's recovery requirements justify its storage cost.
+
+Grant the API/worker identity access only to this bucket and its object keys:
+`GetObject`, `PutObject`, `DeleteObject`, `GetObjectTagging`,
+`PutObjectTagging`, and the bucket-list operation needed by operational
+reconciliation. Prefer the cloud workload identity exposed to the SDK;
+static access keys are intended for local S3-compatible storage. Track bucket
+bytes, request counts, and lifecycle deletion failures in the cloud
+provider's billing and monitoring service.

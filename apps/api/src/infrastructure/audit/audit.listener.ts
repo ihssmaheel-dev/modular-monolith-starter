@@ -7,6 +7,7 @@ import { auditLogs } from "./schemas/audit.schema";
 import { PinoLoggerService } from "../logger/logger.service";
 import { env } from "../../config/env";
 import type { TransactionError } from "../database";
+import { redactAuditValue } from "./audit-redaction";
 
 export class DatabaseMutatedEvent {
   constructor(
@@ -99,8 +100,8 @@ export class AuditListener {
           action: event.action,
           actorId: event.actorId,
           tenantId: event.tenantId,
-          before: event.before,
-          after: event.after,
+          before: redactAuditValue(event.before),
+          after: redactAuditValue(event.after),
         });
     });
   }

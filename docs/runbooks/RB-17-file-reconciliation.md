@@ -13,16 +13,16 @@
 
 ## Blast radius
 
-Uploads/avatars/attachments metadata vs storage reality drifting: orphaned bytes (cost),
-missing bytes (broken downloads/avatars), or quota accounting skewed. User-visible only
+Tracked upload metadata versus storage reality drifting: missing bytes (broken downloads/avatars),
+stale row state, or quota accounting skew. Bucket-wide untracked object discovery belongs to the
+provider inventory/lifecycle process, not this row cursor. User-visible only
 when downloads break or quotas look wrong — usually silent, which is why the alerts exist.
 
 ## Triage in 5 minutes
 
 1. Errors or only repairs? Repairs-only → note it, watch one cycle, stand down unless
    the rate is new (a fresh spike after quiet months still deserves a look).
-2. Error lines carry the file IDs and the mismatch class (missing bytes vs orphaned rows
-   vs quota skew) — group by class before acting.
+2. Error lines carry the file IDs and mismatch class — group by class before acting.
 3. Correlate with deploys touching upload/attach/confirm paths and with storage changes
    (bucket recreation, credential rotation, CORS edits — see RB-09).
 4. Check storage reachability independently — reconciliation errors during a storage
@@ -30,8 +30,9 @@ when downloads break or quotas look wrong — usually silent, which is why the a
 
 ## Fix paths
 
-1. **Orphaned bytes / skewed quotas:** let the repair job finish its pass, then verify
-   counts; no manual S3 deletes — the reconciler owns that decision.
+1. **Stale rows / skewed quotas:** let the repair job finish its cursor pass, then verify counts.
+   For untracked bucket objects, use the configured quarantine lifecycle or a reviewed inventory job;
+   do not issue broad manual deletes.
 2. **Missing bytes (DB says file, storage says no):** restore from backup if the content
    matters; otherwise purge the dangling rows through the file cleanup path so quotas
    and listings stop lying.

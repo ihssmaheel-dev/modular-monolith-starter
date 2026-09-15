@@ -35,13 +35,11 @@ describe("DigestWorker", () => {
       deleteById: vi.fn().mockResolvedValue(ok(true)),
       updateById: vi.fn().mockResolvedValue(ok({ id: "notif-1" })),
     } as never;
+    const deliveryIntents = {
+      createForNotification: vi.fn().mockResolvedValue(undefined),
+    } as never;
     const preferences = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
-    const devices = { findByUser: vi.fn().mockResolvedValue(ok([])) } as never;
-    const push = { get: vi.fn() } as never;
-    const getUserById = { execute: vi.fn().mockResolvedValue(ok(null)) } as never;
     const realtime = { sendToUser: vi.fn() } as unknown as RealtimeService;
-    const email = {} as never;
-    const i18n = { t: vi.fn((key: string) => key) } as never;
     const outbox = { dispatchGlobal: vi.fn().mockResolvedValue(ok(undefined)) } as never;
     const events = { emitAsync: vi.fn().mockResolvedValue([]) } as never;
     const tenantContext = {
@@ -51,6 +49,9 @@ describe("DigestWorker", () => {
     } as never;
     const database = {
       runTransaction: vi.fn(async (fn: () => unknown) => await (fn as () => Promise<unknown>)()),
+      withResultTransaction: vi.fn(
+        async (fn: () => unknown) => await (fn as () => Promise<unknown>)(),
+      ),
       emitAfterCommit: vi.fn(async (emitter: unknown, event: string, payload: unknown) => {
         await (emitter as { emitAsync: (e: string, p: unknown) => Promise<unknown> }).emitAsync(
           event,
@@ -68,13 +69,9 @@ describe("DigestWorker", () => {
     worker = new DigestWorker(
       batches,
       notifications,
+      deliveryIntents,
       preferences,
-      devices,
-      push,
-      getUserById,
       realtime,
-      email,
-      i18n,
       outbox,
       events,
       tenantContext,

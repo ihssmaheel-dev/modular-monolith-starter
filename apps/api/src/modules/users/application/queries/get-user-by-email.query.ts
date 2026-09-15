@@ -8,7 +8,7 @@ export class GetUserByEmailQuery {
   constructor(private readonly repository: UsersRepository) {}
 
   async execute(email: string): Promise<Result<User | null, never>> {
-    const result = await this.repository.findOne({ email });
+    const result = await this.repository.findOne({ email: email.trim().toLowerCase() });
     if (result.isErr()) return err(result.error);
     return ok(result.value);
   }

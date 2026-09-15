@@ -23,16 +23,14 @@ export type EnvironmentForValidation = {
   ERROR_REPORTING_URL?: string;
   ERROR_REPORTING_TOKEN?: string;
   STORAGE_DRIVER: "s3";
-  S3_ACCESS_KEY_ID: string;
-  S3_SECRET_ACCESS_KEY: string;
+  S3_ACCESS_KEY_ID?: string;
+  S3_SECRET_ACCESS_KEY?: string;
   DATABASE_URL: string;
   CLIENT_URL: string;
   API_URL: string;
-  S3_ENDPOINT: string;
+  S3_ENDPOINT?: string;
   S3_REGION: string;
   S3_BUCKET: string;
-  CDN_ENABLED: boolean;
-  CDN_DOMAIN?: string;
   EMAIL_DRIVER: "smtp" | "resend";
   RESEND_API_KEY: string;
   EMAIL_FROM: string;
@@ -131,6 +129,13 @@ export function validateEnvironment(env: EnvironmentForValidation, context: Refi
       code: "custom",
       path: ["S3_ACCESS_KEY_ID"],
       message: "S3 credentials must not use defaults in production",
+    });
+  }
+  if (Boolean(env.S3_ACCESS_KEY_ID) !== Boolean(env.S3_SECRET_ACCESS_KEY)) {
+    context.addIssue({
+      code: "custom",
+      path: ["S3_ACCESS_KEY_ID"],
+      message: "S3 access key and secret must be configured together or both omitted",
     });
   }
   validateProductionEndpoints(env, context);

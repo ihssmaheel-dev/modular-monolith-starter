@@ -15,10 +15,44 @@ export interface LogContext {
 
 const LOKI_LABELS = {
   application: "api-service",
-  service: "api",
-  container: "monorepo-api",
-  job: "api",
+  service: `app-${env.PROCESS_ROLE}`,
+  process_role: env.PROCESS_ROLE,
 };
+
+const REDACTED_PATHS = [
+  "password",
+  "passwordHash",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "authorization",
+  "cookie",
+  "email",
+  "to",
+  "recipients",
+  "key",
+  "sourceKey",
+  "destinationKey",
+  "expectedIp",
+  "actualIp",
+  "headers.authorization",
+  "headers.cookie",
+  "req.headers.authorization",
+  "req.headers.cookie",
+  "*.password",
+  "*.passwordHash",
+  "*.token",
+  "*.accessToken",
+  "*.refreshToken",
+  "*.email",
+  "*.to",
+  "*.recipients",
+  "*.key",
+  "*.sourceKey",
+  "*.destinationKey",
+  "*.expectedIp",
+  "*.actualIp",
+];
 
 function buildDevTargets(): pino.TransportTargetOptions[] {
   const targets: pino.TransportTargetOptions[] = [
@@ -58,14 +92,24 @@ function buildLoggerTransport():
   }
   if (!env.LOKI_HOST) return undefined;
   return {
-    target: "pino-loki",
-    options: {
-      host: env.LOKI_HOST,
-      batching: true,
-      interval: 5,
-      silenceErrors: true,
-      labels: LOKI_LABELS,
-    },
+    targets: [
+      {
+        target: "pino/file",
+        options: { destination: 1 },
+        level: env.LOG_LEVEL,
+      },
+      {
+        target: "pino-loki",
+        options: {
+          host: env.LOKI_HOST,
+          batching: true,
+          interval: 5,
+          silenceErrors: true,
+          labels: LOKI_LABELS,
+        },
+        level: env.LOG_LEVEL,
+      },
+    ],
   };
 }
 
@@ -75,7 +119,9 @@ export class PinoLoggerService implements OnModuleDestroy {
 
   constructor(@Optional() @Inject(ClsService) private readonly cls?: ClsService) {
     this.logger = pino({
+      name: `app-${env.PROCESS_ROLE}`,
       level: env.LOG_LEVEL,
+      redact: { paths: REDACTED_PATHS, censor: "[REDACTED]" },
       transport: buildLoggerTransport(),
     });
   }

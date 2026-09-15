@@ -1,5 +1,4 @@
 import type { AuthenticatedUser } from "@repo/contracts";
-import { resolveResourceOwnerId } from "@repo/authorization";
 import { AuthorizationService } from "../../infrastructure/authorization";
 import { TenantContextService } from "../../infrastructure/database";
 
@@ -11,9 +10,8 @@ export function canAccessResource(
   resourceType: string,
   resource: unknown,
 ): boolean {
-  if (actor.role === "admin") return true;
   if (!authorization) {
-    return resolveResourceOwnerId(resourceType, resource as Record<string, unknown>) === actor.sub;
+    return false;
   }
   return authorization.check({
     principal: principalFor(actor, tenantContext),
@@ -29,7 +27,6 @@ export function canListTenantResources(
   actor: AuthenticatedUser,
   action: string,
 ): boolean {
-  if (actor.role === "admin") return true;
   return authorization?.can(principalFor(actor, tenantContext), action) ?? false;
 }
 

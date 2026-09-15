@@ -11,6 +11,7 @@ describe("OutboxService", () => {
   let repository: OutboxRepository;
   let tenantContext: TenantContextService;
   let database: DatabaseService;
+  let eventWorker: OutboxEventWorker;
   const originalMode = env.TENANCY_MODE;
 
   beforeEach(() => {
@@ -26,7 +27,10 @@ describe("OutboxService", () => {
     database = {
       withSystemScope: vi.fn().mockImplementation(async (callback) => callback()),
     } as unknown as DatabaseService;
-    service = new OutboxService(repository, tenantContext, database);
+    eventWorker = {
+      replayDeadLetter: vi.fn().mockResolvedValue(true),
+    } as unknown as OutboxEventWorker;
+    service = new OutboxService(repository, tenantContext, database, eventWorker);
   });
 
   afterEach(() => {
@@ -105,9 +109,6 @@ describe("OutboxService", () => {
   });
 
   it("delegates dead-letter replay to the worker when available (H11)", async () => {
-    const eventWorker = {
-      replayDeadLetter: vi.fn().mockResolvedValue(true),
-    } as unknown as OutboxEventWorker;
     const delegated = new OutboxService(repository, tenantContext, database, eventWorker);
 
     const result = await delegated.replayDeadLetter("event-1");
@@ -116,12 +117,11 @@ describe("OutboxService", () => {
     expect(eventWorker.replayDeadLetter).toHaveBeenCalledWith("event-1");
   });
 
-  it("falls back to row requeue without a worker", async () => {
-    repository.requeueDeadLetter = vi.fn().mockResolvedValue(true);
+  it("reports a missing dead letter without an incomplete SQL-only fallback", async () => {
+    vi.mocked(eventWorker.replayDeadLetter).mockResolvedValue(false);
 
-    const result = await service.replayDeadLetter("event-1");
+    const result = await service.replayDeadLetter("missing");
 
-    expect(result.isOk()).toBe(true);
-    expect(repository.requeueDeadLetter).toHaveBeenCalledWith("event-1");
+    expect(result).toMatchObject({ error: { type: "OUTBOX_NOT_FOUND" } });
   });
 });

@@ -11,6 +11,9 @@ import type { AnyContractProcedure } from "@orpc/contract" with { "resolution-mo
 import { describe, expect, it } from "vitest";
 import { RESPONSE_SCHEMA_KEY } from "../decorators/response-schema.decorator";
 import { ZodValidationPipe } from "../pipes/validation.pipe";
+import { IDEMPOTENT_KEY } from "../decorators/idempotent.decorator";
+import { PERMISSIONS_KEY } from "../decorators/permissions.decorator";
+import { RATE_LIMIT_KEY } from "../decorators/rate-limit.decorator";
 
 export type RoutePair = {
   contract: AnyContractProcedure;
@@ -98,6 +101,15 @@ export function describeRouteParity(options: DescribeRouteParityOptions) {
       expect(responseSchema(route.rest[0], route.rest[1])).toBe(
         route.contract["~orpc"].outputSchema,
       );
+      expect(routeMetadata(route.rpc, IDEMPOTENT_KEY)).toEqual(
+        routeMetadata(route.rest, IDEMPOTENT_KEY),
+      );
+      expect(routeMetadata(route.rpc, RATE_LIMIT_KEY)).toEqual(
+        routeMetadata(route.rest, RATE_LIMIT_KEY),
+      );
+      expect(routeMetadata(route.rpc, PERMISSIONS_KEY)).toEqual(
+        routeMetadata(route.rest, PERMISSIONS_KEY),
+      );
     });
   });
 
@@ -165,4 +177,11 @@ export function describeRouteParity(options: DescribeRouteParityOptions) {
       }
     });
   }
+}
+
+function routeMetadata(route: [object, string], key: string): unknown {
+  const type = route[0] as { prototype: Record<string, object> };
+  const handler = type.prototype[route[1]];
+  if (!handler) throw new Error(`Missing route handler: ${route[1]}`);
+  return Reflect.getMetadata(key, handler);
 }

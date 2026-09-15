@@ -3,11 +3,6 @@ import type { FileListResponse, FileMetadataResponse, FileRecord } from "@repo/c
 import type { PaginatedResult } from "../../infrastructure/database";
 
 export function toFileResponse(file: FileRecord): FileMetadataResponse {
-  const baseUrl =
-    env.CDN_ENABLED && env.CDN_DOMAIN
-      ? `https://${env.CDN_DOMAIN}/${env.CDN_BUCKET_PATH}`
-      : storageBaseUrl(file.bucket);
-
   return {
     id: file.id,
     key: file.key,
@@ -15,7 +10,7 @@ export function toFileResponse(file: FileRecord): FileMetadataResponse {
     contentType: file.contentType,
     fileSize: file.fileSize,
     bucket: file.bucket,
-    url: `${baseUrl}/${file.key}`,
+    url: authenticatedUrl(file.id),
     parentId: file.parentId,
     parentType: file.parentType,
     slot: file.slot ?? null,
@@ -25,12 +20,8 @@ export function toFileResponse(file: FileRecord): FileMetadataResponse {
   };
 }
 
-function storageBaseUrl(bucket: string): string {
-  const endpoint = new URL(env.S3_ENDPOINT);
-  if (env.S3_FORCE_PATH_STYLE) {
-    return `${endpoint.toString().replace(/\/$/, "")}/${bucket}`;
-  }
-  return `${endpoint.protocol}//${bucket}.${endpoint.host}`;
+function authenticatedUrl(fileId: string): string {
+  return new URL(`/api/v1/files/${fileId}/content`, env.API_URL).toString();
 }
 
 export function toFileListResponse(page: PaginatedResult<FileRecord>): FileListResponse {

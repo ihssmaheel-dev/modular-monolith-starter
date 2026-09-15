@@ -32,6 +32,7 @@ describe("FileCleanupWorker", () => {
     mockFilesRepo = {
       findPendingFilesBefore: vi.fn().mockResolvedValue([STALE_FILE]),
       findUnlinkedBefore: vi.fn().mockResolvedValue([]),
+      findDeletedFiles: vi.fn().mockResolvedValue([]),
       deleteById: vi.fn().mockResolvedValue({ isOk: () => true, value: STALE_FILE }),
     } as unknown as FilesRepository;
 
@@ -81,14 +82,15 @@ describe("FileCleanupWorker", () => {
     );
   });
 
-  it("bounds janitor scans to one batch per run", async () => {
+  it("uses bounded candidate batches", async () => {
     vi.mocked(mockFilesRepo.findPendingFilesBefore).mockResolvedValue([]);
     vi.mocked(mockFilesRepo.findUnlinkedBefore).mockResolvedValue([]);
 
     await worker.cleanupOrphanPendingFiles();
 
-    expect(mockFilesRepo.findPendingFilesBefore).toHaveBeenCalledWith(expect.any(Date), true, 100);
-    expect(mockFilesRepo.findUnlinkedBefore).toHaveBeenCalledWith(expect.any(Date), true, 100);
+    expect(mockFilesRepo.findPendingFilesBefore).toHaveBeenCalledWith(expect.any(Date), true, 500);
+    expect(mockFilesRepo.findUnlinkedBefore).toHaveBeenCalledWith(expect.any(Date), true, 500);
+    expect(mockFilesRepo.findDeletedFiles).toHaveBeenCalledWith(500, true);
   });
 
   it("purges confirmed but never-linked files older than the unlinked cutoff", async () => {

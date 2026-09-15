@@ -1,6 +1,6 @@
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { ok, err, type Result } from "neverthrow";
-import { BaseReadRepository } from "./base-read.repository";
+import { BaseReadRepository, MAX_FIND_LIMIT } from "./base-read.repository";
 import type { Id, PaginatedResult, PaginationOptions } from "./repository.types";
 
 export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<TEntity, TRow> {
@@ -76,27 +76,23 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       });
     }
     const db = this.getDb();
-    const page = options.page ?? 1;
-    const limit = options.limit ?? 20;
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.min(MAX_FIND_LIMIT, Math.max(1, options.limit ?? 20));
     const offset = (page - 1) * limit;
-    const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() });
+    const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
+    const itemQuery = (
+      db as unknown as {
+        select: () => { from: (table: unknown) => { where: (condition: unknown) => unknown } };
+      }
+    )
+      .select()
+      .from(this.table)
+      .where(conditions);
+    const ordered = this.applyStableOrder(itemQuery, options);
+    const limited = this.applyNumberMethod(ordered, "limit", limit);
+    const paged = this.applyNumberMethod(limited, "offset", offset);
     const [items, totalRes] = await Promise.all([
-      (
-        db as unknown as {
-          select: () => {
-            from: (t: unknown) => {
-              where: (c: unknown) => {
-                limit: (n: number) => { offset: (o: number) => Promise<TRow[]> };
-              };
-            };
-          };
-        }
-      )
-        .select()
-        .from(this.table)
-        .where(conditions)
-        .limit(limit)
-        .offset(offset),
+      paged as Promise<TRow[]>,
       (
         db as unknown as {
           select: (v: unknown) => {

@@ -7,10 +7,11 @@ import { env } from "../../config/env";
 import { OutboxEvent, OutboxRepository } from "./outbox.repository";
 import { OutboxRelayDelivery } from "./outbox-relay.delivery";
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 100;
 const LOCK_TIMEOUT_MS = 60_000;
 const PUBLISHED_RETENTION_DAYS = 30;
 const RETENTION_BATCH_SIZE = 1000;
+const RETENTION_MAX_BATCHES = 10;
 
 @Injectable()
 export class OutboxRelayWorker {
@@ -34,10 +35,8 @@ export class OutboxRelayWorker {
     this.isProcessing = true;
     try {
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        await this.recoverStaleLocks();
         const events = await this.getPendingEvents();
         for (const event of events) await this.relayEvent(event);
-        await this.retainPublishedEvents();
       });
     } catch (error) {
       this.logger.error({ err: error }, "Outbox relay failed");
@@ -48,8 +47,11 @@ export class OutboxRelayWorker {
 
   private async getPendingEvents(): Promise<OutboxEvent[]> {
     return this.database.runTransaction(async () => {
-      const pendingCount = await this.repository.countPendingEvents();
-      this.metrics.setGauge("outbox_pending_events_depth", "Pending outbox events", pendingCount);
+      if (Date.now() - this.lastBacklogCheck >= 60_000) {
+        const pendingCount = await this.repository.countPendingEvents();
+        this.metrics.setGauge("outbox_pending_events_depth", "Pending outbox events", pendingCount);
+        this.lastBacklogCheck = Date.now();
+      }
       const events = await this.repository.lockPendingEvents(BATCH_SIZE);
       const oldest = events[0];
       this.metrics.setGauge(
@@ -61,13 +63,17 @@ export class OutboxRelayWorker {
     });
   }
 
+  private lastBacklogCheck = 0;
+
   private async relayEvent(event: OutboxEvent): Promise<void> {
     await this.tenantContext.runSystem({ mode: env.TENANCY_MODE, tenantId: event.tenantId }, () =>
       this.delivery.deliver(event),
     );
   }
 
-  private async recoverStaleLocks(): Promise<void> {
+  @Cron(CronExpression.EVERY_MINUTE)
+  async recoverStaleLocks(): Promise<void> {
+    if (env.PROCESS_ROLE === "api") return;
     const cutoff = new Date(Date.now() - LOCK_TIMEOUT_MS);
     const recovered = await this.database.runTransaction(() =>
       this.repository.recoverStaleLocks(cutoff),
@@ -75,11 +81,18 @@ export class OutboxRelayWorker {
     if (recovered > 0) this.logger.warn({ recovered }, "Recovered stale outbox locks");
   }
 
-  private async retainPublishedEvents(): Promise<void> {
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async retainPublishedEvents(): Promise<void> {
+    if (env.PROCESS_ROLE === "api") return;
     const cutoff = new Date(Date.now() - PUBLISHED_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-    const pruned = await this.database.runTransaction(() =>
-      this.repository.deletePublishedBefore(cutoff, RETENTION_BATCH_SIZE),
-    );
+    let pruned = 0;
+    for (let index = 0; index < RETENTION_MAX_BATCHES; index += 1) {
+      const deleted = await this.database.runTransaction(() =>
+        this.repository.deletePublishedBefore(cutoff, RETENTION_BATCH_SIZE),
+      );
+      pruned += deleted;
+      if (deleted < RETENTION_BATCH_SIZE) break;
+    }
     if (pruned > 0) this.logger.info({ pruned }, "Pruned published outbox events");
   }
 }

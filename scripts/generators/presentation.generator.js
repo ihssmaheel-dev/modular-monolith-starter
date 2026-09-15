@@ -169,11 +169,11 @@ export class ${FeaturePlural}Controller {
 `;
 
   const moduleContent = `import { Module } from "@nestjs/common";
-import { AuthorizationModule } from "../../../infrastructure/authorization";
-import { OutboxModule } from "../../../infrastructure/outbox/outbox.module";
-import { ${FeaturePlural}Controller } from "./presentation/${featurePlural}.controller";
-import { ${FeaturePlural}OrpcController } from "./presentation/${featurePlural}.orpc.controller";
-import { ${FeaturePlural}Repository } from "./infrastructure/${featurePlural}.repository";
+import { AuthorizationModule } from "../../infrastructure/authorization";
+import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
+import { ${FeaturePlural}Controller } from "./presentation/controllers/${featurePlural}.controller";
+import { ${FeaturePlural}OrpcController } from "./presentation/orpc/${featurePlural}.orpc.controller";
+import { ${FeaturePlural}Repository } from "./infrastructure/repositories/${featurePlural}.repository";
 import { Create${Feature}Command } from "./application/commands/create-${feature}.command";
 import { Update${Feature}Command } from "./application/commands/update-${feature}.command";
 import { Delete${Feature}Command } from "./application/commands/delete-${feature}.command";
@@ -218,7 +218,7 @@ import type { FastifyRequest } from "fastify";
 import { ${featurePlural}Contract } from "@repo/contracts";
 import { Implement, implement } from "../../../../infrastructure/orpc/orpc-runtime";
 import { invokeOrpc } from "../../../../infrastructure/orpc";
-import { Idempotent, RequirePermission } from "../../../common";
+import { Idempotent, RequirePermission } from "../../../../common";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { ${FeaturePlural}Controller } from "../controllers/${featurePlural}.controller";
 
@@ -324,8 +324,8 @@ describeRouteParity({
   );
   writeOrUpdateModule(path.join(modulePath, `${moduleName}.module.ts`), moduleContent, {
     imports: [
-      `import { AuthorizationModule } from "../../../infrastructure/authorization";`,
-      `import { OutboxModule } from "../../../infrastructure/outbox/outbox.module";`,
+      `import { AuthorizationModule } from "../../infrastructure/authorization";`,
+      `import { OutboxModule } from "../../infrastructure/outbox/outbox.module";`,
       `import { ${FeaturePlural}Controller } from "./presentation/controllers/${featurePlural}.controller";`,
       `import { ${FeaturePlural}OrpcController } from "./presentation/orpc/${featurePlural}.orpc.controller";`,
       `import { ${FeaturePlural}Repository } from "./infrastructure/repositories/${featurePlural}.repository";`,

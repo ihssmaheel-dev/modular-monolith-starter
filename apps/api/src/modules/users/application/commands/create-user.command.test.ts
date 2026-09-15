@@ -23,6 +23,7 @@ describe("CreateUserCommand", () => {
   beforeEach(() => {
     repository = {
       create: vi.fn(),
+      findOne: vi.fn().mockResolvedValue(ok(null)),
     } as unknown as UsersRepository;
 
     getUserByEmail = {
@@ -31,6 +32,7 @@ describe("CreateUserCommand", () => {
 
     databaseService = {
       withResultTransaction: vi.fn().mockImplementation(async (callback) => callback()),
+      withAdvisoryLock: vi.fn().mockImplementation(async (_key, callback) => callback()),
     } as unknown as DatabaseService;
 
     outboxService = {
@@ -100,5 +102,36 @@ describe("CreateUserCommand", () => {
       "user.created",
       expect.any(UserCreatedEvent),
     );
+  });
+
+  it("normalizes and serializes creation against pending email reservations", async () => {
+    vi.mocked(getUserByEmail.execute).mockResolvedValue(ok(null));
+    vi.mocked(argon2.hash).mockResolvedValue("hashed_pwd" as never);
+    vi.mocked(repository.findOne).mockResolvedValue(
+      ok(
+        User.fromPersistence({
+          id: "other-user",
+          email: "old@example.com",
+          name: "Other",
+          role: "user",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ),
+    );
+
+    const result = await command.execute({
+      email: " Reserved@Example.COM ",
+      name: "Test",
+      password: "pwd",
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(databaseService.withAdvisoryLock).toHaveBeenCalledWith(
+      "user-email:reserved@example.com",
+      expect.any(Function),
+    );
+    expect(repository.findOne).toHaveBeenCalledWith({ pendingEmail: "reserved@example.com" });
+    expect(repository.create).not.toHaveBeenCalled();
   });
 });

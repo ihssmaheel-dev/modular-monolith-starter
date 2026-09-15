@@ -17,15 +17,22 @@ export * from "./memberships.contract";
 export * from "./privacy.contract";
 export * from "./notification.contract";
 
-export const apiContract = oc.router({
+export const coreApiContracts = {
   auth: authContract,
   users: usersContract,
-  notes: notesContract,
   files: filesContract,
   organizations: organizationsContract,
   memberships: membershipsContract,
   privacy: privacyContract,
   notifications: notificationsContract,
+};
+
+/** Reference slices are composed explicitly so product forks can remove them as one unit. */
+export const exampleApiContracts = { notes: notesContract };
+
+export const apiContract = oc.router({
+  ...coreApiContracts,
+  ...exampleApiContracts,
 });
 
 export type ApiContract = typeof apiContract;

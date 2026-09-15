@@ -54,15 +54,15 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22.12.0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
         with:
           version: 10.34.5
           run_install: false
@@ -73,7 +73,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -106,6 +106,7 @@ jobs:
       - name: Contract and migration checks (fresh + upgrade)
         run: |
           pnpm --filter @repo/contracts build
+          pnpm db:migrate:lineage
           pnpm db:migrate:check
           pnpm db:migrate
           pnpm db:migrate:status
@@ -141,9 +142,13 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Enforce web bundle budgets
+        run: pnpm bundle:check
+
       - name: Production compose validation
         run: |
           DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
           REDIS_URL=rediss://redis.example.net:6380 \
           JWT_SECRET=ci-production-access-secret-32-characters \
           JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
@@ -155,7 +160,36 @@ jobs:
           S3_SECRET_ACCESS_KEY=ci-storage-secret \
           EMAIL_FROM=ci@app.example.test \
           METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
+          WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
+          PGBOUNCER_DB_HOST=db.example.net \
+          PGBOUNCER_DB_NAME=app \
+          PGBOUNCER_DB_USER=ci_user \
+          PGBOUNCER_DB_PASSWORD=ci-password-32-characters-long \
           docker compose -f docker/docker-compose.prod.yml config
+
+      - name: Production compose pooling profile validation
+        run: |
+          DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
+          REDIS_URL=rediss://redis.example.net:6380 \
+          JWT_SECRET=ci-production-access-secret-32-characters \
+          JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
+          CLIENT_URL=https://app.example.test \
+          API_URL=https://api.example.test \
+          VITE_API_URL=https://api.example.test/api/v1 \
+          S3_ENDPOINT=https://storage.example.test \
+          S3_ACCESS_KEY_ID=ci-storage-key \
+          S3_SECRET_ACCESS_KEY=ci-storage-secret \
+          EMAIL_FROM=ci@app.example.test \
+          METRICS_TOKEN=ci-metrics-token-32-characters-long \
+          API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
+          WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
+          PGBOUNCER_DB_HOST=db.example.net \
+          PGBOUNCER_DB_NAME=app \
+          PGBOUNCER_DB_USER=ci_user \
+          PGBOUNCER_DB_PASSWORD=ci-password-32-characters-long \
+          docker compose -f docker/docker-compose.prod.yml --profile pooling config
 
       - name: Build production API image
         run: docker build --file Dockerfile --tag modular-monolith-api:ci .
@@ -165,3 +199,8 @@ jobs:
 
       - name: Build Storybook catalog
         run: pnpm turbo build-storybook --filter=@repo/ui
+
+      - name: Typecheck a generated owner-scoped vertical slice
+        run: |
+          pnpm generate:feature generator-smoke generated-item --access=owner
+          pnpm typecheck

@@ -18,13 +18,16 @@ export class ResendDriver implements EmailDriver {
     params: SendEmailParams,
   ): Promise<Result<SendEmailResult, EmailError>> {
     try {
-      const response = await this.client.emails.send({
-        from: env.EMAIL_FROM,
-        to: recipients,
-        subject: params.subject,
-        html: params.html,
-        text: params.text,
-      });
+      const response = await this.client.emails.send(
+        {
+          from: env.EMAIL_FROM,
+          to: recipients,
+          subject: params.subject,
+          html: params.html,
+          text: params.text,
+        },
+        params.operationId ? { idempotencyKey: params.operationId } : undefined,
+      );
 
       if (response.error) {
         this.logger.error({ error: response.error }, "Resend send failed");

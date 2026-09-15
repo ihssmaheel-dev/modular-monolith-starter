@@ -61,6 +61,7 @@ export class LoginCommand {
       userAgent: device.userAgent ?? "unknown",
       deviceName: device.deviceName ?? "unknown",
     });
+    if (session.isErr()) return err({ type: "SESSION_UNAVAILABLE" });
     const accessToken = signAccessToken(
       user.id,
       user.email,
@@ -68,7 +69,7 @@ export class LoginCommand {
       user.role,
       user.authVersion,
     );
-    const refreshToken = signRefreshToken(user.id, user.authVersion, session.id);
+    const refreshToken = signRefreshToken(user.id, user.authVersion, session.value.id);
 
     this.metricsService.incrementCounter(
       "auth_successful_logins_total",

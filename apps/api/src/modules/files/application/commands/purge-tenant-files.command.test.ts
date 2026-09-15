@@ -4,6 +4,7 @@ import { PurgeTenantFilesCommand } from "./purge-tenant-files.command";
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
+import type { DatabaseService } from "../../../../infrastructure/database";
 
 function page(ids: string[]) {
   return {
@@ -29,7 +30,10 @@ describe("PurgeTenantFilesCommand", () => {
     } as unknown as FilesRepository;
     storage = { delete: vi.fn() } as unknown as StorageService;
     const logger = { error: vi.fn() } as unknown as PinoLoggerService;
-    command = new PurgeTenantFilesCommand(files, storage, logger);
+    const database = {
+      withResultTransaction: vi.fn((operation: () => Promise<unknown>) => operation()),
+    } as unknown as DatabaseService;
+    command = new PurgeTenantFilesCommand(files, storage, logger, database);
   });
 
   it("should delete S3 bytes before rows in bounded batches", async () => {

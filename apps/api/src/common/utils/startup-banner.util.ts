@@ -1,7 +1,7 @@
 import { INestApplication } from "@nestjs/common";
 
 import { blue, green, yellow, bold, cyan, dim } from "colorette";
-import { API_DOCS_PATH } from "@repo/contracts";
+import { API_BASE_PATH, API_DOCS_PATH } from "@repo/contracts";
 import { env } from "../../config/env";
 import { RedisService } from "../../infrastructure/redis/redis.service";
 import { PinoLoggerService } from "../../infrastructure/logger/logger.service";
@@ -34,7 +34,7 @@ function buildEndpointSection(): string[] {
     `${bold(cyan("APPLICATION ENDPOINTS"))}`,
     `  ${dim("•")} ${bold("Base API")}     : ${cyan(`${env.API_URL}/api`)}`,
     `  ${dim("•")} ${bold("Swagger Docs")} : ${cyan(`${env.API_URL}${API_DOCS_PATH}`)}`,
-    `  ${dim("•")} ${bold("Health Probe")} : ${cyan(`${env.API_URL}/health`)}`,
+    `  ${dim("•")} ${bold("Health Probe")} : ${cyan(`${env.API_URL}${API_BASE_PATH}/health`)}`,
     `  ${dim("•")} ${bold("Prom Metrics")} : ${cyan(`${env.API_URL}/metrics`)}`,
   ];
 }

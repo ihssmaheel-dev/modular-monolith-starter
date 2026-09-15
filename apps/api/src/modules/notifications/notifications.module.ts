@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, type OnModuleInit } from "@nestjs/common";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { DatabaseModule } from "../../infrastructure/database";
@@ -15,11 +15,15 @@ import { GetPreferencesQuery } from "./application/queries/get-preferences.query
 import { ExportUserDataQuery } from "./application/queries/export-user-data.query";
 import { DomainEventFanoutListener } from "./application/listeners/domain-event-fanout.listener";
 import { DigestWorker } from "./application/workers/digest.worker";
+import { NotificationDeliveryWorker } from "./application/workers/notification-delivery.worker";
 import { NotificationsRepository } from "./infrastructure/repositories/notifications.repository";
 import { PreferencesRepository } from "./infrastructure/repositories/preferences.repository";
 import { DeviceTokensRepository } from "./infrastructure/repositories/device-tokens.repository";
 import { BatchesRepository } from "./infrastructure/repositories/batches.repository";
 import { PushDriverFactory } from "./infrastructure/push/push.factory";
+import { DeliveryIntentsRepository } from "./infrastructure/repositories/delivery-intents.repository";
+import { DataLifecycleRegistry } from "../../infrastructure/lifecycle/data-lifecycle.registry";
+import { NotificationsLifecycleContributor } from "./application/adapters/notifications-lifecycle.contributor";
 
 @Module({
   imports: [EventEmitterModule, OutboxModule, DatabaseModule, UsersModule],
@@ -36,11 +40,14 @@ import { PushDriverFactory } from "./infrastructure/push/push.factory";
     ExportUserDataQuery,
     DomainEventFanoutListener,
     DigestWorker,
+    NotificationDeliveryWorker,
     NotificationsRepository,
     PreferencesRepository,
     DeviceTokensRepository,
     BatchesRepository,
     PushDriverFactory,
+    DeliveryIntentsRepository,
+    NotificationsLifecycleContributor,
   ],
   exports: [
     SendNotificationCommand,
@@ -49,4 +56,13 @@ import { PushDriverFactory } from "./infrastructure/push/push.factory";
     ExportUserDataQuery,
   ],
 })
-export class NotificationsModule {}
+export class NotificationsModule implements OnModuleInit {
+  constructor(
+    private readonly lifecycle: DataLifecycleRegistry,
+    private readonly lifecycleContributor: NotificationsLifecycleContributor,
+  ) {}
+
+  onModuleInit(): void {
+    this.lifecycle.register(this.lifecycleContributor);
+  }
+}

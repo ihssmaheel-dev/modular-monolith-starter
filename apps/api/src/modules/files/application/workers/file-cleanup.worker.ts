@@ -12,7 +12,8 @@ import { env } from "../../../../config/env";
 
 const PENDING_EXPIRATION_HOURS = 24;
 const UNLINKED_EXPIRATION_DAYS = 7;
-const CLEANUP_BATCH_SIZE = 100;
+const CLEANUP_BATCH_SIZE = 500;
+const MAX_BATCHES_PER_RUN = 5;
 
 @Injectable()
 export class FileCleanupWorker {
@@ -30,7 +31,7 @@ export class FileCleanupWorker {
     this.logger = logger.child({ module: "FileCleanupWorker" });
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  @Cron(CronExpression.EVERY_HOUR)
   async cleanupOrphanPendingFiles(): Promise<{ purgedCount: number; reclaimedBytes: number }> {
     if (env.PROCESS_ROLE === "api") return { purgedCount: 0, reclaimedBytes: 0 };
     if (this.isRunning) {
@@ -46,26 +47,16 @@ export class FileCleanupWorker {
       const cutoff = new Date(Date.now() - PENDING_EXPIRATION_HOURS * 60 * 60 * 1000);
       const unlinkedCutoff = new Date(Date.now() - UNLINKED_EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        const staleFiles = await this.database.runTransaction(() =>
-          this.filesRepository.findPendingFilesBefore(cutoff, true, CLEANUP_BATCH_SIZE),
-        );
-        const unlinkedFiles = await this.database.runTransaction(() =>
-          this.filesRepository.findUnlinkedBefore(unlinkedCutoff, true, CLEANUP_BATCH_SIZE),
-        );
-        const repository = this.filesRepository as unknown as {
-          findDeletedFiles?: (limit: number, systemScope?: boolean) => Promise<typeof staleFiles>;
-        };
-        const deletedFiles = repository.findDeletedFiles
-          ? await this.database.runTransaction(() =>
-              repository.findDeletedFiles!(CLEANUP_BATCH_SIZE, true),
-            )
-          : [];
-        for (const file of [...staleFiles, ...unlinkedFiles, ...deletedFiles]) {
-          const deleted = await this.purgeFile(file);
-          if (deleted) {
-            purgedCount += 1;
-            reclaimedBytes += file.fileSize;
+        for (let index = 0; index < MAX_BATCHES_PER_RUN; index += 1) {
+          const candidates = await this.findCandidates(cutoff, unlinkedCutoff);
+          for (const file of candidates) {
+            const deleted = await this.purgeFile(file);
+            if (deleted) {
+              purgedCount += 1;
+              reclaimedBytes += file.fileSize;
+            }
           }
+          if (candidates.length < CLEANUP_BATCH_SIZE * 3) break;
         }
       });
 
@@ -84,6 +75,19 @@ export class FileCleanupWorker {
     }
 
     return { purgedCount, reclaimedBytes };
+  }
+
+  private async findCandidates(cutoff: Date, unlinkedCutoff: Date) {
+    const stale = await this.database.runTransaction(() =>
+      this.filesRepository.findPendingFilesBefore(cutoff, true, CLEANUP_BATCH_SIZE),
+    );
+    const unlinked = await this.database.runTransaction(() =>
+      this.filesRepository.findUnlinkedBefore(unlinkedCutoff, true, CLEANUP_BATCH_SIZE),
+    );
+    const deleted = await this.database.runTransaction(() =>
+      this.filesRepository.findDeletedFiles(CLEANUP_BATCH_SIZE, true),
+    );
+    return [...stale, ...unlinked, ...deleted];
   }
 
   private async purgeFile(file: { id: string; key: string; fileSize: number }): Promise<boolean> {

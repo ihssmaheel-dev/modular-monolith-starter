@@ -8,7 +8,7 @@ Where to create new files in this codebase. Every file must land in the correct 
 
 Before creating any file, answer these questions in order:
 
-1. **Is it a shared contract, Zod schema, or DTO?** → `packages/contracts/src/`
+1. **Is it a public transport contract, public Zod schema, or shared DTO?** → `packages/contracts/src/`. Capability-private/runtime types stay with their owner.
 2. **Is it authorization rules, permissions, or evaluator?** → `packages/authorization/src/`
 3. **Is it translations or locale definitions?** → `packages/i18n/src/`
 4. **Is it API client factory/methods?** → `packages/api-client/src/`
@@ -52,7 +52,7 @@ Focused capability packages: `@repo/contracts`, `@repo/authorization`, `@repo/i1
 
 ### 2. `@repo/authorization` (`packages/authorization/src/`)
 - Types (`types.ts`): Principal, ResourceDescriptor, Policy, Decision
-- Permissions (`permissions.ts`): Flat action vocabulary (`notes:create`, `privacy:erase:self`) & wildcard resolver
+- Permissions (`permissions.ts`): Stable foundation action vocabulary and wildcard resolver. Example/project actions stay in their feature policies.
 - Evaluator (`evaluator.ts`): Pure FGA engine (RBAC + ReBAC + ABAC)
 - Ownership (`ownership.ts`): Resource-owner resolution helpers
 
@@ -391,7 +391,7 @@ apps/mobile/
 - Push: `expo-notifications` (permissions/handlers/badge) + `expo-device` + `expo-constants`; register tokens via `notifications.registerDevice`; tap-through via `resolveNotificationRoute` in `src/lib/push.ts`.
 - `pnpm --filter mobile build` runs `expo export --platform ios --platform android` (native only; web already exists as `apps/web`). Verify with `expo export` in CI, not simulators.
 - Do not run `expo install --fix` (it fights the monorepo's single-React pnpm overrides); pin versions manually to the Expo SDK set.
-- Mobile logic tests live co-located (`*.test.ts`), run under `vitest.config.ts` (node); native seams mocked once in `src/test/setup.ts`. Component tests stay deferred (see `TESTING_RULES.md`).
+- Mobile logic tests live co-located (`*.test.ts`), run under `vitest.config.mts` (node); native seams mocked once in `src/test/setup.ts`. Component tests stay deferred (see `TESTING_RULES.md`).
 
 ## Docs
 

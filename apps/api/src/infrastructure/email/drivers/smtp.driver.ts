@@ -29,6 +29,7 @@ export class SmtpDriver implements EmailDriver {
         subject: params.subject,
         html: params.html,
         text: params.text,
+        ...(params.operationId ? { messageId: `<${params.operationId}@${emailDomain()}>` } : {}),
       });
 
       this.logger.info({ messageId: info.messageId, to: recipients }, "Email sent via SMTP");
@@ -44,4 +45,8 @@ export class SmtpDriver implements EmailDriver {
       });
     }
   }
+}
+
+function emailDomain(): string {
+  return env.EMAIL_FROM.split("@")[1] ?? "localhost";
 }

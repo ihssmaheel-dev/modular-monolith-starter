@@ -1,27 +1,52 @@
 import { Injectable } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
 import { PinoLoggerService } from "../logger/logger.service";
-import { SessionData, CreateSessionInput, TOKEN_REVOCATION_TTL_SECONDS } from "./session.types";
-
-/** Session records live as long as the refresh tokens issued against them. */
-function sessionTtlSeconds(): number {
-  return parseDurationToSeconds(env.JWT_REFRESH_EXPIRES_IN);
-}
+import {
+  SessionData,
+  CreateSessionInput,
+  SESSION_PREFIX,
+  TOKEN_REVOCATION_TTL_SECONDS,
+} from "./session.types";
+import { err, ok, type Result } from "neverthrow";
 import { sessionKey, tokenRevocationKey, generateSessionId, isRevoked } from "./session.utils";
 import { parseDurationToSeconds } from "../../common/utils/duration.utils";
 import { env } from "../../config/env";
+
+/** Sessions have an absolute lifetime equal to the configured refresh-token lifetime. */
+function sessionTtlSeconds(): number {
+  return parseDurationToSeconds(env.JWT_REFRESH_EXPIRES_IN);
+}
 
 export type RefreshRotation = "rotated" | "reused" | "unavailable";
 
 const REFRESH_FAMILY_PREFIX = "auth:refresh:family:";
 const REFRESH_USED_PREFIX = "auth:refresh:used:";
+const USER_SESSION_PREFIX = "user:";
+const USER_SESSION_SUFFIX = ":sessions";
+const MAX_ACTIVE_SESSIONS = 20;
+
+const CREATE_SESSION_SCRIPT = `
+  redis.call('SETEX', KEYS[1], ARGV[1], ARGV[2])
+  redis.call('ZADD', KEYS[2], ARGV[3], ARGV[4])
+  redis.call('EXPIRE', KEYS[2], ARGV[1])
+  local overflow = redis.call('ZCARD', KEYS[2]) - tonumber(ARGV[5])
+  if overflow <= 0 then return 0 end
+  local expired = redis.call('ZRANGE', KEYS[2], 0, overflow - 1)
+  for _, sid in ipairs(expired) do
+    redis.call('DEL', ARGV[6] .. sid)
+    redis.call('ZREM', KEYS[2], sid)
+  end
+  return #expired
+`;
 
 const ROTATE_REFRESH_SCRIPT = `
+  local ttl = redis.call('TTL', KEYS[3])
+  if ttl <= 0 then return 'unavailable' end
   if redis.call('EXISTS', KEYS[2]) == 1 then return 'reused' end
   local current = redis.call('GET', KEYS[1])
   if current and current ~= ARGV[1] then return 'reused' end
-  redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
-  redis.call('SET', KEYS[2], '1', 'EX', ARGV[3])
+  redis.call('SET', KEYS[1], ARGV[2], 'EX', ttl)
+  redis.call('SET', KEYS[2], '1', 'EX', ttl)
   return 'rotated'
 `;
 
@@ -36,8 +61,11 @@ export class SessionService {
     this.logger = logger.child({ module: "SessionService" });
   }
 
-  async create(input: CreateSessionInput): Promise<SessionData> {
+  async create(
+    input: CreateSessionInput,
+  ): Promise<Result<SessionData, { type: "SESSION_UNAVAILABLE" }>> {
     const client = this.redis.getClient();
+    if (!client) return err({ type: "SESSION_UNAVAILABLE" });
 
     const sessionId = generateSessionId();
     const now = Date.now();
@@ -50,21 +78,29 @@ export class SessionService {
       deviceName: input.deviceName,
       createdAt: now,
       lastAccessedAt: now,
+      expiresAt: now + sessionTtlSeconds() * 1000,
     };
 
-    if (client) {
+    try {
       const key = sessionKey(sessionId);
-      await client.setex(key, sessionTtlSeconds(), JSON.stringify(session));
-      await client.sadd(`user:${input.userId}:sessions`, sessionId);
-      this.logger.info({ sessionId, userId: input.userId }, "Session created");
-    } else {
-      this.logger.warn(
-        { userId: input.userId },
-        "Session generated but not persisted (Redis offline)",
+      await client.eval(
+        CREATE_SESSION_SCRIPT,
+        2,
+        key,
+        userSessionsKey(input.userId),
+        sessionTtlSeconds().toString(),
+        JSON.stringify(session),
+        now.toString(),
+        sessionId,
+        MAX_ACTIVE_SESSIONS.toString(),
+        SESSION_PREFIX,
       );
+      this.logger.info({ sessionId, userId: input.userId }, "Session created");
+      return ok(session);
+    } catch (error) {
+      this.logger.error({ userId: input.userId, error }, "Session persistence failed");
+      return err({ type: "SESSION_UNAVAILABLE" });
     }
-
-    return session;
   }
 
   /**
@@ -81,17 +117,16 @@ export class SessionService {
   ): Promise<RefreshRotation> {
     const client = this.redis.getClient();
     if (!client) return "unavailable";
-    const ttl = parseDurationToSeconds(env.JWT_REFRESH_EXPIRES_IN);
     const result = (await client.eval(
       ROTATE_REFRESH_SCRIPT,
-      2,
+      3,
       `${REFRESH_FAMILY_PREFIX}${userId}:${sessionId}`,
       `${REFRESH_USED_PREFIX}${userId}:${sessionId}:${presentedJti}`,
+      sessionKey(sessionId),
       presentedJti,
       newJti,
-      ttl.toString(),
     )) as string | null;
-    if (result === "rotated" || result === "reused") return result;
+    if (result === "rotated" || result === "reused" || result === "unavailable") return result;
     this.logger.error({ userId, sessionId }, "Unexpected refresh rotation outcome");
     return "unavailable";
   }
@@ -132,7 +167,7 @@ export class SessionService {
     }
 
     session.lastAccessedAt = Date.now();
-    await client.setex(sessionKey(sessionId), sessionTtlSeconds(), JSON.stringify(session));
+    await client.set(sessionKey(sessionId), JSON.stringify(session), "KEEPTTL");
 
     return session;
   }
@@ -145,7 +180,7 @@ export class SessionService {
     if (!session) return;
 
     await client.del(sessionKey(sessionId));
-    await client.srem(`user:${session.userId}:sessions`, sessionId);
+    await client.zrem(userSessionsKey(session.userId), sessionId);
     await client.setex(tokenRevocationKey(sessionId), TOKEN_REVOCATION_TTL_SECONDS, "1");
 
     this.logger.info({ sessionId, userId: session.userId }, "Session revoked");
@@ -155,7 +190,7 @@ export class SessionService {
     const client = this.redis.getClient();
     if (!client) return;
 
-    const sessionIds = await client.smembers(`user:${userId}:sessions`);
+    const sessionIds = await client.zrange(userSessionsKey(userId), "0", "-1");
 
     if (sessionIds.length > 0) {
       const pipeline = client.pipeline();
@@ -166,7 +201,7 @@ export class SessionService {
       await pipeline.exec();
     }
 
-    await client.del(`user:${userId}:sessions`);
+    await client.del(userSessionsKey(userId));
     this.logger.info({ userId, count: sessionIds.length }, "All sessions revoked for user");
   }
 
@@ -174,14 +209,26 @@ export class SessionService {
     const client = this.redis.getClient();
     if (!client) return [];
 
-    const sessionIds = await client.smembers(`user:${userId}:sessions`);
+    const indexKey = userSessionsKey(userId);
+    const sessionIds = await client.zrange(indexKey, "0", String(MAX_ACTIVE_SESSIONS - 1));
     if (sessionIds.length === 0) return [];
 
     const keys = sessionIds.map((sid) => sessionKey(sid));
     const rawSessions = await client.mget(keys);
 
-    return rawSessions
-      .filter((raw): raw is string => raw !== null)
-      .map((raw) => JSON.parse(raw) as SessionData);
+    const missing = sessionIds.filter((_, index) => rawSessions[index] === null);
+    if (missing.length > 0) await client.zrem(indexKey, ...missing);
+    return rawSessions.flatMap((raw) => {
+      if (!raw) return [];
+      try {
+        return [JSON.parse(raw) as SessionData];
+      } catch {
+        return [];
+      }
+    });
   }
+}
+
+function userSessionsKey(userId: string): string {
+  return `${USER_SESSION_PREFIX}${userId}${USER_SESSION_SUFFIX}`;
 }

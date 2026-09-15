@@ -29,16 +29,9 @@ export class UpdateMemberCommand {
   ): Promise<Result<Membership, TenancyError>> {
     const tenant = this.context.get();
     if (!tenant.tenantId) return err({ type: "TENANT_REQUIRED" });
-    const target = await this.memberships.findMembership(tenant.tenantId, userId);
-    if (target.isErr()) return err({ type: "TENANCY_OPERATION_FAILED" });
-    if (!target.value) return err({ type: "MEMBERSHIP_NOT_FOUND" });
-    if (!canChangeRole(tenant.role, target.value.data.role, role)) {
-      return err({ type: "TENANT_FORBIDDEN" });
-    }
-    // Demoting an owner changes the last-owner invariant: serialize per
-    // organization and re-read under the lock so concurrent demotions
-    // cannot each observe two owners.
-    if (target.value.data.role === "owner" && role !== "owner" && this.database) {
+    // Promotions, demotions, and removals share one organization lock. A
+    // pre-lock role read cannot safely decide whether serialization is needed.
+    if (this.database) {
       return this.database.withAdvisoryLock(`tenancy:owners:${tenant.tenantId}`, () =>
         this.updatePersisted(tenant.tenantId!, userId, role, tenant.role),
       );
