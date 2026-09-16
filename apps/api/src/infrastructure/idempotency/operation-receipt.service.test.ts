@@ -73,4 +73,13 @@ describe("OperationReceiptService", () => {
     expect(result.isErr() && result.error.type).toBe("OPERATION_RESULT_TOO_LARGE");
     expect(repository.complete).not.toHaveBeenCalled();
   });
+
+  it("allows durable consumers to extend completion retention beyond the processing lease", async () => {
+    const expiresAt = new Date("2026-10-01T00:00:00.000Z");
+
+    const result = await service.complete("receipt-1", { completed: true }, expiresAt);
+
+    expect(result.isOk()).toBe(true);
+    expect(repository.complete).toHaveBeenCalledWith("receipt-1", { completed: true }, expiresAt);
+  });
 });

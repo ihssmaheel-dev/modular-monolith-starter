@@ -1,21 +1,5 @@
-export const XSS_PATTERNS = [
-  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i,
-  /javascript:/i,
-  /on\w+\s*=/i,
-  /data:text\/html/i,
-  /vbscript:/i,
-];
-
 export const NOSQL_INJECTION_PATTERNS = [
   /^\$(where|regex|gt|gte|lt|lte|ne|in|nin|exists|and|or|not|nor)$/i,
-];
-
-export const SQL_INJECTION_PATTERNS = [
-  /(';\s*(DROP|DELETE|INSERT|UPDATE|SELECT|ALTER|TRUNCATE)\b)/i,
-  /(\bUNION\s+(ALL\s+)?SELECT\b)/i,
-  /(--\s*$|\/\*[\s\S]*?\*\/)/i,
-  /('?\s*(OR|AND)\s+['"]?\d+['"]?\s*=\s*['"]?\d+)/i,
-  /(\bEXEC(\s+XP_|\s+SP_)\w+)/i,
 ];
 
 export const HEADER_INJECTION_PATTERNS = [/\r\n/i, /\n/i, /\r/i];

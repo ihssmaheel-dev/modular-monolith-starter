@@ -4,6 +4,7 @@ import { RedisService } from "../../redis/redis.service";
 import { PinoLoggerService } from "../../logger/logger.service";
 import { MetricsService } from "../../metrics/metrics.service";
 import { RealtimeStreamConsumer } from "./realtime-stream.consumer";
+import { env } from "../../../config/env";
 
 const STREAM_KEY = "realtime:events";
 const GROUP_PREFIX = "realtime-dispatchers-";
@@ -32,6 +33,9 @@ export class RealtimeStreamReaper {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async reapStaleDispatcherGroups(): Promise<void> {
+    // The API replicas own the consumer groups; one dedicated worker performs
+    // cleanup so replicas cannot destroy each other's groups concurrently.
+    if (env.PROCESS_ROLE !== "worker") return;
     const client = this.redis.getClient();
     if (!client) return;
     try {

@@ -87,9 +87,11 @@ Single mode carries no tenant identity (`{ mode: "single" }` — there is no def
 
 Critical events are written to the transactional outbox in the same database transaction as the
 state change. Event payloads are versioned and carry stable domain/tenant identifiers; request IDs are
-logged for correlation. Delivery is at least once. Consumers must make their own effects idempotent;
-the core provides durable SQL operation receipts for effects that need a transactionally recorded
-claim/result. Dead-lettered outbox events are replayable.
+logged for correlation. Delivery is at least once. Worker consumption uses a durable SQL operation
+receipt when the idempotency module is enabled, with a bounded lease and replay cleanup. Consumers
+must still make their own effects idempotent; financial or irreversible consumers should use a
+consumer-specific operation identity rather than relying only on the event-wide receipt.
+Dead-lettered outbox events are replayable.
 
 ## Authentication
 
@@ -107,7 +109,7 @@ token lifetime has elapsed before removing them.
 
 ## Transaction boundaries
 
-HTTP requests use a short transaction by default so PostgreSQL RLS context is always configured; long-lived or external-I/O handlers opt out with `@NoDatabaseTransaction` and create short explicit database scopes around their reads/writes. Commands own explicit `withResultTransaction` units of work. SMTP, S3 presigning/deletion, Redis, and other network calls are performed outside mutation transactions. PostgreSQL statement, lock, and idle-in-transaction timeouts are configured from validated environment variables.
+HTTP requests use a short transaction by default so PostgreSQL RLS context is always configured; long-lived or external-I/O handlers opt out with `@NoDatabaseTransaction` and create short explicit database scopes around their reads/writes. Commands own explicit `withResultTransaction` units of work. SMTP, S3 presigning/deletion, Redis, and other network calls are performed outside mutation transactions. The interceptor emits a structured warning when a request transaction exceeds the short-work budget. PostgreSQL statement, lock, and idle-in-transaction timeouts are configured from validated environment variables.
 
 ## File lifecycle
 

@@ -61,13 +61,33 @@ export class OperationReceiptService {
     return ok({ state: "COMPLETED", result: existing.result });
   }
 
-  async complete(receiptId: string, result: unknown): Promise<Result<void, OperationReceiptError>> {
+  async complete(
+    receiptId: string,
+    result: unknown,
+    expiresAt?: Date,
+  ): Promise<Result<void, OperationReceiptError>> {
     if (!this.database.getTx()) return err({ type: "TRANSACTION_REQUIRED" });
     if (!this.isStorableResult(result)) {
       return err({ type: "OPERATION_RESULT_TOO_LARGE" });
     }
-    const completed = await this.receipts.complete(receiptId, result);
+    const completed = await this.receipts.complete(receiptId, result, expiresAt);
     return completed ? ok(undefined) : err({ type: "OPERATION_IN_PROGRESS" });
+  }
+
+  /** Releases a claim after a failed attempt so a durable worker can retry. */
+  async release(receiptId: string): Promise<Result<void, OperationReceiptError>> {
+    if (!this.database.getTx()) return err({ type: "TRANSACTION_REQUIRED" });
+    await this.receipts.release(receiptId);
+    return ok(undefined);
+  }
+
+  async releaseByOperationId(
+    operationType: string,
+    operationId: string,
+  ): Promise<Result<void, OperationReceiptError>> {
+    if (!this.database.getTx()) return err({ type: "TRANSACTION_REQUIRED" });
+    await this.receipts.releaseByOperationId(operationType, operationId);
+    return ok(undefined);
   }
 
   private isStorableResult(result: unknown): boolean {

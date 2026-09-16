@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PinoLoggerService } from "../../logger/logger.service";
 import type { MetricsService } from "../../metrics/metrics.service";
 import type { RedisService } from "../../redis/redis.service";
 import { RealtimeStreamReaper } from "./realtime-stream.reaper";
 import type { RealtimeStreamConsumer } from "./realtime-stream.consumer";
+import { env } from "../../../config/env";
 
 const STREAM_KEY = "realtime:events";
 
@@ -23,6 +24,16 @@ function groupInfo(names: string[]) {
 }
 
 describe("RealtimeStreamReaper", () => {
+  const originalProcessRole = env.PROCESS_ROLE;
+
+  beforeEach(() => {
+    env.PROCESS_ROLE = "worker";
+  });
+
+  afterEach(() => {
+    env.PROCESS_ROLE = originalProcessRole;
+  });
+
   it("destroys foreign dispatcher groups without a heartbeat", async () => {
     const client = {
       xinfo: vi
@@ -89,5 +100,16 @@ describe("RealtimeStreamReaper", () => {
       expect.objectContaining({}),
       "Realtime dispatcher reap failed",
     );
+  });
+
+  it("does not let API replicas reap dispatcher groups", async () => {
+    env.PROCESS_ROLE = "api";
+    const client = { xinfo: vi.fn(), get: vi.fn(), xgroup: vi.fn() };
+    const reaper = createReaper(client);
+
+    await reaper.reapStaleDispatcherGroups();
+
+    expect(client.xinfo).not.toHaveBeenCalled();
+    expect(client.xgroup).not.toHaveBeenCalled();
   });
 });

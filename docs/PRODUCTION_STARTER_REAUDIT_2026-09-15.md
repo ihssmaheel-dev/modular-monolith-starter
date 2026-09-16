@@ -836,3 +836,9 @@ Recommended order: stabilize transaction/scope semantics first, then authorizati
 10. **What would I redesign now?** Unit-of-work/scope ownership, action-specific authorization, durable delivery acknowledgment, identity reset/revocation, example/lifecycle module composition, and the production deployment/telemetry contract.
 
 **You can stop reinventing the broad application layout and technology foundation. You cannot yet treat this implementation as a finished, secure, cost-controlled production starter.** The next milestone should be a smaller set of demonstrated guarantees, followed by a tested reusable v1—not another round of optional feature accumulation.
+
+# Historical report — superseded by [PRODUCTION_STARTER_HARDENING_2026-09-16.md](./PRODUCTION_STARTER_HARDENING_2026-09-16.md)
+
+The findings below describe the tree before the 2026-09-16 hardening pass. Use the current source and
+the hardening record for release decisions; several earlier critical/high findings were fixed or
+narrowed after this report was written.

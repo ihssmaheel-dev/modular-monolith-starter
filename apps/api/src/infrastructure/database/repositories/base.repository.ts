@@ -120,6 +120,7 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
   async updateById(
     id: Id,
     update: Record<string, unknown>,
+    expectedUpdatedAt?: Date,
   ): Promise<Result<TEntity | null, { type: "CONFLICT" }>> {
     if (this.hasMissingTenantContext()) return ok(null);
     const db = this.getDb();
@@ -136,9 +137,15 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
             tenantFilter["tenantId"] as string,
           )
         : undefined;
+    const updatedAtColumn = (this.table as unknown as Record<string, unknown>)["updatedAt"] as
+      Parameters<typeof eq>[0] | undefined;
+    if (expectedUpdatedAt && !updatedAtColumn) return err({ type: "CONFLICT" });
+    const versionClause =
+      expectedUpdatedAt && updatedAtColumn ? eq(updatedAtColumn, expectedUpdatedAt) : undefined;
     const whereClause = tenantClause
       ? and(eq(idCol, id as string), tenantClause)
       : eq(idCol, id as string);
+    const guardedWhereClause = versionClause ? and(whereClause, versionClause) : whereClause;
     const rows = await (
       db as unknown as {
         update: (t: unknown) => {
@@ -148,12 +155,26 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
     )
       .update(this.table)
       .set({ ...update, updatedAt: new Date() } as unknown as Record<string, unknown>)
-      .where(whereClause)
+      .where(guardedWhereClause)
       .returning();
     const row = rows[0] ?? null;
+    if (expectedUpdatedAt && !row) return err({ type: "CONFLICT" });
     return ok(
       row && !(row as unknown as Record<string, unknown>)["deletedAt"] ? this.toDomain(row) : null,
     );
+  }
+
+  /**
+   * Explicit optimistic-concurrency entry point for collaborative aggregates.
+   * Existing callers keep last-write-wins semantics until they opt in; new
+   * high-value resources should pass the version they read from the database.
+   */
+  async updateByIdWithVersion(
+    id: Id,
+    expectedUpdatedAt: Date,
+    update: Record<string, unknown>,
+  ): Promise<Result<TEntity | null, { type: "CONFLICT" }>> {
+    return this.updateById(id, update, expectedUpdatedAt);
   }
 
   async updateOne(

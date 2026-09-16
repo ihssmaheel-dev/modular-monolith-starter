@@ -140,4 +140,22 @@ describe("BaseRepository Tenant Isolation", () => {
     await repo.find({ name: "Item" }, { limit: 99999 });
     expect(limitFn).toHaveBeenCalledWith(5000);
   });
+
+  it("returns CONFLICT when an optimistic version no longer matches", async () => {
+    vi.mocked(mockContext.get).mockReturnValue({ mode: "multi", tenantId: "tenant-123" });
+    const returning = vi.fn().mockResolvedValue([]);
+    vi.mocked(mockDb.getDb).mockReturnValue({
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({ where: vi.fn(() => ({ returning })) })),
+      })),
+    } as never);
+    const repo = new TestRepo(mockDb, mockContext, true);
+
+    const result = await repo.updateByIdWithVersion("1", new Date("2026-01-01T00:00:00.000Z"), {
+      name: "Changed",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toEqual({ type: "CONFLICT" });
+  });
 });

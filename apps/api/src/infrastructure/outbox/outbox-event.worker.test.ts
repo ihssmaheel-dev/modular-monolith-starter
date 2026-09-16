@@ -7,6 +7,8 @@ import type { TenantContextService } from "../database";
 import type { RedisService } from "../redis/redis.service";
 import type { DatabaseService } from "../database";
 import type { OutboxRepository } from "./outbox.repository";
+import type { OperationReceiptService } from "../idempotency/operation-receipt.service";
+import { ok } from "neverthrow";
 
 describe("OutboxEventWorker", () => {
   it("validates and emits durable queue envelopes", async () => {
@@ -125,6 +127,65 @@ describe("OutboxEventWorker", () => {
     await handler?.(job);
     await handler?.(job);
 
+    expect(events.emitAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a durable operation receipt when the database idempotency module is available", async () => {
+    let handler: ((job: { data: unknown }) => Promise<void>) | undefined;
+    const queues = {
+      addWorker: vi.fn((_name, next) => {
+        handler = next;
+        return {};
+      }),
+    } as unknown as QueueService;
+    const events = { emitAsync: vi.fn().mockResolvedValue([]) } as unknown as EventEmitter2;
+    const database = {
+      withSystemScope: vi.fn(async (operation: () => Promise<unknown>) => operation()),
+      runTransaction: vi.fn(async (operation: () => Promise<unknown>) => operation()),
+    } as unknown as DatabaseService;
+    const operationReceipts = {
+      claim: vi.fn().mockResolvedValue(ok({ state: "CLAIMED", receiptId: "receipt-1" })),
+      complete: vi.fn().mockResolvedValue(ok(undefined)),
+      release: vi.fn().mockResolvedValue(ok(undefined)),
+    } as unknown as OperationReceiptService;
+    const logger = {
+      child: vi.fn().mockReturnThis(),
+      debug: vi.fn(),
+    } as unknown as PinoLoggerService;
+    const worker = new OutboxEventWorker(
+      queues,
+      events,
+      logger,
+      database,
+      undefined,
+      undefined,
+      undefined,
+      operationReceipts,
+    );
+
+    worker.onModuleInit();
+    await handler?.({
+      data: {
+        id: "event-durable",
+        topic: "note.created",
+        version: 1,
+        tenantId: "tenant-1",
+        payload: { noteId: "note-1", userId: "user-1", title: "Title", content: "Content" },
+      },
+    });
+
+    expect(operationReceipts.claim).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationId: "event-durable",
+        operationType: "outbox:event-consumer:v1",
+        scopeId: "tenant-1",
+      }),
+    );
+    expect(operationReceipts.complete).toHaveBeenCalledWith(
+      "receipt-1",
+      { completed: true },
+      expect.any(Date),
+    );
     expect(events.emitAsync).toHaveBeenCalledTimes(1);
   });
 

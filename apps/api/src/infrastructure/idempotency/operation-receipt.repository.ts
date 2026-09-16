@@ -42,7 +42,10 @@ export class OperationReceiptRepository {
           createdAt: new Date(),
           completedAt: null,
         },
-        setWhere: lt(operationReceipts.expiresAt, new Date()),
+        setWhere: and(
+          eq(operationReceipts.status, "PROCESSING"),
+          lt(operationReceipts.expiresAt, new Date()),
+        ),
       })
       .returning({ id: operationReceipts.id });
     return inserted.length === 1;
@@ -65,13 +68,44 @@ export class OperationReceiptRepository {
     return rows[0];
   }
 
-  async complete(id: string, result: unknown): Promise<boolean> {
+  async complete(id: string, result: unknown, expiresAt?: Date): Promise<boolean> {
     const db = this.database.getTx();
     if (!db) return false;
     const rows = await db
       .update(operationReceipts)
-      .set({ status: "COMPLETED", result, completedAt: new Date() })
+      .set({
+        status: "COMPLETED",
+        result,
+        completedAt: new Date(),
+        ...(expiresAt ? { expiresAt } : {}),
+      })
       .where(and(eq(operationReceipts.id, id), eq(operationReceipts.status, "PROCESSING")))
+      .returning({ id: operationReceipts.id });
+    return rows.length === 1;
+  }
+
+  async release(id: string): Promise<boolean> {
+    const db = this.database.getTx();
+    if (!db) return false;
+    const rows = await db
+      .delete(operationReceipts)
+      .where(and(eq(operationReceipts.id, id), eq(operationReceipts.status, "PROCESSING")))
+      .returning({ id: operationReceipts.id });
+    return rows.length === 1;
+  }
+
+  async releaseByOperationId(operationType: string, operationId: string): Promise<boolean> {
+    const db = this.database.getTx();
+    if (!db) return false;
+    const rows = await db
+      .delete(operationReceipts)
+      .where(
+        and(
+          eq(operationReceipts.operationType, operationType),
+          eq(operationReceipts.operationId, operationId),
+          eq(operationReceipts.status, "PROCESSING"),
+        ),
+      )
       .returning({ id: operationReceipts.id });
     return rows.length === 1;
   }

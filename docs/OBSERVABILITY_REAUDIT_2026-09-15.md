@@ -705,3 +705,9 @@ The remaining production evidence is deployment-specific: configure a private au
 endpoint, render Alertmanager with real recipients, connect an OTLP backend, verify alert delivery,
 and exercise retention/budget alarms in the selected cloud. Those controls cannot be proven from a
 repository-only audit and remain required pre-traffic evidence in `docs/PRODUCTION_OPS.md`.
+
+# Historical report — current observability verification is maintained by `pnpm observability:check`
+
+This report predates the worker metrics endpoint, production scrape wiring, and current dashboard
+validation. Treat it as historical context and verify the live configuration before making release
+decisions.

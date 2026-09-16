@@ -8,6 +8,8 @@ export const ${feature}Table = pgTable(
   "${featurePlural}",
   {
     id: text("id").primaryKey(),
+    // Both supported access models are tenant-owned. The repository derives this
+    // value from trusted tenant context; clients must never submit it.
     tenantId: text("tenant_id"),
     name: text("name").notNull(),
     description: text("description"),

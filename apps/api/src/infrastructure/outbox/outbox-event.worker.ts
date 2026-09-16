@@ -19,12 +19,17 @@ import {
   OUTBOX_QUEUE,
 } from "./outbox.constants";
 import { RedisService } from "../redis/redis.service";
+import { OperationReceiptService } from "../idempotency/operation-receipt.service";
+
+const OUTBOX_CONSUMER_OPERATION = "outbox:event-consumer:v1";
+const OUTBOX_COMPLETED_RECEIPT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 
 /**
  * At-least-once delivery contract: a job may be redelivered after crashes,
  * so listeners must tolerate repeats for effects that require it. The
- * event-wide Redis marker prevents concurrent double-consume; per-consumer
- * durable idempotency belongs to effects that need it, not to this fan-out.
+ * durable operation receipts prevent concurrent double-consume across worker
+ * restarts; Redis remains a fast fallback for installations without the
+ * database idempotency module.
  * PUBLISHED is written only here, after listeners complete — never on
  * enqueue (see OutboxRelayDelivery).
  */
@@ -40,6 +45,7 @@ export class OutboxEventWorker implements OnModuleInit {
     @Optional() private readonly repository?: OutboxRepository,
     @Optional() private readonly tenantContext?: TenantContextService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly operationReceipts?: OperationReceiptService,
   ) {
     this.logger = logger.child({ module: "OutboxEventWorker" });
   }
@@ -50,14 +56,18 @@ export class OutboxEventWorker implements OnModuleInit {
       let eventId: string | undefined;
       let ownsEvent = false;
       let eventProcessed = false;
+      let receiptId: string | undefined;
       try {
         const envelope = OutboxEventIdentitySchema.safeParse(job.data);
         eventId = envelope.success ? envelope.data.id : undefined;
         const event = parseOutboxEventEnvelope(job.data);
-        ownsEvent = await this.claimEvent(event.id);
-        if (ownsEvent) {
+        const claim = await this.claimEvent(event);
+        ownsEvent = claim.claimed;
+        receiptId = claim.receiptId;
+        if (claim.claimed) {
           await this.emitInScope(event);
           await this.markEventProcessed(event.id);
+          await this.completeEvent(receiptId);
           eventProcessed = true;
         }
         await this.markPublished(event.id);
@@ -66,7 +76,7 @@ export class OutboxEventWorker implements OnModuleInit {
           "Durable outbox event consumed",
         );
       } catch (error) {
-        if (eventId && ownsEvent && !eventProcessed) await this.releaseEvent(eventId);
+        if (eventId && ownsEvent && !eventProcessed) await this.releaseEvent(eventId, receiptId);
         const attemptsMade = typeof job.attemptsMade === "number" ? job.attemptsMade : 0;
         if (eventId && attemptsMade + 1 >= OUTBOX_MAX_ATTEMPTS)
           await this.markDeadLetter(eventId, error);
@@ -75,28 +85,79 @@ export class OutboxEventWorker implements OnModuleInit {
     });
   }
 
-  private async claimEvent(eventId: string): Promise<boolean> {
+  private async claimEvent(
+    event: OutboxEventEnvelope,
+  ): Promise<{ claimed: boolean; receiptId?: string }> {
+    if (this.operationReceipts && this.database) {
+      const claim = await this.database.withSystemScope(() =>
+        this.database!.runTransaction(() =>
+          this.operationReceipts!.claim({
+            operationId: event.id,
+            operationType: OUTBOX_CONSUMER_OPERATION,
+            scopeId: event.tenantId ?? "global",
+            tenantId: event.tenantId,
+            requestHash: event.id,
+            expiresAt: new Date(Date.now() + OUTBOX_PROCESSING_TTL_SECONDS * 1000),
+          }),
+        ),
+      );
+      if (claim.isErr()) {
+        if (claim.error.type === "OPERATION_IN_PROGRESS") throw new Error(OUTBOX_EVENT_IN_PROGRESS);
+        throw new Error(`OUTBOX_DURABLE_CLAIM_FAILED:${claim.error.type}`);
+      }
+      if (claim.value.state === "COMPLETED") return { claimed: false };
+      return { claimed: true, receiptId: claim.value.receiptId };
+    }
+
+    const eventId = event.id;
     const client = this.redis?.getClient();
-    if (!client) return true;
+    if (!client) return { claimed: true };
     const key = `outbox:consumer:v1:${eventId}`;
     const existing = await client.get(key);
-    if (existing === "completed") return false;
+    if (existing === "completed") return { claimed: false };
     if (existing === "processing") throw new Error(OUTBOX_EVENT_IN_PROGRESS);
     const claimed = await client.set(key, "processing", "EX", OUTBOX_PROCESSING_TTL_SECONDS, "NX");
-    if (claimed === "OK") return true;
+    if (claimed === "OK") return { claimed: true };
     throw new Error(OUTBOX_EVENT_IN_PROGRESS);
   }
 
   private async markEventProcessed(eventId: string): Promise<void> {
+    if (this.operationReceipts) return;
     const client = this.redis?.getClient();
     if (!client) return;
     await client.set(`outbox:consumer:v1:${eventId}`, "completed", "EX", OUTBOX_DEDUPE_TTL_SECONDS);
   }
 
-  private async releaseEvent(eventId: string): Promise<void> {
+  private async releaseEvent(eventId: string, receiptId?: string): Promise<void> {
+    if (receiptId && this.operationReceipts && this.database) {
+      await this.database
+        .withSystemScope(() =>
+          this.database!.runTransaction(() => this.operationReceipts!.release(receiptId)),
+        )
+        .catch((error) =>
+          this.logger.warn({ error, eventId }, "Durable outbox claim release failed"),
+        );
+      return;
+    }
     const client = this.redis?.getClient();
     if (!client) return;
     await client.del(`outbox:consumer:v1:${eventId}`).catch(() => undefined);
+  }
+
+  private async completeEvent(receiptId?: string): Promise<void> {
+    if (!receiptId || !this.operationReceipts || !this.database) return;
+    const completed = await this.database.withSystemScope(() =>
+      this.database!.runTransaction(() =>
+        this.operationReceipts!.complete(
+          receiptId,
+          { completed: true },
+          new Date(Date.now() + OUTBOX_COMPLETED_RECEIPT_RETENTION_MS),
+        ),
+      ),
+    );
+    if (completed.isErr()) {
+      throw new Error(`OUTBOX_DURABLE_COMPLETE_FAILED:${completed.error.type}`);
+    }
   }
 
   private emitInScope(event: OutboxEventEnvelope): Promise<unknown[]> {
@@ -130,6 +191,13 @@ export class OutboxEventWorker implements OnModuleInit {
     const client = this.redis?.getClient();
     if (client) {
       await client.del(`outbox:consumer:v1:${eventId}`).catch(() => undefined);
+    }
+    if (this.operationReceipts && this.database) {
+      await this.database.withSystemScope(() =>
+        this.database!.runTransaction(() =>
+          this.operationReceipts!.releaseByOperationId(OUTBOX_CONSUMER_OPERATION, eventId),
+        ),
+      );
     }
     const queue = this.queues.getQueue(OUTBOX_QUEUE);
     if (queue) {

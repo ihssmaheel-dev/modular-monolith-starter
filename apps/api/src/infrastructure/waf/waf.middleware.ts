@@ -20,6 +20,10 @@ export class WafMiddleware implements NestMiddleware {
       return;
     }
 
+    // This middleware enforces request shape, depth, header, and operator-key
+    // limits. SQL safety comes from parameterized Drizzle queries and XSS safety
+    // comes from output escaping or an explicit rich-text sanitizer at the edge
+    // that owns the content; broad content regexes would reject valid business data.
     const query = (req.query ?? {}) as Record<string, unknown>;
     if (Object.keys(query).length > 0) {
       if (scanObject(query).length > 0) {

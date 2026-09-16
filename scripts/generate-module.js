@@ -54,9 +54,6 @@ const entityContent = `export class ${pascalName} {
 `;
 fs.writeFileSync(path.join(basePath, "domain/entities", `${moduleName}.entity.ts`), entityContent);
 
-const moduleReadme = `# ${pascalName} module\n\nThis is a compilable boundary scaffold. Define the first feature with:\n\n'pnpm generate:feature ${moduleName} <feature>'\n\nBefore registering the module, add contracts, authorization policies, migrations, localized messages,\nand unit/integration/E2E coverage. Keep persistence tables private to this module.\n`;
-fs.writeFileSync(path.join(basePath, "README.md"), moduleReadme);
-
 const moduleFileContent = `// GENERATED_MODULE_SCAFFOLD: feature generation may replace this file.
 import { Module } from "@nestjs/common";
 import { ${pascalName}Controller } from "./presentation/controllers/${moduleName}.controller";
@@ -150,6 +147,9 @@ export const ${moduleName}Table = pgTable(
   "${moduleName}",
   {
     id: text("id").primaryKey(),
+    // The module scaffold is tenant-owned. Single-tenant deployments may still
+    // store a null tenant id; multi-tenant deployments populate it from trusted
+    // context, never from public input.
     tenantId: text("tenant_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

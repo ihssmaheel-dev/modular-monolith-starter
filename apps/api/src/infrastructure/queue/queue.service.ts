@@ -10,6 +10,7 @@ type SharedQueue = Queue<unknown, unknown, string>;
 type SharedWorker = Worker<unknown, unknown, string>;
 
 const QUEUE_METRICS_INTERVAL_MS = 15_000;
+const QUEUE_SHUTDOWN_TIMEOUT_MS = 5_000;
 const TRACE_CONTEXT_FIELD = "__traceContext";
 const MAX_TRACE_METADATA_LENGTH = 1_024;
 type TraceCarrier = Record<string, string>;
@@ -88,17 +89,28 @@ export class QueueService implements BeforeApplicationShutdown {
   }
 
   async beforeApplicationShutdown(): Promise<void> {
+    const deadline = Date.now() + QUEUE_SHUTDOWN_TIMEOUT_MS;
     for (const worker of this.workers.values()) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        this.loggerService.warn({}, "Queue shutdown deadline reached before all workers closed");
+        break;
+      }
       try {
-        await worker.pause();
-        await worker.close();
+        await settleWithin(worker.pause(), remaining);
+        await settleWithin(worker.close(), Math.max(1, deadline - Date.now()));
       } catch (error) {
         this.loggerService.error({ err: error }, "Error closing BullMQ worker");
       }
     }
     for (const queue of this.queues.values()) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        this.loggerService.warn({}, "Queue shutdown deadline reached before all queues closed");
+        break;
+      }
       try {
-        await queue.close();
+        await settleWithin(queue.close(), remaining);
       } catch (error) {
         this.loggerService.error({ err: error }, "Error closing BullMQ queue");
       }
@@ -181,6 +193,18 @@ export class QueueService implements BeforeApplicationShutdown {
     // safer than duplicating the overload declarations in this adapter.
     queue.add = ((jobName: string, data: unknown, options?: JobsOptions) =>
       originalAdd(jobName, data, attachTraceContext(options))) as typeof queue.add;
+  }
+}
+
+async function settleWithin<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("QUEUE_SHUTDOWN_TIMEOUT")), timeoutMs);
+  });
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

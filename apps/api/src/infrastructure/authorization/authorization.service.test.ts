@@ -98,4 +98,15 @@ describe("AuthorizationService", () => {
     expect(decision.reason).toBe("ABAC_POLICY");
     expect(decision.matchedPolicyId).toBe("custom-vip-policy");
   });
+
+  it("denies owner access to actions that were not explicitly granted", () => {
+    const decision = service.check({
+      principal: alice,
+      action: "notes:export",
+      resource: note,
+    });
+
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toBe("DEFAULT_DENY");
+  });
 });
