@@ -38,11 +38,19 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      mailpit:
+        image: axllent/mailpit:v1.30.0
+        ports:
+          - 1025:1025
+          - 8025:8025
+
     env:
       NODE_ENV: test
+      TENANCY_MODE: multi
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/app_test
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/app_test
       REDIS_URL: redis://localhost:6379
+      MAILPIT_URL: http://localhost:8025
       E2E_USE_CONTAINERS: "true"
       JWT_SECRET: super-secret-test-access-token-key-32chars
       JWT_REFRESH_SECRET: super-secret-test-refresh-token-key-32chars

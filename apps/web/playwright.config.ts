@@ -23,12 +23,19 @@ export default defineConfig({
       url: `${apiOrigin}${apiBasePath}/health/live`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        TENANCY_MODE: process.env.TENANCY_MODE ?? "multi",
+      },
     },
     {
       command: "pnpm --filter web dev -- --host 127.0.0.1",
       url: "http://127.0.0.1:5155",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      stdout: "pipe",
+      stderr: "pipe",
     },
   ],
 });
