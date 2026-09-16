@@ -12,14 +12,15 @@ import { getMobileEnv } from "@/lib/env";
 export default function Dashboard() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
-  const examplesEnabled = getMobileEnv().EXPO_PUBLIC_EXAMPLE_FEATURES_ENABLED;
+  const { EXPO_PUBLIC_APP_NAME: appName, EXPO_PUBLIC_EXAMPLE_FEATURES_ENABLED: examplesEnabled } =
+    getMobileEnv();
   const notesQuery = useQuery({ ...notesListQuery(1, 5), enabled: !!user && examplesEnabled });
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 16, gap: 16 }}>
       <PageHeader
         title={t("dashboard.welcome", { name: user?.name ?? "" })}
-        description={t("dashboard.subtitle")}
+        description={t("dashboard.subtitle", { appName })}
       />
 
       {examplesEnabled && (

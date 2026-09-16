@@ -1,6 +1,5 @@
 {
   "common": {
-    "appName": "Espace de travail",
     "loading": "Chargement...",
     "error": "Une erreur est survenue",
     "retry": "Réessayer",
@@ -105,8 +104,8 @@
   },
   "email": {
     "welcome": {
-      "subject": "Bienvenue dans Espace de travail",
-      "preview": "Bienvenue dans Espace de travail",
+      "subject": "Bienvenue dans {{appName}}",
+      "preview": "Bienvenue dans {{appName}}",
       "greeting": "Bonjour {{name}},",
       "body": "Nous sommes ravis de vous compter parmi nous.",
       "buttonText": "Commencer"
@@ -143,7 +142,7 @@
   "dashboard": {
     "title": "Tableau de bord",
     "welcome": "Bienvenue, {{name}} !",
-    "subtitle": "Aperçu du monolithe modulaire",
+    "subtitle": "Aperçu de {{appName}}",
     "loading": "Chargement du tableau de bord...",
     "loadFailed": "Impossible de charger le tableau de bord",
     "recentNotes": "Notes récentes",

@@ -1,6 +1,5 @@
 {
   "common": {
-    "appName": "Espacio de trabajo",
     "loading": "Cargando...",
     "error": "Ocurrió un error",
     "retry": "Reintentar",
@@ -105,8 +104,8 @@
   },
   "email": {
     "welcome": {
-      "subject": "Te damos la bienvenida a Espacio de trabajo",
-      "preview": "Te damos la bienvenida a Espacio de trabajo",
+      "subject": "Te damos la bienvenida a {{appName}}",
+      "preview": "Te damos la bienvenida a {{appName}}",
       "greeting": "Hola {{name}},",
       "body": "Nos alegra tenerte con nosotros.",
       "buttonText": "Empezar"
@@ -143,7 +142,7 @@
   "dashboard": {
     "title": "Panel",
     "welcome": "¡Bienvenido, {{name}}!",
-    "subtitle": "Resumen del monolito modular",
+    "subtitle": "Resumen de {{appName}}",
     "loading": "Cargando el panel...",
     "loadFailed": "No se pudo cargar el panel",
     "recentNotes": "Notas recientes",

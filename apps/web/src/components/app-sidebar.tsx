@@ -21,7 +21,7 @@ import { getWebEnv } from "@/lib/env";
 export function AppSidebar() {
   const { t } = useTranslation();
   const location = useLocation();
-  const examplesEnabled = getWebEnv().VITE_EXAMPLE_FEATURES_ENABLED;
+  const { VITE_APP_NAME: appName, VITE_EXAMPLE_FEATURES_ENABLED: examplesEnabled } = getWebEnv();
 
   const isNotesActive = location.pathname.startsWith("/notes");
 
@@ -33,9 +33,7 @@ export function AppSidebar() {
             <Layers3 className="size-4" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-bold text-sidebar-foreground">
-              {t("common.appName")}
-            </p>
+            <p className="truncate text-sm font-bold text-sidebar-foreground">{appName}</p>
             <p className="truncate text-[10px] text-sidebar-foreground/60 uppercase tracking-wider font-mono">
               {t("navigation.platform")}
             </p>

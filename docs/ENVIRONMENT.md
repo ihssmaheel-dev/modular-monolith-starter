@@ -45,6 +45,8 @@ DATABASE_URL_FILE=/run/secrets/database_url
 | Variable                            | Default / purpose                                                                                   |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `NODE_ENV`                          | `development`; `development`, `test`, or `production`                                               |
+| `APP_NAME`                          | `Workspace`; product display name used by API docs and transactional email                          |
+| `APP_SLUG`                          | `modular-monolith`; stable product namespace for deployment and telemetry metadata                  |
 | `PROCESS_ROLE`                      | `all`; use `api` and `worker` as separate production processes                                      |
 | `EXAMPLE_FEATURES_ENABLED`          | `false`; compose the Notes reference module into the API                                            |
 | `PORT`                              | `5156`; API listener port                                                                           |
@@ -91,6 +93,10 @@ DATABASE_URL_FILE=/run/secrets/database_url
 Keyring values must be at least 32 characters and the active ID must exist. New tokens include a
 `kid`; keep old keys until every token they signed has expired. Every API and worker replica must
 receive the same keyrings.
+
+Run `pnpm project:init` when creating a product fork instead of editing `APP_NAME`, `APP_SLUG`,
+`JWT_ISSUER`, and `JWT_AUDIENCE` independently. The initializer keeps deployment examples, client
+display names, mobile identifiers, Docker names, and observability selectors synchronized.
 
 ## Observability and delivery providers
 

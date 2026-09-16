@@ -70,6 +70,8 @@ services:
     environment:
       NODE_ENV: production
       PROCESS_ROLE: api
+      APP_NAME: ${APP_NAME:-Workspace}
+      APP_SLUG: ${APP_SLUG:-modular-monolith}
       EXAMPLE_FEATURES_ENABLED: ${EXAMPLE_FEATURES_ENABLED:-false}
       TENANCY_MODE: ${TENANCY_MODE:-single}
       PORT: 3000
@@ -82,6 +84,8 @@ services:
       REDIS_URL: ${REDIS_URL:?set REDIS_URL}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-modular-monolith-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-modular-monolith-client}
       JWT_SIGNING_KEYS: ${JWT_SIGNING_KEYS:-}
       JWT_REFRESH_SIGNING_KEYS: ${JWT_REFRESH_SIGNING_KEYS:-}
       JWT_ACTIVE_KEY_ID: ${JWT_ACTIVE_KEY_ID:-primary}
@@ -142,6 +146,8 @@ services:
     environment:
       NODE_ENV: production
       PROCESS_ROLE: worker
+      APP_NAME: ${APP_NAME:-Workspace}
+      APP_SLUG: ${APP_SLUG:-modular-monolith}
       EXAMPLE_FEATURES_ENABLED: ${EXAMPLE_FEATURES_ENABLED:-false}
       TENANCY_MODE: ${TENANCY_MODE:-single}
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
@@ -152,6 +158,8 @@ services:
       REDIS_URL: ${REDIS_URL:?set REDIS_URL}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-modular-monolith-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-modular-monolith-client}
       JWT_SIGNING_KEYS: ${JWT_SIGNING_KEYS:-}
       JWT_REFRESH_SIGNING_KEYS: ${JWT_REFRESH_SIGNING_KEYS:-}
       JWT_ACTIVE_KEY_ID: ${JWT_ACTIVE_KEY_ID:-primary}

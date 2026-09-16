@@ -14,7 +14,7 @@ export interface LogContext {
 }
 
 const LOKI_LABELS = {
-  application: "api-service",
+  application: env.APP_SLUG,
   service: `app-${env.PROCESS_ROLE}`,
   process_role: env.PROCESS_ROLE,
 };

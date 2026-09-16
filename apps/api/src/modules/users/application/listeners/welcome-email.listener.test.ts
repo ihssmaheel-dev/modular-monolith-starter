@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ok } from "neverthrow";
 import type { Queue } from "bullmq";
 import type { EmailJobData } from "@repo/contracts";
-vi.mock("../../../../config/env", () => ({ env: { CLIENT_URL: "https://app.example.com" } }));
+vi.mock("../../../../config/env", () => ({
+  env: { APP_NAME: "Acme Portal", CLIENT_URL: "https://app.example.com" },
+}));
 import { EmailService } from "../../../../infrastructure/email/email.service";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
@@ -15,13 +17,14 @@ describe("WelcomeEmailListener", () => {
   let queueService: QueueService;
   let emailService: EmailService;
   let queue: Queue<EmailJobData, unknown, string>;
+  let i18n: I18nService;
 
   beforeEach(() => {
     const logger = { error: vi.fn() } as unknown as PinoLoggerService;
     queue = { add: vi.fn() } as unknown as Queue<EmailJobData, unknown, string>;
     queueService = { getQueue: vi.fn().mockReturnValue(queue) } as unknown as QueueService;
     emailService = { send: vi.fn() } as unknown as EmailService;
-    const i18n = { t: vi.fn((key: string) => key) } as unknown as I18nService;
+    i18n = { t: vi.fn((key: string) => key) } as unknown as I18nService;
     listener = new WelcomeEmailListener(logger, queueService, emailService, i18n);
   });
 
@@ -45,6 +48,9 @@ describe("WelcomeEmailListener", () => {
         removeOnFail: 1000,
       },
     );
+    expect(i18n.t).toHaveBeenCalledWith("email.welcome.subject", "en", {
+      appName: "Acme Portal",
+    });
   });
 
   it("sends directly when Redis queues are unavailable", async () => {

@@ -55,7 +55,7 @@ export class WelcomeEmailListener {
     const html = await render(
       React.createElement(WelcomeEmail, {
         loginUrl: buildFrontendUrl(env.CLIENT_URL, FRONTEND_ROUTES.auth),
-        preview: translate("email.welcome.preview"),
+        preview: translate("email.welcome.preview", { appName: env.APP_NAME }),
         greeting: translate("email.welcome.greeting", { name: event.name }),
         body: translate("email.welcome.body"),
         buttonText: translate("email.welcome.buttonText"),
@@ -63,7 +63,7 @@ export class WelcomeEmailListener {
     );
     return {
       to: event.email,
-      subject: translate("email.welcome.subject"),
+      subject: translate("email.welcome.subject", { appName: env.APP_NAME }),
       html,
     };
   }

@@ -41,6 +41,17 @@ pnpm run doctor
 pnpm dev
 ```
 
+For a new product fork, preview and apply the synchronized identity change before adding domain
+modules:
+
+```bash
+pnpm project:init --name "Acme Portal" --bundle-id com.acme.portal --dry-run
+pnpm project:init --name "Acme Portal" --bundle-id com.acme.portal --reset-local-env --yes
+```
+
+See [Starting a New Project](docs/STARTING_A_NEW_PROJECT.md) for repository URL synchronization,
+the CI drift check, and the manual logo/theme/legal checklist.
+
 ---
 
 ## Project Structure

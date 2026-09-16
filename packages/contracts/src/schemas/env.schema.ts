@@ -53,6 +53,11 @@ function isFeatureFlagsJson(value: string): boolean {
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    APP_NAME: z.string().trim().min(2).max(64).default("Workspace"),
+    APP_SLUG: z
+      .string()
+      .regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, "APP_SLUG must use lowercase kebab-case")
+      .default("modular-monolith"),
     PROCESS_ROLE: z.enum(["all", "api", "worker"]).default("all"),
     EXAMPLE_FEATURES_ENABLED: environmentBoolean(false),
     PORT: z.coerce.number().int().min(1).max(MAX_PORT).default(5156),
