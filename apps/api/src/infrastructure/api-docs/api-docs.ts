@@ -14,7 +14,7 @@ export async function setupApiDocs(app: NestFastifyApplication): Promise<void> {
     });
     const document = await generator.generate(apiContract, {
       info: {
-        title: "Enterprise Modular Monolith API",
+        title: `${env.APP_NAME} API`,
         version: "1.0.0",
         description: "Auto-generated OpenAPI 3.1 Documentation via oRPC and Zod 4 schemas.",
       },
@@ -44,9 +44,9 @@ export async function setupApiDocs(app: NestFastifyApplication): Promise<void> {
         theme: "kepler",
         darkMode: true,
         showSidebar: true,
-        pageTitle: "API Reference | Enterprise Modular Monolith",
+        pageTitle: `API Reference | ${env.APP_NAME}`,
         metaData: {
-          title: "API Reference | Enterprise Modular Monolith",
+          title: `API Reference | ${env.APP_NAME}`,
         },
       },
     });

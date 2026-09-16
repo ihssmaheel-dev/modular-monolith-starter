@@ -56,7 +56,7 @@
     "prepare": "husky",
     "generate:module": "node scripts/generate-module.js",
     "generate:feature": "node scripts/generate-feature.js",
-    "test:generator": "node scripts/generators/generator-smoke.js",
+    "test:generator": "node scripts/generators/generator-smoke.js && node --test scripts/project-init/*.test.js",
     "theme:generate": "pnpm --filter @repo/design-tokens generate",
     "theme:check": "pnpm --filter @repo/design-tokens check",
     "architecture:check": "depcruise --config .dependency-cruiser.cjs apps/api/src --output-type err",

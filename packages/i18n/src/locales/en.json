@@ -1,6 +1,5 @@
 {
   "common": {
-    "appName": "Workspace",
     "loading": "Loading...",
     "error": "An error occurred",
     "retry": "Retry",
@@ -33,8 +32,8 @@
   },
   "email": {
     "welcome": {
-      "subject": "Welcome to Workspace",
-      "preview": "Welcome to Workspace",
+      "subject": "Welcome to {{appName}}",
+      "preview": "Welcome to {{appName}}",
       "greeting": "Hello {{name}},",
       "body": "We are excited to have you on board.",
       "buttonText": "Get started"
@@ -71,7 +70,7 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome, {{name}}!",
-    "subtitle": "Modular monolith overview",
+    "subtitle": "{{appName}} overview",
     "loading": "Loading dashboard...",
     "loadFailed": "Failed to load dashboard",
     "recentNotes": "Recent notes",

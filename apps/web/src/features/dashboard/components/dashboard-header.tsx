@@ -25,7 +25,7 @@ export function DashboardHeader() {
   });
 
   const organizations = orgsQuery.data?.items ?? [];
-  const examplesEnabled = getWebEnv().VITE_EXAMPLE_FEATURES_ENABLED;
+  const { VITE_APP_NAME: appName, VITE_EXAMPLE_FEATURES_ENABLED: examplesEnabled } = getWebEnv();
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
@@ -33,7 +33,7 @@ export function DashboardHeader() {
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
           {t("dashboard.welcome", { name: user?.name ?? t("common.user") })}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("dashboard.subtitle")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("dashboard.subtitle", { appName })}</p>
       </div>
       <div className="flex items-center gap-2">
         {isMultiTenant && organizations.length > 0 && (

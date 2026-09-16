@@ -7,17 +7,35 @@ This repository is a reusable modular-monolith foundation. The `notes` module is
 After forking, initialize the product metadata and local application identity:
 
 ```bash
-pnpm project:init --name "Acme Portal" --slug acme-portal --dry-run
-pnpm project:init --name "Acme Portal" --slug acme-portal --reset-local-env --yes
+pnpm project:init --name "Acme Portal" --bundle-id com.acme.portal --repository-url https://github.com/acme/portal --dry-run
+pnpm project:init --name "Acme Portal" --bundle-id com.acme.portal --repository-url https://github.com/acme/portal --reset-local-env --yes
+pnpm project:init --name "Acme Portal" --bundle-id com.acme.portal --repository-url https://github.com/acme/portal --check
 ```
 
-The command updates package/mobile identifiers, local display names, Docker service names, and
-observability labels. `--reset-local-env` recreates ignored local `.env` files with fresh secrets;
-it never resets a database or deletes tracked source without an explicit migration plan. The Notes
-source and tables remain as a reference slice, while production disables its API and web/mobile
-navigation by default through the three example-feature environment flags. A product can delete the
-slice in its initial fork before production data exists; after a release, remove tables only through
-an appended migration.
+The bundle identifier is deliberately required because changing it after an App Store or Play Store
+release creates a different application. The slug and deep-link scheme derive from the product name
+unless explicitly supplied with `--slug` and `--url-scheme`.
+
+The command calculates every change before writing, refuses unknown options and dirty working trees,
+rolls tracked files back if post-write verification fails, and is safe to run repeatedly. It updates
+package and mobile identifiers, API/web/mobile display names, JWT identity, Docker service names,
+observability selectors, CI image names, API documentation branding, and optional dashboard runbook
+links as one synchronized operation. `--check` provides a CI drift gate. `--reset-local-env`
+recreates ignored local `.env` files with fresh secrets; it never resets a database or deletes tracked
+source without an explicit migration plan.
+
+Stable engineering identifiers such as the `@repo/*` package scope, Compose service keys, module
+names, and the optional Notes reference slice are deliberately unchanged. They describe code or
+architecture rather than the product brand, and renaming them would create import and deployment
+churn without improving the customer-facing identity.
+
+Logos, icons, legal copy, production domains, sender addresses, and store metadata require real
+product input and remain an explicit checklist. Replace the Expo icon, adaptive icon, splash image,
+and favicon; edit `packages/design-tokens/src/presets/active.json`; then run `pnpm theme:generate`.
+The Notes source and tables remain as a reference slice, while production disables its API and
+web/mobile navigation by default through the three example-feature environment flags. A product can
+delete the slice in its initial fork before production data exists; after a release, remove tables
+only through an appended migration.
 
 ## Choose the deployment tenancy model first
 

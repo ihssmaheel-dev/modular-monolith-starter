@@ -66,7 +66,7 @@ export default Object.assign(WelcomeEmail, {
     loginUrl: "http://localhost:5155/auth",
     preview: "Welcome to Workspace",
     greeting: "Hi Ada,",
-    body: "Your workspace is ready. Sign in to capture your first note.",
+    body: "Your workspace is ready. Sign in to get started.",
     buttonText: "Open dashboard",
   } satisfies WelcomeEmailProps,
 });

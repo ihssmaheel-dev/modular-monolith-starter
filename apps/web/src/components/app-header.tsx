@@ -22,6 +22,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { FRONTEND_ROUTES } from "@repo/contracts";
+import { getWebEnv } from "@/lib/env";
 
 export function AppHeader() {
   const { t } = useTranslation();
@@ -30,6 +31,7 @@ export function AppHeader() {
   const user = useAuthStore((state) => state.user);
   const { theme, setTheme } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
+  const appName = getWebEnv().VITE_APP_NAME;
   const initials = user?.name?.slice(0, 2).toUpperCase() ?? "U";
 
   const signOut = async () => {
@@ -67,7 +69,7 @@ export function AppHeader() {
       <div className="flex items-center gap-3">
         <SidebarTrigger aria-label={t("navigation.toggleSidebar")} />
         <div className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
-          <span>{t("common.appName")}</span>
+          <span>{appName}</span>
           <ChevronRight className="size-3" />
           <span className="font-medium text-foreground">{currentPage}</span>
         </div>
