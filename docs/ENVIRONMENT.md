@@ -32,7 +32,8 @@ For Docker secrets, a Vault agent, or a cloud secret file mount, a sensitive val
 as `<NAME>_FILE`. Trimmed file content wins over the inline value and passes the same validation.
 Supported names are `DATABASE_URL`, `DB_DIRECT_URL`, `REDIS_URL`, `JWT_SECRET`,
 `JWT_REFRESH_SECRET`, `JWT_SIGNING_KEYS`, `JWT_REFRESH_SIGNING_KEYS`, `METRICS_TOKEN`,
-`ERROR_REPORTING_TOKEN`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SMTP_USER`, `SMTP_PASS`,
+`ERROR_REPORTING_TOKEN`, `INTELLIGENCE_SERVICE_TOKEN`, `INTELLIGENCE_DATA_ENCRYPTION_KEY`,
+`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SMTP_USER`, `SMTP_PASS`,
 `RESEND_API_KEY`, `EXPO_ACCESS_TOKEN`, and `SEED_ADMIN_PASSWORD`.
 
 ```env
@@ -42,30 +43,46 @@ DATABASE_URL_FILE=/run/secrets/database_url
 
 ## API core and connectivity
 
-| Variable                            | Default / purpose                                                                                   |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                          | `development`; `development`, `test`, or `production`                                               |
-| `APP_NAME`                          | `Workspace`; product display name used by API docs and transactional email                          |
-| `APP_SLUG`                          | `modular-monolith`; stable product namespace for deployment and telemetry metadata                  |
-| `PROCESS_ROLE`                      | `all`; use `api` and `worker` as separate production processes                                      |
-| `EXAMPLE_FEATURES_ENABLED`          | `false`; compose the Notes reference module into the API                                            |
-| `PORT`                              | `5156`; API listener port                                                                           |
-| `TRUST_PROXY`                       | `false`; enable only behind a trusted proxy that replaces forwarding headers                        |
-| `LOG_LEVEL`                         | `info`; Pino level from `fatal` through `trace`                                                     |
-| `TENANCY_MODE`                      | `single`; choose `single` or `multi` before production data exists                                  |
-| `CLIENT_URL`                        | `http://localhost:5155`; comma-separated allowed browser origins                                    |
-| `API_URL`                           | `http://localhost:5156`; externally reachable API origin                                            |
-| `DATABASE_URL`                      | Local PostgreSQL URL; production requires TLS with `sslmode=require`, `verify-ca`, or `verify-full` |
-| `DB_DIRECT_URL`                     | Optional direct URL for migrations and advisory locks; defaults to `DATABASE_URL`                   |
-| `TEST_DATABASE_URL`                 | Integration/E2E database; its database name must contain `test`                                     |
-| `DB_MAX_POOL_SIZE`                  | `10`; connection pool size per API or worker instance                                               |
-| `DB_STATEMENT_TIMEOUT_MS`           | `30000`; statement and client query timeout                                                         |
-| `DB_LOCK_TIMEOUT_MS`                | `5000`; transaction lock wait timeout                                                               |
-| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `60000`; idle transaction timeout                                                                   |
-| `AUDIT_RETENTION_DAYS`              | `365`; audit retention, constrained to 30-3650 days                                                 |
-| `INVITATION_RETENTION_DAYS`         | `90`; settled invitation retention, constrained to 7-3650 days                                      |
-| `REDIS_URL`                         | Optional locally and required in production; production requires `rediss://`                        |
-| `FEATURE_FLAGS`                     | `{}`; JSON object of boolean runtime flags, with Redis overrides when configured                    |
+| Variable                             | Default / purpose                                                                                   |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                           | `development`; `development`, `test`, or `production`                                               |
+| `APP_NAME`                           | `Workspace`; product display name used by API docs and transactional email                          |
+| `APP_SLUG`                           | `modular-monolith`; stable product namespace for deployment and telemetry metadata                  |
+| `PROCESS_ROLE`                       | `all`; use `api` and `worker` as separate production processes                                      |
+| `EXAMPLE_FEATURES_ENABLED`           | `false`; compose the Notes reference module into the API                                            |
+| `INTELLIGENCE_ENABLED`               | `false`; enable the optional private Python intelligence service                                    |
+| `INTELLIGENCE_SERVICE_URL`           | Optional private service URL; required when intelligence is enabled                                 |
+| `INTELLIGENCE_SERVICE_AUDIENCE`      | `modular-monolith-intelligence`; audience used for internal service authentication                  |
+| `INTELLIGENCE_SERVICE_TOKEN`         | Secret shared only by Node and Python; required when intelligence is enabled                        |
+| `INTELLIGENCE_DATA_ENCRYPTION_KEY`   | Secret used to encrypt prompts, document chunks, and responses at rest; required when enabled       |
+| `INTELLIGENCE_PROVIDER`              | `openai-compatible`; provider adapter selected by the optional service                              |
+| `INTELLIGENCE_PROVIDER_BASE_URL`     | Python-only provider endpoint; use HTTPS or a private service DNS name                              |
+| `INTELLIGENCE_PROVIDER_API_KEY`      | Python-only provider secret; never expose it to Node or browser processes                           |
+| `INTELLIGENCE_ALLOWED_STORAGE_HOSTS` | Python-only comma-separated HTTPS object-storage host allowlist                                     |
+| `INTELLIGENCE_IMAGE_REF`             | Production-only immutable Python image digest for the intelligence overlay                          |
+| `INTELLIGENCE_SERVICE_TOKEN_FILE`    | Production-only secret file mounted for Prometheus metrics scraping                                 |
+| `INTELLIGENCE_MODEL`                 | Provider generation model; required when intelligence is enabled                                    |
+| `INTELLIGENCE_EMBEDDING_MODEL`       | Provider embedding model; required when intelligence is enabled                                     |
+| `INTELLIGENCE_MAX_OUTPUT_TOKENS`     | `2048`; per-request output ceiling                                                                  |
+| `INTELLIGENCE_MAX_CONTEXT_ITEMS`     | `20`; maximum retrieved context items per run                                                       |
+| `INTELLIGENCE_MAX_DOCUMENT_BYTES`    | `10485760`; maximum document size accepted by the parser                                            |
+| `PORT`                               | `5156`; API listener port                                                                           |
+| `TRUST_PROXY`                        | `false`; enable only behind a trusted proxy that replaces forwarding headers                        |
+| `LOG_LEVEL`                          | `info`; Pino level from `fatal` through `trace`                                                     |
+| `TENANCY_MODE`                       | `single`; choose `single` or `multi` before production data exists                                  |
+| `CLIENT_URL`                         | `http://localhost:5155`; comma-separated allowed browser origins                                    |
+| `API_URL`                            | `http://localhost:5156`; externally reachable API origin                                            |
+| `DATABASE_URL`                       | Local PostgreSQL URL; production requires TLS with `sslmode=require`, `verify-ca`, or `verify-full` |
+| `DB_DIRECT_URL`                      | Optional direct URL for migrations and advisory locks; defaults to `DATABASE_URL`                   |
+| `TEST_DATABASE_URL`                  | Integration/E2E database; its database name must contain `test`                                     |
+| `DB_MAX_POOL_SIZE`                   | `10`; connection pool size per API or worker instance                                               |
+| `DB_STATEMENT_TIMEOUT_MS`            | `30000`; statement and client query timeout                                                         |
+| `DB_LOCK_TIMEOUT_MS`                 | `5000`; transaction lock wait timeout                                                               |
+| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS`  | `60000`; idle transaction timeout                                                                   |
+| `AUDIT_RETENTION_DAYS`               | `365`; audit retention, constrained to 30-3650 days                                                 |
+| `INVITATION_RETENTION_DAYS`          | `90`; settled invitation retention, constrained to 7-3650 days                                      |
+| `REDIS_URL`                          | Optional locally and required in production; production requires `rediss://`                        |
+| `FEATURE_FLAGS`                      | `{}`; JSON object of boolean runtime flags, with Redis overrides when configured                    |
 
 ## Authentication, security, and reliability
 

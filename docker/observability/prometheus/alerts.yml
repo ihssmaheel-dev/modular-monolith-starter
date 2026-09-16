@@ -257,6 +257,53 @@ groups:
           summary: Email provider circuit breaker is open
           description: "Email delivery is being rejected while the provider circuit is open."
 
+  - name: intelligence-health
+    rules:
+      - alert: IntelligenceServiceDown
+        expr: (up{job="intelligence-service"} == 0) and on() (max(intelligence_enabled) > 0)
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: Enabled intelligence service is unreachable
+          description: "The optional intelligence capability is enabled but its private metrics endpoint has been unreachable for three minutes."
+
+      - alert: IntelligenceProviderFailureRateHigh
+        expr: (sum(rate(intelligence_provider_requests_total{outcome!="success"}[5m])) / clamp_min(sum(rate(intelligence_provider_requests_total[5m])), 0.001)) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Intelligence provider failure rate is high
+          description: "More than 5% of intelligence provider calls have failed during the last 10 minutes."
+
+      - alert: IntelligenceProviderCircuitOpen
+        expr: intelligence_provider_circuit_state == 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Intelligence provider circuit breaker is open
+          description: "Intelligence requests are being rejected while the provider circuit is open."
+
+      - alert: IntelligenceQueueBacklogHigh
+        expr: bullmq_queue_waiting_jobs{queue=~"intelligence-.*"} > 100 or bullmq_queue_oldest_waiting_age_seconds{queue=~"intelligence-.*"} > 300
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Intelligence queue backlog is high
+          description: "An intelligence queue has more than 100 waiting jobs or an oldest job older than five minutes."
+
+      - alert: IntelligenceConcurrencySaturated
+        expr: (intelligence_active_requests / clamp_min(intelligence_concurrency_limit, 1)) >= 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Intelligence concurrency is saturated
+          description: "The optional intelligence service has used at least 90% of its configured request slots for ten minutes; review latency and capacity before increasing limits."
+
   - name: telemetry-pipeline-health
     rules:
       - alert: TelemetryActiveSeriesHigh

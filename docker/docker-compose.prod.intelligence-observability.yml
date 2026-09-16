@@ -1,0 +1,9 @@
+# Optional production observability overlay for the intelligence profile.
+# Use it together with docker-compose.prod.observability.yml and the
+# intelligence production overlay. It mounts only the service credential
+# required by Prometheus to scrape the private metrics endpoint.
+services:
+  prometheus:
+    volumes:
+      - ./observability/prometheus/intelligence-targets.yml:/etc/prometheus/intelligence-targets/intelligence.yml:ro
+      - ${INTELLIGENCE_SERVICE_TOKEN_FILE:?set INTELLIGENCE_SERVICE_TOKEN_FILE}:/run/secrets/intelligence_service_token:ro

@@ -7,6 +7,7 @@ A production-grade, highly scalable TypeScript modular monolith architecture des
 ## Tech Stack
 
 - **Backend:** NestJS 12 + Fastify 5 + PostgreSQL 16 + Drizzle ORM + Redis 7 + BullMQ + oRPC + Scalar
+- **Optional intelligence:** Python 3.12 + FastAPI + uv + provider-neutral HTTP gateway + pgvector RAG; disabled by default and deployed separately
 - **Frontend Web:** TanStack Start 1 (Vite 8 + TanStack Router file-based SSR + streaming) + TanStack Query 5 + Zustand 5 + react-i18next + Tailwind 4 + shadcn base-nova + Base UI 1
 - **Capability Packages:**
   - `@repo/contracts`: Zod 4 schemas, oRPC type-safe API contracts, DTO types, pagination & error constants, env schemas (API + VITE_*)
@@ -52,6 +53,9 @@ pnpm project:init --name "Acme Portal" --bundle-id com.acme.portal --reset-local
 See [Starting a New Project](docs/STARTING_A_NEW_PROJECT.md) for repository URL synchronization,
 the CI drift check, and the manual logo/theme/legal checklist.
 
+The optional intelligence boundary, local profile, production overlay, and reindex policy are
+documented in [docs/INTELLIGENCE.md](docs/INTELLIGENCE.md).
+
 ---
 
 ## Project Structure
@@ -61,6 +65,7 @@ the CI drift check, and the manual logo/theme/legal checklist.
 │   ├── api/             # NestJS Fastify backend (Modular Monolith + CQRS + FGA + Drizzle)
 │   ├── web/             # TanStack Start web (Vite 8 + Router file-based SSR + Query + Zustand + i18n + @repo/ui)
 │   ├── mobile/          # Expo native app (expo-router file-based + Query + NativeWind, @repo/contracts + i18n)
+│   └── intelligence/    # Optional FastAPI service (uv-managed; outside the pnpm workspace)
 ├── packages/
 │   ├── contracts/       # Zod 4 Schemas, oRPC API contracts, DTO types, constants, env schemas
 │   ├── authorization/   # Pure FGA Evaluator (RBAC + ReBAC + ABAC) & Action Vocabulary
@@ -111,6 +116,12 @@ pnpm status           # Inspect real-time TCP connectivity & latency across all 
 pnpm info             # Alias for pnpm status
 pnpm run doctor       # Diagnose toolchain, env, Docker, workspace, and dependency readiness
 pnpm test:generator   # Verify the full-stack feature generator remains compilable
+
+# Optional Python intelligence profile (only when a product enables it)
+pnpm intelligence:install
+pnpm intelligence:check
+pnpm intelligence:up
+pnpm intelligence:down
 
 # Web shadcn
 pnpm dlx shadcn@latest add button -c apps/web   # add ui primitive to @repo/ui (see packages/ui)

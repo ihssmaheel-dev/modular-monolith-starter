@@ -75,7 +75,11 @@ function checkWorkspaceManifests(results) {
     const parentPath = path.join(ROOT, parent);
     if (!fs.existsSync(parentPath)) continue;
     for (const entry of fs.readdirSync(parentPath, { withFileTypes: true })) {
-      if (entry.isDirectory()) manifestPaths.push(path.join(parent, entry.name, "package.json"));
+      if (!entry.isDirectory()) continue;
+      const directory = path.join(parent, entry.name);
+      // Optional non-Node services are validated by their own toolchain.
+      if (fs.existsSync(path.join(ROOT, directory, "pyproject.toml"))) continue;
+      manifestPaths.push(path.join(directory, "package.json"));
     }
   }
   const names = new Map();

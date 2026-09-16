@@ -15,3 +15,6 @@ packages/ui/src/styles/tokens.generated.css
 packages/email/src/styles/tokens.ts
 apps/mobile/src/theme/tokens.generated.ts
 apps/mobile/src/theme/tailwind.tokens.generated.js
+apps/intelligence/.venv/
+apps/intelligence/.pytest_cache/
+apps/intelligence/**/__pycache__/

@@ -28,6 +28,9 @@ export const Permissions = {
   // Notifications
   NOTIFICATIONS_READ: "notifications:read",
   NOTIFICATIONS_WRITE: "notifications:write",
+  // Optional intelligence capability. Product roles may grant these explicitly.
+  INTELLIGENCE_RUN: "intelligence:run",
+  INTELLIGENCE_INDEX: "intelligence:index",
 } as const;
 
 export type CorePermission = (typeof Permissions)[keyof typeof Permissions];
@@ -60,6 +63,8 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_REQUESTS_READ,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
+    Permissions.INTELLIGENCE_RUN,
+    Permissions.INTELLIGENCE_INDEX,
   ],
   user: [
     Permissions.FILES_READ,
@@ -91,6 +96,8 @@ export const TenantAdministrativePermissions: Permission[] = [
   Permissions.PRIVACY_ERASE_TENANT,
   Permissions.NOTIFICATIONS_READ,
   Permissions.NOTIFICATIONS_WRITE,
+  Permissions.INTELLIGENCE_RUN,
+  Permissions.INTELLIGENCE_INDEX,
 ];
 
 const PLATFORM_ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -128,6 +135,8 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_REQUESTS_READ,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
+    Permissions.INTELLIGENCE_RUN,
+    Permissions.INTELLIGENCE_INDEX,
   ],
   member: [
     Permissions.ORGANIZATIONS_READ,

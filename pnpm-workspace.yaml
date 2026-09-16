@@ -1,5 +1,7 @@
 packages:
   - "apps/*"
+  # Python services use uv and must never enter the Node dependency graph.
+  - "!apps/intelligence"
   - "packages/*"
 
 onlyBuiltDependencies:

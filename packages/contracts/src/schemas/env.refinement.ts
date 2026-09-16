@@ -39,6 +39,12 @@ export type EnvironmentForValidation = {
   AUDIT_RETENTION_DAYS: number;
   PUSH_PROVIDER: "none" | "expo";
   EXPO_ACCESS_TOKEN?: string;
+  INTELLIGENCE_ENABLED: boolean;
+  INTELLIGENCE_SERVICE_URL?: string;
+  INTELLIGENCE_SERVICE_TOKEN?: string;
+  INTELLIGENCE_DATA_ENCRYPTION_KEY?: string;
+  INTELLIGENCE_MODEL: string;
+  INTELLIGENCE_EMBEDDING_MODEL: string;
 };
 
 export function validateEnvironment(env: EnvironmentForValidation, context: RefinementCtx): void {
@@ -76,6 +82,36 @@ export function validateEnvironment(env: EnvironmentForValidation, context: Refi
       path: ["EXPO_ACCESS_TOKEN"],
       message: "EXPO_ACCESS_TOKEN is required for Expo push (tokenless sends are rate-limited)",
     });
+  }
+  if (env.INTELLIGENCE_ENABLED) {
+    if (!env.INTELLIGENCE_SERVICE_URL) {
+      context.addIssue({
+        code: "custom",
+        path: ["INTELLIGENCE_SERVICE_URL"],
+        message: "INTELLIGENCE_SERVICE_URL is required when intelligence is enabled",
+      });
+    }
+    if (!env.INTELLIGENCE_SERVICE_TOKEN) {
+      context.addIssue({
+        code: "custom",
+        path: ["INTELLIGENCE_SERVICE_TOKEN"],
+        message: "INTELLIGENCE_SERVICE_TOKEN is required when intelligence is enabled",
+      });
+    }
+    if (!env.INTELLIGENCE_DATA_ENCRYPTION_KEY) {
+      context.addIssue({
+        code: "custom",
+        path: ["INTELLIGENCE_DATA_ENCRYPTION_KEY"],
+        message: "INTELLIGENCE_DATA_ENCRYPTION_KEY is required when intelligence is enabled",
+      });
+    }
+    if (!env.INTELLIGENCE_MODEL || !env.INTELLIGENCE_EMBEDDING_MODEL) {
+      context.addIssue({
+        code: "custom",
+        path: ["INTELLIGENCE_MODEL"],
+        message: "Intelligence model and embedding model are required when enabled",
+      });
+    }
   }
   if (env.IDEMPOTENCY_STALE_AFTER_SECONDS >= env.IDEMPOTENCY_PROCESSING_TTL_SECONDS) {
     context.addIssue({

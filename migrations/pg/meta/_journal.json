@@ -29,6 +29,27 @@
       "when": 1789458125270,
       "tag": "0003_third_menace",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789545246833,
+      "tag": "0004_sleepy_red_ghost",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789545287443,
+      "tag": "0005_rich_vampiro",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789546117546,
+      "tag": "0006_dizzy_galactus",
+      "breakpoints": true
     }
   ]
 }

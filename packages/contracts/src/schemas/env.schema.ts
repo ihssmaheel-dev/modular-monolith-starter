@@ -60,6 +60,25 @@ export const envSchema = z
       .default("modular-monolith"),
     PROCESS_ROLE: z.enum(["all", "api", "worker"]).default("all"),
     EXAMPLE_FEATURES_ENABLED: environmentBoolean(false),
+    INTELLIGENCE_ENABLED: environmentBoolean(false),
+    INTELLIGENCE_SERVICE_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
+    INTELLIGENCE_SERVICE_AUDIENCE: z.string().min(1).default("modular-monolith-intelligence"),
+    INTELLIGENCE_SERVICE_TOKEN: z.preprocess(emptyStringAsUndefined, z.string().min(32).optional()),
+    INTELLIGENCE_DATA_ENCRYPTION_KEY: z.preprocess(
+      emptyStringAsUndefined,
+      z.string().min(32).optional(),
+    ),
+    INTELLIGENCE_PROVIDER: z.enum(["openai-compatible"]).default("openai-compatible"),
+    INTELLIGENCE_MODEL: z.string().default(""),
+    INTELLIGENCE_EMBEDDING_MODEL: z.string().default(""),
+    INTELLIGENCE_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().max(16_384).default(2_048),
+    INTELLIGENCE_MAX_CONTEXT_ITEMS: z.coerce.number().int().positive().max(100).default(20),
+    INTELLIGENCE_MAX_DOCUMENT_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(50 * 1024 * 1024)
+      .default(10 * 1024 * 1024),
     PORT: z.coerce.number().int().min(1).max(MAX_PORT).default(5156),
     TRUST_PROXY: environmentBoolean(false),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),

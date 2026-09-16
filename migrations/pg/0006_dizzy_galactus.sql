@@ -1,0 +1,1 @@
+ALTER TABLE "intelligence_runs" ADD COLUMN "document_ids" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -1,0 +1,48 @@
+# Production optional overlay. Use an immutable image reference and enable
+# the intelligence profile explicitly; the local build profile is separate.
+services:
+  intelligence:
+    profiles: [intelligence]
+    image: ${INTELLIGENCE_IMAGE_REF:?set INTELLIGENCE_IMAGE_REF to an immutable image digest}
+    environment:
+      INTELLIGENCE_ENABLED: "true"
+      INTELLIGENCE_SERVICE_TOKEN: ${INTELLIGENCE_SERVICE_TOKEN:?set INTELLIGENCE_SERVICE_TOKEN}
+      INTELLIGENCE_SERVICE_AUDIENCE: ${INTELLIGENCE_SERVICE_AUDIENCE:-modular-monolith-intelligence}
+      INTELLIGENCE_PROVIDER: ${INTELLIGENCE_PROVIDER:-openai-compatible}
+      INTELLIGENCE_PROVIDER_BASE_URL: ${INTELLIGENCE_PROVIDER_BASE_URL:?set INTELLIGENCE_PROVIDER_BASE_URL}
+      INTELLIGENCE_PROVIDER_API_KEY: ${INTELLIGENCE_PROVIDER_API_KEY:?set INTELLIGENCE_PROVIDER_API_KEY}
+      INTELLIGENCE_MODEL: ${INTELLIGENCE_MODEL:?set INTELLIGENCE_MODEL}
+      INTELLIGENCE_EMBEDDING_MODEL: ${INTELLIGENCE_EMBEDDING_MODEL:?set INTELLIGENCE_EMBEDDING_MODEL}
+      INTELLIGENCE_ALLOWED_STORAGE_HOSTS: ${INTELLIGENCE_ALLOWED_STORAGE_HOSTS:?set INTELLIGENCE_ALLOWED_STORAGE_HOSTS}
+      INTELLIGENCE_OTEL_ENDPOINT: ${INTELLIGENCE_OTEL_ENDPOINT:-http://tempo:4318/v1/traces}
+      INTELLIGENCE_MAX_CONCURRENCY: ${INTELLIGENCE_MAX_CONCURRENCY:-4}
+      INTELLIGENCE_MAX_OUTPUT_TOKENS: ${INTELLIGENCE_MAX_OUTPUT_TOKENS:-2048}
+      INTELLIGENCE_MAX_DOCUMENT_BYTES: ${INTELLIGENCE_MAX_DOCUMENT_BYTES:-10000000}
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "8080"
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/internal/v1/health/ready', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

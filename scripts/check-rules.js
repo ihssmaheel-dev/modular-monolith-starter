@@ -10,9 +10,17 @@ function walk(directory) {
     const target = path.join(directory, entry.name);
     if (entry.isDirectory()) {
       if (
-        ["dist", "node_modules", ".turbo", ".vite", "storybook-static", "coverage"].includes(
-          entry.name,
-        )
+        [
+          "dist",
+          "node_modules",
+          ".turbo",
+          ".vite",
+          ".venv",
+          ".pytest_cache",
+          "__pycache__",
+          "storybook-static",
+          "coverage",
+        ].includes(entry.name)
       )
         return [];
       return walk(target);

@@ -1,0 +1,181 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "compass",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Explore Traces (Tempo)",
+      "tooltip": "Open intelligence traces in Tempo",
+      "type": "link",
+      "url": "/explore?left=%7B%22datasource%22:%22tempo%22%7D"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Intelligence request health",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "id": 1,
+      "title": "Request rate by operation",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (operation, outcome) (rate(intelligence_requests_total[5m]))",
+          "legendFormat": "{{operation}} / {{outcome}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 1 },
+      "id": 2,
+      "title": "Provider request latency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(intelligence_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{operation}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" } },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 1 },
+      "id": 3,
+      "title": "Provider failure rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "100 * sum(rate(intelligence_provider_requests_total{outcome!=\"success\"}[5m])) / clamp_min(sum(rate(intelligence_provider_requests_total[5m])), 0.001)",
+          "legendFormat": "provider failures",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 101,
+      "title": "Capacity, queue pressure and cost",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "id": 4,
+      "title": "Active Python requests",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "intelligence_active_requests",
+          "legendFormat": "active requests",
+          "refId": "A"
+        },
+        {
+          "expr": "intelligence_provider_circuit_state",
+          "legendFormat": "Node circuit (0 closed, 1 half-open, 2 open)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+      "id": 5,
+      "title": "Intelligence queue depth",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "bullmq_queue_waiting_jobs{queue=~\"intelligence-.*\"}",
+          "legendFormat": "waiting {{queue}}",
+          "refId": "A"
+        },
+        {
+          "expr": "bullmq_queue_active_jobs{queue=~\"intelligence-.*\"}",
+          "legendFormat": "active {{queue}}",
+          "refId": "B"
+        },
+        {
+          "expr": "bullmq_queue_failed_jobs{queue=~\"intelligence-.*\"}",
+          "legendFormat": "failed {{queue}}",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+      "id": 6,
+      "title": "Oldest intelligence job",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "bullmq_queue_oldest_waiting_age_seconds{queue=~\"intelligence-.*\"}",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 14 },
+      "id": 7,
+      "title": "Token consumption",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (direction) (rate(intelligence_tokens_total[1h]))",
+          "legendFormat": "{{direction}} tokens/hour",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 14 },
+      "id": 8,
+      "title": "Estimated provider cost",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "increase(intelligence_estimated_cost_usd_total[1h])",
+          "legendFormat": "USD / hour",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["platform", "intelligence", "operations"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Intelligence",
+  "uid": "intelligence-overview",
+  "version": 1
+}

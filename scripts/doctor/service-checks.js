@@ -138,6 +138,16 @@ function serviceEndpoints(api) {
       });
     }
   }
+  if (api.INTELLIGENCE_ENABLED === "true" || api.INTELLIGENCE_ENABLED === "1") {
+    addUrlEndpoint(
+      endpoints,
+      "intelligence",
+      "Python intelligence",
+      api.INTELLIGENCE_SERVICE_URL,
+      8080,
+      "Run `pnpm intelligence:up` and verify the private intelligence service is healthy.",
+    );
+  }
   return endpoints;
 }
 

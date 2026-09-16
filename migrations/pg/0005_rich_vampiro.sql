@@ -1,0 +1,2 @@
+DROP INDEX "intelligence_documents_file_unique_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "intelligence_documents_tenant_file_unique" ON "intelligence_documents" USING btree ("tenant_id","file_id");

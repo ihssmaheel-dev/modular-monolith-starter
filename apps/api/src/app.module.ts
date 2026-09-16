@@ -51,6 +51,7 @@ import {
 } from "./common";
 import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
 import { env } from "./config/env";
+import { IntelligenceModule } from "./modules/intelligence/intelligence.module";
 
 export const REFERENCE_FEATURE_MODULES = [NotesModule] as const;
 
@@ -95,6 +96,7 @@ export function applicationFeatureModules(includeExamples = env.EXAMPLE_FEATURES
     OutboxModule,
     ErrorReportingModule,
     AuthorizationModule,
+    IntelligenceModule,
     ...applicationFeatureModules(),
   ],
   providers: [

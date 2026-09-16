@@ -1,4 +1,6 @@
-const { readEnv } = require("./runtime");
+const fs = require("node:fs");
+const path = require("node:path");
+const { readEnv, runProcess, ROOT } = require("./runtime");
 const { result } = require("./result");
 const {
   checkInfrastructureUrls,
@@ -54,7 +56,57 @@ function checkEnvironment(results) {
   checkPublicUrls(results, api, web, mobile);
   checkInfrastructureUrls(results, api);
   checkTestDatabase(results, api);
+  checkIntelligenceTooling(results, api);
   return api;
+}
+
+function checkIntelligenceTooling(results, api) {
+  const enabled = api.INTELLIGENCE_ENABLED === "true" || api.INTELLIGENCE_ENABLED === "1";
+  if (!enabled) {
+    results.push(
+      result(
+        "Optional services",
+        "intelligence-tooling",
+        "Python intelligence tooling",
+        "skip",
+        "intelligence is disabled; Python and uv are not required",
+      ),
+    );
+    return;
+  }
+  const python = runProcess("python", ["--version"], 5_000);
+  const uv = runProcess("uv", ["--version"], 5_000);
+  const pythonVersion = `${python.stdout || ""}${python.stderr || ""}`.trim();
+  const python312 = /Python\s+3\.12(?:\.|\s|$)/.test(pythonVersion);
+  const lockfile = fs.existsSync(path.join(ROOT, "apps/intelligence/uv.lock"));
+  const configurationKeys = [
+    "INTELLIGENCE_SERVICE_URL",
+    "INTELLIGENCE_SERVICE_TOKEN",
+    "INTELLIGENCE_DATA_ENCRYPTION_KEY",
+    "INTELLIGENCE_MODEL",
+    "INTELLIGENCE_EMBEDDING_MODEL",
+  ];
+  const missingConfiguration = configurationKeys.filter((key) => !api[key]);
+  const valid = python.status === 0 && python312 && uv.status === 0 && lockfile;
+  const configurationValid = missingConfiguration.length === 0;
+  results.push(
+    result(
+      "Optional services",
+      "intelligence-tooling",
+      "Python intelligence tooling",
+      valid && configurationValid ? "pass" : "fail",
+      valid && configurationValid
+        ? `${pythonVersion} and ${uv.stdout.trim()} are available; uv.lock and provider configuration are present`
+        : !valid
+          ? "intelligence is enabled but Python 3.12+, uv, or uv.lock is missing"
+          : `intelligence configuration is missing: ${missingConfiguration.join(", ")}`,
+      valid && configurationValid
+        ? undefined
+        : !valid
+          ? "Install Python 3.12 and uv, then run `pnpm intelligence:install`."
+          : "Set the missing INTELLIGENCE_* values in apps/api/.env and provision the Python service.",
+    ),
+  );
 }
 
 function checkEnvironmentFile(results, id, name, values, required, template) {

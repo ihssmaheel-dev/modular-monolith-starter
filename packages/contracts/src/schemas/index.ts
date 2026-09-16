@@ -16,4 +16,5 @@ export * from "./notification.schema";
 export * from "./common.schema";
 export * from "./error.schema";
 export * from "./health.schema";
+export * from "./intelligence.schema";
 export * from "./telemetry.schema";

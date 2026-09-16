@@ -34,6 +34,17 @@ scrape_configs:
     static_configs:
       - targets: ["worker:9464"]
 
+  # The target file is mounted only with the optional intelligence production
+  # overlay. Keeping it file-discovered means disabled deployments do not
+  # create a noisy down target or require a Python secret.
+  - job_name: "intelligence-service"
+    sample_limit: 20000
+    metrics_path: "/internal/v1/metrics"
+    authorization:
+      credentials_file: /run/secrets/intelligence_service_token
+    file_sd_configs:
+      - files: ["/etc/prometheus/intelligence-targets/*.yml"]
+
   - job_name: "postgres-exporter"
     scrape_interval: 30s
     sample_limit: 10000

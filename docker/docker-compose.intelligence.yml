@@ -1,0 +1,41 @@
+# Optional intelligence service. Nothing starts unless --profile intelligence is supplied.
+services:
+  intelligence:
+    profiles: [intelligence]
+    build:
+      context: ..
+      dockerfile: apps/intelligence/Dockerfile
+    image: ${INTELLIGENCE_IMAGE_REF:-modular-monolith-intelligence:local}
+    environment:
+      INTELLIGENCE_ENABLED: ${INTELLIGENCE_ENABLED:-false}
+      INTELLIGENCE_SERVICE_TOKEN: ${INTELLIGENCE_SERVICE_TOKEN:-}
+      INTELLIGENCE_SERVICE_AUDIENCE: ${INTELLIGENCE_SERVICE_AUDIENCE:-modular-monolith-intelligence}
+      INTELLIGENCE_PROVIDER: ${INTELLIGENCE_PROVIDER:-openai-compatible}
+      INTELLIGENCE_PROVIDER_BASE_URL: ${INTELLIGENCE_PROVIDER_BASE_URL:-}
+      INTELLIGENCE_PROVIDER_API_KEY: ${INTELLIGENCE_PROVIDER_API_KEY:-}
+      INTELLIGENCE_MODEL: ${INTELLIGENCE_MODEL:-}
+      INTELLIGENCE_EMBEDDING_MODEL: ${INTELLIGENCE_EMBEDDING_MODEL:-}
+      INTELLIGENCE_ALLOWED_STORAGE_HOSTS: ${INTELLIGENCE_ALLOWED_STORAGE_HOSTS:-}
+      INTELLIGENCE_OTEL_ENDPOINT: ${INTELLIGENCE_OTEL_ENDPOINT:-http://tempo:4318/v1/traces}
+      INTELLIGENCE_MAX_CONCURRENCY: ${INTELLIGENCE_MAX_CONCURRENCY:-4}
+      INTELLIGENCE_MAX_OUTPUT_TOKENS: ${INTELLIGENCE_MAX_OUTPUT_TOKENS:-2048}
+      INTELLIGENCE_MAX_DOCUMENT_BYTES: ${INTELLIGENCE_MAX_DOCUMENT_BYTES:-10000000}
+    expose:
+      - "8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    restart: unless-stopped
+    networks:
+      - app-network
+      - default
+
+networks:
+  app-network:
+    driver: bridge

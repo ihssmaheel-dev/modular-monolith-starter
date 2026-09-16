@@ -1,0 +1,14 @@
+# Local-only database override for the optional pgvector-backed intelligence profile.
+# Production must provision pgvector on the managed PostgreSQL service instead.
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.0-pg16
+
+  intelligence:
+    # Local API development runs on the host, so publish only the loopback
+    # port. The production overlay never publishes this service.
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy

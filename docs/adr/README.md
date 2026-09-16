@@ -48,6 +48,7 @@ Decisions with a half-life longer than a sprint. Read the template (`0000-templa
 | 0043   | One Redis, five jobs — with graceful degradation                  | accepted |
 | 0044   | SSE and WebSocket both, each for its traffic                      | accepted |
 | 0045   | A scripted single → multi tenancy migration path                  | accepted |
+| 0050   | Optional Python intelligence boundary                             | accepted |
 | 0051   | Native `validateSearch` over nuqs for URL state                   | accepted |
 | 0054   | SecureStore (not AsyncStorage) for mobile credentials             | accepted |
 | 0055   | Expo push as the single sanctioned external service               | accepted |

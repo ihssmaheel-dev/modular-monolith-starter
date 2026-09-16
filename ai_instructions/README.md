@@ -18,6 +18,12 @@ Before any code change, read these files in order:
 | 10 | [PACKAGE_POLICY.md](./PACKAGE_POLICY.md) | Adding dependencies. |
 | 11 | [PERFORMANCE_RULES.md](./PERFORMANCE_RULES.md) | DB queries, caching, backend performance. |
 
+Optional runtime rules:
+
+- [PYTHON_INTELLIGENCE_RULES.md](./PYTHON_INTELLIGENCE_RULES.md) applies only when the optional
+  `apps/intelligence` service is enabled. It is intentionally outside the pnpm workspace and does
+  not change the Node/web/mobile rules above.
+
 ## Canonical runtime decisions
 
 - oRPC is the canonical runtime transport under `/api/v1/rpc`; REST controllers are the compatibility transport under `/api/v1`. Both delegate to the same application commands/queries, and every route requires parity/smoke tests.
