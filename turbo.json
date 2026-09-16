@@ -38,10 +38,28 @@
       "cache": true
     },
     "test:integration": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": [
+        "TEST_DATABASE_URL",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "CI",
+        "REQUIRE_INTEGRATION_DB",
+        "NODE_ENV"
+      ]
     },
     "test:e2e": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": [
+        "E2E_USE_CONTAINERS",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "TEST_DATABASE_URL",
+        "CI",
+        "NODE_ENV"
+      ]
     },
     "clean": {
       "cache": false

@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 const databaseUrl = process.env.TEST_DATABASE_URL;
 
 if (!databaseUrl) {
