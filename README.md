@@ -35,6 +35,7 @@ A production-grade, highly scalable TypeScript modular monolith architecture des
 ```bash
 # 1. Install dependencies, configure env, start core services, migrate & seed DB, and build
 pnpm bootstrap
+pnpm run doctor
 
 # 2. Start API in development mode
 pnpm dev
@@ -97,6 +98,7 @@ pnpm typecheck        # Run TypeScript type check across all workspaces (api, we
 pnpm rules:check      # Enforce strict architectural boundaries and dependency rules
 pnpm status           # Inspect real-time TCP connectivity & latency across all 15 services
 pnpm info             # Alias for pnpm status
+pnpm run doctor       # Diagnose toolchain, env, Docker, workspace, and dependency readiness
 pnpm test:generator   # Verify the full-stack feature generator remains compilable
 
 # Web shadcn
@@ -104,6 +106,9 @@ pnpm dlx shadcn@latest add button -c apps/web   # add ui primitive to @repo/ui (
 
 pnpm --filter web typecheck
 ```
+
+pnpm 10 reserves `pnpm doctor` for its package-manager configuration check. Use
+`pnpm run doctor` for this repository's complete development-readiness diagnostic.
 
 ### Testing
 

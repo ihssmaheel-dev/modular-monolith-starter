@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "bootstrap": "node scripts/bootstrap.js",
+    "doctor": "node scripts/doctor.js",
     "project:init": "node scripts/initialize-project.js",
     "dev": "turbo dev",
     "dev:api": "turbo build --filter=\"api...\" --filter=\"!api\" && pnpm --filter api dev",

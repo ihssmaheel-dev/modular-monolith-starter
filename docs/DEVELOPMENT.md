@@ -191,11 +191,20 @@ work against the TypeScript API source. Set `LOG_LEVEL=debug` for structured API
 Useful runtime checks:
 
 ```sh
+pnpm run doctor                                    # Diagnose the complete local setup
+pnpm run doctor --strict                           # Treat stopped optional services as failures
+pnpm run doctor --skip-services                    # Skip Docker and dependency connectivity checks
+pnpm --silent run doctor --json                    # Machine-readable diagnostics
 pnpm status                                        # Check live TCP connectivity across all 15 services in ~20ms
 docker compose -f docker/docker-compose.yml ps
 docker compose -f docker/docker-compose.yml logs postgres redis minio mailpit
 pnpm --filter api db:migrate:status
 ```
+
+pnpm itself reserves `pnpm doctor` for package-manager configuration. The explicit `run` in
+`pnpm run doctor` selects the repository diagnostic. It is read-only, never prints configured
+secret values, exits nonzero for required setup failures, and only promotes optional-service
+warnings to failures when `--strict` is supplied.
 
 ## Troubleshooting
 
