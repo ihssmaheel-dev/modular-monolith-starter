@@ -75,52 +75,53 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
         hasPrevPage: false,
       });
     }
-    const db = this.getDb();
-    const page = Math.max(1, options.page ?? 1);
-    const limit = Math.min(MAX_FIND_LIMIT, Math.max(1, options.limit ?? 20));
-    const offset = (page - 1) * limit;
-    const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
-    const itemQuery = (
-      db as unknown as {
-        select: () => { from: (table: unknown) => { where: (condition: unknown) => unknown } };
-      }
-    )
-      .select()
-      .from(this.table)
-      .where(conditions);
-    const ordered = this.applyStableOrder(itemQuery, options);
-    const limited = this.applyNumberMethod(ordered, "limit", limit);
-    const paged = this.applyNumberMethod(limited, "offset", offset);
-    const [items, totalRes] = await Promise.all([
-      paged as Promise<TRow[]>,
-      (
+    return this.scopedRead(async (db) => {
+      const page = Math.max(1, options.page ?? 1);
+      const limit = Math.min(MAX_FIND_LIMIT, Math.max(1, options.limit ?? 20));
+      const offset = (page - 1) * limit;
+      const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
+      const itemQuery = (
         db as unknown as {
-          select: (v: unknown) => {
-            from: (t: unknown) => { where: (c: unknown) => Promise<{ count: number }[]> };
-          };
+          select: () => { from: (table: unknown) => { where: (condition: unknown) => unknown } };
         }
       )
-        .select({ count: sql<number>`count(*)` })
+        .select()
         .from(this.table)
-        .where(conditions),
-    ]);
-    const total = Number(totalRes[0]?.count ?? 0);
-    const totalPages = Math.max(1, Math.ceil(total / limit));
-    return ok({
-      items: items.map((r) => this.toDomain(r)),
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
+        .where(conditions);
+      const ordered = this.applyStableOrder(itemQuery, options);
+      const limited = this.applyNumberMethod(ordered, "limit", limit);
+      const paged = this.applyNumberMethod(limited, "offset", offset);
+      const [items, totalRes] = await Promise.all([
+        paged as Promise<TRow[]>,
+        (
+          db as unknown as {
+            select: (v: unknown) => {
+              from: (t: unknown) => { where: (c: unknown) => Promise<{ count: number }[]> };
+            };
+          }
+        )
+          .select({ count: sql<number>`count(*)` })
+          .from(this.table)
+          .where(conditions),
+      ]);
+      const total = Number(totalRes[0]?.count ?? 0);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      return ok({
+        items: items.map((r) => this.toDomain(r)),
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      });
     });
   }
 
   async updateById(
     id: Id,
     update: Record<string, unknown>,
-    expectedUpdatedAt?: Date,
+    expectedVersion?: Date | number,
   ): Promise<Result<TEntity | null, { type: "CONFLICT" }>> {
     if (this.hasMissingTenantContext()) return ok(null);
     const db = this.getDb();
@@ -137,15 +138,30 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
             tenantFilter["tenantId"] as string,
           )
         : undefined;
-    const updatedAtColumn = (this.table as unknown as Record<string, unknown>)["updatedAt"] as
-      Parameters<typeof eq>[0] | undefined;
-    if (expectedUpdatedAt && !updatedAtColumn) return err({ type: "CONFLICT" });
-    const versionClause =
-      expectedUpdatedAt && updatedAtColumn ? eq(updatedAtColumn, expectedUpdatedAt) : undefined;
+
+    let versionClause: unknown;
+    let nextVersionPayload: Record<string, unknown> = {};
+
+    if (typeof expectedVersion === "number") {
+      const versionCol = ((this.table as unknown as Record<string, unknown>)["version"] ??
+        (this.table as unknown as Record<string, unknown>)["authVersion"]) as
+        Parameters<typeof eq>[0] | undefined;
+      if (!versionCol) return err({ type: "CONFLICT" });
+      versionClause = eq(versionCol, expectedVersion);
+      nextVersionPayload = { version: expectedVersion + 1 };
+    } else if (expectedVersion instanceof Date) {
+      const updatedAtColumn = (this.table as unknown as Record<string, unknown>)["updatedAt"] as
+        Parameters<typeof eq>[0] | undefined;
+      if (!updatedAtColumn) return err({ type: "CONFLICT" });
+      versionClause = sql`date_trunc('milliseconds', ${updatedAtColumn}) = date_trunc('milliseconds', ${expectedVersion}::timestamptz)`;
+    }
+
     const whereClause = tenantClause
       ? and(eq(idCol, id as string), tenantClause)
       : eq(idCol, id as string);
-    const guardedWhereClause = versionClause ? and(whereClause, versionClause) : whereClause;
+    const guardedWhereClause = versionClause
+      ? and(whereClause, versionClause as Parameters<typeof and>[0])
+      : whereClause;
     const rows = await (
       db as unknown as {
         update: (t: unknown) => {
@@ -154,11 +170,14 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       }
     )
       .update(this.table)
-      .set({ ...update, updatedAt: new Date() } as unknown as Record<string, unknown>)
+      .set({ ...update, ...nextVersionPayload, updatedAt: new Date() } as unknown as Record<
+        string,
+        unknown
+      >)
       .where(guardedWhereClause)
       .returning();
     const row = rows[0] ?? null;
-    if (expectedUpdatedAt && !row) return err({ type: "CONFLICT" });
+    if (expectedVersion && !row) return err({ type: "CONFLICT" });
     return ok(
       row && !(row as unknown as Record<string, unknown>)["deletedAt"] ? this.toDomain(row) : null,
     );
@@ -166,15 +185,14 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
 
   /**
    * Explicit optimistic-concurrency entry point for collaborative aggregates.
-   * Existing callers keep last-write-wins semantics until they opt in; new
-   * high-value resources should pass the version they read from the database.
+   * Supports integer versioning or Date updatedAt with millisecond precision.
    */
   async updateByIdWithVersion(
     id: Id,
-    expectedUpdatedAt: Date,
+    expectedVersion: Date | number,
     update: Record<string, unknown>,
   ): Promise<Result<TEntity | null, { type: "CONFLICT" }>> {
-    return this.updateById(id, update, expectedUpdatedAt);
+    return this.updateById(id, update, expectedVersion);
   }
 
   async updateOne(

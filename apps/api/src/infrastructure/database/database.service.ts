@@ -2,12 +2,10 @@ import { Inject, Injectable, OnApplicationShutdown, Optional } from "@nestjs/com
 import { Interval } from "@nestjs/schedule";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { sql } from "drizzle-orm";
 import type { Pool } from "pg";
 import { err, ok, type Result } from "neverthrow";
 import { ClsService } from "nestjs-cls";
 import { PinoLoggerService } from "../logger/logger.service";
-import { env } from "../../config/env";
 import type { TransactionError } from "./database.types";
 import { TransactionScopes } from "./transaction-scopes";
 import { writeAuditMutation } from "../audit/audit-mutation.writer";
@@ -15,6 +13,7 @@ import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/au
 import { createDatabasePool } from "./database-pool";
 import { databaseErrorMetadata } from "./database-error.utils";
 import { MetricsService } from "../metrics/metrics.service";
+import { configureTransactionContext, setTransactionConfig } from "./transaction-context";
 
 export type Database = NodePgDatabase;
 export type DrizzleDb = Database;
@@ -127,7 +126,7 @@ export class DatabaseService implements OnApplicationShutdown {
   async setTenantContext(tenantId: string): Promise<void> {
     const tx = this.getTx();
     if (!tx) throw new Error(TENANT_CONTEXT_REQUIRES_TRANSACTION);
-    await this.setConfig(tx, "app.current_tenant", tenantId);
+    await setTransactionConfig(tx, "app.current_tenant", tenantId);
     this.cls?.set("tenantId", tenantId);
   }
 
@@ -161,11 +160,15 @@ export class DatabaseService implements OnApplicationShutdown {
       { ...current, systemScope: true } as unknown as Parameters<typeof this.cls.runWith>[0],
       async () => {
         if (!tx) return this.runTransaction(fn);
-        await this.setConfig(tx, "app.system_scope", "true");
+        await setTransactionConfig(tx, "app.system_scope", "true");
         try {
           return await fn();
         } finally {
-          await this.setConfig(tx, "app.system_scope", previousSystemScope ? "true" : "false");
+          await setTransactionConfig(
+            tx,
+            "app.system_scope",
+            previousSystemScope ? "true" : "false",
+          );
         }
       },
     );
@@ -234,7 +237,7 @@ export class DatabaseService implements OnApplicationShutdown {
   private async openTransaction<T>(fn: () => Promise<T>): Promise<T> {
     if (!this.cls) {
       return this.db.transaction(async (tx: DrizzleDb) => {
-        await this.configureTransactionContext(tx);
+        await configureTransactionContext(tx, this.cls);
         return fn();
       });
     }
@@ -246,7 +249,7 @@ export class DatabaseService implements OnApplicationShutdown {
         this.db.transaction(async (tx: DrizzleDb) => {
           this.cls?.set("databaseTx", tx);
           this.cls?.set("afterCommit", afterCommit);
-          await this.configureTransactionContext(tx);
+          await configureTransactionContext(tx, this.cls);
           return fn();
         }),
     );
@@ -259,38 +262,32 @@ export class DatabaseService implements OnApplicationShutdown {
     return this.scopes.withAdvisoryLock(key, fn);
   }
 
+  /** Attempts non-blocking acquisition of transaction-scoped advisory lock. Needs active unit of work. */
+  async tryAdvisoryLock<T>(
+    key: string,
+    fn: () => Promise<T>,
+  ): Promise<{ acquired: boolean; result?: T }> {
+    return this.scopes.tryAdvisoryLock(key, fn);
+  }
+
+  /**
+   * Runs a critical scheduled task exclusively across clustered worker instances.
+   * Opens a transaction, attempts to acquire the advisory lock, and executes fn if acquired.
+   * If another replica is already executing the task, skips execution cleanly.
+   */
+  async withExclusiveExecution<T>(
+    key: string,
+    fn: () => Promise<T>,
+  ): Promise<{ executed: boolean; result?: T }> {
+    return this.runTransaction(async () => {
+      const lockResult = await this.scopes.tryAdvisoryLock(key, fn);
+      return { executed: lockResult.acquired, result: lockResult.result };
+    });
+  }
+
   /** Runs fn in a savepoint of the ambient transaction; a throw rolls back and propagates. */
   async withSavepoint<T>(fn: () => Promise<T>): Promise<T> {
     if (!this.getTx()) return fn();
     return this.scopes.withSavepoint(fn);
-  }
-
-  private async configureTransactionContext(tx: DrizzleDb): Promise<void> {
-    const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> }).execute;
-    if (typeof execute !== "function") return;
-    const runQuery = execute.bind(tx);
-    const current = (this.cls?.isActive() ? this.cls.get() : {}) as Record<string, unknown>;
-    const mode = typeof current.tenantMode === "string" ? current.tenantMode : env.TENANCY_MODE;
-    const tenantId = typeof current.tenantId === "string" ? current.tenantId : "";
-    const userId = typeof current.userId === "string" ? current.userId : "";
-    const userEmail = typeof current.userEmail === "string" ? current.userEmail : "";
-    const systemScope = current.systemScope === true ? "true" : "false";
-    await runQuery(sql`
-      select
-        set_config('app.tenancy_mode', ${mode}, true),
-        set_config('app.current_tenant', ${tenantId}, true),
-        set_config('app.current_user', ${userId}, true),
-        set_config('app.current_user_email', ${userEmail}, true),
-        set_config('app.system_scope', ${systemScope}, true),
-        set_config('statement_timeout', ${String(env.DB_STATEMENT_TIMEOUT_MS)}, true),
-        set_config('lock_timeout', ${String(env.DB_LOCK_TIMEOUT_MS)}, true),
-        set_config('idle_in_transaction_session_timeout', ${String(env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS)}, true)
-    `);
-  }
-
-  private async setConfig(tx: DrizzleDb, key: string, value: string): Promise<void> {
-    const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> }).execute;
-    if (typeof execute !== "function") return;
-    await execute.call(tx, sql`select set_config(${key}, ${value}, true)`);
   }
 }

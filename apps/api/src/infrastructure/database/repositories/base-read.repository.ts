@@ -23,6 +23,19 @@ export abstract class BaseReadRepository<TEntity, TRow> {
     return this.database.getTx() ?? this.database.getDb();
   }
 
+  protected async scopedRead<T>(
+    fn: (db: ReturnType<BaseReadRepository<TEntity, TRow>["getDb"]>) => Promise<T>,
+  ): Promise<T> {
+    const tx = this.database.getTx();
+    if (tx) {
+      return fn(tx);
+    }
+    if (typeof this.database.runTransaction === "function") {
+      return this.database.runTransaction(() => fn(this.getDb()));
+    }
+    return fn(this.getDb());
+  }
+
   protected tenantFilter(): Record<string, unknown> | undefined {
     if (!this.tenantScoped) return undefined;
     const ctx = this.tenantContext.get();
@@ -43,23 +56,24 @@ export abstract class BaseReadRepository<TEntity, TRow> {
 
   async findById(id: Id, options: BaseFindOptions = {}): Promise<Result<TEntity | null, never>> {
     if (this.hasMissingTenantContext()) return ok(null);
-    const db = this.getDb();
-    const tenantFilter = this.tenantFilter();
-    const filter: Record<string, unknown> = tenantFilter
-      ? { id: id as string, ...tenantFilter }
-      : { id: id as string };
-    const conditions = this.buildConditions(filter, options);
-    const rows = await (
-      db as unknown as {
-        select: () => { from: (t: unknown) => { where: (c: unknown) => Promise<TRow[]> } };
-      }
-    )
-      .select()
-      .from(this.table)
-      .where(conditions);
-    const row = rows[0] ?? null;
-    if (!row) return ok(null);
-    return ok(this.toDomain(row));
+    return this.scopedRead(async (db) => {
+      const tenantFilter = this.tenantFilter();
+      const filter: Record<string, unknown> = tenantFilter
+        ? { id: id as string, ...tenantFilter }
+        : { id: id as string };
+      const conditions = this.buildConditions(filter, options);
+      const rows = await (
+        db as unknown as {
+          select: () => { from: (t: unknown) => { where: (c: unknown) => Promise<TRow[]> } };
+        }
+      )
+        .select()
+        .from(this.table)
+        .where(conditions);
+      const row = rows[0] ?? null;
+      if (!row) return ok(null);
+      return ok(this.toDomain(row));
+    });
   }
 
   async findOne(
@@ -67,23 +81,24 @@ export abstract class BaseReadRepository<TEntity, TRow> {
     options: BaseFindOptions = {},
   ): Promise<Result<TEntity | null, never>> {
     if (this.hasMissingTenantContext()) return ok(null);
-    const db = this.getDb();
-    const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
-    const rows = await (
-      db as unknown as {
-        select: () => {
-          from: (t: unknown) => {
-            where: (c: unknown) => { limit: (n: number) => Promise<TRow[]> };
+    return this.scopedRead(async (db) => {
+      const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
+      const rows = await (
+        db as unknown as {
+          select: () => {
+            from: (t: unknown) => {
+              where: (c: unknown) => { limit: (n: number) => Promise<TRow[]> };
+            };
           };
-        };
-      }
-    )
-      .select()
-      .from(this.table)
-      .where(conditions)
-      .limit(1);
-    const row = rows[0] ?? null;
-    return ok(row ? this.toDomain(row) : null);
+        }
+      )
+        .select()
+        .from(this.table)
+        .where(conditions)
+        .limit(1);
+      const row = rows[0] ?? null;
+      return ok(row ? this.toDomain(row) : null);
+    });
   }
 
   async find(
@@ -91,50 +106,52 @@ export abstract class BaseReadRepository<TEntity, TRow> {
     options: BaseFindOptions = {},
   ): Promise<Result<TEntity[], never>> {
     if (this.hasMissingTenantContext()) return ok([]);
-    const db = this.getDb();
-    const limit = Math.min(options.limit ?? DEFAULT_FIND_LIMIT, MAX_FIND_LIMIT);
-    const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
-    const query = (
-      db as unknown as {
-        select: () => {
-          from: (t: unknown) => {
-            where: (c: unknown) => { limit: (n: number) => Promise<TRow[]> } | Promise<TRow[]>;
-            limit: (n: number) => Promise<TRow[]>;
+    return this.scopedRead(async (db) => {
+      const limit = Math.min(options.limit ?? DEFAULT_FIND_LIMIT, MAX_FIND_LIMIT);
+      const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
+      const query = (
+        db as unknown as {
+          select: () => {
+            from: (t: unknown) => {
+              where: (c: unknown) => { limit: (n: number) => Promise<TRow[]> } | Promise<TRow[]>;
+              limit: (n: number) => Promise<TRow[]>;
+            };
           };
-        };
-      }
-    )
-      .select()
-      .from(this.table);
+        }
+      )
+        .select()
+        .from(this.table);
 
-    let candidate: unknown = query;
-    if (conditions) {
-      candidate = (query as unknown as { where: (condition: unknown) => unknown }).where(
-        conditions,
-      );
-    }
-    const ordered = this.applyStableOrder(candidate, options);
-    const limited = this.applyNumberMethod(ordered, "limit", limit);
-    const paged = this.applyNumberMethod(limited, "offset", Math.max(0, options.skip ?? 0));
-    const rows = await (paged as Promise<TRow[]>);
-    return ok(rows.map((r) => this.toDomain(r)));
+      let candidate: unknown = query;
+      if (conditions) {
+        candidate = (query as unknown as { where: (condition: unknown) => unknown }).where(
+          conditions,
+        );
+      }
+      const ordered = this.applyStableOrder(candidate, options);
+      const limited = this.applyNumberMethod(ordered, "limit", limit);
+      const paged = this.applyNumberMethod(limited, "offset", Math.max(0, options.skip ?? 0));
+      const rows = await (paged as Promise<TRow[]>);
+      return ok(rows.map((r) => this.toDomain(r)));
+    });
   }
 
   async count(filter: Record<string, unknown> = {}): Promise<Result<number, never>> {
     if (this.hasMissingTenantContext()) return ok(0);
-    const db = this.getDb();
-    const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() });
-    const result = await (
-      db as unknown as {
-        select: (v: unknown) => {
-          from: (t: unknown) => { where: (c: unknown) => Promise<{ count: number }[]> };
-        };
-      }
-    )
-      .select({ count: sql<number>`count(*)` })
-      .from(this.table)
-      .where(conditions);
-    return ok(Number(result[0]?.count ?? 0));
+    return this.scopedRead(async (db) => {
+      const conditions = this.buildConditions({ ...filter, ...this.tenantFilter() });
+      const result = await (
+        db as unknown as {
+          select: (v: unknown) => {
+            from: (t: unknown) => { where: (c: unknown) => Promise<{ count: number }[]> };
+          };
+        }
+      )
+        .select({ count: sql<number>`count(*)` })
+        .from(this.table)
+        .where(conditions);
+      return ok(Number(result[0]?.count ?? 0));
+    });
   }
 
   protected buildConditions(

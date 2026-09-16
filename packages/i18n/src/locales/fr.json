@@ -28,7 +28,8 @@
     "contractDriven": "Validé par des contrats partagés",
     "copied": "Copié dans le presse-papiers",
     "user": "Utilisateur",
-    "unknown": "Inconnu"
+    "unknown": "Inconnu",
+    "optional": "facultatif"
   },
   "auth": {
     "welcomeBack": "Bon retour",
@@ -372,6 +373,7 @@
     "create": "Créer",
     "createOrganization": "Créer une organisation",
     "createOrganizationDescription": "Créer une nouvelle organisation",
+    "createFailed": "Impossible de créer l’organisation",
     "switcherLabel": "Changer d’organisation",
     "acceptInvitation": "Accepter l’invitation",
     "acceptInvitationDescription": "Consultez votre invitation et rejoignez l’organisation.",

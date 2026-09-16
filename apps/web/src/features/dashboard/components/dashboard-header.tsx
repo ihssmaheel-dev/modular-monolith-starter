@@ -1,30 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
-import { NativeSelect, NativeSelectOption } from "@repo/ui/components/ui/native-select";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 import { useAuthStore } from "@/stores/auth.store";
-import { useTenantStore } from "@/stores/tenant.store";
-import { organizationsListQuery, tenancyStatusQuery } from "@/features/tenancy/tenancy.queries";
+import { OrganizationSwitcher } from "@/features/tenancy/components/organization-switcher";
 import { getWebEnv } from "@/lib/env";
 
 export function DashboardHeader() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
-  const tenantId = useTenantStore((state) => state.tenantId);
-  const setTenantId = useTenantStore((state) => state.setTenantId);
-
-  const statusQuery = useQuery(tenancyStatusQuery());
-  const isMultiTenant = statusQuery.data?.mode === "multi";
-
-  const orgsQuery = useQuery({
-    ...organizationsListQuery(),
-    enabled: isMultiTenant,
-  });
-
-  const organizations = orgsQuery.data?.items ?? [];
   const { VITE_APP_NAME: appName, VITE_EXAMPLE_FEATURES_ENABLED: examplesEnabled } = getWebEnv();
 
   return (
@@ -36,21 +21,7 @@ export function DashboardHeader() {
         <p className="mt-1 text-sm text-muted-foreground">{t("dashboard.subtitle", { appName })}</p>
       </div>
       <div className="flex items-center gap-2">
-        {isMultiTenant && organizations.length > 0 && (
-          <NativeSelect
-            value={tenantId ?? ""}
-            onChange={(e) => setTenantId(e.target.value ? e.target.value : null)}
-            aria-label={t("tenancy.allOrganizations")}
-            className="w-44"
-          >
-            <NativeSelectOption value="">{t("tenancy.allOrganizations")}</NativeSelectOption>
-            {organizations.map((org) => (
-              <NativeSelectOption key={org.id} value={org.id}>
-                {org.name}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        )}
+        <OrganizationSwitcher />
         {examplesEnabled && (
           <Button
             size="sm"

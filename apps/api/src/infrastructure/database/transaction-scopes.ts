@@ -99,6 +99,34 @@ export class TransactionScopes {
     return fn();
   }
 
+  /**
+   * Attempts to acquire a transaction-scoped advisory lock without blocking.
+   * If another transaction holds the lock, returns { acquired: false } immediately.
+   * If acquired, runs fn() and returns { acquired: true, result: await fn() }.
+   */
+  async tryAdvisoryLock<T>(
+    key: string,
+    fn: () => Promise<T>,
+  ): Promise<{ acquired: boolean; result?: T }> {
+    const tx = this.getTx();
+    const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> })?.execute;
+    if (!tx || typeof execute !== "function") {
+      throw new Error(ADVISORY_LOCK_REQUIRES_TRANSACTION);
+    }
+    const res = await execute.call(
+      tx,
+      sql`select pg_try_advisory_xact_lock(${ADVISORY_LOCK_NAMESPACE}, hashtext(${key})) as acquired`,
+    );
+    const rows =
+      (res as { rows?: Array<{ acquired: boolean }> })?.rows ?? (Array.isArray(res) ? res : []);
+    const acquired = Boolean((rows[0] as { acquired?: boolean })?.acquired);
+    if (!acquired) {
+      return { acquired: false };
+    }
+    const result = await fn();
+    return { acquired: true, result };
+  }
+
   private nextSavepointName(): string {
     return `sp_${randomUUID().replace(/-/g, "")}`;
   }

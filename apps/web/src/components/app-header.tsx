@@ -21,6 +21,7 @@ import { publishSignedOut, signOutLocally } from "@/lib/cross-tab/auth-sync";
 import { useTheme } from "@/components/theme-provider";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { OrganizationSwitcher } from "@/features/tenancy/components/organization-switcher";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 import { getWebEnv } from "@/lib/env";
 
@@ -75,6 +76,7 @@ export function AppHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <OrganizationSwitcher />
         <NotificationBell />
         <Button
           variant="ghost"

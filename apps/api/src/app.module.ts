@@ -45,7 +45,6 @@ import {
   TenantContextGuard,
   OriginValidationInterceptor,
   RequestIdInterceptor,
-  DatabaseTransactionInterceptor,
   LoggingInterceptor,
   ResponseValidationInterceptor,
 } from "./common";
@@ -147,10 +146,6 @@ export function applicationFeatureModules(includeExamples = env.EXAMPLE_FEATURES
     {
       provide: APP_INTERCEPTOR,
       useClass: IdempotencyInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: DatabaseTransactionInterceptor,
     },
     {
       provide: APP_INTERCEPTOR,

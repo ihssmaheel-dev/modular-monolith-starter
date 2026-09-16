@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const membershipRoleEnum = pgEnum("membership_role", ["owner", "admin", "member"]);
 export const invitationRoleEnum = pgEnum("invitation_role", ["admin", "member"]);
@@ -15,7 +16,11 @@ export const organizations = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
-  (t) => [uniqueIndex("organizations_slug_unique").on(t.slug)],
+  (t) => [
+    uniqueIndex("organizations_slug_unique")
+      .on(t.slug)
+      .where(sql`${t.deletedAt} IS NULL`),
+  ],
 );
 
 export const memberships = pgTable(

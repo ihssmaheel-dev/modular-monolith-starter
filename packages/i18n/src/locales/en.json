@@ -28,7 +28,8 @@
     "contractDriven": "Validated by shared contracts",
     "copied": "Copied to clipboard",
     "user": "User",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "optional": "optional"
   },
   "email": {
     "welcome": {
@@ -399,6 +400,7 @@
     "create": "Create",
     "createOrganization": "Create organization",
     "createOrganizationDescription": "Create a new workspace organization",
+    "createFailed": "Failed to create organization",
     "switcherLabel": "Switch organization",
     "acceptInvitation": "Accept invitation",
     "acceptInvitationDescription": "Review your invitation and join the workspace.",

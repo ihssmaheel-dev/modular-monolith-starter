@@ -66,39 +66,48 @@ export class DigestWorker {
   @Cron(CronExpression.EVERY_MINUTE)
   async closeDueWindows(): Promise<{ delivered: number }> {
     if (env.PROCESS_ROLE === "api" || this.isRunning) return { delivered: 0 };
-    this.isRunning = true;
-    let delivered = 0;
-    try {
-      // Open the transaction inside the system CLS scope so SQL settings
-      // (app.system_scope) are established from matching context. Reading
-      // through the pool handle without a transaction would run outside any
-      // scope and return no rows under enforced RLS.
-      await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        const due = await this.database.runTransaction(async () =>
-          this.batches.findDueWindows(DIGEST_BATCH_LIMIT),
-        );
-        for (const window of due) {
-          try {
-            if (await this.deliverWindow(window.id)) delivered += 1;
-          } catch (error) {
-            this.logger.error({ error, batchId: window.id }, "Digest delivery failed");
+    const run = async () => {
+      this.isRunning = true;
+      let delivered = 0;
+      try {
+        await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
+          const due = await this.database.runTransaction(async () =>
+            this.batches.findDueWindows(DIGEST_BATCH_LIMIT),
+          );
+          for (const window of due) {
+            try {
+              if (await this.deliverWindow(window.id)) delivered += 1;
+            } catch (error) {
+              this.logger.error({ error, batchId: window.id }, "Digest delivery failed");
+            }
           }
+        });
+        if (delivered > 0) {
+          this.metrics.incrementCounter(
+            "notifications_digest_delivered_total",
+            "Digests delivered",
+            delivered,
+          );
+          this.logger.info({ delivered }, "Digest run completed");
         }
-      });
-      if (delivered > 0) {
-        this.metrics.incrementCounter(
-          "notifications_digest_delivered_total",
-          "Digests delivered",
-          delivered,
-        );
-        this.logger.info({ delivered }, "Digest run completed");
+      } catch (error) {
+        this.logger.error({ error }, "Digest run failed");
+      } finally {
+        this.isRunning = false;
       }
-    } catch (error) {
-      this.logger.error({ error }, "Digest run failed");
-    } finally {
-      this.isRunning = false;
+      return { delivered };
+    };
+
+    if (typeof this.database.withExclusiveExecution === "function") {
+      const lockResult = await this.database.withExclusiveExecution(
+        "worker:notifications-digest",
+        run,
+      );
+      if (!lockResult.executed) return { delivered: 0 };
+      return lockResult.result ?? { delivered: 0 };
     }
-    return { delivered };
+
+    return run();
   }
 
   private async deliverWindow(batchId: string): Promise<boolean> {

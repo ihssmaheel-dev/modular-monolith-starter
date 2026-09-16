@@ -39,42 +39,57 @@ export class FileCleanupWorker {
       return { purgedCount: 0, reclaimedBytes: 0 };
     }
 
-    this.isRunning = true;
-    let purgedCount = 0;
-    let reclaimedBytes = 0;
+    const run = async () => {
+      this.isRunning = true;
+      let purgedCount = 0;
+      let reclaimedBytes = 0;
 
-    try {
-      const cutoff = new Date(Date.now() - PENDING_EXPIRATION_HOURS * 60 * 60 * 1000);
-      const unlinkedCutoff = new Date(Date.now() - UNLINKED_EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
-      await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        for (let index = 0; index < MAX_BATCHES_PER_RUN; index += 1) {
-          const candidates = await this.findCandidates(cutoff, unlinkedCutoff);
-          for (const file of candidates) {
-            const deleted = await this.purgeFile(file);
-            if (deleted) {
-              purgedCount += 1;
-              reclaimedBytes += file.fileSize;
-            }
-          }
-          if (candidates.length < CLEANUP_BATCH_SIZE * 3) break;
-        }
-      });
-
-      if (purgedCount > 0) {
-        this.metrics.incrementCounter(
-          "file_cleanup_purged_total",
-          "Total orphan files purged",
-          purgedCount,
+      try {
+        const cutoff = new Date(Date.now() - PENDING_EXPIRATION_HOURS * 60 * 60 * 1000);
+        const unlinkedCutoff = new Date(
+          Date.now() - UNLINKED_EXPIRATION_DAYS * 24 * 60 * 60 * 1000,
         );
-        this.logger.info({ purgedCount, reclaimedBytes }, "Completed orphan file cleanup run");
+        await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
+          for (let index = 0; index < MAX_BATCHES_PER_RUN; index += 1) {
+            const candidates = await this.findCandidates(cutoff, unlinkedCutoff);
+            for (const file of candidates) {
+              const deleted = await this.purgeFile(file);
+              if (deleted) {
+                purgedCount += 1;
+                reclaimedBytes += file.fileSize;
+              }
+            }
+            if (candidates.length < CLEANUP_BATCH_SIZE * 3) break;
+          }
+        });
+
+        if (purgedCount > 0) {
+          this.metrics.incrementCounter(
+            "file_cleanup_purged_total",
+            "Total orphan files purged",
+            purgedCount,
+          );
+          this.logger.info({ purgedCount, reclaimedBytes }, "Completed orphan file cleanup run");
+        }
+      } catch (error) {
+        this.logger.error({ error }, "Error during orphan file cleanup execution");
+      } finally {
+        this.isRunning = false;
       }
-    } catch (error) {
-      this.logger.error({ error }, "Error during orphan file cleanup execution");
-    } finally {
-      this.isRunning = false;
+
+      return { purgedCount, reclaimedBytes };
+    };
+
+    if (typeof this.database.withExclusiveExecution === "function") {
+      const lockResult = await this.database.withExclusiveExecution("worker:file-cleanup", run);
+      if (!lockResult.executed) {
+        this.logger.info({}, "File cleanup already running on another node, skipping");
+        return { purgedCount: 0, reclaimedBytes: 0 };
+      }
+      return lockResult.result ?? { purgedCount: 0, reclaimedBytes: 0 };
     }
 
-    return { purgedCount, reclaimedBytes };
+    return run();
   }
 
   private async findCandidates(cutoff: Date, unlinkedCutoff: Date) {

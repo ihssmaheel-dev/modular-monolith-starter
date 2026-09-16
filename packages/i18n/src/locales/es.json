@@ -28,7 +28,8 @@
     "contractDriven": "Validado por contratos compartidos",
     "copied": "Copiado al portapapeles",
     "user": "Usuario",
-    "unknown": "Desconocido"
+    "unknown": "Desconocido",
+    "optional": "opcional"
   },
   "auth": {
     "welcomeBack": "Te damos la bienvenida de nuevo",
@@ -372,6 +373,7 @@
     "create": "Crear",
     "createOrganization": "Crear organización",
     "createOrganizationDescription": "Crea una nueva organización",
+    "createFailed": "No se pudo crear la organización",
     "switcherLabel": "Cambiar organización",
     "acceptInvitation": "Aceptar invitación",
     "acceptInvitationDescription": "Revisa tu invitación y únete a la organización.",

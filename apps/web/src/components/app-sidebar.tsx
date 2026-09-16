@@ -58,36 +58,38 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to={FRONTEND_ROUTES.notes} />}
-                  isActive={isNotesActive}
-                  tooltip={t("notes.title")}
-                >
-                  <FileText />
-                  <span>{t("notes.title")}</span>
-                </SidebarMenuButton>
-                <SidebarMenuSub>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton
-                      render={<Link to={FRONTEND_ROUTES.notes} />}
-                      isActive={location.pathname === "/notes"}
-                    >
-                      <FileText className="size-3.5" />
-                      <span>{t("notes.title")}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton
-                      render={<Link to={FRONTEND_ROUTES.newNote} />}
-                      isActive={location.pathname === "/notes/new"}
-                    >
-                      <FilePlus2 className="size-3.5" />
-                      <span>{t("notes.newNote")}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                </SidebarMenuSub>
-              </SidebarMenuItem>
+              {examplesEnabled && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link to={FRONTEND_ROUTES.notes} />}
+                    isActive={isNotesActive}
+                    tooltip={t("notes.title")}
+                  >
+                    <FileText />
+                    <span>{t("notes.title")}</span>
+                  </SidebarMenuButton>
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        render={<Link to={FRONTEND_ROUTES.notes} />}
+                        isActive={location.pathname === "/notes"}
+                      >
+                        <FileText className="size-3.5" />
+                        <span>{t("notes.title")}</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        render={<Link to={FRONTEND_ROUTES.newNote} />}
+                        isActive={location.pathname === "/notes/new"}
+                      >
+                        <FilePlus2 className="size-3.5" />
+                        <span>{t("notes.newNote")}</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
+                </SidebarMenuItem>
+              )}
 
               <SidebarMenuItem>
                 <SidebarMenuButton

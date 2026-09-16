@@ -3,7 +3,7 @@ import { PaginationQuerySchema, type PaginationQuery } from "./pagination.schema
 
 export const FileIdParamSchema = z.object({ id: z.string() });
 
-export const ParentTypeSchema = z.enum(["note", "user", "general"]);
+export const ParentTypeSchema = z.string().min(1).max(64);
 export type ParentType = z.infer<typeof ParentTypeSchema>;
 
 export const ALLOWED_MIME_TYPES = [

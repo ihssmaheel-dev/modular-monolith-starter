@@ -29,6 +29,13 @@
       "when": 1789458125270,
       "tag": "0003_third_menace",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789460000000,
+      "tag": "0004_partial_unique_indexes",
+      "breakpoints": true
     }
   ]
 }
