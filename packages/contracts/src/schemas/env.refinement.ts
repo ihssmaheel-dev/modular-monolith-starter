@@ -41,6 +41,9 @@ export type EnvironmentForValidation = {
   AUDIT_RETENTION_DAYS: number;
   PUSH_PROVIDER: "none" | "expo";
   EXPO_ACCESS_TOKEN?: string;
+  WORKBENCH_ENABLED?: boolean;
+  WORKBENCH_USER?: string;
+  WORKBENCH_PASSWORD?: string;
 };
 
 export function validateEnvironment(env: EnvironmentForValidation, context: RefinementCtx): void {

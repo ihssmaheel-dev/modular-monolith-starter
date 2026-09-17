@@ -15,6 +15,7 @@ import { PinoLoggerService } from "./infrastructure/logger/logger.service";
 import { I18nService } from "./infrastructure/i18n/i18n.service";
 import { env } from "./config/env";
 import { setupApiDocs } from "./infrastructure/api-docs";
+import { setupWorkbench, DEFAULT_WORKBENCH_PATH } from "./infrastructure/queue";
 import { printStartupBanner } from "./common/utils/startup-banner.util";
 import { isTrustedOrigin } from "./common/utils/origin.utils";
 import {
@@ -42,14 +43,16 @@ const MAX_BODY_SIZE_BYTES = 1048576; // 1MB
 const UNDER_PRESSURE_MAX_EVENT_LOOP_DELAY_MS = 1000;
 const UNDER_PRESSURE_MAX_EVENT_LOOP_UTILIZATION = 0.98;
 const UNDER_PRESSURE_RETRY_AFTER_SECONDS = 30;
-// Probes and docs must keep answering during load spikes so the
-// orchestrator does not restart a merely busy (not dead) process.
+// Probes, docs, and ops dashboards must keep answering during load spikes so
+// the orchestrator does not restart a merely busy (not dead) process.
 const UNDER_PRESSURE_BYPASS_PREFIXES = [
   `${API_BASE_PATH}/health`,
   "/health",
   "/metrics",
   API_DOCS_PATH,
   "/docs",
+  DEFAULT_WORKBENCH_PATH,
+  env.WORKBENCH_PATH,
 ];
 
 interface FastifyPressureRequest {
@@ -165,6 +168,9 @@ async function bootstrap() {
     await setupApiDocs(app);
   }
 
+  // Register BullMQ operational dashboard (Workbench) before global prefix.
+  await setupWorkbench(app);
+
   app.useWebSocketAdapter(new WsAdapter(app));
 
   const logger = app.get(PinoLoggerService);
@@ -196,8 +202,9 @@ async function bootstrap() {
     },
   });
 
+  const workbenchExclude = (env.WORKBENCH_PATH || DEFAULT_WORKBENCH_PATH).replace(/^\//, "");
   app.setGlobalPrefix(API_GLOBAL_PREFIX, {
-    exclude: ["metrics", "docs", "api/docs"],
+    exclude: [...new Set(["metrics", "docs", "api/docs", "ops/queues", workbenchExclude])],
   });
   app.enableCors({
     origin: (origin, callback) => {

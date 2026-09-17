@@ -51,6 +51,10 @@ export class QueueService implements BeforeApplicationShutdown {
     return this.queues.get(name) as Queue<T, unknown, string>;
   }
 
+  getRegisteredQueues(): SharedQueue[] {
+    return Array.from(this.queues.values());
+  }
+
   addWorker<T = unknown>(
     name: string,
     handler: (job: Job<T, unknown, string>) => Promise<void>,

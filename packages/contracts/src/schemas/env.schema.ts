@@ -84,6 +84,11 @@ export const envSchema = z
     AUDIT_RETENTION_DAYS: z.coerce.number().int().min(30).max(3650).default(90),
     INVITATION_RETENTION_DAYS: z.coerce.number().int().min(7).max(3650).default(90),
     REDIS_URL: z.string().url().optional(),
+    WORKBENCH_ENABLED: environmentBoolean(false),
+    WORKBENCH_PATH: z.string().default("/ops/queues"),
+    WORKBENCH_USER: z.string().optional(),
+    WORKBENCH_PASSWORD: z.string().optional(),
+    WORKBENCH_READONLY: environmentBoolean(true),
     FEATURE_FLAGS: z
       .string()
       .default("{}")

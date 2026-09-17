@@ -51,6 +51,22 @@ export function validateProductionEndpoints(
   if (!env.S3_BUCKET.trim() || !env.S3_REGION.trim()) {
     addIssue(context, "S3_BUCKET", "Production storage bucket and region are required");
   }
+  if (env.WORKBENCH_ENABLED) {
+    if (!env.WORKBENCH_USER?.trim()) {
+      addIssue(
+        context,
+        "WORKBENCH_USER",
+        "WORKBENCH_USER is required when WORKBENCH_ENABLED=true in production",
+      );
+    }
+    if (!env.WORKBENCH_PASSWORD || env.WORKBENCH_PASSWORD.length < 8) {
+      addIssue(
+        context,
+        "WORKBENCH_PASSWORD",
+        "WORKBENCH_PASSWORD must be at least 8 characters when WORKBENCH_ENABLED=true in production",
+      );
+    }
+  }
 }
 
 function rejectPlaceholders(env: EnvironmentForValidation, context: RefinementCtx): void {
