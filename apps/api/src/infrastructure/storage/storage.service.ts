@@ -114,6 +114,10 @@ export class StorageService {
     return this.driver.getBucket ? this.driver.getBucket() : env.S3_BUCKET;
   }
 
+  getPublicUrl(key: string): string | null {
+    return this.driver.getPublicUrl ? this.driver.getPublicUrl(key) : null;
+  }
+
   private async guarded<T>(
     action: () => Promise<Result<T, StorageError>>,
   ): Promise<Result<T, StorageError>> {

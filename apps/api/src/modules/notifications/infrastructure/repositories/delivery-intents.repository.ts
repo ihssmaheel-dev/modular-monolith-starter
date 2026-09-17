@@ -138,6 +138,23 @@ export class DeliveryIntentsRepository {
       .limit(1);
     return rows[0] ?? null;
   }
+
+  async deleteOldIntents(deliveredCutoff: Date, deadCutoff: Date, limit: number): Promise<number> {
+    const db = this.database.getTx() ?? this.database.getDb();
+    const result = await (
+      db as unknown as { execute: (query: unknown) => Promise<{ rows: unknown[] }> }
+    ).execute(sql`WITH candidates AS (
+      SELECT id FROM notification_delivery_intents
+      WHERE (status = 'delivered' AND updated_at < ${deliveredCutoff})
+         OR (status = 'dead' AND updated_at < ${deadCutoff})
+      ORDER BY updated_at ASC
+      LIMIT ${limit}
+    )
+    DELETE FROM notification_delivery_intents
+    WHERE id IN (SELECT id FROM candidates)
+    RETURNING id`);
+    return result.rows.length;
+  }
 }
 
 function toIntent(row: NotificationDeliveryIntentRow): NotificationDeliveryIntent {

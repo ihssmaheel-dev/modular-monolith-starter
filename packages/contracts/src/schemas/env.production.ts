@@ -21,6 +21,10 @@ export function validateProductionEndpoints(
     addIssue(context, "S3_ENDPOINT", "Production storage endpoint is required");
   if (env.S3_ENDPOINT && !isHttpsUrl(env.S3_ENDPOINT))
     addIssue(context, "S3_ENDPOINT", "S3_ENDPOINT must use HTTPS in production");
+  if (env.CDN_BASE_URL && isLocalUrl(env.CDN_BASE_URL))
+    addIssue(context, "CDN_BASE_URL", "Production CDN endpoint is required");
+  if (env.CDN_BASE_URL && !isHttpsUrl(env.CDN_BASE_URL))
+    addIssue(context, "CDN_BASE_URL", "CDN_BASE_URL must use HTTPS in production");
   if (hasExampleHost(env.CLIENT_URL))
     addIssue(context, "CLIENT_URL", "CLIENT_URL must use a real production domain");
   if (hasExampleHost(env.API_URL))

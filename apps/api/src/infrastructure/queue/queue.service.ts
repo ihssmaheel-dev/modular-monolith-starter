@@ -31,6 +31,10 @@ export class QueueService implements BeforeApplicationShutdown {
     if (!this.queues.has(name)) {
       const queue = new Queue<unknown, unknown, string>(name, {
         connection: { url: env.REDIS_URL },
+        defaultJobOptions: {
+          removeOnComplete: { count: 500, age: 86_400 },
+          removeOnFail: { count: 1_000, age: 604_800 },
+        },
       });
       queue.on("error", (error) => {
         this.loggerService.error({ queue: name, err: error }, "BullMQ queue error");

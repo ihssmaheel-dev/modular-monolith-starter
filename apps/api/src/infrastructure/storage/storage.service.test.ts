@@ -12,6 +12,7 @@ const mockDriverInstance = {
   getMetadata: vi.fn(),
   getDownloadStream: vi.fn(),
   copy: vi.fn(),
+  getPublicUrl: vi.fn(),
   getBucket: vi.fn().mockReturnValue("test-bucket"),
 };
 
@@ -43,6 +44,7 @@ vi.mock("./drivers/s3.driver", () => {
       getMetadata = (...args: unknown[]) => mockDriverInstance.getMetadata(...args);
       getDownloadStream = (...args: unknown[]) => mockDriverInstance.getDownloadStream(...args);
       copy = (...args: unknown[]) => mockDriverInstance.copy(...args);
+      getPublicUrl = (...args: unknown[]) => mockDriverInstance.getPublicUrl(...(args as [string]));
       getBucket = () => mockDriverInstance.getBucket();
     },
   };
@@ -249,5 +251,11 @@ describe("StorageService", () => {
     if (openResult.isErr()) {
       expect(openResult.error.code).toBe("CIRCUIT_OPEN");
     }
+  });
+
+  it("should delegate getPublicUrl to driver", () => {
+    mockDriverInstance.getPublicUrl.mockReturnValue("https://cdn.example.com/file.txt");
+    expect(service.getPublicUrl("file.txt")).toBe("https://cdn.example.com/file.txt");
+    expect(mockDriverInstance.getPublicUrl).toHaveBeenCalledWith("file.txt");
   });
 });

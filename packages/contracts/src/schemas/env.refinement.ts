@@ -23,6 +23,8 @@ export type EnvironmentForValidation = {
   ERROR_REPORTING_URL?: string;
   ERROR_REPORTING_TOKEN?: string;
   STORAGE_DRIVER: "s3";
+  CDN_BASE_URL?: string;
+  OTEL_EXPORTER_OTLP_ENDPOINT?: string;
   S3_ACCESS_KEY_ID?: string;
   S3_SECRET_ACCESS_KEY?: string;
   DATABASE_URL: string;

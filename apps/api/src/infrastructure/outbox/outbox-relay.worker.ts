@@ -9,7 +9,7 @@ import { OutboxRelayDelivery } from "./outbox-relay.delivery";
 
 const BATCH_SIZE = 100;
 const LOCK_TIMEOUT_MS = 60_000;
-const PUBLISHED_RETENTION_DAYS = 30;
+const PUBLISHED_RETENTION_DAYS = 7;
 const RETENTION_BATCH_SIZE = 1000;
 const RETENTION_MAX_BATCHES = 10;
 

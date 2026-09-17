@@ -81,7 +81,7 @@ export const envSchema = z
     DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     DB_LOCK_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
     DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
-    AUDIT_RETENTION_DAYS: z.coerce.number().int().min(30).max(3650).default(365),
+    AUDIT_RETENTION_DAYS: z.coerce.number().int().min(30).max(3650).default(90),
     INVITATION_RETENTION_DAYS: z.coerce.number().int().min(7).max(3650).default(90),
     REDIS_URL: z.string().url().optional(),
     FEATURE_FLAGS: z
@@ -139,7 +139,7 @@ export const envSchema = z
     LOCKOUT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     LOCKOUT_DURATION_MINUTES: z.coerce.number().int().positive().default(15),
 
-    OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().default("http://localhost:4318/v1/traces"),
+    OTEL_EXPORTER_OTLP_ENDPOINT: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     OTEL_TRACE_SAMPLE_RATIO: z.coerce.number().min(0).max(1).default(0.2),
     LOKI_HOST: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     ERROR_REPORTING_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
@@ -169,6 +169,7 @@ export const envSchema = z
         "other",
       ])
       .optional(),
+    CDN_BASE_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     S3_ENDPOINT: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
     S3_REGION: z.string().default("us-east-1"),
     S3_BUCKET: z.string().default("uploads"),

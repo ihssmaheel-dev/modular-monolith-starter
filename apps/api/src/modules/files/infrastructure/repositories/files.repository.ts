@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
@@ -115,6 +115,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     limit: number,
     systemScope = false,
     afterId?: string,
+    updatedAfter?: Date,
   ): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
@@ -136,6 +137,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
           eq(files.status, "uploaded"),
           isNull(files.deletedAt),
           afterId ? gt(files.id, afterId) : undefined,
+          updatedAfter ? gte(files.updatedAt, updatedAfter) : undefined,
         ),
       )
       .orderBy(asc(files.id))

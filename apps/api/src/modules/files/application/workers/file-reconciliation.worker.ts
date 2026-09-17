@@ -8,6 +8,7 @@ import { PinoLoggerService } from "../../../../infrastructure/logger/logger.serv
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 
 const RECONCILIATION_BATCH_SIZE = 100;
+const RECONCILIATION_WINDOW_HOURS = 24;
 
 @Injectable()
 export class FileReconciliationWorker {
@@ -29,55 +30,75 @@ export class FileReconciliationWorker {
   @Cron(CronExpression.EVERY_10_MINUTES)
   async reconcileUploadedFiles(): Promise<{ checked: number; repaired: number }> {
     if (env.PROCESS_ROLE === "api" || this.running) return { checked: 0, repaired: 0 };
-    this.running = true;
-    let checked = 0;
-    let repaired = 0;
-    try {
-      await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        const files = await this.database.runTransaction(() =>
-          this.files.findUploadedFiles(RECONCILIATION_BATCH_SIZE, true, this.afterId),
-        );
-        for (const file of files) {
-          checked += 1;
-          const metadata = await this.storage.getMetadata(file.key);
-          if (metadata.isErr()) {
-            this.metrics.incrementCounter(
-              "file_reconciliation_error_total",
-              "File reconciliation errors",
-            );
-            continue;
-          }
-          if (
-            metadata.value &&
-            metadata.value.size === file.fileSize &&
-            metadata.value.contentType === file.contentType
-          )
-            continue;
-          const result = await this.database.runTransaction(() =>
-            this.files.updateById(file.id, { status: "failed" }),
+
+    const run = async (): Promise<{ checked: number; repaired: number }> => {
+      this.running = true;
+      let checked = 0;
+      let repaired = 0;
+      try {
+        await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
+          const updatedAfter = new Date(Date.now() - RECONCILIATION_WINDOW_HOURS * 60 * 60 * 1000);
+          const files = await this.database.runTransaction(() =>
+            this.files.findUploadedFiles(
+              RECONCILIATION_BATCH_SIZE,
+              true,
+              this.afterId,
+              updatedAfter,
+            ),
           );
-          if (result.isOk() && result.value) repaired += 1;
-        }
-        this.afterId = files.length === RECONCILIATION_BATCH_SIZE ? files.at(-1)?.id : undefined;
-      });
-    } catch (error) {
-      this.logger.error({ error }, "File reconciliation failed");
-    } finally {
-      this.running = false;
-    }
-    if (repaired > 0) {
-      this.metrics.incrementCounter(
-        "file_reconciliation_repaired_total",
-        "Files marked failed after reconciliation",
-        repaired,
+          for (const file of files) {
+            checked += 1;
+            const metadata = await this.storage.getMetadata(file.key);
+            if (metadata.isErr()) {
+              this.metrics.incrementCounter(
+                "file_reconciliation_error_total",
+                "File reconciliation errors",
+              );
+              continue;
+            }
+            if (
+              metadata.value &&
+              metadata.value.size === file.fileSize &&
+              metadata.value.contentType === file.contentType
+            )
+              continue;
+            const result = await this.database.runTransaction(() =>
+              this.files.updateById(file.id, { status: "failed" }),
+            );
+            if (result.isOk() && result.value) repaired += 1;
+          }
+          this.afterId = files.length === RECONCILIATION_BATCH_SIZE ? files.at(-1)?.id : undefined;
+        });
+      } catch (error) {
+        this.logger.error({ error }, "File reconciliation failed");
+      } finally {
+        this.running = false;
+      }
+      if (repaired > 0) {
+        this.metrics.incrementCounter(
+          "file_reconciliation_repaired_total",
+          "Files marked failed after reconciliation",
+          repaired,
+        );
+        this.logger.warn({ checked, repaired }, "File reconciliation repaired metadata drift");
+      }
+      this.metrics.setGauge(
+        "file_reconciliation_checked_last_run",
+        "Files checked in the most recent reconciliation batch",
+        checked,
       );
-      this.logger.warn({ checked, repaired }, "File reconciliation repaired metadata drift");
+      return { checked, repaired };
+    };
+
+    if (typeof this.database.withExclusiveExecution === "function") {
+      const lockResult = await this.database.withExclusiveExecution(
+        "worker:file-reconciliation",
+        run,
+      );
+      if (!lockResult.executed) return { checked: 0, repaired: 0 };
+      return lockResult.result ?? { checked: 0, repaired: 0 };
     }
-    this.metrics.setGauge(
-      "file_reconciliation_checked_last_run",
-      "Files checked in the most recent reconciliation batch",
-      checked,
-    );
-    return { checked, repaired };
+
+    return run();
   }
 }

@@ -54,25 +54,30 @@ export class NotificationDeliveryWorker {
     }
   }
 
+  private lastBacklogCheck = 0;
+
   private async claimAndMeasureBacklog(): Promise<NotificationDeliveryIntent[]> {
     return this.database.runTransaction(async () => {
-      const stats = await this.intents.getBacklogStats();
-      this.metrics.setGauge(
-        "notification_delivery_pending_depth",
-        "Pending notification delivery intents",
-        stats.pending,
-      );
-      this.metrics.setGauge(
-        "notification_delivery_dead_depth",
-        "Dead notification delivery intents",
-        stats.dead,
-      );
-      const age = stats.oldestPendingAt ? Date.now() - stats.oldestPendingAt.getTime() : 0;
-      this.metrics.setGauge(
-        "notification_delivery_oldest_pending_age_seconds",
-        "Age of the oldest pending notification delivery intent",
-        Math.max(0, age / 1000),
-      );
+      if (Date.now() - this.lastBacklogCheck >= 60_000) {
+        const stats = await this.intents.getBacklogStats();
+        this.metrics.setGauge(
+          "notification_delivery_pending_depth",
+          "Pending notification delivery intents",
+          stats.pending,
+        );
+        this.metrics.setGauge(
+          "notification_delivery_dead_depth",
+          "Dead notification delivery intents",
+          stats.dead,
+        );
+        const age = stats.oldestPendingAt ? Date.now() - stats.oldestPendingAt.getTime() : 0;
+        this.metrics.setGauge(
+          "notification_delivery_oldest_pending_age_seconds",
+          "Age of the oldest pending notification delivery intent",
+          Math.max(0, age / 1000),
+        );
+        this.lastBacklogCheck = Date.now();
+      }
       return this.intents.claimBatch(DELIVERY_BATCH_SIZE);
     });
   }

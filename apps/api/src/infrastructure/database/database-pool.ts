@@ -16,6 +16,20 @@ export function createDatabasePool(logger: PinoLoggerService): Pool {
     query_timeout: env.DB_STATEMENT_TIMEOUT_MS,
   });
   pool.on("error", (error) => logger.error(databaseErrorMetadata(error), "Postgres pool error"));
+  pool.on("connect", (client) => {
+    client
+      .query(
+        `SET statement_timeout = ${Number(env.DB_STATEMENT_TIMEOUT_MS)}; ` +
+          `SET lock_timeout = ${Number(env.DB_LOCK_TIMEOUT_MS)}; ` +
+          `SET idle_in_transaction_session_timeout = ${Number(env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS)};`,
+      )
+      .catch((error) => {
+        logger.error(
+          databaseErrorMetadata(error),
+          "Failed to configure Postgres connection defaults",
+        );
+      });
+  });
   instrumentQueries(pool, logger);
   return pool;
 }

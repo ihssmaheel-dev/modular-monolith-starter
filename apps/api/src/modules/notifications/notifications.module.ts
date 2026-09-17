@@ -16,6 +16,7 @@ import { ExportUserDataQuery } from "./application/queries/export-user-data.quer
 import { DomainEventFanoutListener } from "./application/listeners/domain-event-fanout.listener";
 import { DigestWorker } from "./application/workers/digest.worker";
 import { NotificationDeliveryWorker } from "./application/workers/notification-delivery.worker";
+import { NotificationRetentionWorker } from "./application/workers/notification-retention.worker";
 import { NotificationsRepository } from "./infrastructure/repositories/notifications.repository";
 import { PreferencesRepository } from "./infrastructure/repositories/preferences.repository";
 import { DeviceTokensRepository } from "./infrastructure/repositories/device-tokens.repository";
@@ -41,6 +42,7 @@ import { NotificationsLifecycleContributor } from "./application/adapters/notifi
     DomainEventFanoutListener,
     DigestWorker,
     NotificationDeliveryWorker,
+    NotificationRetentionWorker,
     NotificationsRepository,
     PreferencesRepository,
     DeviceTokensRepository,

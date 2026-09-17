@@ -7,7 +7,7 @@ import { err, ok, type Result } from "neverthrow";
 import { ClsService } from "nestjs-cls";
 import { PinoLoggerService } from "../logger/logger.service";
 import type { TransactionError } from "./database.types";
-import { TransactionScopes } from "./transaction-scopes";
+import { TransactionScopes, ADVISORY_LOCK_NAMESPACE } from "./transaction-scopes";
 import { writeAuditMutation } from "../audit/audit-mutation.writer";
 import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/audit.types";
 import { createDatabasePool } from "./database-pool";
@@ -272,17 +272,46 @@ export class DatabaseService implements OnApplicationShutdown {
 
   /**
    * Runs a critical scheduled task exclusively across clustered worker instances.
-   * Opens a transaction, attempts to acquire the advisory lock, and executes fn if acquired.
+   * Checks out a dedicated client from the pool and attempts to acquire a session-level
+   * advisory lock without holding an open transaction snapshot.
+   * This allows long-running jobs (e.g. S3 deletion, batch processing) to execute their own
+   * short, isolated transactions without blocking autovacuum or tying up transaction snapshots.
    * If another replica is already executing the task, skips execution cleanly.
    */
   async withExclusiveExecution<T>(
     key: string,
     fn: () => Promise<T>,
   ): Promise<{ executed: boolean; result?: T }> {
-    return this.runTransaction(async () => {
-      const lockResult = await this.scopes.tryAdvisoryLock(key, fn);
-      return { executed: lockResult.acquired, result: lockResult.result };
-    });
+    const client = await this.pool.connect();
+    let acquired = false;
+    try {
+      const check = await client.query<{ acquired: boolean }>(
+        "SELECT pg_try_advisory_lock($1, hashtext($2)) as acquired",
+        [ADVISORY_LOCK_NAMESPACE, key],
+      );
+      acquired = Boolean(check.rows[0]?.acquired);
+      if (!acquired) {
+        return { executed: false };
+      }
+
+      const result = await fn();
+      return { executed: true, result };
+    } finally {
+      if (acquired) {
+        try {
+          await client.query("SELECT pg_advisory_unlock($1, hashtext($2))", [
+            ADVISORY_LOCK_NAMESPACE,
+            key,
+          ]);
+        } catch (unlockError) {
+          this.logger.warn(
+            { error: String(unlockError), key },
+            "Failed to release session advisory lock",
+          );
+        }
+      }
+      client.release();
+    }
   }
 
   /** Runs fn in a savepoint of the ambient transaction; a throw rolls back and propagates. */

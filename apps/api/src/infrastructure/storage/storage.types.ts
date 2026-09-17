@@ -48,5 +48,6 @@ export interface StorageDriver {
     destinationKey: string,
     source: Pick<StoredObjectMetadata, "etag" | "versionId">,
   ): Promise<void>;
+  getPublicUrl?(key: string): string | null;
   getBucket?(): string;
 }

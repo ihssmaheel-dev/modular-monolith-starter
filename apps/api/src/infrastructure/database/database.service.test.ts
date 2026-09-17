@@ -9,6 +9,10 @@ vi.mock("pg", () => {
       on = vi.fn();
       end = vi.fn();
       query = vi.fn();
+      connect = vi.fn(async () => ({
+        query: vi.fn(async () => ({ rows: [{ acquired: true }] })),
+        release: vi.fn(),
+      }));
     },
   };
 });
@@ -350,5 +354,75 @@ describe("DatabaseService", () => {
     ).rejects.toThrow("boom");
     expect(executed.some((sql) => sql.includes("SAVEPOINT"))).toBe(true);
     expect(executed.some((sql) => sql.includes("ROLLBACK TO SAVEPOINT"))).toBe(true);
+  });
+
+  describe("withExclusiveExecution", () => {
+    it("acquires session lock, executes fn, releases lock, and releases client", async () => {
+      const mockQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [{ acquired: true }] })
+        .mockResolvedValueOnce({ rows: [] });
+      const mockRelease = vi.fn();
+      const mockConnect = vi.fn().mockResolvedValue({
+        query: mockQuery,
+        release: mockRelease,
+      });
+      const pool = service.getPool();
+      vi.spyOn(pool, "connect").mockImplementation(mockConnect as never);
+
+      const fn = vi.fn(async () => "result-data");
+      const result = await service.withExclusiveExecution("test-job", fn);
+
+      expect(result).toEqual({ executed: true, result: "result-data" });
+      expect(fn).toHaveBeenCalledTimes(1);
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+      expect(mockQuery.mock.calls[0]?.[0]).toContain("pg_try_advisory_lock");
+      expect(mockQuery.mock.calls[1]?.[0]).toContain("pg_advisory_unlock");
+      expect(mockRelease).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips execution cleanly if lock is not acquired", async () => {
+      const mockQuery = vi.fn().mockResolvedValueOnce({ rows: [{ acquired: false }] });
+      const mockRelease = vi.fn();
+      const mockConnect = vi.fn().mockResolvedValue({
+        query: mockQuery,
+        release: mockRelease,
+      });
+      const pool = service.getPool();
+      vi.spyOn(pool, "connect").mockImplementation(mockConnect as never);
+
+      const fn = vi.fn(async () => "result-data");
+      const result = await service.withExclusiveExecution("test-job", fn);
+
+      expect(result).toEqual({ executed: false });
+      expect(fn).not.toHaveBeenCalled();
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      expect(mockRelease).toHaveBeenCalledTimes(1);
+    });
+
+    it("releases lock and client even if fn throws", async () => {
+      const mockQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [{ acquired: true }] })
+        .mockResolvedValueOnce({ rows: [] });
+      const mockRelease = vi.fn();
+      const mockConnect = vi.fn().mockResolvedValue({
+        query: mockQuery,
+        release: mockRelease,
+      });
+      const pool = service.getPool();
+      vi.spyOn(pool, "connect").mockImplementation(mockConnect as never);
+
+      const fn = vi.fn(async () => {
+        throw new Error("worker task crashed");
+      });
+
+      await expect(service.withExclusiveExecution("test-job", fn)).rejects.toThrow(
+        "worker task crashed",
+      );
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+      expect(mockQuery.mock.calls[1]?.[0]).toContain("pg_advisory_unlock");
+      expect(mockRelease).toHaveBeenCalledTimes(1);
+    });
   });
 });
