@@ -5,7 +5,7 @@ import { PinoLoggerService } from "../../logger/logger.service";
 import { DatabaseService, TenantContextService } from "../../database";
 import { env } from "../../../config/env";
 import { OutboxEvent, OutboxRepository } from "../repositories/outbox.repository";
-import { OutboxRelayDelivery } from "./outbox-relay.delivery";
+import { OutboxRelayDelivery } from "../services/outbox-relay.delivery";
 
 const BATCH_SIZE = 100;
 const LOCK_TIMEOUT_MS = 60_000;

@@ -3,6 +3,7 @@ export { OutboxService, type OutboxError } from "./outbox.service";
 export { OutboxRepository, type OutboxEvent } from "./repositories/outbox.repository";
 export { OutboxRelayWorker } from "./workers/outbox-relay.worker";
 export { OutboxEventWorker } from "./workers/outbox-event.worker";
+export { OutboxRelayDelivery } from "./services/outbox-relay.delivery";
 export {
   OUTBOX_QUEUE,
   OUTBOX_MAX_ATTEMPTS,

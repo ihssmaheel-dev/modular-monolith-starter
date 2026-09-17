@@ -3,7 +3,7 @@ import type { EventEmitter2 } from "@nestjs/event-emitter";
 import type { MetricsService } from "../../metrics/metrics.service";
 import type { PinoLoggerService } from "../../logger/logger.service";
 import { OutboxRelayWorker } from "./outbox-relay.worker";
-import { OutboxRelayDelivery } from "./outbox-relay.delivery";
+import { OutboxRelayDelivery } from "../services/outbox-relay.delivery";
 import type { OutboxEvent, OutboxRepository } from "../repositories/outbox.repository";
 import type { DatabaseService, TenantContextService } from "../../database";
 
