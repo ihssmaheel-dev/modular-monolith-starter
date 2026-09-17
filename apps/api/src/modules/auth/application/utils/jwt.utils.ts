@@ -4,7 +4,7 @@ import { env } from "../../../../config/env";
 import {
   getJwtKeyring,
   verifyJwtWithKeyring,
-} from "../../../../infrastructure/security/jwt-keyring";
+} from "../../../../infrastructure/security/keyring/jwt-keyring";
 
 interface RefreshTokenPayload {
   sub: string;

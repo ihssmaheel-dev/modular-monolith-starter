@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
 import { User } from "../../domain/entities/user.entity";
 import { UsersRepository } from "../../infrastructure/repositories/users.repository";
-import { hashSha256Token } from "../../../../infrastructure/security/token.utils";
+import { hashSha256Token } from "../../../../infrastructure/security/tokens/token.utils";
 import { DatabaseService, type TransactionError } from "../../../../infrastructure/database";
 import { DistributedCacheService } from "../../../../infrastructure/cache/distributed-cache.service";
 import { SessionService } from "../../../../infrastructure/session/session.service";

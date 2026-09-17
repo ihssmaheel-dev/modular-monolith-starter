@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { DrizzleDb } from "../database";
-import { redactAuditValue } from "./audit-redaction";
-import type { DatabaseMutationAudit } from "./audit.types";
-import { auditLogs } from "./schemas/audit.schema";
+import type { DrizzleDb } from "../../database";
+import { redactAuditValue } from "../utils/audit-redaction";
+import type { DatabaseMutationAudit } from "../audit.types";
+import { auditLogs } from "../schemas/audit.schema";
 
 export async function writeAuditMutation(
   database: DrizzleDb,

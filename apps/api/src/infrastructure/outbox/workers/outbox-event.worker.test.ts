@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { OutboxEventWorker } from "./outbox-event.worker";
-import type { QueueService } from "../queue/queue.service";
+import type { QueueService } from "../../queue/queue.service";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
-import type { PinoLoggerService } from "../logger/logger.service";
-import type { TenantContextService } from "../database";
-import type { RedisService } from "../redis/redis.service";
-import type { DatabaseService } from "../database";
-import type { OutboxRepository } from "./outbox.repository";
-import type { OperationReceiptService } from "../idempotency/operation-receipt.service";
+import type { PinoLoggerService } from "../../logger/logger.service";
+import type { TenantContextService } from "../../database";
+import type { RedisService } from "../../redis/redis.service";
+import type { DatabaseService } from "../../database";
+import type { OutboxRepository } from "../repositories/outbox.repository";
+import type { OperationReceiptService } from "../../idempotency/operation-receipt.service";
 import { ok } from "neverthrow";
 
 describe("OutboxEventWorker", () => {
-  it("validates and emits durable queue envelopes", async () => {
+  it("consumes durable queue events through the system scope in single-tenant mode", async () => {
     let handler: ((job: { data: unknown }) => Promise<void>) | undefined;
     const queues = {
       addWorker: vi.fn((_name, next) => {
@@ -24,7 +24,17 @@ describe("OutboxEventWorker", () => {
       child: vi.fn().mockReturnThis(),
       debug: vi.fn(),
     } as unknown as PinoLoggerService;
-    const worker = new OutboxEventWorker(queues, events, logger);
+    const tenantContext = {
+      runSystem: vi.fn(async (_context, callback: () => Promise<unknown[]>) => callback()),
+    } as unknown as TenantContextService;
+    const worker = new OutboxEventWorker(
+      queues,
+      events,
+      logger,
+      undefined,
+      undefined,
+      tenantContext,
+    );
 
     worker.onModuleInit();
     await handler?.({
@@ -44,8 +54,8 @@ describe("OutboxEventWorker", () => {
     });
   });
 
-  it("restores tenant scope before invoking consumers", async () => {
-    let handler: ((job: { data: unknown; attemptsMade?: number }) => Promise<void>) | undefined;
+  it("consumes tenant-scoped events inside the specific tenant context", async () => {
+    let handler: ((job: { data: unknown }) => Promise<void>) | undefined;
     const queues = {
       addWorker: vi.fn((_name, next) => {
         handler = next;

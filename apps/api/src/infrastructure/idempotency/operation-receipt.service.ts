@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { err, ok, type Result } from "neverthrow";
 
 import { DatabaseService } from "../database";
-import { OperationReceiptRepository } from "./operation-receipt.repository";
+import { OperationReceiptRepository } from "./repositories/operation-receipt.repository";
 
 const DEFAULT_RECEIPT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_RECEIPT_RESULT_BYTES = 256 * 1024;

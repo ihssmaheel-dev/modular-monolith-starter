@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { OutboxRepository } from "./outbox.repository";
+import { OutboxRepository } from "./repositories/outbox.repository";
 import { Result, err, ok } from "neverthrow";
 import { DatabaseService, TenantContextService } from "../database";
 import { env } from "../../config/env";
-import { OutboxEventWorker } from "./outbox-event.worker";
+import { OutboxEventWorker } from "./workers/outbox-event.worker";
 
 export interface OutboxError {
   type: "OUTBOX_WRITE_FAILED" | "TENANT_SCOPE_REQUIRED" | "OUTBOX_NOT_FOUND";

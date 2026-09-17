@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { env } from "../../config/env";
-import type { DatabaseService } from "../database";
-import type { PinoLoggerService } from "../logger/logger.service";
+import { env } from "../../../config/env";
+import type { DatabaseService } from "../../database";
+import type { PinoLoggerService } from "../../logger/logger.service";
 import { AuditRetentionWorker } from "./audit-retention.worker";
 
 describe("AuditRetentionWorker", () => {

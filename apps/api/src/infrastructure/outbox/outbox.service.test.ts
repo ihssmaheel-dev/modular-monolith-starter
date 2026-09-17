@@ -1,7 +1,7 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { OutboxService } from "./outbox.service";
-import { OutboxRepository, type OutboxEvent } from "./outbox.repository";
-import type { OutboxEventWorker } from "./outbox-event.worker";
+import { OutboxRepository, type OutboxEvent } from "./repositories/outbox.repository";
+import type { OutboxEventWorker } from "./workers/outbox-event.worker";
 import { ok } from "neverthrow";
 import type { DatabaseService, TenantContextService } from "../database";
 import { env } from "../../config/env";

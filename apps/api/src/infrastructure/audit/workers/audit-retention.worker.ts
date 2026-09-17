@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { sql } from "drizzle-orm";
-import { env } from "../../config/env";
-import { DatabaseService } from "../database";
-import { PinoLoggerService } from "../logger/logger.service";
+import { env } from "../../../config/env";
+import { DatabaseService } from "../../database";
+import { PinoLoggerService } from "../../logger/logger.service";
 
 @Injectable()
 export class AuditRetentionWorker {

@@ -140,7 +140,7 @@ These are verified engine semantics, **not a claim that an invoice API already e
 
 ### R06 — HIGH — Savepoint rollback does not roll back registered after-commit callbacks
 
-**Evidence:** [`TransactionScopes.withSavepointResult`, `withSavepoint`](../apps/api/src/infrastructure/database/transaction-scopes.ts); [callback storage/drain](../apps/api/src/infrastructure/database/database.service.ts).
+**Evidence:** [`TransactionScopes.withSavepointResult`, `withSavepoint`](../apps/api/src/infrastructure/database/transactions/transaction-scopes.ts); [callback storage/drain](../apps/api/src/infrastructure/database/database.service.ts).
 
 Nested database state is now rolled back to a savepoint on failure, but the shared after-commit callback array is not restored. If the outer operation handles an inner `Err` and commits, effects registered by the rolled-back inner operation still run. This was reproduced. It can create audit/realtime/revocation effects for changes that never committed.
 
@@ -186,7 +186,7 @@ Concrete resource path and query now participate in the fingerprint, closing the
 
 ### R11 — HIGH — Outbox replay's repaired worker path is not injected
 
-**Evidence:** [`OutboxService`](../apps/api/src/infrastructure/outbox/outbox.service.ts), [event worker](../apps/api/src/infrastructure/outbox/outbox-event.worker.ts).
+**Evidence:** [`OutboxService`](../apps/api/src/infrastructure/outbox/outbox.service.ts), [event worker](../apps/api/src/infrastructure/outbox/workers/outbox-event.worker.ts).
 
 The new replay dependency is imported with `import type` and has `@Optional()` without an explicit injection token. Runtime constructor metadata is `Object`, not `OutboxEventWorker`. A real Nest testing module with the worker registered reproduced `workerInjected=false`: replay used only the SQL fallback. That omits the worker's Redis marker/BullMQ retained-job cleanup, so a requeued row can still fail to execute as intended.
 
@@ -196,7 +196,7 @@ Consumer delivery also passes only payload to listeners. An event-level Redis ma
 
 ### R12 — HIGH — Delivery-channel bookkeeping is not delivery recovery
 
-**Evidence:** [send notification](../apps/api/src/modules/notifications/application/commands/send-notification.command.ts), [digest worker](../apps/api/src/modules/notifications/application/workers/digest.worker.ts), [fan-out listener](../apps/api/src/modules/notifications/application/listeners/domain-event-fanout.listener.ts), [email worker](../apps/api/src/infrastructure/email/email-queue.worker.ts).
+**Evidence:** [send notification](../apps/api/src/modules/notifications/application/commands/send-notification.command.ts), [digest worker](../apps/api/src/modules/notifications/application/workers/digest.worker.ts), [fan-out listener](../apps/api/src/modules/notifications/application/listeners/domain-event-fanout.listener.ts), [email worker](../apps/api/src/infrastructure/email/workers/email-queue.worker.ts).
 
 `deliveredChannels` records successful effects, but failed/missing channels do not have a durable independent retry state. Digests are marked delivered before email/push completes; an existing center row can make a retry consider the batch complete. A crash leaves undelivered channels with no reliable continuation. Notification fan-out failures are logged and swallowed. Account email queue IDs were fixed, but fallback sends and swallowed errors can still let an originating event complete without delivery.
 
@@ -252,7 +252,7 @@ Production selects a single `pino-loki` transport when `LOKI_HOST` is set. The s
 
 ### R18 — HIGH — Worker metrics and health alerts are not wired to the deployed process topology
 
-**Evidence:** [worker bootstrap](../apps/api/src/main.ts), [Prometheus targets](../docker/observability/prometheus/prometheus.yml), [worker health metric](../apps/api/src/infrastructure/health/worker-health.indicator.ts), [HTTP metrics](../apps/api/src/infrastructure/metrics/metrics.interceptor.ts), [trace/log datasource mapping](../docker/observability/grafana/provisioning/datasources/datasources.yml).
+**Evidence:** [worker bootstrap](../apps/api/src/main.ts), [Prometheus targets](../docker/observability/prometheus/prometheus.yml), [worker health metric](../apps/api/src/infrastructure/health/indicators/worker-health.indicator.ts), [HTTP metrics](../apps/api/src/infrastructure/metrics/metrics.interceptor.ts), [trace/log datasource mapping](../docker/observability/grafana/provisioning/datasources/datasources.yml).
 
 Dedicated workers use `createApplicationContext`, exposing no HTTP metrics endpoint. Worker-local queue/outbox/file metrics do not appear in the API process's registry. Prometheus scrapes only the development host API, using a fixed development token. Thus existing queue alerts are not evidence that the production worker is monitored.
 
@@ -292,7 +292,7 @@ Exports synchronously assemble multiple datasets inside a transaction and store 
 
 ### R22 — HIGH — Maintenance bounds protect one tick but do not ensure eventual progress or bounded cost
 
-**Evidence:** [file reconciliation](../apps/api/src/modules/files/application/workers/file-reconciliation.worker.ts), [file repository](../apps/api/src/modules/files/infrastructure/repositories/files.repository.ts), [cleanup](../apps/api/src/modules/files/application/workers/file-cleanup.worker.ts), [outbox relay](../apps/api/src/infrastructure/outbox/outbox-relay.worker.ts), [Loki config](../docker/observability/loki/loki-config.yml).
+**Evidence:** [file reconciliation](../apps/api/src/modules/files/application/workers/file-reconciliation.worker.ts), [file repository](../apps/api/src/modules/files/infrastructure/repositories/files.repository.ts), [cleanup](../apps/api/src/modules/files/application/workers/file-cleanup.worker.ts), [outbox relay](../apps/api/src/infrastructure/outbox/workers/outbox-relay.worker.ts), [Loki config](../docker/observability/loki/loki-config.yml).
 
 File reconciliation selects up to 100 uploaded rows without a traversal cursor/checked timestamp. Healthy rows remain eligible, so repeated runs can inspect the same subset and never reach later rows. It repairs row status, not arbitrary orphan objects despite broader runbook claims. Cleanup examines 100 rows per category per night. These limits bound a tick but not backlog growth or oldest-item age.
 
@@ -350,7 +350,7 @@ Some docs describe completed delivery, automatic routing/readiness, globally enf
 
 ### R28 — MEDIUM — Audit trails and recovery tooling are incomplete for business-record governance
 
-**Evidence:** [audit listener](../apps/api/src/infrastructure/audit/audit.listener.ts), [audit retention](../apps/api/src/infrastructure/audit/audit-retention.worker.ts), [immutability SQL](../migrations/pg/0000_initial.sql), [restore verification](../scripts/db-restore-verify.sh), [privacy policy](PRIVACY.md).
+**Evidence:** [audit listener](../apps/api/src/infrastructure/audit/listeners/audit.listener.ts), [audit retention](../apps/api/src/infrastructure/audit/workers/audit-retention.worker.ts), [immutability SQL](../migrations/pg/0000_initial.sql), [restore verification](../scripts/db-restore-verify.sh), [privacy policy](PRIVACY.md).
 
 An immutability trigger and controlled retention function exist; they should be preserved. Audit creation after commit is nevertheless best-effort: a crash or listener failure can lose the audit record while business data remains committed. It is not sufficient for transactions that require an atomic business audit trail. General logs include raw URL/message data and lack a central Pino redaction policy, so telemetry needs a defined sensitive-data policy too.
 

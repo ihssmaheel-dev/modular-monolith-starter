@@ -5,7 +5,7 @@ import { err, ok } from "neverthrow";
 import * as jwtUtils from "../utils/jwt.utils";
 import { User } from "../../../users/domain/entities/user.entity";
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
-import { AccountLockoutService } from "../../../../infrastructure/security/account-lockout.service";
+import { AccountLockoutService } from "../../../../infrastructure/security/lockout/account-lockout.service";
 import { SessionService } from "../../../../infrastructure/session/session.service";
 
 vi.mock("../utils/jwt.utils", () => ({

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { eq, and, lt, sql } from "drizzle-orm";
-import { DatabaseService, TenantContextService, BaseRepository } from "../database";
-import { outboxEvents, type OutboxRow } from "./schemas/outbox.schema";
+import { DatabaseService, TenantContextService, BaseRepository } from "../../database";
+import { outboxEvents, type OutboxRow } from "../schemas/outbox.schema";
 
 export interface OutboxEvent {
   id: string;

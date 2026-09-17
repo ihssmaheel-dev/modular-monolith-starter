@@ -1,17 +1,17 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { parseOutboxEventEnvelope } from "@repo/contracts";
-import { MetricsService } from "../metrics/metrics.service";
-import { PinoLoggerService } from "../logger/logger.service";
-import { DatabaseService } from "../database";
-import { QueueService } from "../queue/queue.service";
-import { OutboxEvent, OutboxRepository } from "./outbox.repository";
+import { MetricsService } from "../../metrics/metrics.service";
+import { PinoLoggerService } from "../../logger/logger.service";
+import { DatabaseService } from "../../database";
+import { QueueService } from "../../queue/queue.service";
+import { OutboxEvent, OutboxRepository } from "../repositories/outbox.repository";
 import {
   OUTBOX_DURABLE_QUEUE_UNAVAILABLE,
   OUTBOX_MAX_ATTEMPTS,
   OUTBOX_QUEUE,
-} from "./outbox.constants";
-import { env } from "../../config/env";
+} from "../outbox.constants";
+import { env } from "../../../config/env";
 
 const RETRY_BASE_DELAY_MS = 5_000;
 const RETRY_MULTIPLIER = 2;

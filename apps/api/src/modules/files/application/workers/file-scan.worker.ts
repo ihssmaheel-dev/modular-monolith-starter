@@ -3,7 +3,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { env } from "../../../../config/env";
 import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
-import { FileScannerService } from "../../../../infrastructure/storage/file-scanner.service";
+import { FileScannerService } from "../../../../infrastructure/storage/scanner/file-scanner.service";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";

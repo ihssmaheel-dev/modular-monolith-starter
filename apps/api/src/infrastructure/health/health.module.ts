@@ -7,8 +7,8 @@ import {
   RedisHealthIndicator,
   OutboxHealthIndicator,
 } from "./health.service";
-import { WorkerHealthIndicator } from "./worker-health.indicator";
-import { ShutdownService } from "./shutdown.service";
+import { WorkerHealthIndicator } from "./indicators/worker-health.indicator";
+import { ShutdownService } from "./shutdown/shutdown.service";
 
 @Module({
   imports: [TerminusModule],

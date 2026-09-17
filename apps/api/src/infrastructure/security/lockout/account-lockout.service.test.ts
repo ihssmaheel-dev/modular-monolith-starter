@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AccountLockoutService, MAX_MEMORY_LOCKOUT_ENTRIES } from "./account-lockout.service";
-import type { PinoLoggerService } from "../logger/logger.service";
-import type { RedisService } from "../redis/redis.service";
+import type { PinoLoggerService } from "../../logger/logger.service";
+import type { RedisService } from "../../redis/redis.service";
 
 describe("AccountLockoutService", () => {
   let service: AccountLockoutService;

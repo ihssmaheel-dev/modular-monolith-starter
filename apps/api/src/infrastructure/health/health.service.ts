@@ -13,7 +13,7 @@ import { TenantContextService } from "../database";
 import { RedisService } from "../redis/redis.service";
 import { sql } from "drizzle-orm";
 import { env } from "../../config/env";
-import { WorkerHealthIndicator } from "./worker-health.indicator";
+import { WorkerHealthIndicator } from "./indicators/worker-health.indicator";
 
 @Injectable()
 export class PostgresHealthIndicator {

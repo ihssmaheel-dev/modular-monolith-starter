@@ -1,12 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { OutboxRelayDelivery } from "./outbox-relay.delivery";
-import type { OutboxEvent, OutboxRepository } from "./outbox.repository";
+import type { OutboxEvent, OutboxRepository } from "../repositories/outbox.repository";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
-import type { MetricsService } from "../metrics/metrics.service";
-import type { DatabaseService } from "../database";
-import type { PinoLoggerService } from "../logger/logger.service";
-import type { QueueService } from "../queue/queue.service";
+import type { MetricsService } from "../../metrics/metrics.service";
+import type { DatabaseService } from "../../database";
+import type { PinoLoggerService } from "../../logger/logger.service";
+import type { QueueService } from "../../queue/queue.service";
 
 const EVENT: OutboxEvent = {
   id: "event-1",

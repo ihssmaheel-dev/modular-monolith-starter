@@ -1,5 +1,5 @@
 import { Module, Global } from "@nestjs/common";
-import { AccountLockoutService } from "./account-lockout.service";
+import { AccountLockoutService } from "./lockout/account-lockout.service";
 
 @Global()
 @Module({

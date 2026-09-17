@@ -1,13 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import type { Result } from "neverthrow";
-import { DatabaseService } from "../database";
-import { TenantContextService } from "../database";
-import { auditLogs } from "./schemas/audit.schema";
-import { PinoLoggerService } from "../logger/logger.service";
-import { env } from "../../config/env";
-import type { TransactionError } from "../database";
-import { redactAuditValue } from "./audit-redaction";
+import { DatabaseService, TenantContextService, type TransactionError } from "../../database";
+import { auditLogs } from "../schemas/audit.schema";
+import { PinoLoggerService } from "../../logger/logger.service";
+import { env } from "../../../config/env";
+import { redactAuditValue } from "../utils/audit-redaction";
 
 export class DatabaseMutatedEvent {
   constructor(

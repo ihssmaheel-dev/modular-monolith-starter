@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { env } from "../../config/env";
+import { env } from "../../../config/env";
 import { WorkerHealthIndicator } from "./worker-health.indicator";
-import type { RedisService } from "../redis/redis.service";
-import type { I18nService } from "../i18n/i18n.service";
+import type { RedisService } from "../../redis/redis.service";
+import type { I18nService } from "../../i18n/i18n.service";
 import type { HealthIndicatorService } from "@nestjs/terminus";
 
 const originalNodeEnv = env.NODE_ENV;

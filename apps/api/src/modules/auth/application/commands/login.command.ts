@@ -7,7 +7,7 @@ import type { AuthError } from "../../domain/errors/auth.errors";
 import { VerifyUserCredentialsQuery } from "../../../users/application/queries/verify-user-credentials.query";
 import { signAccessToken, signRefreshToken } from "../utils/jwt.utils";
 import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
-import { AccountLockoutService } from "../../../../infrastructure/security/account-lockout.service";
+import { AccountLockoutService } from "../../../../infrastructure/security/lockout/account-lockout.service";
 import { SessionService } from "../../../../infrastructure/session/session.service";
 
 export interface LoginDeviceContext {

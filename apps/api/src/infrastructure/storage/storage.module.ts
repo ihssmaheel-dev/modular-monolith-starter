@@ -1,6 +1,6 @@
 import { Global, Module } from "@nestjs/common";
 import { StorageService } from "./storage.service";
-import { FileScannerService } from "./file-scanner.service";
+import { FileScannerService } from "./scanner/file-scanner.service";
 
 @Global()
 @Module({

@@ -5,21 +5,20 @@ import {
   parseOutboxEventEnvelope,
   type OutboxEventEnvelope,
 } from "@repo/contracts";
-import { QueueService } from "../queue/queue.service";
-import { PinoLoggerService } from "../logger/logger.service";
-import { env } from "../../config/env";
-import { DatabaseService } from "../database";
-import { TenantContextService } from "../database";
-import { OutboxRepository } from "./outbox.repository";
+import { QueueService } from "../../queue/queue.service";
+import { PinoLoggerService } from "../../logger/logger.service";
+import { env } from "../../../config/env";
+import { DatabaseService, TenantContextService } from "../../database";
+import { OutboxRepository } from "../repositories/outbox.repository";
 import {
   OUTBOX_DEDUPE_TTL_SECONDS,
   OUTBOX_EVENT_IN_PROGRESS,
   OUTBOX_MAX_ATTEMPTS,
   OUTBOX_PROCESSING_TTL_SECONDS,
   OUTBOX_QUEUE,
-} from "./outbox.constants";
-import { RedisService } from "../redis/redis.service";
-import { OperationReceiptService } from "../idempotency/operation-receipt.service";
+} from "../outbox.constants";
+import { RedisService } from "../../redis/redis.service";
+import { OperationReceiptService } from "../../idempotency/operation-receipt.service";
 
 const OUTBOX_CONSUMER_OPERATION = "outbox:event-consumer:v1";
 const OUTBOX_COMPLETED_RECEIPT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;

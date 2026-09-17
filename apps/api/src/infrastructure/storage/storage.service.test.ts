@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StorageService } from "./storage.service";
 import type { PinoLoggerService } from "../logger/logger.service";
 import type { MetricsService } from "../metrics/metrics.service";
-import { STORAGE_DURATION_BUCKETS } from "./storage.metrics";
+import { STORAGE_DURATION_BUCKETS } from "./metrics/storage.metrics";
 
 const mockDriverInstance = {
   upload: vi.fn(),

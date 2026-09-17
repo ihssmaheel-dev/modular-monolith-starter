@@ -19,7 +19,7 @@ import * as React from "react";
 import {
   generateSecureToken,
   hashSha256Token,
-} from "../../../../infrastructure/security/token.utils";
+} from "../../../../infrastructure/security/tokens/token.utils";
 import {
   DatabaseService,
   isPostgresUniqueViolation,

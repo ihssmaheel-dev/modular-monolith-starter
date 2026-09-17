@@ -1,6 +1,6 @@
 import { Module, Global } from "@nestjs/common";
 import { EmailService } from "./email.service";
-import { EmailQueueWorker } from "./email-queue.worker";
+import { EmailQueueWorker } from "./workers/email-queue.worker";
 
 @Global()
 @Module({

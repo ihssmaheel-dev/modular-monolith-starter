@@ -1,4 +1,4 @@
-import type { MetricsService } from "../metrics/metrics.service";
+import type { MetricsService } from "../../metrics/metrics.service";
 
 export const STORAGE_OPERATIONS = [
   "upload",

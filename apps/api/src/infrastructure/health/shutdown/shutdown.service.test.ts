@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PinoLoggerService } from "../logger/logger.service";
-import type { AppHealthService } from "./health.service";
+import type { PinoLoggerService } from "../../logger/logger.service";
+import type { AppHealthService } from "../health.service";
 import { ShutdownService } from "./shutdown.service";
 
 describe("ShutdownService", () => {

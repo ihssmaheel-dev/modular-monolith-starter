@@ -8,7 +8,7 @@ import { ClsService } from "nestjs-cls";
 import { PinoLoggerService } from "../logger/logger.service";
 import type { TransactionError } from "./transactions/transaction.types";
 import { TransactionScopes, ADVISORY_LOCK_NAMESPACE } from "./transactions/transaction-scopes";
-import { writeAuditMutation } from "../audit/audit-mutation.writer";
+import { writeAuditMutation } from "../audit/writers/audit-mutation.writer";
 import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/audit.types";
 import { createDatabasePool } from "./connection/database-pool";
 import { databaseErrorMetadata } from "./connection/database-error.utils";

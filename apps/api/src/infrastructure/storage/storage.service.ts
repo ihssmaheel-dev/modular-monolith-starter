@@ -17,8 +17,8 @@ import { Bulkhead } from "../../common/utils/bulkhead";
 import { TenantContextService } from "../database";
 import { MetricsService } from "../metrics/metrics.service";
 import { env } from "../../config/env";
-import { StorageMetricsRecorder, type StorageOperation } from "./storage.metrics";
-import { detectStorageProvider } from "./storage-provider.detector";
+import { StorageMetricsRecorder, type StorageOperation } from "./metrics/storage.metrics";
+import { detectStorageProvider } from "./providers/storage-provider.detector";
 
 @Injectable()
 export class StorageService {

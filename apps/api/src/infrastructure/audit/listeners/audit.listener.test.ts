@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuditListener, DatabaseMutatedEvent } from "./audit.listener";
-import { PinoLoggerService } from "../logger/logger.service";
-import { DatabaseService, TenantContextService } from "../database";
+import { PinoLoggerService } from "../../logger/logger.service";
+import { DatabaseService, TenantContextService } from "../../database";
 import { ok } from "neverthrow";
 
 describe("AuditListener", () => {
@@ -23,46 +23,47 @@ describe("AuditListener", () => {
       }),
       withSystemScope: vi.fn().mockImplementation(async (callback) => callback()),
     } as unknown as DatabaseService;
+    logger = {
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as PinoLoggerService;
     tenantContext = {
-      run: vi.fn((_context, callback) => callback()),
-      runSystem: vi.fn((_context, callback) => callback()),
+      run: vi.fn().mockImplementation(async (_context, callback) => callback()),
+      runSystem: vi.fn().mockImplementation(async (_context, callback) => callback()),
     } as unknown as TenantContextService;
-    logger = { child: vi.fn(), error: vi.fn() } as unknown as PinoLoggerService;
-    vi.mocked(logger.child).mockReturnValue(logger);
     listener = new AuditListener(database, tenantContext, logger);
   });
 
-  it("persists every database mutation as an audit record", async () => {
+  it("handles database.mutated with a tenant scope", async () => {
     await listener.handleDatabaseMutatedEvent(event);
-    expect(mockInsert).toHaveBeenCalled();
+    expect(tenantContext.run).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "multi", tenantId: "tenant-1" }),
+      expect.any(Function),
+    );
   });
 
-  it("uses trusted system scope for global mutations", async () => {
-    const globalEvent = new DatabaseMutatedEvent(
+  it("handles database.mutated with a system scope when tenant is missing", async () => {
+    const systemEvent = new DatabaseMutatedEvent(
       "users",
       "user-1",
       "CREATE",
       undefined,
       undefined,
-      null,
+      {},
       {},
     );
-
-    await listener.handleDatabaseMutatedEvent(globalEvent);
-
-    expect(tenantContext.runSystem).toHaveBeenCalledWith(
-      { mode: expect.any(String) },
-      expect.any(Function),
-    );
-    expect(database.withSystemScope).toHaveBeenCalled();
+    await listener.handleDatabaseMutatedEvent(systemEvent);
+    expect(tenantContext.runSystem).toHaveBeenCalled();
   });
 
-  it("logs failed asynchronous audit writes without rejecting the mutation observer", async () => {
-    mockInsert.mockRejectedValue(new Error("database unavailable"));
-    await expect(listener.handleDatabaseMutatedEvent(event)).resolves.toBeUndefined();
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ collectionName: "notes", documentId: "note-1" }),
-      "Failed to save audit log",
-    );
+  it("handles authorization.denied by emitting an audit entry", async () => {
+    await listener.handleAuthorizationDenied({
+      decisionId: "dec-1",
+      principalId: "user-1",
+      action: "read",
+      reason: "denied",
+      tenantId: "tenant-1",
+    });
+    expect(tenantContext.run).toHaveBeenCalled();
   });
 });

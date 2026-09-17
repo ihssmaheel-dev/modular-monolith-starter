@@ -82,7 +82,7 @@ These are concrete strengths, subject to the integration defects later in the re
 | Frontend foundation        | TanStack Query, feature modules, route loaders, React Hook Form/Zod, Base UI primitives, tokens, Storybook, responsive shell, theme support, loading/empty/error states, and error boundaries are available.                                                            |
 | Mobile                     | Shared contracts/client intent, Expo routing, SecureStore credentials, localization, and feature tests exist. Mobile should remain an optional starter surface.                                                                                                         |
 
-Representative implementations: [AppModule](../apps/api/src/app.module.ts), [database](../apps/api/src/infrastructure/database/database.service.ts), [migration](../migrations/pg/0000_initial.sql), [outbox repository](../apps/api/src/infrastructure/outbox/outbox.repository.ts), [health](../apps/api/src/infrastructure/health/health.service.ts), [error reporting](../apps/api/src/infrastructure/error-reporting/error-reporter.service.ts), [CI](../.github/workflows/ci.yml), [UI package](../packages/ui).
+Representative implementations: [AppModule](../apps/api/src/app.module.ts), [database](../apps/api/src/infrastructure/database/database.service.ts), [migration](../migrations/pg/0000_initial.sql), [outbox repository](../apps/api/src/infrastructure/outbox/repositories/outbox.repository.ts), [health](../apps/api/src/infrastructure/health/health.service.ts), [error reporting](../apps/api/src/infrastructure/error-reporting/error-reporter.service.ts), [CI](../.github/workflows/ci.yml), [UI package](../packages/ui).
 
 ## Prioritized findings
 
@@ -102,7 +102,7 @@ The isolated request used a user-role principal, a different target ID, and atta
 
 **Placement:** Must have in the core.
 
-Evidence: [PermissionsGuard](../apps/api/src/common/guards/permissions.guard.ts), [evaluator](../packages/authorization/src/evaluator.ts), [users controller](../apps/api/src/modules/users/presentation/users.controller.ts), [update command](../apps/api/src/modules/users/application/commands/update-user.command.ts).
+Evidence: [PermissionsGuard](../apps/api/src/common/guards/permissions.guard.ts), [evaluator](../packages/authorization/src/evaluator.ts), [users controller](../apps/api/src/modules/users/presentation/controllers/users.controller.ts), [update command](../apps/api/src/modules/users/application/commands/update-user.command.ts).
 
 ### C02 — CRITICAL — The registered application module graph cannot boot
 
@@ -165,7 +165,7 @@ RLS helps fail closed here; that prevents many leaks but does not make erasure, 
 
 **Placement:** Must have in the core.
 
-Evidence: [tenant context](../apps/api/src/infrastructure/database/context/tenant-context.service.ts), [database service](../apps/api/src/infrastructure/database/database.service.ts), [mode verification](../apps/api/src/infrastructure/database/verify-tenancy-mode.ts), [digest worker](../apps/api/src/modules/notifications/application/workers/digest.worker.ts), [membership listener](../apps/api/src/modules/tenancy/application/listeners/membership-user.listener.ts).
+Evidence: [tenant context](../apps/api/src/infrastructure/database/tenancy/tenant-context.service.ts), [database service](../apps/api/src/infrastructure/database/database.service.ts), [mode verification](../apps/api/src/infrastructure/database/tenancy/verify-tenancy-mode.ts), [digest worker](../apps/api/src/modules/notifications/application/workers/digest.worker.ts), [membership listener](../apps/api/src/modules/tenancy/application/listeners/membership-user.listener.ts).
 
 ### H03 — HIGH — Permission composition is too permissive for reusable resource security
 
@@ -186,7 +186,7 @@ The reference application's broad sharing may be intentional; it is not evidence
 
 **Placement:** Must have safe enforcement in core. Custom role administration, permission groups, team hierarchies, and rich relationship graphs are optional.
 
-Evidence: [permissions](../packages/authorization/src/permissions.ts), [evaluator](../packages/authorization/src/evaluator.ts), [note policies](../apps/api/src/modules/notes/application/notes.policies.ts), [note commands](../apps/api/src/modules/notes/application/commands).
+Evidence: [permissions](../packages/authorization/src/permissions.ts), [evaluator](../packages/authorization/src/evaluator.ts), [note policies](../apps/api/src/modules/notes/application/policies/notes.policies.ts), [note commands](../apps/api/src/modules/notes/application/commands).
 
 ### H04 — HIGH — Last-owner and quota invariants are check-then-write races
 
@@ -212,7 +212,7 @@ Consuming the marker before later lookup/signing work also burns a token on some
 
 **Placement:** Must have a correct lifecycle in core. Session management UI should be core; MFA/passkeys/SSO adapters can be optional.
 
-Evidence: [refresh command](../apps/api/src/modules/auth/application/commands/refresh-tokens.command.ts), [login command](../apps/api/src/modules/auth/application/commands/login.command.ts), [session service](../apps/api/src/infrastructure/session/session.service.ts), [cookie configuration](../apps/api/src/modules/auth/presentation/auth.cookies.ts).
+Evidence: [refresh command](../apps/api/src/modules/auth/application/commands/refresh-tokens.command.ts), [login command](../apps/api/src/modules/auth/application/commands/login.command.ts), [session service](../apps/api/src/infrastructure/session/session.service.ts), [cookie configuration](../apps/api/src/modules/auth/presentation/helpers/auth.cookies.ts).
 
 ### H06 — HIGH — Account emails can be silently lost and queue IDs are invalid
 
@@ -236,7 +236,7 @@ Email lookup/uniqueness is not consistently normalized across identity and invit
 
 **Placement:** Must have in the core.
 
-Evidence: [update user](../apps/api/src/modules/users/application/commands/update-user.command.ts), [users persistence](../apps/api/src/modules/users/infrastructure/users.repository.ts), [user schema](../apps/api/src/modules/users/infrastructure/schemas/user.schema.ts).
+Evidence: [update user](../apps/api/src/modules/users/application/commands/update-user.command.ts), [users persistence](../apps/api/src/modules/users/infrastructure/repositories/users.repository.ts), [user schema](../apps/api/src/modules/users/infrastructure/schemas/user.schema.ts).
 
 ### H08 — HIGH — Supported browser deployment topologies are not consistently implemented
 
@@ -260,7 +260,7 @@ The presigned request does not enforce the declared size. HEAD ContentType is cl
 
 **Placement:** Optional files module, but these guarantees are mandatory when enabled.
 
-Evidence: [upload command](../apps/api/src/modules/files/application/commands/request-upload.command.ts), [S3 driver](../apps/api/src/infrastructure/storage/drivers/s3.driver.ts), [scanner](../apps/api/src/infrastructure/storage/file-scanner.service.ts), [scan worker](../apps/api/src/modules/files/application/workers/file-scan.worker.ts).
+Evidence: [upload command](../apps/api/src/modules/files/application/commands/request-upload.command.ts), [S3 driver](../apps/api/src/infrastructure/storage/drivers/s3.driver.ts), [scanner](../apps/api/src/infrastructure/storage/scanner/file-scanner.service.ts), [scan worker](../apps/api/src/modules/files/application/workers/file-scan.worker.ts).
 
 ### H10 — HIGH — File downloads do not inherit parent-resource authorization
 
@@ -272,7 +272,7 @@ The link flow's parent checks are useful but do not protect later independent do
 
 **Placement:** Optional files module with a small core authorization extension contract.
 
-Evidence: [download query](../apps/api/src/modules/files/application/queries/get-file-download-url.query.ts), [file policies](../apps/api/src/modules/files/application/files.policies.ts), [link command](../apps/api/src/modules/files/application/commands/link-file.command.ts).
+Evidence: [download query](../apps/api/src/modules/files/application/queries/get-file-download-url.query.ts), [file policies](../apps/api/src/modules/files/application/policies/files.policies.ts), [link command](../apps/api/src/modules/files/application/commands/link-file.command.ts).
 
 ### H11 — HIGH — Outbox delivery/replay guarantees are weaker than the state names imply
 
@@ -286,7 +286,7 @@ Dead-letter requeue changes the SQL row to PENDING, but retries queue.add with t
 
 **Placement:** Must have in core when domain events are advertised as durable.
 
-Evidence: [relay delivery](../apps/api/src/infrastructure/outbox/outbox-relay.delivery.ts), [event worker](../apps/api/src/infrastructure/outbox/outbox-event.worker.ts), [requeue implementation](../apps/api/src/infrastructure/outbox/outbox.repository.ts). [BullMQ duplicate-ID semantics](https://docs.bullmq.io/guide/jobs/job-ids).
+Evidence: [relay delivery](../apps/api/src/infrastructure/outbox/workers/outbox-relay.delivery.ts), [event worker](../apps/api/src/infrastructure/outbox/workers/outbox-event.worker.ts), [requeue implementation](../apps/api/src/infrastructure/outbox/repositories/outbox.repository.ts). [BullMQ duplicate-ID semantics](https://docs.bullmq.io/guide/jobs/job-ids).
 
 ### H12 — HIGH — Notifications can be duplicated, lost, or grouped across organizations
 
@@ -300,7 +300,7 @@ Catch-and-requery recovery from a uniqueness violation inside an existing Postgr
 
 **Placement:** Optional notifications module. Shared retry/idempotency primitives belong in core.
 
-Evidence: [send notification](../apps/api/src/modules/notifications/application/commands/send-notification.command.ts), [digest worker](../apps/api/src/modules/notifications/application/workers/digest.worker.ts), [batch repository](../apps/api/src/modules/notifications/infrastructure/batches.repository.ts).
+Evidence: [send notification](../apps/api/src/modules/notifications/application/commands/send-notification.command.ts), [digest worker](../apps/api/src/modules/notifications/application/workers/digest.worker.ts), [batch repository](../apps/api/src/modules/notifications/infrastructure/repositories/batches.repository.ts).
 
 ### H13 — HIGH — The local distributed cache is unbounded and caches mutable domain objects
 
@@ -352,7 +352,7 @@ Connection caps and stream recovery are valuable, but no explicit slow-client bu
 
 **Placement:** Optional realtime module; its authorization contract is core.
 
-Evidence: [WebSocket gateway](../apps/api/src/infrastructure/realtime/transports/realtime-websocket.gateway.ts), [SSE controller](../apps/api/src/infrastructure/realtime/transports/realtime-sse.controller.ts), [realtime auth listener](../apps/api/src/infrastructure/realtime/listeners/realtime-auth.listener.ts), [connection dispatcher](../apps/api/src/infrastructure/realtime/connections/realtime-connection.dispatcher.ts), [cookies](../apps/api/src/modules/auth/presentation/auth.cookies.ts).
+Evidence: [WebSocket gateway](../apps/api/src/infrastructure/realtime/transports/realtime-websocket.gateway.ts), [SSE controller](../apps/api/src/infrastructure/realtime/transports/realtime-sse.controller.ts), [realtime auth listener](../apps/api/src/infrastructure/realtime/listeners/realtime-auth.listener.ts), [connection dispatcher](../apps/api/src/infrastructure/realtime/connections/realtime-connection.dispatcher.ts), [cookies](../apps/api/src/modules/auth/presentation/helpers/auth.cookies.ts).
 
 ### H17 — HIGH — Protected SSR routes do not have request-scoped authentication
 
@@ -435,7 +435,7 @@ Evidence: [CD](../.github/workflows/cd.yml), [Compose](../docker/docker-compose.
 
 **Placement:** Must have in core deployment/lifecycle infrastructure.
 
-Evidence: [Nginx entrypoint](../docker/nginx-entrypoint.sh), [Nginx config](../docker/nginx.conf), [Compose](../docker/docker-compose.prod.yml), [database lifecycle](../apps/api/src/infrastructure/database/database.service.ts), [queue lifecycle](../apps/api/src/infrastructure/queue/queue.service.ts), [shutdown service](../apps/api/src/infrastructure/health/shutdown.service.ts).
+Evidence: [Nginx entrypoint](../docker/nginx-entrypoint.sh), [Nginx config](../docker/nginx.conf), [Compose](../docker/docker-compose.prod.yml), [database lifecycle](../apps/api/src/infrastructure/database/database.service.ts), [queue lifecycle](../apps/api/src/infrastructure/queue/queue.service.ts), [shutdown service](../apps/api/src/infrastructure/health/shutdown/shutdown.service.ts).
 
 ### H23 — HIGH — Dependency advisories and runtime packaging need remediation
 
@@ -468,7 +468,7 @@ The privacy controllers are TenantAgnostic while organization erasure requires a
 
 **Placement:** Optional privacy module, with core lifecycle/error conventions.
 
-Evidence: [account erasure](../apps/api/src/modules/privacy/application/commands/request-account-erasure.command.ts), [export](../apps/api/src/modules/privacy/application/commands/request-export.command.ts), [purge worker](../apps/api/src/modules/privacy/application/commands/purge-expired-erasures.command.ts), [privacy controller](../apps/api/src/modules/privacy/presentation/privacy.controller.ts).
+Evidence: [account erasure](../apps/api/src/modules/privacy/application/commands/request-account-erasure.command.ts), [export](../apps/api/src/modules/privacy/application/commands/request-export.command.ts), [purge worker](../apps/api/src/modules/privacy/application/commands/purge-expired-erasures.command.ts), [privacy controller](../apps/api/src/modules/privacy/presentation/controllers/privacy.controller.ts).
 
 ### H25 — HIGH — Rate limiting adds attacker-controlled state and runs after expensive guards
 
@@ -516,7 +516,7 @@ Parity tests provide useful coverage, but source/metadata parity is weaker than 
 
 **Placement:** Must have stable contract/version policy in core; a second transport is optional.
 
-Evidence: [users oRPC controller](../apps/api/src/modules/users/presentation/users.orpc.controller.ts), [oRPC infrastructure](../apps/api/src/infrastructure/orpc), [event schema](../packages/contracts/src/schemas/outbox.schema.ts), [API docs](../apps/api/src/infrastructure/api-docs/api-docs.ts).
+Evidence: [users oRPC controller](../apps/api/src/modules/users/presentation/orpc/users.orpc.controller.ts), [oRPC infrastructure](../apps/api/src/infrastructure/orpc), [event schema](../packages/contracts/src/schemas/outbox.schema.ts), [API docs](../apps/api/src/infrastructure/api-docs/api-docs.ts).
 
 ### M04 — MEDIUM — Some bounded workers never progress through the whole dataset
 
@@ -528,7 +528,7 @@ The relay claims ten events every five seconds and delivers sequentially: approx
 
 **Placement:** Must have bounded-work conventions in core; worker-specific schedules remain modular.
 
-Evidence: [file repository](../apps/api/src/modules/files/infrastructure/files.repository.ts), [reconciliation worker](../apps/api/src/modules/files/application/workers/file-reconciliation.worker.ts), [relay worker](../apps/api/src/infrastructure/outbox/outbox-relay.worker.ts), [queue service](../apps/api/src/infrastructure/queue/queue.service.ts), [CPU workers](../apps/api/src/infrastructure/workers/piscina.service.ts).
+Evidence: [file repository](../apps/api/src/modules/files/infrastructure/repositories/files.repository.ts), [reconciliation worker](../apps/api/src/modules/files/application/workers/file-reconciliation.worker.ts), [relay worker](../apps/api/src/infrastructure/outbox/workers/outbox-relay.worker.ts), [queue service](../apps/api/src/infrastructure/queue/queue.service.ts), [CPU workers](../apps/api/src/infrastructure/workers/piscina.service.ts).
 
 ### M05 — MEDIUM — Transaction duration and database evolution need stronger conventions
 
@@ -572,7 +572,7 @@ RLS and retention are valuable, but do not establish immutability, legal hold, o
 
 **Placement:** Should have baseline security/admin auditing in core; regulated immutable journals and access history are optional, application-governed capabilities.
 
-Evidence: [audit listener](../apps/api/src/infrastructure/audit/audit.listener.ts), [audit retention](../apps/api/src/infrastructure/audit/audit-retention.worker.ts), [user update audit](../apps/api/src/modules/users/application/commands/update-user.command.ts), [outbox payloads](../packages/contracts/src/schemas/outbox.schema.ts).
+Evidence: [audit listener](../apps/api/src/infrastructure/audit/listeners/audit.listener.ts), [audit retention](../apps/api/src/infrastructure/audit/workers/audit-retention.worker.ts), [user update audit](../apps/api/src/modules/users/application/commands/update-user.command.ts), [outbox payloads](../packages/contracts/src/schemas/outbox.schema.ts).
 
 ### M08 — MEDIUM — Restore tooling verifies a database file, not application recovery
 
@@ -606,7 +606,7 @@ Localization is substantial, but locale preference is not consistently carried i
 
 **Placement:** Should have shell/primitives in core; organization UX and mobile are optional modules.
 
-Evidence: [web features](../apps/web/src/features), [web routes](../apps/web/src/routes), [user endpoints](../apps/api/src/modules/users/presentation/users.controller.ts), [mobile features](../apps/mobile/src/features), [i18n](../packages/i18n), [UI](../packages/ui).
+Evidence: [web features](../apps/web/src/features), [web routes](../apps/web/src/routes), [user endpoints](../apps/api/src/modules/users/presentation/controllers/users.controller.ts), [mobile features](../apps/mobile/src/features), [i18n](../packages/i18n), [UI](../packages/ui).
 
 ### M11 — MEDIUM — The handwritten WAF is brittle for general-purpose business content
 

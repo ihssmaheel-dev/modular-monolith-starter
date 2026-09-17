@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { err, ok } from "neverthrow";
 import { FileScannerService } from "./file-scanner.service";
-import type { StorageService } from "./storage.service";
-import type { PinoLoggerService } from "../logger/logger.service";
+import type { StorageService } from "../storage.service";
+import type { PinoLoggerService } from "../../logger/logger.service";
 
 const FILE = { key: "uploads/file", fileSize: 4, contentType: "text/plain" };
 

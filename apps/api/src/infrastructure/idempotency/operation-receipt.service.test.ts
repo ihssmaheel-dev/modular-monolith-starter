@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OperationReceiptService } from "./operation-receipt.service";
 import type { DatabaseService } from "../database";
-import type { OperationReceiptRepository } from "./operation-receipt.repository";
+import type { OperationReceiptRepository } from "./repositories/operation-receipt.repository";
 
 const IDENTITY = {
   operationId: "request-1",
