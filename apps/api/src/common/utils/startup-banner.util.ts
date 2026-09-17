@@ -5,8 +5,9 @@ import { API_BASE_PATH, API_DOCS_PATH } from "@repo/contracts";
 import { env } from "../../config/env";
 import { RedisService } from "../../infrastructure/redis/redis.service";
 import { PinoLoggerService } from "../../infrastructure/logger/logger.service";
+import { QueueService, DEFAULT_WORKBENCH_PATH } from "../../infrastructure/queue";
 
-const BOX_WIDTH = 64;
+const BOX_WIDTH = 74;
 
 function stripAnsi(text: string): string {
   return text.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "");
@@ -28,14 +29,68 @@ function buildHeaderSection(): string[] {
   ];
 }
 
-function buildEndpointSection(): string[] {
-  return [
+interface WorkbenchInfo {
+  url: string;
+  isActive: boolean;
+  statusText: string;
+  metaLine?: string;
+}
+
+function getWorkbenchInfo(app: INestApplication): WorkbenchInfo {
+  const workbenchRoute = env.WORKBENCH_PATH || DEFAULT_WORKBENCH_PATH;
+  const isProd = env.NODE_ENV === "production";
+  const url = `${env.API_URL}${workbenchRoute}`;
+
+  if (!env.REDIS_URL) {
+    return {
+      url,
+      isActive: false,
+      statusText: yellow("[Disabled] (Redis not configured)"),
+    };
+  }
+
+  if (isProd && !env.WORKBENCH_ENABLED) {
+    return {
+      url,
+      isActive: false,
+      statusText: yellow("[Disabled] (WORKBENCH_ENABLED=false)"),
+    };
+  }
+
+  const queueService = app.get(QueueService, { strict: false });
+  const registered =
+    typeof queueService?.getRegisteredQueues === "function"
+      ? queueService.getRegisteredQueues().map((q) => q.name)
+      : [];
+  const queueList = registered.length > 0 ? registered.join(", ") : "outbox, email";
+
+  const mode = env.WORKBENCH_READONLY ? "Read-Only" : "Read/Write";
+  const auth = env.WORKBENCH_USER ? `Basic Auth (${env.WORKBENCH_USER})` : "Public (Dev)";
+
+  return {
+    url,
+    isActive: true,
+    statusText: cyan(url),
+    metaLine: `    ${dim("└─ Workbench")} : ${dim(`${mode} • ${auth} • ${queueList}`)}`,
+  };
+}
+
+function buildEndpointSection(app: INestApplication): string[] {
+  const wb = getWorkbenchInfo(app);
+  const lines = [
     `${bold(cyan("APPLICATION ENDPOINTS"))}`,
     `  ${dim("•")} ${bold("Base API")}     : ${cyan(`${env.API_URL}/api`)}`,
     `  ${dim("•")} ${bold("Swagger Docs")} : ${cyan(`${env.API_URL}${API_DOCS_PATH}`)}`,
     `  ${dim("•")} ${bold("Health Probe")} : ${cyan(`${env.API_URL}${API_BASE_PATH}/health`)}`,
     `  ${dim("•")} ${bold("Prom Metrics")} : ${cyan(`${env.API_URL}/metrics`)}`,
+    `  ${dim("•")} ${bold("BullMQ UI")}    : ${wb.statusText}`,
   ];
+
+  if (wb.isActive && wb.metaLine) {
+    lines.push(wb.metaLine);
+  }
+
+  return lines;
 }
 
 function getStorageLabel(): string {
@@ -54,21 +109,39 @@ function getEmailLabel(): string {
 
 function buildInfraSection(app: INestApplication): string[] {
   const redis = app.get(RedisService, { strict: false });
-  const redisConnected = !!redis?.getClient();
+  const redisConnected = typeof redis?.getClient === "function" && !!redis.getClient();
   const redisStatus = redisConnected ? green("[OK] Connected") : yellow("[!] Optional");
+
+  const wb = getWorkbenchInfo(app);
+  const queueService = app.get(QueueService, { strict: false });
+  const registered =
+    typeof queueService?.getRegisteredQueues === "function"
+      ? queueService.getRegisteredQueues().map((q) => q.name)
+      : [];
+  const queueNames = registered.length > 0 ? registered.join(", ") : "outbox, email";
+  const queueStatus = wb.isActive
+    ? `${green("[OK] Active")} ${dim(`(${queueNames})`)}`
+    : yellow("[!] Inactive");
 
   return [
     `${bold(cyan("CORE INFRASTRUCTURE"))}`,
     `  ${dim("•")} ${bold("PostgreSQL")}   : ${green("[OK] Connected")} ${dim("(drizzle)")}`,
     `  ${dim("•")} ${bold("Redis Cache")}  : ${redisStatus}`,
+    `  ${dim("•")} ${bold("BullMQ Engine")}: ${queueStatus}`,
     `  ${dim("•")} ${bold("Object Store")} : ${getStorageLabel()}`,
     `  ${dim("•")} ${bold("Email Driver")} : ${getEmailLabel()}`,
   ];
 }
 
-function buildObservabilitySection(): string[] {
+function buildObservabilitySection(app: INestApplication): string[] {
+  const wb = getWorkbenchInfo(app);
+  const wbObservability = wb.isActive
+    ? `${cyan(wb.url)} ${dim("(Workbench UI)")}`
+    : yellow("[Disabled]");
+
   return [
     `${bold(cyan("OBSERVABILITY & MONITORING"))}`,
+    `  ${dim("•")} ${bold("BullMQ Board")} : ${wbObservability}`,
     `  ${dim("•")} ${bold("Grafana")}      : ${cyan("http://localhost:3001")} ${dim("(Dashboards)")}`,
     `  ${dim("•")} ${bold("Prometheus")}   : ${cyan("http://localhost:9090")} ${dim("(Engine)")}`,
     `  ${dim("•")} ${bold("Loki Logs")}    : ${cyan("http://localhost:3100")} ${dim("(Streams)")}`,
@@ -89,9 +162,9 @@ function formatBanner(sections: string[][]): string {
 export function printStartupBanner(app: INestApplication, logger: PinoLoggerService): void {
   const sections = [
     buildHeaderSection(),
-    buildEndpointSection(),
+    buildEndpointSection(app),
     buildInfraSection(app),
-    buildObservabilitySection(),
+    buildObservabilitySection(app),
   ];
 
   const banner = formatBanner(sections);
