@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { err, type Result } from "neverthrow";
-import type { DrizzleDb } from "./database.service";
-import type { TransactionError } from "./database.types";
-import type { PinoLoggerService } from "../logger/logger.service";
-import { databaseErrorMetadata } from "./database-error.utils";
+import type { DrizzleDb } from "../database.service";
+import type { TransactionError } from "./transaction.types";
+import type { PinoLoggerService } from "../../logger/logger.service";
+import { databaseErrorMetadata } from "../connection/database-error.utils";
 
 /**
  * Advisory-lock namespace for all withAdvisoryLock critical sections.

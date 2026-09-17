@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BaseRepository } from "./base.repository";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import type { DatabaseService } from "../database.service";
-import type { TenantContextService } from "../context/tenant-context.service";
+import type { TenantContextService } from "../tenancy/tenant-context.service";
 
 const testTable = pgTable("test_entities", {
   id: text("id").primaryKey(),

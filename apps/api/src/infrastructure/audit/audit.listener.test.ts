@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuditListener, DatabaseMutatedEvent } from "./audit.listener";
 import { PinoLoggerService } from "../logger/logger.service";
-import { DatabaseService } from "../database/database.service";
-import { TenantContextService } from "../database/context/tenant-context.service";
+import { DatabaseService, TenantContextService } from "../database";
 import { ok } from "neverthrow";
 
 describe("AuditListener", () => {

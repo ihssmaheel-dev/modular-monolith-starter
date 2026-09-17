@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
-import { env } from "../../config/env";
-import type { DatabaseService } from "./database.service";
-import type { PinoLoggerService } from "../logger/logger.service";
+import { env } from "../../../config/env";
+import type { DatabaseService } from "../database.service";
+import type { PinoLoggerService } from "../../logger/logger.service";
 
 /** Machine code for internal control flow — never user-facing, never an i18n key. */
 export const TENANCY_MODE_CHECK_REQUIRES_TRANSACTION = "TENANCY_MODE_CHECK_REQUIRES_TRANSACTION";

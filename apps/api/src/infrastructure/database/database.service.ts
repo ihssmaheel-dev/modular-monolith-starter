@@ -6,14 +6,17 @@ import type { Pool } from "pg";
 import { err, ok, type Result } from "neverthrow";
 import { ClsService } from "nestjs-cls";
 import { PinoLoggerService } from "../logger/logger.service";
-import type { TransactionError } from "./database.types";
-import { TransactionScopes, ADVISORY_LOCK_NAMESPACE } from "./transaction-scopes";
+import type { TransactionError } from "./transactions/transaction.types";
+import { TransactionScopes, ADVISORY_LOCK_NAMESPACE } from "./transactions/transaction-scopes";
 import { writeAuditMutation } from "../audit/audit-mutation.writer";
 import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/audit.types";
-import { createDatabasePool } from "./database-pool";
-import { databaseErrorMetadata } from "./database-error.utils";
+import { createDatabasePool } from "./connection/database-pool";
+import { databaseErrorMetadata } from "./connection/database-error.utils";
 import { MetricsService } from "../metrics/metrics.service";
-import { configureTransactionContext, setTransactionConfig } from "./transaction-context";
+import {
+  configureTransactionContext,
+  setTransactionConfig,
+} from "./transactions/transaction-context";
 
 export type Database = NodePgDatabase;
 export type DrizzleDb = Database;
@@ -24,7 +27,7 @@ export const AUDIT_TRANSACTION_REQUIRED = "AUDIT_TRANSACTION_REQUIRED";
 
 const DATABASE_POOL_METRICS_INTERVAL_MS = 15_000;
 
-export { ADVISORY_LOCK_NAMESPACE } from "./transaction-scopes";
+export { ADVISORY_LOCK_NAMESPACE } from "./transactions/transaction-scopes";
 
 @Injectable()
 export class DatabaseService implements OnApplicationShutdown {

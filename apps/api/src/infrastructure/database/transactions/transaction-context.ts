@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { ClsService } from "nestjs-cls";
-import { env } from "../../config/env";
-import type { DrizzleDb } from "./database.service";
+import { env } from "../../../config/env";
+import type { DrizzleDb } from "../database.service";
 
 export async function configureTransactionContext(tx: DrizzleDb, cls?: ClsService): Promise<void> {
   const execute = (tx as unknown as { execute?: (query: unknown) => Promise<unknown> }).execute;

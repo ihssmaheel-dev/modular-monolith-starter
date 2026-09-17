@@ -289,7 +289,7 @@ export abstract class TenantScopedRepository<TEntity, TRow> extends BaseReposito
   constructor(
     table: import("drizzle-orm/pg-core").PgTable,
     database: import("../database.service").DatabaseService,
-    tenantContext: import("../context/tenant-context.service").TenantContextService,
+    tenantContext: import("../tenancy/tenant-context.service").TenantContextService,
   ) {
     super(table, database, tenantContext, true);
   }

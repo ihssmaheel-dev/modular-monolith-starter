@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import { createHash } from "node:crypto";
-import { env } from "../../config/env";
-import type { PinoLoggerService } from "../logger/logger.service";
+import { env } from "../../../config/env";
+import type { PinoLoggerService } from "../../logger/logger.service";
 import { databaseErrorMetadata } from "./database-error.utils";
 
 const SLOW_QUERY_MILLISECONDS = 100;

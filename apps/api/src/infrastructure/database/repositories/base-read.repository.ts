@@ -3,7 +3,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { ok, type Result } from "neverthrow";
 import { env } from "../../../config/env";
 import { DatabaseService } from "../database.service";
-import { TenantContextService } from "../context/tenant-context.service";
+import { TenantContextService } from "../tenancy/tenant-context.service";
 import type { BaseFindOptions, Id } from "./repository.types";
 
 export const DEFAULT_FIND_LIMIT = 1_000;

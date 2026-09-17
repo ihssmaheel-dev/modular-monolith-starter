@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { verifyTenancyMode } from "./verify-tenancy-mode";
-import type { DatabaseService } from "./database.service";
-import type { PinoLoggerService } from "../logger/logger.service";
-import { env } from "../../config/env";
+import type { DatabaseService } from "../database.service";
+import type { PinoLoggerService } from "../../logger/logger.service";
+import { env } from "../../../config/env";
 
 describe("verifyTenancyMode", () => {
   const originalMode = env.TENANCY_MODE;
