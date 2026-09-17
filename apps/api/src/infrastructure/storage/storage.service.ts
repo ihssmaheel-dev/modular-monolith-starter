@@ -15,22 +15,37 @@ import { Readable } from "node:stream";
 import { CircuitBreaker } from "../../common/utils/circuit-breaker";
 import { Bulkhead } from "../../common/utils/bulkhead";
 import { TenantContextService } from "../database";
+import { MetricsService } from "../metrics/metrics.service";
 import { env } from "../../config/env";
+import { StorageMetricsRecorder, type StorageOperation } from "./storage.metrics";
+import { detectStorageProvider } from "./storage-provider.detector";
 
 @Injectable()
 export class StorageService {
   private driver: StorageDriver;
   private circuitBreaker: CircuitBreaker<StorageError>;
   private bulkhead: Bulkhead<StorageError>;
+  private metricsRecorder: StorageMetricsRecorder;
+
   constructor(
     private logger: PinoLoggerService,
+    private readonly metrics: MetricsService,
     @Optional() private readonly tenantContext?: TenantContextService,
   ) {
     this.logger = logger.child({ module: "StorageService" });
     this.driver = new S3Driver();
     this.logger.info({}, "Storage: Using S3 driver (Postgres mode)");
+
+    const provider = detectStorageProvider(env.STORAGE_PROVIDER, env.S3_ENDPOINT);
+    this.metricsRecorder = new StorageMetricsRecorder(this.metrics, provider);
+    this.metricsRecorder.recordCircuitBreakerState("CLOSED");
+
     this.circuitBreaker = new CircuitBreaker(
-      { failureThreshold: 5, resetTimeoutMs: 10000 },
+      {
+        failureThreshold: 5,
+        resetTimeoutMs: 10000,
+        onStateChange: (state) => this.metricsRecorder.recordCircuitBreakerState(state),
+      },
       { code: "CIRCUIT_OPEN", message: "api.error.circuitOpen" },
     );
     this.bulkhead = new Bulkhead(
@@ -44,26 +59,36 @@ export class StorageService {
     body: FileInput,
     contentType: string,
   ): Promise<Result<UploadResult, StorageError>> {
-    return this.guarded(() =>
-      this.circuitBreaker.execute(async () => {
-        try {
-          const result = await this.driver.upload(key, body, contentType);
-          this.logger.info({ key, contentType }, "File uploaded");
-          return ok(result);
-        } catch (error) {
-          this.logger.error({ key, error }, "Upload failed");
-          return err({ code: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
-        }
-      }),
+    const byteLength = Buffer.isBuffer(body)
+      ? body.length
+      : typeof body === "string"
+        ? Buffer.byteLength(body)
+        : undefined;
+
+    return this.timed(
+      "upload",
+      () =>
+        this.circuitBreaker.execute(async () => {
+          try {
+            const result = await this.driver.upload(key, body, contentType);
+            this.logger.info({ key, contentType }, "File uploaded");
+            return ok(result);
+          } catch (error) {
+            this.logger.error({ key, error }, "Upload failed");
+            return err({ code: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
+          }
+        }),
+      () => byteLength,
     );
   }
+
   async getPresignedUploadUrl(
     key: string,
     contentType: string,
     contentLength: number,
     ttlSeconds = UPLOAD_PRESIGN_TTL_SECONDS,
   ): Promise<Result<string, StorageError>> {
-    return this.guarded(() =>
+    return this.timed("presign_upload", () =>
       this.circuitBreaker.execute(async () => {
         try {
           const url = await this.driver.getPresignedUploadUrl(
@@ -80,6 +105,7 @@ export class StorageService {
       }),
     );
   }
+
   usesDirectTransfer(): boolean {
     return true;
   }
@@ -88,23 +114,54 @@ export class StorageService {
     return this.driver.getBucket ? this.driver.getBucket() : env.S3_BUCKET;
   }
 
-  private guarded<T>(
+  private async guarded<T>(
     action: () => Promise<Result<T, StorageError>>,
   ): Promise<Result<T, StorageError>> {
-    // Bulkhead partitions are per-tenant for fairness; the circuit breaker
-    // stays global because a downstream S3 outage affects every tenant.
-    return this.bulkhead.execute(action, this.partitionKey());
+    this.metricsRecorder.incrementBulkhead();
+    try {
+      // Bulkhead partitions are per-tenant for fairness; the circuit breaker
+      // stays global because a downstream S3 outage affects every tenant.
+      return await this.bulkhead.execute(action, this.partitionKey());
+    } finally {
+      this.metricsRecorder.decrementBulkhead();
+    }
   }
 
   private partitionKey(): string {
     return this.tenantContext?.get().tenantId ?? "global";
   }
 
+  private async timed<T>(
+    operation: StorageOperation,
+    action: () => Promise<Result<T, StorageError>>,
+    bytesGetter?: (result: T) => number | undefined,
+  ): Promise<Result<T, StorageError>> {
+    const start = process.hrtime.bigint();
+    const res = await this.guarded(action);
+    const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9;
+    this.metricsRecorder.recordDuration(operation, durationSeconds);
+
+    if (res.isOk()) {
+      this.metricsRecorder.recordOperation(operation, "success");
+      if (bytesGetter) {
+        const bytes = bytesGetter(res.value);
+        if (bytes && bytes > 0) {
+          this.metricsRecorder.recordBytesTransferred("in", bytes);
+        }
+      }
+    } else {
+      this.metricsRecorder.recordOperation(operation, "error");
+      this.metricsRecorder.recordError(operation, res.error.code);
+    }
+
+    return res;
+  }
+
   async getPresignedDownloadUrl(
     key: string,
     ttlSeconds = DOWNLOAD_PRESIGN_TTL_SECONDS,
   ): Promise<Result<string, StorageError>> {
-    return this.guarded(() =>
+    return this.timed("presign_download", () =>
       this.circuitBreaker.execute(async () => {
         try {
           const url = await this.driver.getPresignedDownloadUrl(key, ttlSeconds);
@@ -118,7 +175,7 @@ export class StorageService {
   }
 
   async delete(key: string): Promise<Result<void, StorageError>> {
-    return this.guarded(() =>
+    return this.timed("delete", () =>
       this.circuitBreaker.execute(async () => {
         try {
           await this.driver.delete(key);
@@ -142,7 +199,7 @@ export class StorageService {
     destinationKey: string,
     source: Pick<StoredObjectMetadata, "etag" | "versionId">,
   ): Promise<Result<void, StorageError>> {
-    return this.guarded(() =>
+    return this.timed("copy", () =>
       this.circuitBreaker.execute(async () => {
         try {
           await this.driver.copy(sourceKey, destinationKey, source);
@@ -157,7 +214,7 @@ export class StorageService {
   }
 
   async getMetadata(key: string): Promise<Result<StoredObjectMetadata | null, StorageError>> {
-    return this.guarded(() =>
+    return this.timed("metadata", () =>
       this.circuitBreaker.execute(async () => {
         try {
           return ok(await this.driver.getMetadata(key));
@@ -170,7 +227,7 @@ export class StorageService {
   }
 
   async getDownloadStream(key: string): Promise<Result<Readable, StorageError>> {
-    return this.guarded(() =>
+    return this.timed("download_stream", () =>
       this.circuitBreaker.execute(async () => {
         try {
           return ok(await this.driver.getDownloadStream(key));

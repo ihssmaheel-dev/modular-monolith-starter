@@ -284,3 +284,61 @@ groups:
         annotations:
           summary: Error reports were dropped by the intake bulkhead
           description: "The application protected itself from an error-reporting storm; use logs and traces to investigate the underlying failures."
+
+  - name: object-storage-health
+    rules:
+      - alert: StorageHighErrorRate
+        expr: (sum(rate(storage_errors_total[5m])) / (sum(rate(storage_operations_total[5m])) > 0)) * 100 > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Object storage error rate is elevated
+          description: "Storage operations error rate is above 2% over the last 5 minutes. See RB-09."
+
+      - alert: StorageHighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(storage_operation_duration_seconds_bucket[5m])) by (le)) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Object storage p95 latency exceeds 2 seconds
+          description: "Storage operation 95th percentile latency is above 2 seconds over the last 5 minutes. See RB-09."
+
+      - alert: StorageCircuitBreakerOpen
+        expr: circuit_breaker_state{name="storage"} == 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Storage circuit breaker is open
+          description: "Object storage circuit breaker has tripped open; operations are failing fast. See RB-09."
+
+  - name: minio-infrastructure-health
+    rules:
+      - alert: MinioNodeDown
+        expr: (up{job="minio"} == 0) and on() (count(minio_cluster_capacity_usable_total_bytes) > 0 or count_over_time(up{job="minio"}[1h]) > 0)
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: MinIO storage node is unreachable
+          description: "A previously active MinIO cluster target has been down for over 3 minutes. See RB-20."
+
+      - alert: MinioDiskOffline
+        expr: minio_cluster_drives_offline_total > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: MinIO cluster drives are offline
+          description: "One or more physical storage disks in the MinIO cluster are offline. See RB-20."
+
+      - alert: MinioDiskSpaceCritical
+        expr: (minio_cluster_capacity_usable_free_bytes / (minio_cluster_capacity_usable_total_bytes > 0)) < 0.15
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: MinIO storage capacity is critically low
+          description: "Usable free storage capacity in the MinIO cluster is below 15%. See RB-20."

@@ -1,4 +1,4 @@
-﻿# Environment-variable reference
+# Environment-variable reference
 
 `pnpm bootstrap` copies the committed examples to ignored local `.env` files when they do not
 exist. API variables are validated by `packages/contracts/src/schemas/env.schema.ts`; web and mobile
@@ -115,20 +115,21 @@ display names, mobile identifiers, Docker names, and observability selectors syn
 
 ## Storage
 
-| Variable                  | Default / purpose                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `STORAGE_DRIVER`          | `s3`                                                                              |
-| `S3_ENDPOINT`             | Optional; omit for AWS, set an HTTPS endpoint for another S3-compatible provider  |
-| `S3_REGION`               | `us-east-1`                                                                       |
-| `S3_BUCKET`               | `uploads`                                                                         |
-| `S3_ACCESS_KEY_ID`        | Optional; omit with the secret to use the AWS SDK workload-identity/default chain |
-| `S3_SECRET_ACCESS_KEY`    | Optional; must be set together with the access key                                |
-| `S3_FORCE_PATH_STYLE`     | `false`; local MinIO examples explicitly set `true`                               |
-| `FILE_USER_QUOTA_BYTES`   | `104857600`; reserved and active upload bytes per user                            |
-| `FILE_TENANT_QUOTA_BYTES` | `10737418240`; reserved and active upload bytes per tenant                        |
-| `FILE_TENANT_MAX_OBJECTS` | `100000`; reserved and active object count per tenant                             |
-| `FILE_AV_ENABLED`         | `false`; antivirus scanning for quarantined uploads                               |
-| `FILE_AV_URL`             | Required scanner endpoint when scanning is enabled                                |
+| Variable                  | Default / purpose                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `STORAGE_DRIVER`          | `s3`                                                                               |
+| `STORAGE_PROVIDER`        | Optional; `minio`, `r2`, `wasabi`, `s3`, `b2`, `other`; auto-detected when omitted |
+| `S3_ENDPOINT`             | Optional; omit for AWS, set an HTTPS endpoint for another S3-compatible provider   |
+| `S3_REGION`               | `us-east-1`                                                                        |
+| `S3_BUCKET`               | `uploads`                                                                          |
+| `S3_ACCESS_KEY_ID`        | Optional; omit with the secret to use the AWS SDK workload-identity/default chain  |
+| `S3_SECRET_ACCESS_KEY`    | Optional; must be set together with the access key                                 |
+| `S3_FORCE_PATH_STYLE`     | `false`; local MinIO examples explicitly set `true`                                |
+| `FILE_USER_QUOTA_BYTES`   | `104857600`; reserved and active upload bytes per user                             |
+| `FILE_TENANT_QUOTA_BYTES` | `10737418240`; reserved and active upload bytes per tenant                         |
+| `FILE_TENANT_MAX_OBJECTS` | `100000`; reserved and active object count per tenant                              |
+| `FILE_AV_ENABLED`         | `false`; antivirus scanning for quarantined uploads                                |
+| `FILE_AV_URL`             | Required scanner endpoint when scanning is enabled                                 |
 
 `apps/api/.env.example` supplies an archived MinIO fixture and static development keys for local S3
 adapter tests only. Do not use that container as the production object store. In AWS production,

@@ -73,3 +73,10 @@ scrape_configs:
     sample_limit: 10000
     static_configs:
       - targets: ["alertmanager:9093"]
+
+  - job_name: "minio"
+    scrape_interval: 30s
+    sample_limit: 30000
+    metrics_path: "/minio/v2/metrics/cluster"
+    static_configs:
+      - targets: ["minio:9000"]

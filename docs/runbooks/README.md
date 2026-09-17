@@ -6,27 +6,28 @@ New runbook? Copy `TEMPLATE.md`, fill every section, add the row below.
 
 ## Available
 
-| ID    | Runbook                                                    | Severity | Trigger                                        |
-| ----- | ---------------------------------------------------------- | -------- | ---------------------------------------------- |
-| RB-01 | [API down / health failing](RB-01-api-down.md)             | SEV-1    | `ServiceDown`, `/health/live` vs `/ready`      |
-| RB-02 | [Postgres down / pool exhausted](RB-02-postgres-down.md)   | SEV-1/2  | `PostgresBufferHitRatioLow`, `pg_isready`      |
-| RB-03 | [Redis down (degraded mode)](RB-03-redis-down.md)          | SEV-2    | `RedisKeyspaceHitRatioLow`, client error       |
-| RB-04 | [Disk full](RB-04-disk-full.md)                            | SEV-1/2  | `PostgresDatabaseSizeHigh`, write failures     |
-| RB-05 | [Outbox lag / depth growing](RB-05-outbox-lag.md)          | SEV-2→1  | `OutboxPendingDepthHigh`, `OutboxEventLagHigh` |
-| RB-06 | [Dead letters appearing](RB-06-dead-letters.md)            | SEV-2→1  | `OutboxDeadLettersCreated`, realtime DLQ       |
-| RB-07 | [Queue stuck / stalled jobs](RB-07-queue-stuck.md)         | SEV-2    | worker errors, queue depth, delayed age        |
-| RB-08 | [Worker silent death](RB-08-worker-silent-death.md)        | SEV-2    | missing `worker:heartbeat:*` keys              |
-| RB-09 | [Uploads failing](RB-09-uploads-failing.md)                | SEV-2    | error keys, MinIO/S3, AV scanner               |
-| RB-10 | [Emails not arriving](RB-10-emails-missing.md)             | SEV-2→1  | driver config, Mailpit, provider dashboard     |
-| RB-11 | [TLS / certificate expiry](RB-11-tls-expiry.md)            | SEV-1/3  | browser warnings, `openssl` dates              |
-| RB-12 | [Deploy migration failure](RB-12-migration-failure.md)     | SEV-1    | `migrate` gate, journal state                  |
-| RB-13 | [5xx spike with error refs](RB-13-fivexx-spike.md)         | SEV-1/2  | `ApiHighErrorRate`, error-ref flood            |
-| RB-14 | [p95 latency blowout](RB-14-latency-blowout.md)            | SEV-2    | `ApiHighLatencyP95`, slow-query logs           |
-| RB-15 | [OOM / container restarts](RB-15-oom-restarts.md)          | SEV-1/2  | heap errors, restart loops                     |
-| RB-16 | [Realtime lag high](RB-16-realtime-lag.md)                 | SEV-2    | consumer lag metric, fan-out health            |
-| RB-17 | [File reconciliation errors](RB-17-file-reconciliation.md) | SEV-2    | `FileReconciliationErrors/Repairs`             |
-| RB-18 | [Notification delivery](RB-18-notification-delivery.md)    | SEV-2→1  | `NotificationDeliveryBacklog/DeadLetters`      |
-| RB-19 | [Privacy exports](RB-19-privacy-export.md)                 | SEV-2→1  | `PrivacyExportBacklog/Failures`                |
+| ID    | Runbook                                                    | Severity | Trigger                                                                      |
+| ----- | ---------------------------------------------------------- | -------- | ---------------------------------------------------------------------------- |
+| RB-01 | [API down / health failing](RB-01-api-down.md)             | SEV-1    | `ServiceDown`, `/health/live` vs `/ready`                                    |
+| RB-02 | [Postgres down / pool exhausted](RB-02-postgres-down.md)   | SEV-1/2  | `PostgresBufferHitRatioLow`, `pg_isready`                                    |
+| RB-03 | [Redis down (degraded mode)](RB-03-redis-down.md)          | SEV-2    | `RedisKeyspaceHitRatioLow`, client error                                     |
+| RB-04 | [Disk full](RB-04-disk-full.md)                            | SEV-1/2  | `PostgresDatabaseSizeHigh`, write failures                                   |
+| RB-05 | [Outbox lag / depth growing](RB-05-outbox-lag.md)          | SEV-2→1  | `OutboxPendingDepthHigh`, `OutboxEventLagHigh`                               |
+| RB-06 | [Dead letters appearing](RB-06-dead-letters.md)            | SEV-2→1  | `OutboxDeadLettersCreated`, realtime DLQ                                     |
+| RB-07 | [Queue stuck / stalled jobs](RB-07-queue-stuck.md)         | SEV-2    | worker errors, queue depth, delayed age                                      |
+| RB-08 | [Worker silent death](RB-08-worker-silent-death.md)        | SEV-2    | missing `worker:heartbeat:*` keys                                            |
+| RB-09 | [Uploads failing](RB-09-uploads-failing.md)                | SEV-2    | `StorageHighErrorRate`, `StorageHighLatencyP95`, `StorageCircuitBreakerOpen` |
+| RB-10 | [Emails not arriving](RB-10-emails-missing.md)             | SEV-2→1  | driver config, Mailpit, provider dashboard                                   |
+| RB-11 | [TLS / certificate expiry](RB-11-tls-expiry.md)            | SEV-1/3  | browser warnings, `openssl` dates                                            |
+| RB-12 | [Deploy migration failure](RB-12-migration-failure.md)     | SEV-1    | `migrate` gate, journal state                                                |
+| RB-13 | [5xx spike with error refs](RB-13-fivexx-spike.md)         | SEV-1/2  | `ApiHighErrorRate`, error-ref flood                                          |
+| RB-14 | [p95 latency blowout](RB-14-latency-blowout.md)            | SEV-2    | `ApiHighLatencyP95`, slow-query logs                                         |
+| RB-15 | [OOM / container restarts](RB-15-oom-restarts.md)          | SEV-1/2  | heap errors, restart loops                                                   |
+| RB-16 | [Realtime lag high](RB-16-realtime-lag.md)                 | SEV-2    | consumer lag metric, fan-out health                                          |
+| RB-17 | [File reconciliation errors](RB-17-file-reconciliation.md) | SEV-2    | `FileReconciliationErrors/Repairs`                                           |
+| RB-18 | [Notification delivery](RB-18-notification-delivery.md)    | SEV-2→1  | `NotificationDeliveryBacklog/DeadLetters`                                    |
+| RB-19 | [Privacy exports](RB-19-privacy-export.md)                 | SEV-2→1  | `PrivacyExportBacklog/Failures`                                              |
+| RB-20 | [MinIO cluster degraded](RB-20-minio-cluster-degraded.md)  | SEV-1/2  | `MinioNodeDown`, `MinioDiskOffline`, `MinioDiskSpaceCritical`                |
 
 ## Planned
 
