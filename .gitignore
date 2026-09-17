@@ -3,6 +3,7 @@ node_modules/
 .pnpm-store/
 .mimocode/
 .pkg-audit/
+.prettiercache
 
 # Build
 dist/
