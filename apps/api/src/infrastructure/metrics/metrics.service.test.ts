@@ -90,4 +90,37 @@ describe("MetricsService", () => {
       "Metric queue_depth was called with an incompatible label set",
     );
   });
+
+  it("should observe histogram with object payload when enableExemplars is true even without exemplarLabels", async () => {
+    const { register } = await import("prom-client");
+    const mockExemplarHistogram = {
+      observe: vi.fn(),
+      startTimer: vi.fn(),
+      enableExemplars: true,
+    };
+    vi.mocked(register.getSingleMetric).mockReturnValue(mockExemplarHistogram as never);
+
+    service.recordHistogram("http_request_duration_seconds", "Duration", 0.12, {
+      method: "GET",
+      route: "/api/health",
+    });
+
+    expect(mockExemplarHistogram.observe).toHaveBeenCalledWith({
+      labels: { method: "GET", route: "/api/health" },
+      value: 0.12,
+    });
+  });
+
+  it("should sanitize non-finite values when recording metrics", async () => {
+    const { register } = await import("prom-client");
+    const mockHistogram = {
+      observe: vi.fn(),
+      startTimer: vi.fn(),
+    };
+    vi.mocked(register.getSingleMetric).mockReturnValue(mockHistogram as never);
+
+    service.recordHistogram("bad_num_metric", "Bad", Number.NaN);
+
+    expect(mockHistogram.observe).toHaveBeenCalledWith(0);
+  });
 });

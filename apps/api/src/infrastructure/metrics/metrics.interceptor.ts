@@ -34,7 +34,18 @@ export class MetricsInterceptor implements NestInterceptor {
     let errorStatus: number | undefined;
     return next.handle().pipe(
       tap({ error: (error: unknown) => (errorStatus = this.getErrorStatus(error)) }),
-      finalize(() => this.recordMetrics(startTime, method, route, errorStatus ?? res.statusCode)),
+      finalize(() => {
+        try {
+          const resolvedStatus =
+            errorStatus ??
+            (typeof res.statusCode === "number" && Number.isFinite(res.statusCode)
+              ? res.statusCode
+              : 500);
+          this.recordMetrics(startTime, method, route, resolvedStatus);
+        } catch {
+          // Never allow metric telemetry to interrupt request finalization or socket unsubscription
+        }
+      }),
     );
   }
 

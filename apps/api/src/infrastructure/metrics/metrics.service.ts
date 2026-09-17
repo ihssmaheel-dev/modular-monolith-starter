@@ -13,8 +13,9 @@ export class MetricsService {
 
   incrementCounter(name: string, help: string, value = 1, labels?: Labels): void {
     const counter = this.getCounter(name, help, labels);
-    if (labels) counter.inc(labels, value);
-    else counter.inc(value);
+    const validValue = Number.isFinite(value) ? value : 1;
+    if (labels) counter.inc(labels, validValue);
+    else counter.inc(validValue);
   }
 
   recordHistogram(
@@ -26,12 +27,21 @@ export class MetricsService {
     exemplarLabels?: Record<string, string>,
   ): void {
     const histogram = this.getHistogram(name, help, labels, buckets);
-    if (exemplarLabels && Object.keys(exemplarLabels).length > 0) {
-      histogram.observe({ labels: labels ?? {}, value, exemplarLabels });
+    const validValue = Number.isFinite(value) ? value : 0;
+    const hasExemplars = Boolean((histogram as { enableExemplars?: boolean }).enableExemplars);
+
+    if (hasExemplars) {
+      histogram.observe({
+        labels: labels ?? {},
+        value: validValue,
+        ...(exemplarLabels && Object.keys(exemplarLabels).length > 0 ? { exemplarLabels } : {}),
+      });
+    } else if (exemplarLabels && Object.keys(exemplarLabels).length > 0) {
+      histogram.observe({ labels: labels ?? {}, value: validValue, exemplarLabels });
     } else if (labels) {
-      histogram.observe(labels, value);
+      histogram.observe(labels, validValue);
     } else {
-      histogram.observe(value);
+      histogram.observe(validValue);
     }
   }
 
@@ -42,26 +52,30 @@ export class MetricsService {
 
   setGauge(name: string, help: string, value: number, labels?: Labels): void {
     const gauge = this.getGauge(name, help, labels);
-    if (labels) gauge.set(labels, value);
-    else gauge.set(value);
+    const validValue = Number.isFinite(value) ? value : 0;
+    if (labels) gauge.set(labels, validValue);
+    else gauge.set(validValue);
   }
 
   incrementGauge(name: string, help: string, value = 1, labels?: Labels): void {
     const gauge = this.getGauge(name, help, labels);
-    if (labels) gauge.inc(labels, value);
-    else gauge.inc(value);
+    const validValue = Number.isFinite(value) ? value : 1;
+    if (labels) gauge.inc(labels, validValue);
+    else gauge.inc(validValue);
   }
 
   decrementGauge(name: string, help: string, value = 1, labels?: Labels): void {
     const gauge = this.getGauge(name, help, labels);
-    if (labels) gauge.dec(labels, value);
-    else gauge.dec(value);
+    const validValue = Number.isFinite(value) ? value : 1;
+    if (labels) gauge.dec(labels, validValue);
+    else gauge.dec(validValue);
   }
 
   recordSummary(name: string, help: string, value: number, labels?: Labels): void {
     const summary = this.getSummary(name, help, labels);
-    if (labels) summary.observe(labels, value);
-    else summary.observe(value);
+    const validValue = Number.isFinite(value) ? value : 0;
+    if (labels) summary.observe(labels, validValue);
+    else summary.observe(validValue);
   }
 
   private getCounter(name: string, help: string, labels?: Labels): Counter<string> {

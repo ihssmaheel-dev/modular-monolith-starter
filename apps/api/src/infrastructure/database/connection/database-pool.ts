@@ -5,13 +5,18 @@ import type { PinoLoggerService } from "../../logger/logger.service";
 import { databaseErrorMetadata } from "./database-error.utils";
 
 const SLOW_QUERY_MILLISECONDS = 100;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 10_000;
+const POOL_KEEP_ALIVE_INITIAL_DELAY_MS = 10_000;
 
 export function createDatabasePool(logger: PinoLoggerService): Pool {
   const pool = new Pool({
     connectionString: env.DATABASE_URL,
     max: env.DB_MAX_POOL_SIZE,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
+    idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
+    connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: POOL_KEEP_ALIVE_INITIAL_DELAY_MS,
     statement_timeout: env.DB_STATEMENT_TIMEOUT_MS,
     query_timeout: env.DB_STATEMENT_TIMEOUT_MS,
   });

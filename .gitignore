@@ -4,6 +4,8 @@ node_modules/
 .mimocode/
 .pkg-audit/
 .prettiercache
+.cache/
+apps/api/1/
 
 # Build
 dist/

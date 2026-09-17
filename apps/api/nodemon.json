@@ -11,6 +11,6 @@
   "ignore": ["**/*.map", "**/*.d.ts", "**/*.test.js", "**/*.spec.js"],
   "delay": 200,
   "env": {
-    "NODE_COMPILE_CACHE": "1"
+    "NODE_COMPILE_CACHE": "node_modules/.cache/compile-cache"
   }
 }
