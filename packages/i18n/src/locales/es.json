@@ -391,7 +391,13 @@
     "workspace": "Espacio de trabajo",
     "platform": "Plataforma",
     "comingSoon": "Próximamente",
-    "toggleSidebar": "Alternar barra lateral"
+    "toggleSidebar": "Alternar barra lateral",
+    "commandPalette": "Paleta de comandos",
+    "searchCommands": "Escribe un comando o busca...",
+    "actions": "Acciones",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "themeSystem": "Sistema"
   },
   "zod": {
     "errors": {

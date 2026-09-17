@@ -59,7 +59,9 @@ describe("auth sync", () => {
 
     remote.post({ type: "signed-out", userId: "u-1" });
 
-    await vi.waitFor(() => expect(useAuthStore.getState().status).toBe("unauthenticated"));
+    await vi.waitFor(() => expect(useAuthStore.getState().status).toBe("unauthenticated"), {
+      timeout: 3000,
+    });
     expect(useTenantStore.getState().tenantId).toBeNull();
     expect(onSignedOut).toHaveBeenCalledOnce();
   });

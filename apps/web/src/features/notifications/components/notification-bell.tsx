@@ -51,7 +51,7 @@ export function NotificationBell() {
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between px-1.5 py-1 text-xs font-medium text-muted-foreground">
           <span>{t("notifications.title")}</span>
-          {count > 0 && (
+          {(count > 0 || markAllRead.isPending) && (
             <button
               type="button"
               className="text-xs font-normal text-primary hover:underline disabled:opacity-50"

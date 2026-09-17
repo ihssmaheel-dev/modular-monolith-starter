@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, LogOut, Moon, Sun } from "lucide-react";
+import { ChevronRight, LogOut, Moon, Search, Sun } from "lucide-react";
 import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -22,6 +22,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { OrganizationSwitcher } from "@/features/tenancy/components/organization-switcher";
+import { CommandMenu } from "@/components/command-menu";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 import { getWebEnv } from "@/lib/env";
 
@@ -32,6 +33,7 @@ export function AppHeader() {
   const user = useAuthStore((state) => state.user);
   const { theme, setTheme } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const appName = getWebEnv().VITE_APP_NAME;
   const initials = user?.name?.slice(0, 2).toUpperCase() ?? "U";
 
@@ -76,6 +78,30 @@ export function AppHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCommandOpen(true)}
+          className="hidden h-8 w-44 items-center justify-between px-2 text-xs text-muted-foreground md:flex"
+          aria-label={t("navigation.commandPalette")}
+        >
+          <span className="flex items-center gap-1.5">
+            <Search className="size-3.5" />
+            <span>{t("common.search")}...</span>
+          </span>
+          <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground">
+            <span className="text-[10px]">⌘</span>K
+          </kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCommandOpen(true)}
+          className="size-8 md:hidden"
+          aria-label={t("navigation.commandPalette")}
+        >
+          <Search className="size-4" />
+        </Button>
         <OrganizationSwitcher />
         <NotificationBell />
         <Button
@@ -132,6 +158,7 @@ export function AppHeader() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
     </header>
   );
 }

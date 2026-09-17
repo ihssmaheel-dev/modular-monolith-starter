@@ -150,7 +150,13 @@
     "workspace": "Workspace",
     "platform": "Platform",
     "comingSoon": "Coming soon",
-    "toggleSidebar": "Toggle sidebar"
+    "toggleSidebar": "Toggle sidebar",
+    "commandPalette": "Command Palette",
+    "searchCommands": "Type a command or search...",
+    "actions": "Actions",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
   },
   "auth": {
     "welcomeBack": "Welcome back",

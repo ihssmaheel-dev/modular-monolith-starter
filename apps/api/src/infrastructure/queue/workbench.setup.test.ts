@@ -86,6 +86,7 @@ describe("setupWorkbench", () => {
     await setupWorkbench(mockApp);
 
     expect(loggerMock.debug).toHaveBeenCalledWith(
+      expect.anything(),
       expect.stringContaining("REDIS_URL not configured"),
     );
     expect(queueServiceMock.getQueue).not.toHaveBeenCalled();
@@ -98,6 +99,7 @@ describe("setupWorkbench", () => {
     await setupWorkbench(mockApp);
 
     expect(loggerMock.debug).toHaveBeenCalledWith(
+      expect.anything(),
       expect.stringContaining("disabled in production"),
     );
     expect(queueServiceMock.getQueue).not.toHaveBeenCalled();
@@ -109,6 +111,7 @@ describe("setupWorkbench", () => {
     await setupWorkbench(mockApp);
 
     expect(loggerMock.warn).toHaveBeenCalledWith(
+      expect.anything(),
       expect.stringContaining("no active queues found to monitor"),
     );
   });

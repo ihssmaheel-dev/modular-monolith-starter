@@ -8,6 +8,18 @@ vi.stubEnv("VITE_API_URL", "http://localhost:5156/api/v1");
 vi.stubEnv("VITE_APP_NAME", "Workspace");
 vi.stubEnv("VITE_EXAMPLE_FEATURES_ENABLED", "true");
 
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+if (typeof Element.prototype.scrollIntoView === "undefined") {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

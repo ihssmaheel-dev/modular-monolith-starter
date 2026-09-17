@@ -391,7 +391,13 @@
     "workspace": "Espace de travail",
     "platform": "Plateforme",
     "comingSoon": "Bientôt disponible",
-    "toggleSidebar": "Afficher ou réduire la barre latérale"
+    "toggleSidebar": "Afficher ou réduire la barre latérale",
+    "commandPalette": "Palette de commandes",
+    "searchCommands": "Tapez une commande ou recherchez...",
+    "actions": "Actions",
+    "themeLight": "Clair",
+    "themeDark": "Sombre",
+    "themeSystem": "Système"
   },
   "zod": {
     "errors": {

@@ -60,4 +60,24 @@ describe("notifications mutations", () => {
     expect(client.notifications.updatePreferences).toHaveBeenCalledWith({ preferences });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["notifications", "preferences"] });
   });
+
+  it("optimistically updates and rolls back markRead on failure", async () => {
+    client.notifications.markRead.mockRejectedValue(new Error("Server error"));
+    const { result, queryClient } = renderHookWithProviders(() => useMarkReadMutation());
+
+    queryClient.setQueryData(["notifications", "unread-count"], 5);
+    queryClient.setQueryData(["notifications", "list", { page: 1, limit: 20 }], {
+      items: [{ id: "n-1", readAt: null }],
+    });
+
+    await expect(result.current.mutateAsync("n-1")).rejects.toThrow("Server error");
+
+    expect(queryClient.getQueryData(["notifications", "unread-count"])).toBe(5);
+    const list = queryClient.getQueryData<{ items: Array<{ id: string; readAt: string | null }> }>([
+      "notifications",
+      "list",
+      { page: 1, limit: 20 },
+    ]);
+    expect(list?.items[0]?.readAt).toBeNull();
+  });
 });

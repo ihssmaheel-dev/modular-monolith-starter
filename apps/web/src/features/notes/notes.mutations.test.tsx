@@ -55,4 +55,28 @@ describe("notes mutations", () => {
 
     expect(spy).toHaveBeenCalledWith({ queryKey: ["notes"] });
   });
+
+  it("optimistically removes note and rolls back on failure", async () => {
+    const initialList = {
+      items: [
+        { id: "n-1", title: "Note 1" },
+        { id: "n-2", title: "Note 2" },
+      ],
+      total: 2,
+    };
+    client.notes.remove.mockRejectedValue(new Error("Network failure"));
+    const { result, queryClient } = renderHookWithProviders(() => useDeleteNoteMutation());
+
+    queryClient.setQueryData(["notes", null], initialList);
+
+    await expect(result.current.mutateAsync("n-1")).rejects.toThrow("Network failure");
+
+    // After failure and rollback, previous cache data is restored
+    const restored = queryClient.getQueryData<{ items: Array<{ id: string }>; total: number }>([
+      "notes",
+      null,
+    ]);
+    expect(restored?.items).toHaveLength(2);
+    expect(restored?.items.some((item) => item.id === "n-1")).toBe(true);
+  });
 });
