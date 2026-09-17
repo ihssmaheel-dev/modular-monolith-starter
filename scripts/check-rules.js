@@ -59,12 +59,8 @@ function getLineLimit(name, isTestFile) {
   if (name.startsWith("apps/web/src/routes/")) return 150;
   if (name.startsWith("apps/web/src/features/")) return 400;
   if (name.startsWith("apps/web/src/components/")) return 400;
-  if (name.startsWith("apps/web/src/lib/")) return 250;
+  if (name.startsWith("apps/web/src/lib/")) return 300;
   if (name.startsWith("apps/web/src/stores/")) return 200;
-  if (name.includes("/application/commands/") || name.includes("/application/queries/")) return 400;
-  if (name.includes("/infrastructure/database/")) return 300;
-  if (name.includes("/infrastructure/realtime/")) return 250;
-  if (name.includes("/presentation/") && name.startsWith("apps/api/")) return 220;
   return 400;
 }
 

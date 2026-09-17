@@ -93,17 +93,23 @@ export class DatabaseService implements OnApplicationShutdown {
   async withResultTransaction<T, E>(
     fn: () => Promise<Result<T, E>>,
   ): Promise<Result<T, E | TransactionError>> {
-    if (this.getTx()) return this.scopes.withSavepointResult(fn);
+    if (this.getTx()) {
+      return this.scopes.withSavepointResult(fn);
+    }
+
     try {
       const result = await this.openTransaction(async () => {
         const inner = await fn();
-        if (inner.isErr()) throw inner.error;
+        if (inner.isErr()) {
+          throw inner.error;
+        }
         return inner.value;
       });
       return ok(result as T);
     } catch (error) {
       if (error && typeof error === "object" && "type" in (error as Record<string, unknown>)) {
-        return err(error as E);
+        const typed = error as E;
+        return err(typed);
       }
       this.logger.error(databaseErrorMetadata(error), "Transaction failed");
       return err({ type: "TRANSACTION_FAILED" } as TransactionError);
@@ -111,7 +117,9 @@ export class DatabaseService implements OnApplicationShutdown {
   }
 
   async runTransaction<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.getTx()) return this.scopes.withSavepoint(fn);
+    if (this.getTx()) {
+      return this.scopes.withSavepoint(fn);
+    }
     return this.openTransaction(fn);
   }
 
@@ -124,7 +132,7 @@ export class DatabaseService implements OnApplicationShutdown {
 
   async withTenantScope<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
     if (this.getTx()) {
-      const prev =
+      const previous =
         this.cls?.isActive() && typeof this.cls.get("tenantId") === "string"
           ? (this.cls.get("tenantId") as string)
           : "";
@@ -132,12 +140,14 @@ export class DatabaseService implements OnApplicationShutdown {
       try {
         return await fn();
       } finally {
-        await this.setTenantContext(prev);
+        await this.setTenantContext(previous);
       }
     }
     if (!this.cls) return fn();
     const current = (this.cls.isActive() ? this.cls.get() : {}) as Record<string, unknown>;
-    return this.cls.runWith({ ...current, tenantId } as never, () => this.runTransaction(fn));
+    return this.cls.runWith({ ...current, tenantId } as unknown as Record<string, unknown>, () =>
+      this.runTransaction(fn),
+    );
   }
 
   /** Elevates one internal operation and opens a transaction when none is active. */
@@ -146,15 +156,22 @@ export class DatabaseService implements OnApplicationShutdown {
     const current = (this.cls.isActive() ? this.cls.get() : {}) as Record<string, unknown>;
     const previousSystemScope = current.systemScope === true;
     const tx = this.getTx();
-    return this.cls.runWith({ ...current, systemScope: true } as never, async () => {
-      if (!tx) return this.runTransaction(fn);
-      await setTransactionConfig(tx, "app.system_scope", "true");
-      try {
-        return await fn();
-      } finally {
-        await setTransactionConfig(tx, "app.system_scope", previousSystemScope ? "true" : "false");
-      }
-    });
+    return this.cls.runWith(
+      { ...current, systemScope: true } as unknown as Parameters<typeof this.cls.runWith>[0],
+      async () => {
+        if (!tx) return this.runTransaction(fn);
+        await setTransactionConfig(tx, "app.system_scope", "true");
+        try {
+          return await fn();
+        } finally {
+          await setTransactionConfig(
+            tx,
+            "app.system_scope",
+            previousSystemScope ? "true" : "false",
+          );
+        }
+      },
+    );
   }
 
   getTx(): DrizzleDb | undefined {
@@ -198,7 +215,10 @@ export class DatabaseService implements OnApplicationShutdown {
         this.logger.error({ error: String(error), operation }, "Post-commit operation failed");
       }
     };
-    if (!this.cls?.isActive() || !this.getTx()) return run();
+    if (!this.cls?.isActive() || !this.getTx()) {
+      await run();
+      return;
+    }
     const pending = (this.cls.get("afterCommit") as Array<() => Promise<void>> | undefined) ?? [];
     pending.push(run);
     this.cls.set("afterCommit", pending);
@@ -252,7 +272,12 @@ export class DatabaseService implements OnApplicationShutdown {
 
   /**
    * Runs a critical scheduled task exclusively across clustered worker instances.
-   * Checks out a dedicated client from the pool with a session advisory lock.
+   * Checks out a dedicated client from the pool and attempts to acquire a session-level
+   * advisory lock without holding an open transaction snapshot.
+   *
+   * This allows long-running jobs (e.g. S3 deletion, batch processing) to execute their own
+   * short, isolated transactions without blocking autovacuum or tying up transaction snapshots.
+   * If another replica is already executing the task, skips execution cleanly.
    */
   async withExclusiveExecution<T>(
     key: string,
@@ -266,8 +291,12 @@ export class DatabaseService implements OnApplicationShutdown {
         [ADVISORY_LOCK_NAMESPACE, key],
       );
       acquired = Boolean(check.rows[0]?.acquired);
-      if (!acquired) return { executed: false };
-      return { executed: true, result: await fn() };
+      if (!acquired) {
+        return { executed: false };
+      }
+
+      const result = await fn();
+      return { executed: true, result };
     } finally {
       if (acquired) {
         try {
@@ -276,7 +305,10 @@ export class DatabaseService implements OnApplicationShutdown {
             key,
           ]);
         } catch (unlockError) {
-          this.logger.warn({ error: String(unlockError), key }, "Failed to release session lock");
+          this.logger.warn(
+            { error: String(unlockError), key },
+            "Failed to release session advisory lock",
+          );
         }
       }
       client.release();
