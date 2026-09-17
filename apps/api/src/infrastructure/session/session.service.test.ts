@@ -214,4 +214,39 @@ describe("SessionService", () => {
     const [, , , , ttl] = mockEval.mock.calls[0]!;
     expect(ttl).toBe(String(7 * 24 * 60 * 60));
   });
+
+  it("embeds self-healing check in CREATE_SESSION_SCRIPT for non-zset keys", async () => {
+    mockSetex.mockResolvedValue("OK");
+
+    await service.create({
+      userId: "user1",
+      ip: "127.0.0.1",
+      userAgent: "Mozilla/5.0",
+      deviceName: "Chrome",
+    });
+
+    const [script] = mockEval.mock.calls[0]!;
+    expect(script).toContain("redis.call('TYPE', KEYS[2])['ok']");
+    expect(script).toContain("if keyType ~= 'zset' and keyType ~= 'none'");
+    expect(script).toContain("redis.call('DEL', KEYS[2])");
+  });
+
+  it("handles WRONGTYPE error gracefully in getActiveSessions and clears index", async () => {
+    mockZrange.mockRejectedValue(
+      new Error("WRONGTYPE Operation against a key holding the wrong kind of value"),
+    );
+
+    const sessions = await service.getActiveSessions("user1");
+    expect(sessions).toEqual([]);
+    expect(mockDel).toHaveBeenCalledWith("user:user1:sessions");
+  });
+
+  it("handles WRONGTYPE error gracefully in revokeAllForUser and clears index", async () => {
+    mockZrange.mockRejectedValue(
+      new Error("WRONGTYPE Operation against a key holding the wrong kind of value"),
+    );
+
+    await expect(service.revokeAllForUser("user1")).resolves.not.toThrow();
+    expect(mockDel).toHaveBeenCalledWith("user:user1:sessions");
+  });
 });

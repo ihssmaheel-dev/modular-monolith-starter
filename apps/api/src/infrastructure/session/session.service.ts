@@ -26,6 +26,10 @@ const USER_SESSION_SUFFIX = ":sessions";
 const MAX_ACTIVE_SESSIONS = 20;
 
 const CREATE_SESSION_SCRIPT = `
+  local keyType = redis.call('TYPE', KEYS[2])['ok']
+  if keyType ~= 'zset' and keyType ~= 'none' then
+    redis.call('DEL', KEYS[2])
+  end
   redis.call('SETEX', KEYS[1], ARGV[1], ARGV[2])
   redis.call('ZADD', KEYS[2], ARGV[3], ARGV[4])
   redis.call('EXPIRE', KEYS[2], ARGV[1])
@@ -180,7 +184,11 @@ export class SessionService {
     if (!session) return;
 
     await client.del(sessionKey(sessionId));
-    await client.zrem(userSessionsKey(session.userId), sessionId);
+    try {
+      await client.zrem(userSessionsKey(session.userId), sessionId);
+    } catch {
+      // Best-effort index cleanup; resilient against legacy index key shapes
+    }
     await client.setex(tokenRevocationKey(sessionId), TOKEN_REVOCATION_TTL_SECONDS, "1");
 
     this.logger.info({ sessionId, userId: session.userId }, "Session revoked");
@@ -190,7 +198,18 @@ export class SessionService {
     const client = this.redis.getClient();
     if (!client) return;
 
-    const sessionIds = await client.zrange(userSessionsKey(userId), "0", "-1");
+    const indexKey = userSessionsKey(userId);
+    let sessionIds: string[] = [];
+    try {
+      sessionIds = await client.zrange(indexKey, "0", "-1");
+    } catch (error) {
+      this.logger.warn(
+        { userId, error },
+        "Failed to read user sessions index during revokeAllForUser",
+      );
+      await client.del(indexKey).catch(() => {});
+      return;
+    }
 
     if (sessionIds.length > 0) {
       const pipeline = client.pipeline();
@@ -201,7 +220,7 @@ export class SessionService {
       await pipeline.exec();
     }
 
-    await client.del(userSessionsKey(userId));
+    await client.del(indexKey);
     this.logger.info({ userId, count: sessionIds.length }, "All sessions revoked for user");
   }
 
@@ -210,14 +229,27 @@ export class SessionService {
     if (!client) return [];
 
     const indexKey = userSessionsKey(userId);
-    const sessionIds = await client.zrange(indexKey, "0", String(MAX_ACTIVE_SESSIONS - 1));
+    let sessionIds: string[];
+    try {
+      sessionIds = await client.zrange(indexKey, "0", String(MAX_ACTIVE_SESSIONS - 1));
+    } catch (error) {
+      this.logger.warn({ userId, error }, "Corrupt user sessions index detected; clearing index");
+      await client.del(indexKey).catch(() => {});
+      return [];
+    }
     if (sessionIds.length === 0) return [];
 
     const keys = sessionIds.map((sid) => sessionKey(sid));
     const rawSessions = await client.mget(keys);
 
     const missing = sessionIds.filter((_, index) => rawSessions[index] === null);
-    if (missing.length > 0) await client.zrem(indexKey, ...missing);
+    if (missing.length > 0) {
+      try {
+        await client.zrem(indexKey, ...missing);
+      } catch {
+        // Best-effort index cleanup
+      }
+    }
     return rawSessions.flatMap((raw) => {
       if (!raw) return [];
       try {
