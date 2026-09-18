@@ -85,6 +85,19 @@ describe("ConfirmUploadCommand", () => {
     expect(filesRepo.updateById).not.toHaveBeenCalled();
   });
 
+  it("reports storage failure separately from invalid uploaded metadata", async () => {
+    const file = createFile();
+    vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
+    vi.mocked(storage.getMetadata).mockResolvedValue(
+      err({ code: "NOT_FOUND", message: "api.error.notFound" }),
+    );
+
+    const result = await command.execute(file.key, ACTOR);
+
+    expect(result.isErr() && result.error.type).toBe("STORAGE_UNAVAILABLE");
+    expect(filesRepo.updateById).not.toHaveBeenCalled();
+  });
+
   it("should update status to uploaded on success", async () => {
     const file: FileEntity = {
       id: "file-1",

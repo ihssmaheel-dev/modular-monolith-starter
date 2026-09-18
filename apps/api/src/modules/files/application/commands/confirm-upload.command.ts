@@ -51,7 +51,10 @@ export class ConfirmUploadCommand {
     // Validate the quarantine object the browser actually uploaded, not the
     // final key (which must not exist before the scan worker promotes it).
     const metadata = await this.storage.getMetadata(quarantineKeyFor(file.key));
-    if (metadata.isErr() || !this.matches(file, metadata.value)) {
+    if (metadata.isErr()) {
+      return err({ type: "STORAGE_UNAVAILABLE", message: "api.error.serviceUnavailable" });
+    }
+    if (!this.matches(file, metadata.value)) {
       return err({ type: "METADATA_MISMATCH", message: "api.file.metadataMismatch" });
     }
 

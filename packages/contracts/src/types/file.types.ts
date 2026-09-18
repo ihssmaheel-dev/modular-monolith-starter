@@ -16,6 +16,7 @@ export interface FileRecord {
 }
 
 export type FileErrorType =
+  | { type: "STORAGE_UNAVAILABLE"; message: string }
   | { type: "FILE_NOT_FOUND"; message: string }
   | { type: "PRESIGN_FAILED"; message: string }
   | { type: "UPLOAD_FAILED"; message: string }

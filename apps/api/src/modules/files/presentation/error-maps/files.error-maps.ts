@@ -27,6 +27,10 @@ export const REQUEST_UPLOAD_ERRORS: ErrorMap = {
 
 export const CONFIRM_UPLOAD_ERRORS: ErrorMap = {
   ...FILE_NOT_FOUND_ERRORS,
+  STORAGE_UNAVAILABLE: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    i18nKey: "api.error.serviceUnavailable",
+  },
   UPLOAD_FAILED: {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     i18nKey: "api.error.uploadFailed",
