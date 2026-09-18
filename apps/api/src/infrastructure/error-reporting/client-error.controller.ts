@@ -3,6 +3,7 @@ import { NoDatabaseTransaction, Public, RateLimit, TenantAgnostic } from "../../
 import { ZodValidationPipe } from "../../common/pipes/validation.pipe";
 import { PinoLoggerService } from "../logger/logger.service";
 import { ClientErrorBeaconSchema, type ClientErrorBeacon } from "@repo/contracts";
+import { sanitizeClientUrl, sanitizeErrorText } from "./sanitize-telemetry";
 
 // Client telemetry controller for browser runtime errors
 
@@ -23,16 +24,21 @@ export class ClientErrorController {
   reportClientError(
     @Body(new ZodValidationPipe(ClientErrorBeaconSchema)) payload: ClientErrorBeacon,
   ): void {
+    const sanitizedUrl = sanitizeClientUrl(payload.url);
+    const sanitizedMessage = sanitizeErrorText(payload.message, 1_000) ?? "Unknown error";
+    const sanitizedStack = sanitizeErrorText(payload.stack, 4_000);
+    const sanitizedComponentStack = sanitizeErrorText(payload.componentStack, 4_000);
+
     this.logger.warn(
       {
         source: "client-browser",
         errorRef: payload.errorRef,
-        clientUrl: payload.url,
+        clientUrl: sanitizedUrl,
         userAgent: payload.userAgent,
-        stack: payload.stack,
-        componentStack: payload.componentStack,
+        stack: sanitizedStack,
+        componentStack: sanitizedComponentStack,
       },
-      `Client-side runtime error: ${payload.message}`,
+      `Client-side runtime error: ${sanitizedMessage}`,
     );
   }
 }

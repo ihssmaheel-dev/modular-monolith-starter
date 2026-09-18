@@ -167,6 +167,14 @@ async function bootstrap() {
   app
     .getHttpAdapter()
     .getInstance()
+    .addHook("onRequest", (request, _reply, done) => {
+      (request.raw as { __startTime?: [number, number] }).__startTime = process.hrtime();
+      done();
+    });
+
+  app
+    .getHttpAdapter()
+    .getInstance()
     .addHook("onResponse", (request, reply, done) => {
       if (!(request as { telemetryRecorded?: boolean }).telemetryRecorded) {
         try {
@@ -175,11 +183,26 @@ async function bootstrap() {
             const method = request.method;
             const route = request.routeOptions?.url ?? "unmatched_route";
             const statusCode = reply.statusCode;
+            const labels = { method, route, status_code: statusCode };
+
+            const startTime = (request.raw as { __startTime?: [number, number] }).__startTime;
+            if (startTime) {
+              const diff = process.hrtime(startTime);
+              const durationInSeconds = diff[0] + diff[1] / 1e9;
+              metricsService.recordHistogram(
+                "http_request_duration_seconds",
+                "Duration of HTTP requests in seconds",
+                durationInSeconds,
+                labels,
+                [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+              );
+            }
+
             metricsService.incrementCounter(
               "http_requests_total",
               "Total number of HTTP requests",
               1,
-              { method, route, status_code: statusCode },
+              labels,
             );
           }
         } catch {

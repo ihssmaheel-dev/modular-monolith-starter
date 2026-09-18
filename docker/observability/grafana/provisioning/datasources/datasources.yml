@@ -59,8 +59,6 @@ datasources:
             query: 'histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~"$${__span.tags.http.route:-.*}"}[1m])) by (le))'
           - name: "5xx Error Rate"
             query: 'sum(rate(http_requests_total{status_code=~"5..",route=~"$${__span.tags.http.route:-.*}"}[1m]))'
-      serviceMap:
-        datasourceUid: Prometheus
       search:
         hide: false
       nodeGraph:

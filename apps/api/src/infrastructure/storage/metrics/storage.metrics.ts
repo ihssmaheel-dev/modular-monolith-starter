@@ -47,71 +47,103 @@ export class StorageMetricsRecorder {
     private readonly provider: string,
   ) {}
 
+  private safe(action: () => void): void {
+    try {
+      action();
+    } catch {
+      // Telemetry failures must never disrupt storage operations
+    }
+  }
+
   recordOperation(operation: StorageOperation, status: "success" | "error"): void {
-    this.metrics.incrementCounter(
-      "storage_operations_total",
-      "Total number of storage operations",
-      1,
-      { operation, provider: this.provider, status },
+    this.safe(() =>
+      this.metrics.incrementCounter(
+        "storage_operations_total",
+        "Total number of storage operations",
+        1,
+        { operation, provider: this.provider, status },
+      ),
     );
   }
 
   recordDuration(operation: StorageOperation, durationSeconds: number): void {
-    this.metrics.recordHistogram(
-      "storage_operation_duration_seconds",
-      "Duration of storage operations in seconds",
-      durationSeconds,
-      { operation, provider: this.provider },
-      STORAGE_DURATION_BUCKETS,
+    this.safe(() =>
+      this.metrics.recordHistogram(
+        "storage_operation_duration_seconds",
+        "Duration of storage operations in seconds",
+        durationSeconds,
+        { operation, provider: this.provider },
+        STORAGE_DURATION_BUCKETS,
+      ),
     );
   }
 
   recordBytesTransferred(direction: "in" | "out", bytes: number): void {
     if (bytes <= 0) return;
-    this.metrics.incrementCounter(
-      "storage_bytes_transferred_total",
-      "Total bytes transferred via storage operations",
-      bytes,
-      { direction, provider: this.provider },
+    this.safe(() =>
+      this.metrics.incrementCounter(
+        "storage_bytes_transferred_total",
+        "Total bytes transferred via storage operations",
+        bytes,
+        { direction, provider: this.provider },
+      ),
     );
   }
 
   recordError(operation: StorageOperation, errorCode?: string): void {
-    const code = normalizeStorageErrorCode(errorCode);
-    this.metrics.incrementCounter("storage_errors_total", "Total number of storage errors", 1, {
-      error_code: code,
-      operation,
-      provider: this.provider,
+    this.safe(() => {
+      const code = normalizeStorageErrorCode(errorCode);
+      this.metrics.incrementCounter("storage_errors_total", "Total number of storage errors", 1, {
+        error_code: code,
+        operation,
+        provider: this.provider,
+      });
     });
   }
 
   recordCircuitBreakerState(state: "CLOSED" | "HALF_OPEN" | "OPEN"): void {
-    const val = state === "CLOSED" ? 0 : state === "HALF_OPEN" ? 1 : 2;
-    this.metrics.setGauge(
-      "circuit_breaker_state",
-      "Circuit breaker state (0=closed, 1=half, 2=open)",
-      val,
-      { name: "storage" },
-    );
-    if (state === "OPEN") {
-      this.metrics.incrementCounter(
-        "circuit_breaker_trips_total",
-        "Total circuit breaker trips",
-        1,
+    this.safe(() => {
+      const val = state === "CLOSED" ? 0 : state === "HALF_OPEN" ? 1 : 2;
+      this.metrics.setGauge(
+        "circuit_breaker_state",
+        "Circuit breaker state (0=closed, 1=half, 2=open)",
+        val,
         { name: "storage" },
       );
-    }
+      if (state === "OPEN") {
+        this.metrics.incrementCounter(
+          "circuit_breaker_trips_total",
+          "Total circuit breaker trips",
+          1,
+          { name: "storage" },
+        );
+      }
+    });
   }
 
   incrementBulkhead(): void {
-    this.metrics.incrementGauge("bulkhead_inflight", "Current in-flight requests in bulkhead", 1, {
-      name: "storage",
-    });
+    this.safe(() =>
+      this.metrics.incrementGauge(
+        "bulkhead_inflight",
+        "Current in-flight requests in bulkhead",
+        1,
+        {
+          name: "storage",
+        },
+      ),
+    );
   }
 
   decrementBulkhead(): void {
-    this.metrics.decrementGauge("bulkhead_inflight", "Current in-flight requests in bulkhead", 1, {
-      name: "storage",
-    });
+    this.safe(() =>
+      this.metrics.decrementGauge(
+        "bulkhead_inflight",
+        "Current in-flight requests in bulkhead",
+        1,
+        {
+          name: "storage",
+        },
+      ),
+    );
   }
 }

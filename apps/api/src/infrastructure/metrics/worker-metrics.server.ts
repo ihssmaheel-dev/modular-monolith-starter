@@ -24,9 +24,14 @@ export class WorkerMetricsServer implements OnModuleInit, OnApplicationShutdown 
 
   async onModuleInit(): Promise<void> {
     if (env.PROCESS_ROLE !== "worker") return;
-    this.server = createServer(
-      (request, response) => void this.handle(request.url, request.headers, response),
-    );
+    this.server = createServer((request, response) => {
+      this.handle(request.url, request.headers, response).catch((error) => {
+        this.logger.error({ err: error }, "Worker metrics request failed");
+        if (!response.headersSent) {
+          this.respond(response, 500, "internal error\n");
+        }
+      });
+    });
     await new Promise<void>((resolve, reject) => {
       this.server?.once("error", reject);
       this.server?.listen(env.WORKER_METRICS_PORT, "0.0.0.0", resolve);
@@ -47,17 +52,21 @@ export class WorkerMetricsServer implements OnModuleInit, OnApplicationShutdown 
     if (url === "/health/live") return this.respond(response, 200, "ok\n");
     if (url === "/health/ready") return this.respondReadiness(response);
     if (url !== METRICS_PATH) return this.respond(response, 404, "not found\n");
-    if (!this.isAuthorized(headers.authorization))
+    if (!this.isAuthorized(headers.authorization)) {
       return this.respond(response, 401, "unauthorized\n");
+    }
+    const metrics = await register.metrics();
     response.writeHead(200, { "Content-Type": register.contentType });
-    response.end(await register.metrics());
+    response.end(metrics);
   }
 
   private isAuthorized(header: string | string[] | undefined): boolean {
     if (!env.METRICS_TOKEN) return env.NODE_ENV !== "production";
     const provided = typeof header === "string" ? header.replace(/^Bearer\s+/i, "") : "";
-    if (provided.length !== env.METRICS_TOKEN.length) return false;
-    return timingSafeEqual(Buffer.from(provided), Buffer.from(env.METRICS_TOKEN));
+    const providedBuf = Buffer.from(provided);
+    const expectedBuf = Buffer.from(env.METRICS_TOKEN);
+    if (providedBuf.byteLength !== expectedBuf.byteLength) return false;
+    return timingSafeEqual(providedBuf, expectedBuf);
   }
 
   private async respondReadiness(response: ServerResponse): Promise<void> {

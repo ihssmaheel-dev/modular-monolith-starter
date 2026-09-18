@@ -19,7 +19,8 @@ export class MetricsInterceptor implements NestInterceptor {
     // to prevent high-cardinality explosion in Prometheus from raw URLs with parameter values.
     const route = req.routeOptions?.url ?? "unmatched_route";
 
-    const startTime = process.hrtime();
+    const startTime =
+      (req.raw as { __startTime?: [number, number] } | undefined)?.__startTime ?? process.hrtime();
 
     let gaugeIncremented = false;
     try {

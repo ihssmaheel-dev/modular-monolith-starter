@@ -18,48 +18,30 @@ vi.mock("./api", () => ({
 }));
 
 describe("client-beacon", () => {
-  const originalSendBeacon = navigator.sendBeacon;
-
   beforeEach(() => {
     clearReportedErrors();
     reportClientErrorMock.mockClear();
   });
 
   afterEach(() => {
-    navigator.sendBeacon = originalSendBeacon;
     vi.restoreAllMocks();
   });
 
-  it("dispatches error via sendBeacon when available", () => {
-    const sendBeaconMock = vi.fn().mockReturnValue(true);
-    navigator.sendBeacon = sendBeaconMock;
-
+  it("dispatches error via apiClient with keepalive option", () => {
     reportClientError({
       message: "Test render crash",
       url: "/notes",
       errorRef: "c-test1",
     });
 
-    expect(sendBeaconMock).toHaveBeenCalled();
-    const [endpoint] = sendBeaconMock.mock.calls[0];
-    expect(endpoint).toContain("/telemetry/client-error");
-  });
-
-  it("falls back to apiClient if sendBeacon returns false", () => {
-    navigator.sendBeacon = vi.fn().mockReturnValue(false);
-
-    reportClientError({
-      message: "Fallback test crash",
-      url: "/notes",
-      errorRef: "c-test2",
-    });
-
+    expect(reportClientErrorMock).toHaveBeenCalledTimes(1);
     expect(reportClientErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "Fallback test crash",
+        message: "Test render crash",
         url: "/notes",
-        errorRef: "c-test2",
+        errorRef: "c-test1",
       }),
+      { keepalive: true },
     );
   });
 
@@ -77,19 +59,14 @@ describe("client-beacon", () => {
   });
 
   it("deduplicates identical errors and does not resend", () => {
-    const sendBeaconMock = vi.fn().mockReturnValue(true);
-    navigator.sendBeacon = sendBeaconMock;
-
     reportClientError({ message: "Duplicate error", url: "/notes" });
     reportClientError({ message: "Duplicate error", url: "/notes" });
 
-    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+    expect(reportClientErrorMock).toHaveBeenCalledTimes(1);
     expect(getReportedErrorsCount()).toBe(1);
   });
 
   it("caps reportedErrors set at MAX_REPORTED_ERRORS to prevent memory leak", () => {
-    navigator.sendBeacon = vi.fn().mockReturnValue(true);
-
     for (let i = 0; i < MAX_REPORTED_ERRORS + 20; i++) {
       reportClientError({
         message: `Error ${i}`,

@@ -6,6 +6,7 @@ import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
 import { MetricsService } from "../metrics/metrics.service";
 import type { ErrorReport, ErrorReportContext, ErrorReporter } from "./error-reporter";
+import { sanitizeErrorText } from "./sanitize-telemetry";
 
 const REPORT_TIMEOUT_MS = 3_000;
 const MAX_ERROR_MESSAGE_LENGTH = 1_000;
@@ -106,15 +107,6 @@ function errorDetails(exception: unknown): ErrorReport["error"] {
   }
   return {
     name: "UnknownError",
-    message: sanitizeErrorText(String(exception), MAX_ERROR_MESSAGE_LENGTH),
+    message: sanitizeErrorText(String(exception), MAX_ERROR_MESSAGE_LENGTH) ?? "UnknownError",
   };
-}
-
-function sanitizeErrorText(value: string, maxLength: number): string {
-  return value
-    .slice(0, maxLength)
-    .replace(/Bearer\s+[A-Za-z0-9._~+\-/]+=*/gi, "Bearer [REDACTED]")
-    .replace(/((?:password|passwd|secret|token|api[_-]?key)\s*[=:]\s*)[^\s,;]+/gi, "$1[REDACTED]")
-    .replace(/(?:postgres(?:ql)?|redis(?:s)?):\/\/[^\s]+/gi, "[REDACTED_CONNECTION_URL]")
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]");
 }

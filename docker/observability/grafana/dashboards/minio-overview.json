@@ -79,7 +79,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "minio_cluster_nodes_online_total or vector(0)",
+          "expr": "minio_cluster_nodes_online_total",
           "legendFormat": "Nodes Online",
           "refId": "A"
         }
@@ -114,7 +114,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "minio_cluster_nodes_offline_total or vector(0)",
+          "expr": "minio_cluster_nodes_offline_total",
           "legendFormat": "Nodes Offline",
           "refId": "A"
         }
@@ -149,7 +149,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "minio_cluster_drives_online_total or vector(0)",
+          "expr": "minio_cluster_drives_online_total",
           "legendFormat": "Drives Online",
           "refId": "A"
         }
@@ -184,7 +184,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "minio_cluster_drives_offline_total or vector(0)",
+          "expr": "minio_cluster_drives_offline_total",
           "legendFormat": "Drives Offline",
           "refId": "A"
         }
@@ -227,7 +227,7 @@
       "type": "gauge",
       "targets": [
         {
-          "expr": "((minio_cluster_capacity_usable_total_bytes - minio_cluster_capacity_usable_free_bytes) / (minio_cluster_capacity_usable_total_bytes > 0)) * 100 or vector(0)",
+          "expr": "((minio_cluster_capacity_usable_total_bytes - minio_cluster_capacity_usable_free_bytes) / (minio_cluster_capacity_usable_total_bytes > 0)) * 100",
           "legendFormat": "Disk Usage %",
           "refId": "A"
         }
@@ -255,7 +255,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "minio_cluster_capacity_usable_free_bytes or vector(0)",
+          "expr": "minio_cluster_capacity_usable_free_bytes",
           "legendFormat": "Free Space",
           "refId": "A"
         }
@@ -283,7 +283,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "minio_cluster_capacity_usable_total_bytes or vector(0)",
+          "expr": "minio_cluster_capacity_usable_total_bytes",
           "legendFormat": "Total Space",
           "refId": "A"
         }

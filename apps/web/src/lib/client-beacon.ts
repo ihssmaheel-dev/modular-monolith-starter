@@ -1,4 +1,3 @@
-import { getWebEnv } from "./env";
 import { getApiClient } from "./api";
 import type { ClientErrorBeacon } from "@repo/contracts";
 
@@ -32,16 +31,8 @@ export function reportClientError(beacon: ClientErrorBeacon): void {
   };
 
   try {
-    if (navigator.sendBeacon) {
-      const env = getWebEnv();
-      const endpoint = `${env.VITE_API_URL}/telemetry/client-error`;
-      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-      const sent = navigator.sendBeacon(endpoint, blob);
-      if (sent) return;
-    }
-
     void getApiClient()
-      .telemetry.reportClientError(payload)
+      .telemetry.reportClientError(payload, { keepalive: true })
       .catch(() => {});
   } catch {
     // Suppress telemetry transport failures to ensure user flow is unaffected

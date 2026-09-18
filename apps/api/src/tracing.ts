@@ -16,7 +16,7 @@ const traceExporter = env.OTEL_EXPORTER_OTLP_ENDPOINT
   : undefined;
 
 export const otelSDK = new NodeSDK({
-  serviceName: `app-${env.PROCESS_ROLE}`,
+  serviceName: process.env.OTEL_SERVICE_NAME || (env.PROCESS_ROLE === "worker" ? "worker" : "api"),
   sampler: new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(
       env.NODE_ENV === "production" ? env.OTEL_TRACE_SAMPLE_RATIO : 1.0,

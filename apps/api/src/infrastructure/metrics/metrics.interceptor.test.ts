@@ -174,4 +174,27 @@ describe("MetricsInterceptor", () => {
 
     expect(req.telemetryRecorded).toBe(true);
   });
+
+  it("uses req.raw.__startTime when present on Fastify raw request", async () => {
+    const { context } = createMockContext(200);
+    const req = context.switchToHttp().getRequest() as { raw?: { __startTime?: [number, number] } };
+    // Set timestamp from 50ms ago
+    const pastTime: [number, number] = [process.hrtime()[0] - 1, 0];
+    req.raw = { __startTime: pastTime };
+
+    const handler: CallHandler = {
+      handle: () => of({ ok: true }),
+    };
+
+    await new Promise<void>((resolve) => {
+      interceptor.intercept(context, handler).subscribe({
+        complete: () => resolve(),
+      });
+    });
+
+    expect(metricsService.recordHistogram).toHaveBeenCalled();
+    const calls = vi.mocked(metricsService.recordHistogram).mock.calls;
+    const durationArg = calls[0]?.[2] as number;
+    expect(durationArg).toBeGreaterThanOrEqual(1.0);
+  });
 });

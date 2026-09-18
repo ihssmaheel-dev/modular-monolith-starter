@@ -166,6 +166,15 @@ groups:
           summary: PostgreSQL connections are nearing the configured limit
           description: "PostgreSQL active connections are above 80% of max_connections."
 
+      - alert: PostgresClientPoolSaturation
+        expr: sum(postgres_pool_waiting_clients) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Application PostgreSQL connection pool has waiting clients
+          description: "Database queries are queuing for connection pool availability for over 2 minutes."
+
       - alert: RedisMemoryPressure
         expr: redis_memory_max_bytes > 0 and (redis_memory_used_bytes / redis_memory_max_bytes) > 0.8
         for: 10m

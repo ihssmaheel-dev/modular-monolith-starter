@@ -126,7 +126,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "clamp_min((sum(rate(storage_errors_total{provider=~\"$provider\"}[5m])) / (sum(rate(storage_operations_total{provider=~\"$provider\"}[5m])) > 0)) * 100, 0) or vector(0)",
+          "expr": "clamp_min((sum(rate(storage_errors_total{provider=~\"$provider\"}[5m])) / (sum(rate(storage_operations_total{provider=~\"$provider\"}[5m])) > 0)) * 100, 0)",
           "legendFormat": "Error Rate %",
           "refId": "A"
         }
@@ -162,7 +162,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "bulkhead_inflight{name=\"storage\"} or vector(0)",
+          "expr": "bulkhead_inflight{name=\"storage\"}",
           "legendFormat": "In-Flight",
           "refId": "A"
         }
@@ -190,7 +190,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(storage_operations_total{provider=~\"$provider\"}[1m])) or vector(0)",
+          "expr": "sum(rate(storage_operations_total{provider=~\"$provider\"}[1m]))",
           "legendFormat": "Ops/sec",
           "refId": "A"
         }

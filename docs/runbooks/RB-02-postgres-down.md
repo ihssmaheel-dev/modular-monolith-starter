@@ -1,14 +1,15 @@
 # RB-02: Postgres down / pool exhausted
 
-This runbook also covers `PostgresConnectionsNearLimit`.
+This runbook also covers `PostgresConnectionsNearLimit` and `PostgresClientPoolSaturation`.
 
 - **Severity:** SEV-1 (down) / SEV-2 (pool pressure without outage — same triage, calmer voice)
 - **Owner:** backend on-call
-- **Last reviewed:** 2026-09-11
+- **Last reviewed:** 2026-09-18
 
 ## How you notice
 
 - Alert `PostgresBufferHitRatioLow` firing (buffer cache hit ratio < 95% over 10m).
+- Alert `PostgresClientPoolSaturation` firing (application connection pool has waiting clients > 5 for 2m).
 - `/health/ready` (or `/api/v1/health/ready`) red while `/health/live` is green.
 - Logs show `ECONNREFUSED`, `timeout`, or pool exhaustion (`DB_MAX_POOL_SIZE`, default 10).
 - Users report errors on every data screen; static pages may still render.

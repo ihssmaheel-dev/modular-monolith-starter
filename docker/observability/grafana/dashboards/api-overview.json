@@ -56,7 +56,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{route=~\"$route\"}[1m])) or vector(0)",
+          "expr": "sum(rate(http_requests_total{route=~\"$route\"}[1m]))",
           "legendFormat": "RPS",
           "refId": "A"
         }
@@ -92,7 +92,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "(histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~\"$route\"}[1m])) by (le)) * 1000) or vector(0)",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~\"$route\"}[1m])) by (le)) * 1000",
           "legendFormat": "p95 Latency",
           "refId": "A"
         }
@@ -128,7 +128,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "(sum(rate(http_requests_total{status_code=~\"5..\",route=~\"$route\"}[1m])) or vector(0)) / (sum(rate(http_requests_total{route=~\"$route\"}[1m])) or vector(1)) * 100",
+          "expr": "clamp_min((sum(rate(http_requests_total{status_code=~\"5..\",route=~\"$route\"}[1m])) / (sum(rate(http_requests_total{route=~\"$route\"}[1m])) > 0)) * 100, 0)",
           "legendFormat": "5xx Error Rate",
           "refId": "A"
         }
@@ -164,7 +164,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(http_active_connections{route=~\"$route\"}) or vector(0)",
+          "expr": "sum(http_active_connections{route=~\"$route\"})",
           "legendFormat": "Active Connections",
           "refId": "A"
         }
