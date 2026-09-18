@@ -335,7 +335,7 @@ groups:
           description: "A previously active MinIO cluster target has been down for over 3 minutes. See RB-20."
 
       - alert: MinioDiskOffline
-        expr: minio_cluster_drives_offline_total > 0
+        expr: (minio_cluster_drive_offline_total or minio_cluster_drives_offline_total) > 0
         for: 2m
         labels:
           severity: critical
