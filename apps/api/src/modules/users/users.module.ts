@@ -1,4 +1,4 @@
-import { Global, Module } from "@nestjs/common";
+import { Global, Module, type OnModuleInit } from "@nestjs/common";
 import { UsersController } from "./presentation/controllers/users.controller";
 import { GetUsersQuery } from "./application/queries/get-users.query";
 import { GetUserByIdQuery } from "./application/queries/get-user-by-id.query";
@@ -26,6 +26,8 @@ import { UsersOrpcController } from "./presentation/orpc/users.orpc.controller";
 import { UsersEmailChangeController } from "./presentation/controllers/users-email-change.controller";
 import { AUTH_USER_VERIFIER_PORT } from "../../common/ports/auth-user-verifier.port";
 import { UsersAuthVerifierAdapter } from "./application/adapters/users-auth-verifier.adapter";
+import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
+import { AVATAR_SLOT } from "@repo/contracts";
 
 @Global()
 @Module({
@@ -77,4 +79,19 @@ import { UsersAuthVerifierAdapter } from "./application/adapters/users-auth-veri
     AUTH_USER_VERIFIER_PORT,
   ],
 })
-export class UsersModule {}
+export class UsersModule implements OnModuleInit {
+  constructor(
+    private readonly fileAccess: FileAccessRegistry,
+    private readonly getUserById: GetUserByIdQuery,
+  ) {}
+
+  onModuleInit(): void {
+    this.fileAccess.registerParentAccess("user", async (file, actor) => {
+      if (!file.parentId) return false;
+      if (file.parentId === actor.sub || actor.role === "admin") return true;
+      if (file.slot === AVATAR_SLOT) return true;
+      const user = await this.getUserById.execute(file.parentId);
+      return user.isOk() && user.value.avatarFileId === file.id;
+    });
+  }
+}

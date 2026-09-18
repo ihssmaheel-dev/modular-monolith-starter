@@ -11,6 +11,7 @@ export interface FileAccessResource {
   parentType: string;
   tenantId?: string;
   uploadedBy: string;
+  slot?: string | null;
 }
 
 /**
