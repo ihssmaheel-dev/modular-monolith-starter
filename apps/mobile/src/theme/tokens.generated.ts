@@ -70,8 +70,8 @@ export const mobileTokens = {
 },
   radius: "0.375rem",
   fonts: {
-  "sans": "'Inter Variable', sans-serif",
-  "heading": "'Inter Variable', sans-serif",
+  "sans": "'Manrope Variable', sans-serif",
+  "heading": "'Manrope Variable', sans-serif",
   "mono": "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
 },
   shadows: {
