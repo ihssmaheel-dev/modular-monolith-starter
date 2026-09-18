@@ -46,12 +46,16 @@ describe("OutboxEventWorker", () => {
       },
     });
 
-    expect(events.emitAsync).toHaveBeenCalledWith("note.created", {
-      noteId: "note-1",
-      userId: "user-1",
-      title: "Title",
-      content: "Content",
-    });
+    expect(events.emitAsync).toHaveBeenCalledWith(
+      "note.created",
+      {
+        noteId: "note-1",
+        userId: "user-1",
+        title: "Title",
+        content: "Content",
+      },
+      expect.objectContaining({ eventId: "event-1", topic: "note.created" }),
+    );
   });
 
   it("consumes tenant-scoped events inside the specific tenant context", async () => {

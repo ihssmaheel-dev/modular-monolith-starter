@@ -66,7 +66,12 @@ export class OutboxRelayDelivery {
         }
         // No durable queue (local/test): the awaited fan-out below IS the
         // processing, so marking PUBLISHED here is accurate.
-        await this.eventEmitter.emitAsync(event.topic, event.payload);
+        const meta = {
+          eventId: event.id,
+          topic: event.topic,
+          tenantId: event.tenantId,
+        };
+        await this.eventEmitter.emitAsync(event.topic, event.payload, meta);
         await this.database.runTransaction(() =>
           this.repository.updateById(event.id, {
             status: "PUBLISHED",

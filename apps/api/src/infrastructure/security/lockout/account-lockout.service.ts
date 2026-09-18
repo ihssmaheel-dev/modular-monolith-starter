@@ -8,6 +8,19 @@ const LOCKOUT_PREFIX = "lockout:";
 export const MAX_MEMORY_LOCKOUT_ENTRIES = 5_000;
 const MEMORY_SWEEP_INTERVAL_MS = 60_000;
 
+export const RECORD_FAILED_ATTEMPT_LUA = `
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+else
+  local ttl = redis.call('TTL', KEYS[1])
+  if ttl == -1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+  end
+end
+return current
+`;
+
 interface InMemoryAttempt {
   count: number;
   expiresAt: number;
@@ -95,11 +108,7 @@ export class AccountLockoutService implements OnApplicationShutdown {
     }
 
     const key = `${LOCKOUT_PREFIX}${email}`;
-    const current = await client.incr(key);
-
-    if (current === 1) {
-      await client.expire(key, ttlSeconds);
-    }
+    const current = Number(await client.eval(RECORD_FAILED_ATTEMPT_LUA, 1, key, ttlSeconds));
 
     this.logger.warn(
       { identityHash: hashIdentity(email), attempts: current },

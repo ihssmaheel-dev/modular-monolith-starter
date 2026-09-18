@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import { WelcomeEmail, render } from "@repo/email";
-import { buildFrontendUrl, FRONTEND_ROUTES, type EmailJobData } from "@repo/contracts";
+import {
+  buildFrontendUrl,
+  FRONTEND_ROUTES,
+  type EmailJobData,
+  type OutboxEventMetadata,
+} from "@repo/contracts";
 import * as React from "react";
 import { env } from "../../../../config/env";
 import { EmailService } from "../../../../infrastructure/email/email.service";
@@ -23,15 +28,16 @@ export class WelcomeEmailListener {
   ) {}
 
   @OnEvent("user.created")
-  async handle(event: UserCreatedEvent): Promise<void> {
+  async handle(event: UserCreatedEvent, meta?: OutboxEventMetadata): Promise<void> {
     const data = await this.buildEmail(event);
     const queue = this.queueService.getQueue<EmailJobData>("email");
     if (queue) {
       try {
+        const dedupeKey = meta?.eventId ?? event.userId;
         await queue.add("welcome", data, {
           // BullMQ prohibits colons in custom job IDs; hyphens keep the
           // id stable and retryable instead of failing into the fallback.
-          jobId: `welcome-email-${event.userId}`,
+          jobId: `welcome-email-${dedupeKey}`,
           attempts: EMAIL_RETRY_ATTEMPTS,
           backoff: { type: "exponential", delay: EMAIL_RETRY_DELAY_MS },
           removeOnComplete: 100,

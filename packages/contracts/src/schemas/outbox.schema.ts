@@ -13,6 +13,12 @@ export const OutboxEventEnvelopeSchema = z.object({
 
 export type OutboxEventEnvelope = z.infer<typeof OutboxEventEnvelopeSchema>;
 
+export interface OutboxEventMetadata {
+  eventId: string;
+  topic: string;
+  tenantId?: string;
+}
+
 const localeSchema = z.enum(["en", "es", "fr"]);
 const payloadSchemas: Record<string, z.ZodType<Record<string, unknown>>> = {
   "user.created": z.object({

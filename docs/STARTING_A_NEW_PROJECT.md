@@ -33,8 +33,16 @@ Logos, icons, legal copy, production domains, sender addresses, and store metada
 product input and remain an explicit checklist. Replace the Expo icon, adaptive icon, splash image,
 and favicon; edit `packages/design-tokens/src/presets/active.json`; then run `pnpm theme:generate`.
 The Notes source and tables remain as a reference slice, while production disables its API and
-web/mobile navigation by default through the three example-feature environment flags. A product can
-delete the slice in its initial fork before production data exists; after a release, remove tables
+web/mobile navigation by default through the three example-feature environment flags. To inspect
+or cleanly disable example features across all local environment files, use:
+
+```bash
+pnpm prune:examples --status
+pnpm prune:examples --disable --dry-run
+pnpm prune:examples --disable --yes
+```
+
+A product can delete the slice in its initial fork before production data exists; after a release, remove tables
 only through an appended migration.
 
 ## Choose the deployment tenancy model first

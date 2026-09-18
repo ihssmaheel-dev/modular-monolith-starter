@@ -118,4 +118,21 @@ describe("FeatureFlagsService", () => {
     handler.call(service, JSON.stringify({ type: "delete", flagKey: "sync_flag" }));
     expect(service.isEnabled("sync_flag")).toBe(false);
   });
+
+  it("reconciles deleted overrides on reload by clearing stale memory state", async () => {
+    mockRedisClient.hgetall.mockResolvedValueOnce({
+      obsolete_flag: "1",
+    });
+
+    await service.onModuleInit();
+    expect(service.isEnabled("obsolete_flag")).toBe(true);
+
+    // Now Redis returns an empty hash (override was removed in Redis)
+    mockRedisClient.hgetall.mockResolvedValueOnce({});
+    const loadInitialFlags = (service as unknown as { loadInitialFlags: () => Promise<void> })
+      .loadInitialFlags;
+    await loadInitialFlags.call(service);
+
+    expect(service.isEnabled("obsolete_flag")).toBe(false);
+  });
 });

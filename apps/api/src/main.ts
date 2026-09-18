@@ -13,6 +13,7 @@ import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { PinoLoggerService } from "./infrastructure/logger/logger.service";
 import { I18nService } from "./infrastructure/i18n/i18n.service";
+import { MetricsService } from "./infrastructure/metrics/metrics.service";
 import { env } from "./config/env";
 import { setupApiDocs } from "./infrastructure/api-docs";
 import { setupWorkbench, DEFAULT_WORKBENCH_PATH } from "./infrastructure/queue";
@@ -159,6 +160,31 @@ async function bootstrap() {
           path: "/",
           maxAge: 24 * 60 * 60,
         });
+      }
+      done();
+    });
+
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .addHook("onResponse", (request, reply, done) => {
+      if (!(request as { telemetryRecorded?: boolean }).telemetryRecorded) {
+        try {
+          const metricsService = app.get(MetricsService, { strict: false });
+          if (metricsService) {
+            const method = request.method;
+            const route = request.routeOptions?.url ?? "unmatched_route";
+            const statusCode = reply.statusCode;
+            metricsService.incrementCounter(
+              "http_requests_total",
+              "Total number of HTTP requests",
+              1,
+              { method, route, status_code: statusCode },
+            );
+          }
+        } catch {
+          // Never allow metric telemetry to interrupt response lifecycle
+        }
       }
       done();
     });

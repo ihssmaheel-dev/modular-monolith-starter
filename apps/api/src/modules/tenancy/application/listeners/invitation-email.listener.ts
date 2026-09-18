@@ -2,7 +2,12 @@ import { Injectable } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import { createHash } from "node:crypto";
 import { OrganizationInvitationEmail, render } from "@repo/email";
-import { buildFrontendUrl, FRONTEND_ROUTES, type EmailJobData } from "@repo/contracts";
+import {
+  buildFrontendUrl,
+  FRONTEND_ROUTES,
+  type EmailJobData,
+  type OutboxEventMetadata,
+} from "@repo/contracts";
 import * as React from "react";
 import { env } from "../../../../config/env";
 import { EmailService } from "../../../../infrastructure/email/email.service";
@@ -24,15 +29,16 @@ export class InvitationEmailListener {
   ) {}
 
   @OnEvent("tenancy.invitation.created")
-  async handle(event: InvitationCreatedEvent): Promise<void> {
+  async handle(event: InvitationCreatedEvent, meta?: OutboxEventMetadata): Promise<void> {
     const data = await this.buildEmail(event);
     const queue = this.queue.getQueue<EmailJobData>("email");
     if (queue) {
       try {
+        const dedupeKey = meta?.eventId ?? invitationKey(event.token);
         await queue.add("organization-invitation", data, {
           // BullMQ prohibits colons in custom job IDs; hyphens keep the
           // id stable and retryable instead of failing into the fallback.
-          jobId: `invitation-email-${invitationKey(event.token)}`,
+          jobId: `invitation-email-${dedupeKey}`,
           attempts: EMAIL_RETRY_ATTEMPTS,
           backoff: { type: "exponential", delay: EMAIL_RETRY_DELAY_MS },
           removeOnComplete: 100,

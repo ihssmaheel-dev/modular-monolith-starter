@@ -14,29 +14,33 @@ afterEach(() => {
 });
 
 describe("WorkerHealthIndicator", () => {
-  it("reports a live worker heartbeat in production", async () => {
+  it("reports a live worker heartbeat in production using sorted set registry", async () => {
     env.NODE_ENV = "production";
     env.PROCESS_ROLE = "api";
     const session = healthSession();
     const redis = {
       getClient: vi.fn().mockReturnValue({
-        scan: vi.fn().mockResolvedValue(["0", ["worker:heartbeat:node:1"]]),
+        zremrangebyscore: vi.fn().mockResolvedValue(0),
+        zcount: vi.fn().mockResolvedValue(2),
       }),
     } as unknown as RedisService;
     const indicator = createIndicator(redis, session);
 
     await indicator.isHealthy("worker");
 
-    expect(session.up).toHaveBeenCalledOnce();
+    expect(session.up).toHaveBeenCalledWith({ activeCount: 2 });
     expect(session.down).not.toHaveBeenCalled();
   });
 
-  it("fails readiness when no worker heartbeat exists", async () => {
+  it("fails readiness when no worker heartbeat exists in sorted set registry", async () => {
     env.NODE_ENV = "production";
     env.PROCESS_ROLE = "api";
     const session = healthSession();
     const redis = {
-      getClient: vi.fn().mockReturnValue({ scan: vi.fn().mockResolvedValue(["0", []]) }),
+      getClient: vi.fn().mockReturnValue({
+        zremrangebyscore: vi.fn().mockResolvedValue(0),
+        zcount: vi.fn().mockResolvedValue(0),
+      }),
     } as unknown as RedisService;
     const indicator = createIndicator(redis, session);
 

@@ -4,6 +4,10 @@ import { env } from "../../../config/env";
 import { I18nService } from "../../i18n/i18n.service";
 import { RedisService } from "../../redis/redis.service";
 import { MetricsService } from "../../metrics/metrics.service";
+import {
+  HEARTBEAT_TTL_SECONDS,
+  WORKER_HEARTBEATS_REGISTRY_KEY,
+} from "../../workers/worker-health.service";
 
 @Injectable()
 export class WorkerHealthIndicator {
@@ -23,19 +27,11 @@ export class WorkerHealthIndicator {
       return this.down(session);
     }
     try {
-      let cursor = "0";
-      let activeCount = 0;
-      do {
-        const [nextCursor, keys] = await client.scan(
-          cursor,
-          "MATCH",
-          "worker:heartbeat:*",
-          "COUNT",
-          "100",
-        );
-        activeCount += keys.length;
-        cursor = nextCursor;
-      } while (cursor !== "0");
+      const now = Date.now();
+      const cutoff = now - HEARTBEAT_TTL_SECONDS * 1000;
+      await client.zremrangebyscore(WORKER_HEARTBEATS_REGISTRY_KEY, "-inf", cutoff);
+      const activeCount = await client.zcount(WORKER_HEARTBEATS_REGISTRY_KEY, cutoff, "+inf");
+
       this.metricsService?.setGauge(
         "worker_heartbeats_active",
         "Active worker heartbeats",

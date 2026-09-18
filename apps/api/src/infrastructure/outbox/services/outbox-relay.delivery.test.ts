@@ -89,7 +89,11 @@ describe("OutboxRelayDelivery", () => {
 
     await direct.deliver(EVENT);
 
-    expect(emitter.emitAsync).toHaveBeenCalledWith(EVENT.topic, EVENT.payload);
+    expect(emitter.emitAsync).toHaveBeenCalledWith(
+      EVENT.topic,
+      EVENT.payload,
+      expect.objectContaining({ eventId: EVENT.id, topic: EVENT.topic }),
+    );
     expect(repository.updateById).toHaveBeenCalledWith(
       EVENT.id,
       expect.objectContaining({ status: "PUBLISHED" }),

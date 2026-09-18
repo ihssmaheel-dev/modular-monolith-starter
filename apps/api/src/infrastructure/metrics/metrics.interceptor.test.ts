@@ -129,4 +129,49 @@ describe("MetricsInterceptor", () => {
 
     expect(completed).toBe(true);
   });
+
+  it("never throws if incrementGauge throws, and proceeds with request execution", async () => {
+    const { context } = createMockContext(200);
+    metricsService.incrementGauge.mockImplementation(() => {
+      throw new Error("Gauge registry connection failure");
+    });
+
+    const handler: CallHandler = {
+      handle: () => of({ success: true }),
+    };
+
+    let result: unknown;
+    await new Promise<void>((resolve, reject) => {
+      interceptor.intercept(context, handler).subscribe({
+        next: (val) => {
+          result = val;
+        },
+        complete: () => resolve(),
+        error: (err) => reject(err),
+      });
+    });
+
+    expect(result).toEqual({ success: true });
+    // Gauge decrement should be safely skipped since increment failed
+    expect(metricsService.decrementGauge).not.toHaveBeenCalled();
+    // Histogram and counter still record the request
+    expect(metricsService.incrementCounter).toHaveBeenCalled();
+  });
+
+  it("marks request as telemetryRecorded upon completion", async () => {
+    const { context } = createMockContext(200);
+    const req = context.switchToHttp().getRequest() as Record<string, unknown>;
+
+    const handler: CallHandler = {
+      handle: () => of({ ok: true }),
+    };
+
+    await new Promise<void>((resolve) => {
+      interceptor.intercept(context, handler).subscribe({
+        complete: () => resolve(),
+      });
+    });
+
+    expect(req.telemetryRecorded).toBe(true);
+  });
 });

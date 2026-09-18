@@ -4,6 +4,7 @@ import {
   OutboxEventIdentitySchema,
   parseOutboxEventEnvelope,
   type OutboxEventEnvelope,
+  type OutboxEventMetadata,
 } from "@repo/contracts";
 import { QueueService } from "../../queue/queue.service";
 import { PinoLoggerService } from "../../logger/logger.service";
@@ -160,9 +161,14 @@ export class OutboxEventWorker implements OnModuleInit {
   }
 
   private emitInScope(event: OutboxEventEnvelope): Promise<unknown[]> {
-    if (!this.tenantContext) return this.events.emitAsync(event.topic, event.payload);
+    const meta: OutboxEventMetadata = {
+      eventId: event.id,
+      topic: event.topic,
+      tenantId: event.tenantId,
+    };
+    if (!this.tenantContext) return this.events.emitAsync(event.topic, event.payload, meta);
     return this.tenantContext.runSystem({ mode: env.TENANCY_MODE, tenantId: event.tenantId }, () =>
-      this.events.emitAsync(event.topic, event.payload),
+      this.events.emitAsync(event.topic, event.payload, meta),
     );
   }
 

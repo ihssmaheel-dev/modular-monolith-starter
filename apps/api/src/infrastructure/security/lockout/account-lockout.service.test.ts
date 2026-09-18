@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { AccountLockoutService, MAX_MEMORY_LOCKOUT_ENTRIES } from "./account-lockout.service";
+import {
+  AccountLockoutService,
+  MAX_MEMORY_LOCKOUT_ENTRIES,
+  RECORD_FAILED_ATTEMPT_LUA,
+} from "./account-lockout.service";
 import type { PinoLoggerService } from "../../logger/logger.service";
 import type { RedisService } from "../../redis/redis.service";
 
@@ -13,6 +17,7 @@ describe("AccountLockoutService", () => {
     expire: ReturnType<typeof vi.fn>;
     del: ReturnType<typeof vi.fn>;
     ttl: ReturnType<typeof vi.fn>;
+    eval: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -29,6 +34,7 @@ describe("AccountLockoutService", () => {
       expire: vi.fn().mockResolvedValue(1),
       del: vi.fn().mockResolvedValue(1),
       ttl: vi.fn().mockResolvedValue(600),
+      eval: vi.fn().mockResolvedValue(1),
     };
 
     mockRedisService = {
@@ -59,12 +65,16 @@ describe("AccountLockoutService", () => {
       expect(isLocked).toBe(false);
     });
 
-    it("records failed attempt and sets TTL on first failure", async () => {
-      mockRedisClient.incr.mockResolvedValue(1);
+    it("records failed attempt and sets TTL atomically via Lua script", async () => {
+      mockRedisClient.eval.mockResolvedValue(1);
 
       await service.recordFailedAttempt("user@example.com");
-      expect(mockRedisClient.incr).toHaveBeenCalledWith("lockout:user@example.com");
-      expect(mockRedisClient.expire).toHaveBeenCalled();
+      expect(mockRedisClient.eval).toHaveBeenCalledWith(
+        RECORD_FAILED_ATTEMPT_LUA,
+        1,
+        "lockout:user@example.com",
+        expect.any(Number),
+      );
     });
 
     it("resets failed attempts on success", async () => {

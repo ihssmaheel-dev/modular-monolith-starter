@@ -65,6 +65,7 @@ export class FeatureFlagsService
     if (!client) return;
     try {
       const overrides = await client.hgetall(REDIS_FLAGS_HASH);
+      this.flags.clear();
       for (const [key, val] of Object.entries(overrides)) {
         this.flags.set(key, val === "true" || val === "1");
       }
@@ -78,9 +79,16 @@ export class FeatureFlagsService
   }
 
   private async setupSubscriber(): Promise<void> {
-    if (this.subscriber) return;
     const client = this.redisService?.getClient();
     if (!client) return;
+    if (this.subscriber) {
+      try {
+        await this.subscriber.quit();
+      } catch {
+        this.subscriber.disconnect();
+      }
+      this.subscriber = null;
+    }
     try {
       this.subscriber = client.duplicate();
       this.subscriber.on("error", (error) => {

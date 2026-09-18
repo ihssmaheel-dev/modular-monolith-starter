@@ -42,30 +42,30 @@ DATABASE_URL_FILE=/run/secrets/database_url
 
 ## API core and connectivity
 
-| Variable                            | Default / purpose                                                                                   |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                          | `development`; `development`, `test`, or `production`                                               |
-| `APP_NAME`                          | `Workspace`; product display name used by API docs and transactional email                          |
-| `APP_SLUG`                          | `modular-monolith`; stable product namespace for deployment and telemetry metadata                  |
-| `PROCESS_ROLE`                      | `all`; use `api` and `worker` as separate production processes                                      |
-| `EXAMPLE_FEATURES_ENABLED`          | `false`; compose the Notes reference module into the API                                            |
-| `PORT`                              | `5156`; API listener port                                                                           |
-| `TRUST_PROXY`                       | `false`; enable only behind a trusted proxy that replaces forwarding headers                        |
-| `LOG_LEVEL`                         | `info`; Pino level from `fatal` through `trace`                                                     |
-| `TENANCY_MODE`                      | `single`; choose `single` or `multi` before production data exists                                  |
-| `CLIENT_URL`                        | `http://localhost:5155`; comma-separated allowed browser origins                                    |
-| `API_URL`                           | `http://localhost:5156`; externally reachable API origin                                            |
-| `DATABASE_URL`                      | Local PostgreSQL URL; production requires TLS with `sslmode=require`, `verify-ca`, or `verify-full` |
-| `DB_DIRECT_URL`                     | Optional direct URL for migrations and advisory locks; defaults to `DATABASE_URL`                   |
-| `TEST_DATABASE_URL`                 | Integration/E2E database; its database name must contain `test`                                     |
-| `DB_MAX_POOL_SIZE`                  | `10`; connection pool size per API or worker instance                                               |
-| `DB_STATEMENT_TIMEOUT_MS`           | `30000`; statement and client query timeout                                                         |
-| `DB_LOCK_TIMEOUT_MS`                | `5000`; transaction lock wait timeout                                                               |
-| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `60000`; idle transaction timeout                                                                   |
-| `AUDIT_RETENTION_DAYS`              | `365`; audit retention, constrained to 30-3650 days                                                 |
-| `INVITATION_RETENTION_DAYS`         | `90`; settled invitation retention, constrained to 7-3650 days                                      |
-| `REDIS_URL`                         | Optional locally and required in production; production requires `rediss://`                        |
-| `FEATURE_FLAGS`                     | `{}`; JSON object of boolean runtime flags, with Redis overrides when configured                    |
+| Variable                            | Default / purpose                                                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                          | `development`; `development`, `test`, or `production`                                                                                                                                                   |
+| `APP_NAME`                          | `Workspace`; product display name used by API docs and transactional email                                                                                                                              |
+| `APP_SLUG`                          | `modular-monolith`; stable product namespace for deployment and telemetry metadata                                                                                                                      |
+| `PROCESS_ROLE`                      | `all`; use `api` and `worker` as separate production processes                                                                                                                                          |
+| `EXAMPLE_FEATURES_ENABLED`          | `false`; compose the Notes reference module into the API                                                                                                                                                |
+| `PORT`                              | `5156`; API listener port                                                                                                                                                                               |
+| `TRUST_PROXY`                       | `false`; enable only behind a trusted proxy that replaces forwarding headers                                                                                                                            |
+| `LOG_LEVEL`                         | `info`; Pino level from `fatal` through `trace`                                                                                                                                                         |
+| `TENANCY_MODE`                      | `single`; choose `single` or `multi` before production data exists                                                                                                                                      |
+| `CLIENT_URL`                        | `http://localhost:5155`; comma-separated allowed browser origins                                                                                                                                        |
+| `API_URL`                           | `http://localhost:5156`; externally reachable API origin                                                                                                                                                |
+| `DATABASE_URL`                      | Local PostgreSQL URL; production requires TLS with `sslmode=require`, `verify-ca`, or `verify-full`                                                                                                     |
+| `DB_DIRECT_URL`                     | Optional direct URL for migrations and advisory locks; defaults to `DATABASE_URL`                                                                                                                       |
+| `TEST_DATABASE_URL`                 | Integration/E2E database; its database name must contain `test`                                                                                                                                         |
+| `DB_MAX_POOL_SIZE`                  | `10`; connection pool size per API or worker instance                                                                                                                                                   |
+| `DB_STATEMENT_TIMEOUT_MS`           | `30000`; statement and client query timeout                                                                                                                                                             |
+| `DB_LOCK_TIMEOUT_MS`                | `5000`; transaction lock wait timeout                                                                                                                                                                   |
+| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `60000`; idle transaction timeout                                                                                                                                                                       |
+| `AUDIT_RETENTION_DAYS`              | `365`; audit retention, constrained to 30-3650 days                                                                                                                                                     |
+| `INVITATION_RETENTION_DAYS`         | `90`; settled invitation retention, constrained to 7-3650 days                                                                                                                                          |
+| `REDIS_URL`                         | Optional locally and required in production; production requires TLS with `rediss://`. Backs BullMQ queues, rate limiting, distributed locking (`RedisLockService`), and runtime feature flag overrides |
+| `FEATURE_FLAGS`                     | `{}`; JSON object of boolean runtime flags, with Redis overrides when configured                                                                                                                        |
 
 ## Authentication, security, and reliability
 
@@ -140,16 +140,16 @@ signed delivery URLs while preserving the same authorization boundary.
 
 ## Email and seed
 
-| Variable                  | Default / purpose                                  |
-| ------------------------- | -------------------------------------------------- |
-| `EMAIL_DRIVER`            | `smtp`; `smtp` or `resend`                         |
-| `EMAIL_FROM`              | `noreply@example.com`; validated sender            |
-| `SMTP_HOST`               | `localhost`; local Mailpit host                    |
-| `SMTP_PORT`               | `1025`; local Mailpit port                         |
-| `SMTP_USER` / `SMTP_PASS` | Optional SMTP credentials                          |
-| `RESEND_API_KEY`          | Required when the Resend driver is selected        |
-| `SEED_ADMIN_EMAIL`        | Optional one-time administrator email              |
-| `SEED_ADMIN_PASSWORD`     | Optional one-time password, at least 12 characters |
+| Variable                  | Default / purpose                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------ |
+| `EMAIL_DRIVER`            | `smtp`; `smtp` or `resend`                                                                 |
+| `EMAIL_FROM`              | `noreply@example.com`; validated sender                                                    |
+| `SMTP_HOST`               | `localhost`; local Mailpit host                                                            |
+| `SMTP_PORT`               | `1025`; local Mailpit port                                                                 |
+| `SMTP_USER` / `SMTP_PASS` | Optional SMTP credentials                                                                  |
+| `RESEND_API_KEY`          | Required when `EMAIL_DRIVER=resend`; must be provided to both `api` and `worker` processes |
+| `SEED_ADMIN_EMAIL`        | Optional one-time administrator email                                                      |
+| `SEED_ADMIN_PASSWORD`     | Optional one-time password, at least 12 characters                                         |
 
 Seed email and password must be configured together.
 

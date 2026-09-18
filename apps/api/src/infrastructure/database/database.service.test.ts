@@ -424,5 +424,28 @@ describe("DatabaseService", () => {
       expect(mockQuery.mock.calls[1]?.[0]).toContain("pg_advisory_unlock");
       expect(mockRelease).toHaveBeenCalledTimes(1);
     });
+
+    it("delegates to RedisLockService when available (PgBouncer compatibility)", async () => {
+      const mockRedisLock = {
+        isAvailable: vi.fn().mockReturnValue(true),
+        withLock: vi.fn().mockResolvedValue({ executed: true, result: "redis-locked" }),
+      };
+      const mockLogger = {
+        info: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn().mockReturnThis(),
+      };
+      const serviceWithRedis = new DatabaseService(
+        mockLogger as never,
+        undefined,
+        undefined,
+        mockRedisLock as never,
+      );
+      const fn = vi.fn();
+      const result = await serviceWithRedis.withExclusiveExecution("test-job", fn);
+
+      expect(result).toEqual({ executed: true, result: "redis-locked" });
+      expect(mockRedisLock.withLock).toHaveBeenCalledWith("test-job", fn);
+    });
   });
 });

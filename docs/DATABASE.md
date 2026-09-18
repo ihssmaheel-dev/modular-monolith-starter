@@ -58,11 +58,24 @@ The service creates a Postgres transaction via Drizzle, places it in CLS (`datab
 repository calls, commits successful results, aborts errors, and automatically handles rollback.
 Transactions return `{ type: "TRANSACTION_FAILED" }` for infrastructure failures.
 
+Nested calls to `runTransaction` or `withResultTransaction` automatically reuse the outer ambient
+transaction stored in CLS context (`databaseTx`), isolating sub-operations via PostgreSQL savepoints
+(`withSavepoint`) to prevent nested errors from poisoning the outer transaction. Post-commit side
+effects (`emitAfterCommit`, `runAfterCommit`) are held in CLS and drained only after the outermost
+transaction promise commits.
+
 HTTP handlers use a transaction by default to establish transaction-local PostgreSQL RLS context.
 Handlers that perform password hashing, external I/O, streams, or other slow work must use
 `@NoDatabaseTransaction()` and let their commands open short explicit transactions only around SQL
 state changes. Login and registration follow this pattern so Argon2 work never occupies a pooled
 database connection.
+
+Scheduled background worker tasks execute exclusively across clustered worker instances via
+`DatabaseService.withExclusiveExecution(key, fn)`. When Redis is available, it transparently
+delegates to `RedisLockService` (using atomic `SET NX PX` with a Lua token release script) to ensure
+full compatibility with PgBouncer transaction pooling without tying up database client connections
+or interfering with PostgreSQL autovacuum. If Redis is unconfigured or unavailable, it cleanly
+falls back to a dedicated connection session-level advisory lock (`pg_try_advisory_lock`).
 
 ## Connection pooling (PgBouncer)
 

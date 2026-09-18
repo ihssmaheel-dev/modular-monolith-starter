@@ -13,6 +13,7 @@ import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/au
 import { createDatabasePool } from "./connection/database-pool";
 import { databaseErrorMetadata } from "./connection/database-error.utils";
 import { MetricsService } from "../metrics/metrics.service";
+import { RedisLockService } from "../redis/redis-lock.service";
 import {
   configureTransactionContext,
   setTransactionConfig,
@@ -40,6 +41,7 @@ export class DatabaseService implements OnApplicationShutdown {
     @Inject(PinoLoggerService) logger: PinoLoggerService,
     @Optional() @Inject(ClsService) private readonly cls?: ClsService,
     @Optional() private readonly metrics?: MetricsService,
+    @Optional() @Inject(RedisLockService) private readonly redisLock?: RedisLockService,
   ) {
     this.logger = logger.child({ module: "DatabaseService" });
     this.scopes = new TransactionScopes(
@@ -286,6 +288,10 @@ export class DatabaseService implements OnApplicationShutdown {
     key: string,
     fn: () => Promise<T>,
   ): Promise<{ executed: boolean; result?: T }> {
+    if (this.redisLock?.isAvailable()) {
+      return this.redisLock.withLock(key, fn);
+    }
+
     const client = await this.pool.connect();
     let acquired = false;
     try {

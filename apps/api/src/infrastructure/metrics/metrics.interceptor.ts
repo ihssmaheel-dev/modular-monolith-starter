@@ -21,15 +21,21 @@ export class MetricsInterceptor implements NestInterceptor {
 
     const startTime = process.hrtime();
 
-    this.metricsService.incrementGauge(
-      "http_active_connections",
-      "Number of active HTTP connections",
-      1,
-      {
-        method,
-        route,
-      },
-    );
+    let gaugeIncremented = false;
+    try {
+      this.metricsService.incrementGauge(
+        "http_active_connections",
+        "Number of active HTTP connections",
+        1,
+        {
+          method,
+          route,
+        },
+      );
+      gaugeIncremented = true;
+    } catch {
+      // Telemetry gauge measurement must never disrupt HTTP execution
+    }
 
     let errorStatus: number | undefined;
     return next.handle().pipe(
@@ -41,7 +47,8 @@ export class MetricsInterceptor implements NestInterceptor {
             (typeof res.statusCode === "number" && Number.isFinite(res.statusCode)
               ? res.statusCode
               : 500);
-          this.recordMetrics(startTime, method, route, resolvedStatus);
+          this.recordMetrics(startTime, method, route, resolvedStatus, gaugeIncremented);
+          (req as unknown as { telemetryRecorded?: boolean }).telemetryRecorded = true;
         } catch {
           // Never allow metric telemetry to interrupt request finalization or socket unsubscription
         }
@@ -66,13 +73,20 @@ export class MetricsInterceptor implements NestInterceptor {
     method: string,
     route: string,
     statusCode: number,
+    gaugeIncremented: boolean,
   ) {
-    this.metricsService.decrementGauge(
-      "http_active_connections",
-      "Number of active HTTP connections",
-      1,
-      { method, route },
-    );
+    if (gaugeIncremented) {
+      try {
+        this.metricsService.decrementGauge(
+          "http_active_connections",
+          "Number of active HTTP connections",
+          1,
+          { method, route },
+        );
+      } catch {
+        // Never interrupt cleanup
+      }
+    }
 
     const diff = process.hrtime(startTime);
     const durationInSeconds = diff[0] + diff[1] / 1e9;

@@ -7,11 +7,13 @@ import { PinoLoggerService } from "../logger/logger.service";
 import { MetricsService } from "../metrics/metrics.service";
 
 const HEARTBEAT_INTERVAL_MS = 10_000;
-const HEARTBEAT_TTL_SECONDS = 30;
+export const HEARTBEAT_TTL_SECONDS = 30;
+export const WORKER_HEARTBEATS_REGISTRY_KEY = "worker:heartbeats:registry";
 
 @Injectable()
 export class WorkerHealthService implements OnModuleInit, OnModuleDestroy {
-  private readonly key = `worker:heartbeat:${os.hostname()}:${process.pid}`;
+  private readonly workerId = `${os.hostname()}:${process.pid}`;
+  private readonly key = `worker:heartbeat:${this.workerId}`;
   private readonly logger: PinoLoggerService;
 
   constructor(
@@ -38,7 +40,11 @@ export class WorkerHealthService implements OnModuleInit, OnModuleDestroy {
     const client = this.redis.getClient();
     if (!client) return;
     try {
-      await client.set(this.key, new Date().toISOString(), "EX", HEARTBEAT_TTL_SECONDS);
+      const now = Date.now();
+      await Promise.all([
+        client.set(this.key, new Date(now).toISOString(), "EX", HEARTBEAT_TTL_SECONDS),
+        client.zadd(WORKER_HEARTBEATS_REGISTRY_KEY, now, this.workerId),
+      ]);
     } catch (error) {
       this.logger.warn({ error }, "Worker heartbeat failed");
     }
@@ -46,9 +52,12 @@ export class WorkerHealthService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     this.metrics.setGauge("worker_process_up", "Worker process event loop is active", 0);
-    await this.redis
-      .getClient()
-      ?.del(this.key)
-      .catch(() => undefined);
+    const client = this.redis.getClient();
+    if (client) {
+      await Promise.all([
+        client.del(this.key).catch(() => undefined),
+        client.zrem(WORKER_HEARTBEATS_REGISTRY_KEY, this.workerId).catch(() => undefined),
+      ]);
+    }
   }
 }
