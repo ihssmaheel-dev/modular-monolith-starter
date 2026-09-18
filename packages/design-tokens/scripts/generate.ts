@@ -109,10 +109,23 @@ function generateWebCss(tokens: NonNullable<ReturnType<typeof loadTokens>>): str
   const darkEntries = Object.entries(tokens.dark);
   const lightVars = lightEntries.map(([k, v]) => `    --${k}: ${v};`).join("\n");
   const darkVars = darkEntries.map(([k, v]) => `    --${k}: ${v};`).join("\n");
+  const fontVars = [
+    `    --font-sans: ${tokens.fonts.sans};`,
+    `    --font-heading: ${tokens.fonts.heading};`,
+    `    --font-mono: ${tokens.fonts.mono};`,
+  ].join("\n");
+  const shadowVars = [
+    `    --shadow-layered: ${tokens.shadows.layered};`,
+    `    --shadow-layered-strong: ${tokens.shadows["layered-strong"]};`,
+    `    --shadow-modal: ${tokens.shadows.modal};`,
+  ].join("\n");
+
   return `/* GENERATED — do not edit manually — source: packages/design-tokens/src/presets/active.json — run pnpm theme:generate */
 :root {
 ${lightVars}
     --radius: ${tokens.radius};
+${fontVars}
+${shadowVars}
 }
 
 .dark {

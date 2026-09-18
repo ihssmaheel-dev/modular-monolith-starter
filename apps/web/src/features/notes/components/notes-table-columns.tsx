@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
+import { FileText, Trash2 } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
 import type { DataTableColumn } from "@repo/ui/components/composed/data-table";
@@ -19,9 +19,10 @@ export function getNotesColumns(
         <Link
           to="/notes/$noteId"
           params={{ noteId: row.id }}
-          className="font-medium hover:underline"
+          className="inline-flex items-center gap-2 font-medium text-foreground hover:text-primary transition-colors"
         >
-          {row.title}
+          <FileText className="size-3.5 text-muted-foreground/70 shrink-0" />
+          <span className="truncate">{row.title}</span>
         </Link>
       ),
     },

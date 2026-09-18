@@ -19,22 +19,22 @@ export function NotesCountWidget() {
   const user = useAuthStore((state) => state.user);
   const notesQuery = useQuery({ ...notesListQuery(1, 5), enabled: Boolean(user) });
   return (
-    <Card className="border-muted/80 bg-background/60 shadow-xs hover:border-primary/40 transition-colors">
-      <CardHeader className="p-5 pb-2 space-y-1">
-        <CardDescription className="flex items-center justify-between text-xs font-medium">
+    <Card className="border-border/80 bg-card shadow-2xs hover:border-primary/40 transition-colors">
+      <CardHeader className="p-4 pb-1.5 space-y-0.5">
+        <CardDescription className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>{t("notes.title")}</span>
-          <FileText className="size-4 text-primary" />
+          <FileText className="size-3.5 text-primary" />
         </CardDescription>
-        <CardTitle className="text-3xl font-bold tracking-tight text-foreground">
+        <CardTitle className="text-2xl font-semibold tracking-tight text-foreground">
           {notesQuery.data?.total ? String(notesQuery.data.total) : "0"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-5 pt-1 flex items-center justify-between">
+      <CardContent className="p-4 pt-1 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">{t("common.items")}</span>
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 text-xs gap-1 p-0"
+          className="h-6 text-xs gap-1 px-1.5"
           render={<Link to={FRONTEND_ROUTES.notes} />}
         >
           <span>{t("notes.title")}</span>

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { FRONTEND_ROUTES } from "@repo/contracts";
-import { Bell, FilePlus2, FileText, LayoutDashboard, Layers3, Users } from "lucide-react";
+import { Bell, FileText, LayoutDashboard, Layers3, Settings, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,29 +12,31 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@repo/ui/components/ui/sidebar";
+import { useAuthStore } from "@/stores/auth.store";
 import { getWebEnv } from "@/lib/env";
 
 export function AppSidebar() {
   const { t } = useTranslation();
   const location = useLocation();
+  const user = useAuthStore((state) => state.user);
   const { VITE_APP_NAME: appName, VITE_EXAMPLE_FEATURES_ENABLED: examplesEnabled } = getWebEnv();
 
   const isNotesActive = location.pathname.startsWith("/notes");
+  const isAdmin = user?.role === "admin";
 
   return (
-    <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex h-12 items-center gap-2.5 px-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-xs">
-            <Layers3 className="size-4" />
+    <Sidebar collapsible="icon" variant="sidebar">
+      <SidebarHeader className="h-12 border-b border-sidebar-border p-0 justify-center">
+        <div className="flex h-12 items-center gap-2.5 px-3">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-xs">
+            <Layers3 className="size-3.5" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-bold text-sidebar-foreground">{appName}</p>
-            <p className="truncate text-[10px] text-sidebar-foreground/60 uppercase tracking-wider font-mono">
+            <p className="truncate text-xs font-semibold text-sidebar-foreground leading-none">
+              {appName}
+            </p>
+            <p className="truncate text-[9px] text-sidebar-foreground/60 uppercase tracking-wider font-mono mt-0.5">
               {t("navigation.platform")}
             </p>
           </div>
@@ -68,39 +70,21 @@ export function AppSidebar() {
                     <FileText />
                     <span>{t("notes.title")}</span>
                   </SidebarMenuButton>
-                  <SidebarMenuSub>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton
-                        render={<Link to={FRONTEND_ROUTES.notes} />}
-                        isActive={location.pathname === "/notes"}
-                      >
-                        <FileText className="size-3.5" />
-                        <span>{t("notes.title")}</span>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton
-                        render={<Link to={FRONTEND_ROUTES.newNote} />}
-                        isActive={location.pathname === "/notes/new"}
-                      >
-                        <FilePlus2 className="size-3.5" />
-                        <span>{t("notes.newNote")}</span>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  </SidebarMenuSub>
                 </SidebarMenuItem>
               )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to={FRONTEND_ROUTES.users} />}
-                  isActive={location.pathname.startsWith("/users")}
-                  tooltip={t("users.title")}
-                >
-                  <Users />
-                  <span>{t("users.title")}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link to={FRONTEND_ROUTES.users} />}
+                    isActive={location.pathname.startsWith("/users")}
+                    tooltip={t("users.title")}
+                  >
+                    <Users />
+                    <span>{t("users.title")}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -110,6 +94,17 @@ export function AppSidebar() {
                 >
                   <Bell />
                   <span>{t("notifications.title")}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to={FRONTEND_ROUTES.settings} />}
+                  isActive={location.pathname.startsWith("/settings")}
+                  tooltip={t("settings.title")}
+                >
+                  <Settings />
+                  <span>{t("settings.title")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

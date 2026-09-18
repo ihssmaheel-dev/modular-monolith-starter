@@ -84,7 +84,7 @@ export const emailTokens = {
     warning: "#f59e0b",
     success: "#10b981",
   },
-  radius: "0.625rem",
+  radius: "0.375rem",
   fonts: {
     sans: "'Inter Variable', sans-serif",
     heading: "'Inter Variable', sans-serif",

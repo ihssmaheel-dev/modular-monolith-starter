@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, LogOut, Moon, Search, Sun } from "lucide-react";
+import { ChevronRight, LogOut, Moon, Search, Settings, Sun } from "lucide-react";
 import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
@@ -68,54 +68,55 @@ export function AppHeader() {
             : t("dashboard.title");
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b bg-background/90 px-4 backdrop-blur sm:px-6">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-12 w-full items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur">
+      <div className="flex items-center gap-2.5">
         <SidebarTrigger aria-label={t("navigation.toggleSidebar")} />
-        <div className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
+        <div className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
           <span>{appName}</span>
-          <ChevronRight className="size-3" />
+          <ChevronRight className="size-3 text-muted-foreground/50" />
           <span className="font-medium text-foreground">{currentPage}</span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Button
           variant="outline"
           size="sm"
           onClick={() => setCommandOpen(true)}
-          className="hidden h-8 w-44 items-center justify-between px-2 text-xs text-muted-foreground md:flex"
+          className="hidden h-7 w-40 items-center justify-between rounded-md border-border/70 bg-muted/20 px-2 text-xs text-muted-foreground hover:bg-muted/40 md:flex shadow-none"
           aria-label={t("navigation.commandPalette")}
         >
           <span className="flex items-center gap-1.5">
-            <Search className="size-3.5" />
-            <span>{t("common.search")}...</span>
+            <Search className="size-3.5 text-muted-foreground/70" />
+            <span className="text-xs">{t("common.search")}...</span>
           </span>
-          <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground">
-            <span className="text-[10px]">⌘</span>K
+          <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-border/60 bg-muted/60 px-1 font-mono text-[9px] font-medium text-muted-foreground">
+            <span className="text-[9px]">⌘</span>K
           </kbd>
         </Button>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           onClick={() => setCommandOpen(true)}
-          className="size-8 md:hidden"
+          className="size-7 md:hidden"
           aria-label={t("navigation.commandPalette")}
         >
-          <Search className="size-4" />
+          <Search className="size-3.5" />
         </Button>
         <OrganizationSwitcher />
         <NotificationBell />
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
+          className="size-7"
           onClick={cycleTheme}
           aria-label={t("settings.switchTheme", {
             theme: theme === "dark" ? t("settings.lightMode") : t("settings.darkMode"),
           })}
         >
           {theme === "dark" ? (
-            <Sun className="size-4 text-amber-400" />
+            <Sun className="size-3.5 text-amber-400" />
           ) : (
-            <Moon className="size-4" />
+            <Moon className="size-3.5" />
           )}
         </Button>
         <DropdownMenu>
@@ -123,15 +124,15 @@ export function AppHeader() {
             render={
               <Button
                 variant="ghost"
-                className="h-9 gap-2 px-2"
+                className="h-7 gap-1.5 rounded-md px-1.5 text-xs"
                 aria-label={t("settings.profile")}
               />
             }
           >
-            <Avatar size="sm">
+            <Avatar size="sm" className="size-6 text-[10px]">
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
-            <span className="hidden max-w-32 truncate text-sm font-medium sm:inline">
+            <span className="hidden max-w-28 truncate text-xs font-medium sm:inline">
               {user?.name}
             </span>
           </DropdownMenuTrigger>
@@ -144,6 +145,16 @@ export function AppHeader() {
                   {user?.role}
                 </Badge>
               </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={() => navigate({ to: FRONTEND_ROUTES.settings })}
+                className="cursor-pointer"
+              >
+                <Settings className="size-4" />
+                <span>{t("settings.title")}</span>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem

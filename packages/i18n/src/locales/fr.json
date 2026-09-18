@@ -204,7 +204,11 @@
     "switchTheme": "Passer en {{theme}}",
     "emailAddress": "Adresse e-mail",
     "activeTenant": "Organisation / Locataire actif",
-    "authRole": "Rôle d'autorisation"
+    "authRole": "Rôle d'autorisation",
+    "tabGeneral": "Général",
+    "tabSecurity": "Sécurité",
+    "tabNotifications": "Notifications",
+    "tabPrivacy": "Données et confidentialité"
   },
   "errors": {
     "notFound": "Page non trouvée",

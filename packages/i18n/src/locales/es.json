@@ -204,7 +204,11 @@
     "switchTheme": "Cambiar a {{theme}}",
     "emailAddress": "Dirección de correo electrónico",
     "activeTenant": "Inquilino / Organización activa",
-    "authRole": "Rol de autorización"
+    "authRole": "Rol de autorización",
+    "tabGeneral": "General",
+    "tabSecurity": "Seguridad",
+    "tabNotifications": "Notificaciones",
+    "tabPrivacy": "Datos y privacidad"
   },
   "errors": {
     "notFound": "Página no encontrada",

@@ -21,6 +21,37 @@ function createMockContext(
 }
 
 describe("PermissionsGuard", () => {
+  it.each(["admin", "user"])(
+    "evaluates collection request policies for %s without an ID or tenant",
+    (role) => {
+      const reflector = {
+        getAllAndOverride: vi.fn().mockReturnValue({ permissions: ["example:read"], mode: "all" }),
+      } as unknown as Reflector;
+      const authorization = new AuthorizationService();
+      authorization.registerPolicies([
+        {
+          id: "example-request-access",
+          resourceType: "request",
+          action: "example:read",
+          effect: "ALLOW",
+          condition: ({ principal }) => principal.role === "admin" || principal.role === "user",
+        },
+      ]);
+      const guard = new PermissionsGuard(reflector, authorization);
+
+      expect(guard.canActivate(createMockContext({ role, sub: "user-1" }))).toBe(true);
+      expect(() => guard.canActivate(createMockContext({ role: "guest", sub: "user-2" }))).toThrow(
+        ForbiddenException,
+      );
+      expect(
+        authorization.can({ id: "user-1", email: "user@example.test", role }, "example:read", {
+          type: "example",
+          id: "other-record",
+        }),
+      ).toBe(false);
+    },
+  );
+
   it("allows access when no permissions are required", () => {
     const reflector = {
       getAllAndOverride: vi.fn().mockReturnValue(undefined),

@@ -68,7 +68,7 @@ export const mobileTokens = {
   "sidebar-border": "#2a2a2a",
   "sidebar-ring": "#737373"
 },
-  radius: "0.625rem",
+  radius: "0.375rem",
   fonts: {
   "sans": "'Inter Variable', sans-serif",
   "heading": "'Inter Variable', sans-serif",

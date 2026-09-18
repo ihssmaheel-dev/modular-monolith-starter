@@ -10,7 +10,12 @@
 @source "../**/*.{ts,tsx}";
 
 @theme inline {
-    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+    --font-heading: var(--font-heading);
+    --font-mono: var(--font-mono);
+    --shadow-layered: var(--shadow-layered);
+    --shadow-layered-strong: var(--shadow-layered-strong);
+    --shadow-modal: var(--shadow-modal);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,7 +54,6 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
-    --font-sans: 'Inter Variable', sans-serif;
 }
 
 /* :root / .dark moved to tokens.generated.css — single source: packages/design-tokens/src/presets/active.json */

@@ -71,10 +71,9 @@ export class PermissionsGuard implements CanActivate {
 function resolveRequestResource(
   request: Record<string, unknown>,
   tenantId?: string,
-): Record<string, unknown> | undefined {
+): Record<string, unknown> {
   const params = (request.params as Record<string, unknown> | undefined) ?? {};
   const id = typeof params.id === "string" ? params.id : undefined;
-  if (!id && !tenantId) return undefined;
   return {
     type: "request",
     ...(id ? { id } : {}),

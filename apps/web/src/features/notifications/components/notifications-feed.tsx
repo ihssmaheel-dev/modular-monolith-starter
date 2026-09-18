@@ -28,22 +28,24 @@ export function NotificationsFeed({
   const items = feedQuery.data?.items ?? [];
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-3.5">
       <PageHeader
         title={t("notifications.title")}
         description={t("notifications.description")}
         actions={
           <Button
             variant="outline"
+            size="sm"
             onClick={() => markAllRead.mutate()}
             disabled={markAllRead.isPending}
+            className="h-7 text-xs"
           >
             {t("notifications.markAllRead")}
           </Button>
         }
       />
-      <Card>
-        <CardContent className="space-y-2 pt-6">
+      <Card className="border-border/80 shadow-2xs">
+        <CardContent className="space-y-2 p-3 sm:p-4">
           {feedQuery.isLoading ? (
             <div className="h-40 animate-pulse rounded-lg bg-muted" />
           ) : feedQuery.isError ? (

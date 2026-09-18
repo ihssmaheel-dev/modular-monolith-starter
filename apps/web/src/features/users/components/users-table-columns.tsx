@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
 import { Badge } from "@repo/ui/components/ui/badge";
 import type { DataTableColumn } from "@repo/ui/components/composed/data-table";
 import type { UserResponse } from "@repo/contracts";
@@ -8,12 +9,22 @@ export function getUsersColumns(t: (key: string) => string): DataTableColumn<Use
     {
       key: "name",
       header: t("users.name"),
-      cell: (row) => <span className="font-semibold text-foreground">{row.name}</span>,
+      cell: (row) => {
+        const initials = row.name ? row.name.slice(0, 2).toUpperCase() : "U";
+        return (
+          <div className="flex items-center gap-2.5">
+            <Avatar size="sm" className="size-7">
+              <AvatarFallback className="text-[10px] font-medium">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="text-xs sm:text-sm font-medium text-foreground">{row.name}</span>
+          </div>
+        );
+      },
     },
     {
       key: "email",
       header: t("users.email"),
-      cell: (row) => <span className="text-muted-foreground font-mono text-xs">{row.email}</span>,
+      cell: (row) => <span className="font-mono text-xs text-muted-foreground">{row.email}</span>,
     },
     {
       key: "role",
@@ -21,7 +32,7 @@ export function getUsersColumns(t: (key: string) => string): DataTableColumn<Use
       cell: (row) => (
         <Badge
           variant={row.role === "admin" ? "default" : "secondary"}
-          className="text-[10px] font-mono"
+          className="text-[10px] font-mono capitalize"
         >
           {row.role}
         </Badge>

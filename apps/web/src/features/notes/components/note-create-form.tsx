@@ -28,19 +28,19 @@ export function NoteCreateForm() {
   const mutation = useCreateNoteMutation({ onSuccess: (note) => goToDetail(note.id) });
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-3.5">
       <div>
-        <Button variant="ghost" size="sm" onClick={goBack}>
+        <Button variant="ghost" size="sm" onClick={goBack} className="h-7 gap-1.5 px-2 text-xs">
           {t("common.back")}
         </Button>
       </div>
-      <Card>
+      <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>{t("notes.createNote")}</CardTitle>
           <CardDescription>{t("notes.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-5">
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="note-title">{t("notes.noteTitle")}</Label>
               <Input

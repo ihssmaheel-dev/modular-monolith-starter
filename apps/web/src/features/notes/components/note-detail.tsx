@@ -51,10 +51,10 @@ export function NoteDetail({ id }: { id: string }) {
   const files = attachmentsQuery.data?.items ?? [];
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-3.5">
       <div>
-        <Button variant="ghost" size="sm" onClick={goBack}>
-          <ArrowLeft className="size-4" />
+        <Button variant="ghost" size="sm" onClick={goBack} className="h-7 gap-1.5 px-2 text-xs">
+          <ArrowLeft className="size-3.5" />
           {t("common.back")}
         </Button>
       </div>

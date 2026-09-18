@@ -132,7 +132,11 @@
     "switchTheme": "Switch to {{theme}}",
     "emailAddress": "Email Address",
     "activeTenant": "Active Tenant / Organization",
-    "authRole": "Authorization Role"
+    "authRole": "Authorization Role",
+    "tabGeneral": "General",
+    "tabSecurity": "Security",
+    "tabNotifications": "Notifications",
+    "tabPrivacy": "Data & Privacy"
   },
   "errors": {
     "notFound": "Page not found",

@@ -14,15 +14,18 @@ import {
 } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
-import {
-  loginMutationOptions,
-  resendVerificationMutationOptions,
-} from "@/features/auth/auth.mutations";
+import { loginMutationOptions } from "@/features/auth/auth.mutations";
 import { useAuthSuccess } from "@/features/auth/hooks/use-auth-success";
 import { FieldError } from "@/features/auth/components/field-error";
 import { PasswordInput } from "@/features/auth/components/password-input";
 
-export function LoginForm({ inviteToken }: { inviteToken?: string }) {
+export function LoginForm({
+  inviteToken,
+  hideHeader = false,
+}: {
+  inviteToken?: string;
+  hideHeader?: boolean;
+}) {
   const { t } = useTranslation();
   const onSuccess = useAuthSuccess(inviteToken);
   const form = useForm<LoginInput>({
@@ -30,15 +33,16 @@ export function LoginForm({ inviteToken }: { inviteToken?: string }) {
     defaultValues: { email: "", password: "" },
   });
   const mutation = useMutation({ ...loginMutationOptions(), onSuccess });
-  const resendMutation = useMutation(resendVerificationMutationOptions());
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("auth.login")}</CardTitle>
-        <CardDescription>{t("auth.loginDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Card className="border-border shadow-2xs">
+      {!hideHeader && (
+        <CardHeader>
+          <CardTitle>{t("auth.login")}</CardTitle>
+          <CardDescription>{t("auth.loginDescription")}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent className={hideHeader ? "pt-6" : undefined}>
         <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="login-email">{t("auth.email")}</Label>
@@ -74,20 +78,6 @@ export function LoginForm({ inviteToken }: { inviteToken?: string }) {
           {mutation.isError && (
             <p className="text-sm text-destructive">{t(mutation.error.message)}</p>
           )}
-          {mutation.isError &&
-            (resendMutation.isSuccess ? (
-              <p className="text-sm text-muted-foreground">{t("auth.verificationSent")}</p>
-            ) : (
-              <Button
-                type="button"
-                variant="link"
-                className="h-auto p-0 text-sm"
-                disabled={resendMutation.isPending}
-                onClick={() => resendMutation.mutate(form.getValues("email"))}
-              >
-                {t("auth.resendVerification")}
-              </Button>
-            ))}
           <Button type="submit" className="w-full" disabled={mutation.isPending}>
             {mutation.isPending ? t("auth.signingIn") : t("auth.signIn")}
           </Button>

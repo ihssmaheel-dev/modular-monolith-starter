@@ -24,7 +24,13 @@ import { stashPendingInviteToken } from "@/features/auth/components/verify-email
 import { FieldError } from "@/features/auth/components/field-error";
 import { PasswordInput } from "@/features/auth/components/password-input";
 
-export function RegisterForm({ inviteToken }: { inviteToken?: string }) {
+export function RegisterForm({
+  inviteToken,
+  hideHeader = false,
+}: {
+  inviteToken?: string;
+  hideHeader?: boolean;
+}) {
   const { t } = useTranslation();
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const form = useForm<RegisterInput>({
@@ -42,7 +48,7 @@ export function RegisterForm({ inviteToken }: { inviteToken?: string }) {
 
   if (registeredEmail) {
     return (
-      <Card>
+      <Card className="border-border shadow-2xs">
         <CardHeader>
           <CardTitle>{t("auth.checkInboxTitle")}</CardTitle>
           <CardDescription>{t("auth.checkInboxDescription")}</CardDescription>
@@ -70,12 +76,14 @@ export function RegisterForm({ inviteToken }: { inviteToken?: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("auth.createAccountTitle")}</CardTitle>
-        <CardDescription>{t("auth.registerDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Card className="border-border shadow-2xs">
+      {!hideHeader && (
+        <CardHeader>
+          <CardTitle>{t("auth.createAccountTitle")}</CardTitle>
+          <CardDescription>{t("auth.registerDescription")}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent className={hideHeader ? "pt-6" : undefined}>
         <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="reg-name">{t("auth.name")}</Label>

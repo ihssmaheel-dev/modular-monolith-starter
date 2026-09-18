@@ -21,58 +21,62 @@ export function RecentNotesWidget() {
   const user = useAuthStore((state) => state.user);
   const notesQuery = useQuery({ ...notesListQuery(1, 5), enabled: Boolean(user) });
   return (
-    <Card className="border-muted/80 shadow-xs">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 p-5 pb-3">
+    <Card className="border-border/80 shadow-2xs">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 p-4 pb-2.5">
         <div>
-          <CardTitle className="text-base sm:text-lg font-bold">
+          <CardTitle className="text-sm sm:text-base font-semibold">
             {t("dashboard.recentNotes")}
           </CardTitle>
-          <CardDescription className="text-xs">{t("notes.description")}</CardDescription>
+          <CardDescription className="text-xs text-muted-foreground">
+            {t("notes.description")}
+          </CardDescription>
         </div>
         <Button
           size="sm"
           variant="ghost"
-          className="gap-1.5 text-xs"
+          className="h-7 gap-1 px-2 text-xs"
           render={<Link to={FRONTEND_ROUTES.notes} />}
         >
           <span>{t("notes.title")}</span>
-          <ArrowRight className="size-3.5" />
+          <ArrowRight className="size-3" />
         </Button>
       </CardHeader>
-      <CardContent className="p-5 pt-0">
+      <CardContent className="p-4 pt-0">
         {notesQuery.isLoading ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">{t("common.loading")}</p>
+          <p className="text-xs text-muted-foreground py-5 text-center">{t("common.loading")}</p>
         ) : notesQuery.isError ? (
-          <p className="text-sm text-destructive py-6 text-center">{t("errors.networkError")}</p>
+          <p className="text-xs text-destructive py-5 text-center">{t("errors.networkError")}</p>
         ) : notesQuery.data?.items && notesQuery.data.items.length > 0 ? (
-          <div className="divide-y rounded-lg border bg-background">
+          <div className="divide-y divide-border/60 rounded-md border border-border/70 bg-background/50">
             {notesQuery.data.items.map((note) => (
               <div
                 key={note.id}
-                className="flex items-center justify-between gap-4 p-3.5 hover:bg-muted/30 transition-colors"
+                className="flex items-center justify-between gap-3 p-2.5 sm:px-3 hover:bg-muted/40 transition-colors"
               >
                 <div className="min-w-0 space-y-0.5">
-                  <p className="truncate text-sm font-semibold text-foreground">{note.title}</p>
-                  <p className="truncate text-xs text-muted-foreground">{note.content}</p>
+                  <p className="truncate text-xs sm:text-sm font-medium text-foreground">
+                    {note.title}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">{note.content}</p>
                 </div>
-                <Badge variant="outline" className="shrink-0 text-[10px] font-mono">
+                <Badge variant="outline" className="shrink-0 text-[10px] font-mono py-0 h-4.5">
                   {formatRelativeTime(note.createdAt)}
                 </Badge>
               </div>
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center rounded-lg border border-dashed bg-muted/20 space-y-3">
-            <FileText className="size-8 text-muted-foreground mx-auto opacity-50" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">{t("notes.noNotes")}</p>
+          <div className="py-6 text-center rounded-md border border-dashed border-border/70 bg-muted/10 space-y-2.5">
+            <FileText className="size-6 text-muted-foreground mx-auto opacity-50" />
+            <div className="space-y-0.5">
+              <p className="text-xs font-medium text-foreground">{t("notes.noNotes")}</p>
             </div>
             <Button
               size="sm"
               render={<Link to={FRONTEND_ROUTES.newNote} />}
-              className="gap-1.5 text-xs"
+              className="h-7 gap-1 px-2.5 text-xs shadow-none"
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-3" />
               <span>{t("notes.newNote")}</span>
             </Button>
           </div>
