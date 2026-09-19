@@ -2,9 +2,9 @@ name: CD
 
 on:
   workflow_run:
-    workflows: ["CI/CD Pipeline"]
-    types: [completed]
-    branches: [main]
+    workflows: [ "CI/CD Pipeline" ]
+    types: [ completed ]
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -24,7 +24,8 @@ env:
 jobs:
   publish:
     name: Publish images
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
@@ -89,7 +90,7 @@ jobs:
             VITE_API_URL=${{ secrets.VITE_API_URL }}
 
       - name: Trivy scan API image
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE_API }}:${{ env.TAG }}
           severity: HIGH,CRITICAL
@@ -98,7 +99,7 @@ jobs:
           output: trivy-api.sarif
 
       - name: Trivy scan Web image
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE_WEB }}:${{ env.TAG }}
           severity: HIGH,CRITICAL
@@ -130,7 +131,8 @@ jobs:
     name: Validate release and publish evidence
     runs-on: ubuntu-latest
     needs: publish
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout Code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

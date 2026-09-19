@@ -20,8 +20,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orpc/contract": "^1.15.0",
-    "@orpc/zod": "^1.15.0",
+    "@orpc/contract": "^1.15.2",
+    "@orpc/zod": "^1.15.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {

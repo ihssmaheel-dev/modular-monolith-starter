@@ -69,21 +69,26 @@
     "up": "taze -r"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.2",
-    "@commitlint/cli": "^21.2.2",
-    "@commitlint/config-conventional": "^21.2.2",
-    "dependency-cruiser": "18.3.0",
+    "@changesets/cli": "^3.0.3",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "dependency-cruiser": "17.4.3",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.8",
     "taze": "^21.1.0",
     "tsx": "^4.23.13",
-    "turbo": "^2.10.12",
+    "turbo": "^2.11.2",
     "typescript": "~6.0.3"
   },
   "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=20.19.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "undici": "^7.29.1"
+    }
   },
   "lint-staged": {
     "apps/api/src/**/*.ts": [
