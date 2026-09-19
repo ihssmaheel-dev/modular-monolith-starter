@@ -222,7 +222,10 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
     this.unsubscribeReady?.();
     this.unsubscribeReady = undefined;
     if (this.subscriber) {
-      await this.subscriber.quit();
+      const sub = this.subscriber;
+      this.subscriber = null;
+      sub.removeAllListeners?.();
+      await sub.quit().catch(() => {});
     }
   }
 }

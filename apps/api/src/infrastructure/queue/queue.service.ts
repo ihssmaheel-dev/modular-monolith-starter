@@ -61,6 +61,15 @@ export class QueueService implements BeforeApplicationShutdown {
   ): Worker<T, unknown, string> | null {
     if (!env.REDIS_URL) return null;
     this.getQueue(name);
+    const existing = this.workers.get(name);
+    if (existing) {
+      existing.close().catch((err) => {
+        this.loggerService.warn(
+          { queue: name, err },
+          "Error closing existing BullMQ worker before replace",
+        );
+      });
+    }
     const worker = new Worker<T, unknown, string>(
       name,
       (job) => this.runWorker(name, job, handler),

@@ -209,7 +209,9 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
 
   async getActiveUsage(
     uploadedBy: string,
+    tenantId?: string,
   ): Promise<{ userBytes: number; tenantBytes: number; tenantObjects: number }> {
+    const activeTenantId = tenantId ?? this.tenantContext?.get()?.tenantId;
     const db = this.getDb();
     const result = await (
       db as unknown as {
@@ -227,7 +229,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
         coalesce(sum(file_size), 0) as "tenantBytes",
         count(*) as "tenantObjects"
       from files
-      where deleted_at is null`,
+      where deleted_at is null ${activeTenantId ? sql`and tenant_id = ${activeTenantId}` : sql``}`,
     );
     const row = result.rows[0];
     return {

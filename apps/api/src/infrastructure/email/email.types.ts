@@ -21,4 +21,5 @@ export interface SendEmailResult {
 
 export interface EmailDriver {
   send(recipients: string[], params: SendEmailParams): Promise<Result<SendEmailResult, EmailError>>;
+  close?(): Promise<void> | void;
 }

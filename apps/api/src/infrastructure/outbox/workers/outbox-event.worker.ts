@@ -22,7 +22,7 @@ import { RedisService } from "../../redis/redis.service";
 import { OperationReceiptService } from "../../idempotency/operation-receipt.service";
 
 const OUTBOX_CONSUMER_OPERATION = "outbox:event-consumer:v1";
-const OUTBOX_COMPLETED_RECEIPT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
+const OUTBOX_COMPLETED_RECEIPT_RETENTION_MS = 3 * 24 * 60 * 60 * 1_000;
 
 /**
  * At-least-once delivery contract: a job may be redelivered after crashes,

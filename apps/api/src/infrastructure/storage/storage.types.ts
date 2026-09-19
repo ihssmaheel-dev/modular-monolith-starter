@@ -50,4 +50,5 @@ export interface StorageDriver {
   ): Promise<void>;
   getPublicUrl?(key: string): string | null;
   getBucket?(): string;
+  destroy?(): Promise<void> | void;
 }

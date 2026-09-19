@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
+import { Cron } from "@nestjs/schedule";
 import { env } from "../../../../config/env";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
@@ -22,7 +22,7 @@ export class NotificationRetentionWorker {
     this.logger = logger.child({ module: "NotificationRetentionWorker" });
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  @Cron("30 3 * * *")
   async pruneExpiredIntents(): Promise<number> {
     if (env.PROCESS_ROLE === "api") return 0;
     const run = async () => {

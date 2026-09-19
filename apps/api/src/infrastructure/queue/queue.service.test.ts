@@ -2,6 +2,24 @@ import { describe, expect, it, vi } from "vitest";
 import { QueueService } from "./queue.service";
 import type { PinoLoggerService } from "../logger/logger.service";
 
+vi.mock("bullmq", () => {
+  return {
+    Queue: vi.fn().mockImplementation(function () {
+      return {
+        add: vi.fn(),
+        on: vi.fn(),
+        close: vi.fn().mockResolvedValue(undefined),
+      };
+    }),
+    Worker: vi.fn().mockImplementation(function () {
+      return {
+        on: vi.fn(),
+        close: vi.fn().mockResolvedValue(undefined),
+      };
+    }),
+  };
+});
+
 describe("QueueService", () => {
   const mockLogger = {
     error: vi.fn(),
@@ -38,6 +56,18 @@ describe("QueueService", () => {
     expect(mockWorker.close).toHaveBeenCalledTimes(1);
     expect(mockQueue.close).toHaveBeenCalledTimes(1);
     expect(order).toEqual(["worker-pause", "worker-close", "queue-close"]);
+  });
+
+  it("closes previous worker when registering a new worker for the same queue", () => {
+    const service = new QueueService(mockLogger);
+    const oldWorker = {
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    (service as unknown as { workers: Map<string, unknown> }).workers.set("w1", oldWorker);
+
+    service.addWorker("w1", async () => {});
+
+    expect(oldWorker.close).toHaveBeenCalledTimes(1);
   });
 
   it("does not overlap queue metric polls or fetch a job for an empty queue", async () => {

@@ -1,4 +1,4 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable, Optional, type OnApplicationShutdown } from "@nestjs/common";
 import { ok, err, type Result } from "neverthrow";
 import { PinoLoggerService } from "../logger/logger.service";
 import {
@@ -21,7 +21,7 @@ import { StorageMetricsRecorder, type StorageOperation } from "./metrics/storage
 import { detectStorageProvider } from "./providers/storage-provider.detector";
 
 @Injectable()
-export class StorageService {
+export class StorageService implements OnApplicationShutdown {
   private driver: StorageDriver;
   private circuitBreaker: CircuitBreaker<StorageError>;
   private bulkhead: Bulkhead<StorageError>;
@@ -241,5 +241,9 @@ export class StorageService {
         }
       }),
     );
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    await this.driver.destroy?.();
   }
 }

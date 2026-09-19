@@ -33,9 +33,9 @@ export class RealtimeStreamReaper {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async reapStaleDispatcherGroups(): Promise<void> {
-    // The API replicas own the consumer groups; one dedicated worker performs
-    // cleanup so replicas cannot destroy each other's groups concurrently.
-    if (env.PROCESS_ROLE !== "worker") return;
+    // The API replicas own the consumer groups; workers and all-in-one runtimes
+    // perform cleanup so API replicas cannot destroy each other's groups concurrently.
+    if (env.PROCESS_ROLE === "api") return;
     const client = this.redis.getClient();
     if (!client) return;
     try {

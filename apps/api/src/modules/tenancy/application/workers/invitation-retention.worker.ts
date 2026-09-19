@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
+import { Cron } from "@nestjs/schedule";
 import { env } from "../../../../config/env";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { PurgeExpiredInvitationsCommand } from "../commands/purge-expired-invitations.command";
@@ -15,7 +15,7 @@ export class InvitationRetentionWorker {
     this.logger = logger.child({ module: "InvitationRetentionWorker" });
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  @Cron("30 2 * * *")
   async purgeExpiredInvitations(): Promise<number> {
     if (env.PROCESS_ROLE === "api") return 0;
     try {

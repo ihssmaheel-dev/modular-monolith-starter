@@ -4,7 +4,10 @@ import { env } from "../../../config/env";
 import { PinoLoggerService } from "../../logger/logger.service";
 import { StorageService } from "../storage.service";
 
+import { validateMagicBytes } from "../../../common/utils/magic-bytes.utils";
+
 const AV_SCAN_TIMEOUT_MS = 10_000;
+const HEADER_SAMPLE_BYTES = 4096;
 const ScanResponseSchema = z.object({ clean: z.boolean() });
 
 export type FileScanResult = "clean" | "infected";
@@ -30,8 +33,67 @@ export class FileScannerService {
     if (!this.matchesExpectedObject(file, metadata.value)) {
       return { error: "OBJECT_MISSING" };
     }
+
+    const streamResult = await this.storage.getDownloadStream(file.key);
+    if (streamResult.isErr()) return { error: "SCANNER_UNAVAILABLE" };
+    const chunk = await this.readHeaderBytes(streamResult.value, HEADER_SAMPLE_BYTES);
+    if (!validateMagicBytes(chunk, file.contentType)) {
+      this.logger.warn(
+        { key: file.key, contentType: file.contentType },
+        "File magic bytes do not match declared content-type",
+      );
+      return { result: "infected" };
+    }
+
     if (!env.FILE_AV_ENABLED) return { result: "clean" };
     return this.scanWithAv(file.key, file.versionId, file.etag);
+  }
+
+  private readHeaderBytes(stream: NodeJS.ReadableStream, maxBytes: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      let total = 0;
+      let completed = false;
+
+      const cleanup = () => {
+        stream.removeListener("data", onData);
+        stream.removeListener("end", onEnd);
+        stream.removeListener("error", onError);
+      };
+
+      const onData = (chunk: Buffer) => {
+        if (completed) return;
+        chunks.push(chunk);
+        total += chunk.length;
+        if (total >= maxBytes) {
+          completed = true;
+          cleanup();
+          const destroyable = stream as unknown as { destroy?: () => void };
+          if (typeof destroyable.destroy === "function") {
+            destroyable.destroy();
+          }
+          resolve(Buffer.concat(chunks).subarray(0, maxBytes));
+        }
+      };
+
+      const onEnd = () => {
+        if (completed) return;
+        completed = true;
+        cleanup();
+        resolve(Buffer.concat(chunks));
+      };
+
+      const onError = (err: unknown) => {
+        if (completed) return;
+        completed = true;
+        cleanup();
+        reject(err);
+      };
+
+      stream.on("data", onData);
+      stream.on("end", onEnd);
+      stream.on("error", onError);
+    });
   }
 
   private matchesExpectedObject(

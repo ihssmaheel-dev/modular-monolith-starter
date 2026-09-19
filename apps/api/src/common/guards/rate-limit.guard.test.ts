@@ -191,7 +191,7 @@ describe("RateLimitGuard", () => {
 
     expect(rateLimitService.check).toHaveBeenCalledWith(
       "ip:127.0.0.1:route:/api/v1/auth/forgot-password",
-      { windowSeconds: 30, maxRequests: 5 },
+      { windowSeconds: 30, maxRequests: 5, failClosed: true },
     );
     expect(mockRes.header).toHaveBeenCalledWith("X-RateLimit-Limit", "5");
   });

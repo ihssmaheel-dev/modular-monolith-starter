@@ -1,4 +1,4 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable, Optional, type OnApplicationShutdown } from "@nestjs/common";
 import { err, Result } from "neverthrow";
 import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
@@ -11,7 +11,7 @@ import { TenantContextService } from "../database";
 import type { EmailDriver, EmailError, SendEmailParams, SendEmailResult } from "./email.types";
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnApplicationShutdown {
   private driver: EmailDriver | null = null;
   private logger: PinoLoggerService;
   private circuitBreaker: CircuitBreaker<EmailError>;
@@ -86,5 +86,9 @@ export class EmailService {
     }
 
     return err({ code: "CONFIG_ERROR", message: "api.error.configError" });
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    await this.driver?.close?.();
   }
 }

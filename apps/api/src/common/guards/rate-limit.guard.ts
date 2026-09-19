@@ -38,6 +38,8 @@ export class RateLimitGuard implements CanActivate {
 
     const maxRequests = metadata?.maxRequests ?? env.RATE_LIMIT_MAX;
     const windowSeconds = metadata?.windowSeconds ?? env.RATE_LIMIT_TTL;
+    const isMutation = req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS";
+    const failClosed = metadata?.failClosed ?? isMutation;
 
     const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
     // Prefer the route template: raw URLs carry resource IDs and would
@@ -48,6 +50,7 @@ export class RateLimitGuard implements CanActivate {
     const result = await this.rateLimitService.check(`ip:${ip}:route:${route}`, {
       windowSeconds,
       maxRequests,
+      failClosed,
     });
 
     this.setHeaders(res, maxRequests, result);

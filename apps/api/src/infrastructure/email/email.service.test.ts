@@ -4,11 +4,13 @@ import type { PinoLoggerService } from "../logger/logger.service";
 import type { MetricsService } from "../metrics/metrics.service";
 
 const mockSendMail = vi.fn();
+const mockClose = vi.fn();
 
 vi.mock("nodemailer", () => ({
   default: {
     createTransport: vi.fn(() => ({
       sendMail: mockSendMail,
+      close: mockClose,
     })),
   },
 }));
@@ -96,5 +98,10 @@ describe("EmailService", () => {
     if (result.isErr()) {
       expect(result.error.code).toBe("SEND_FAILED");
     }
+  });
+
+  it("should close driver on application shutdown", async () => {
+    await service.onApplicationShutdown();
+    expect(mockClose).toHaveBeenCalledTimes(1);
   });
 });

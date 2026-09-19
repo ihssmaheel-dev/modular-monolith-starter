@@ -45,6 +45,10 @@ export class SmtpDriver implements EmailDriver {
       });
     }
   }
+
+  close(): void {
+    this.transporter.close();
+  }
 }
 
 function emailDomain(): string {

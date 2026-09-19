@@ -37,6 +37,9 @@ export const files = pgTable(
     index("files_uploader_active_idx")
       .on(t.uploadedBy)
       .where(sql`"deleted_at" IS NULL`),
+    index("files_tenant_active_idx")
+      .on(t.tenantId)
+      .where(sql`"deleted_at" IS NULL`),
     index("files_key_idx").on(t.key),
     index("files_deleted_at_idx").on(t.deletedAt),
   ],

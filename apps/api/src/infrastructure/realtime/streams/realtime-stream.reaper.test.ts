@@ -112,4 +112,18 @@ describe("RealtimeStreamReaper", () => {
     expect(client.xinfo).not.toHaveBeenCalled();
     expect(client.xgroup).not.toHaveBeenCalled();
   });
+
+  it("allows all-in-one process role to reap dispatcher groups", async () => {
+    env.PROCESS_ROLE = "all";
+    const client = {
+      xinfo: vi.fn().mockResolvedValue(groupInfo(["realtime-dispatchers-dead"])),
+      get: vi.fn().mockResolvedValue(null),
+      xgroup: vi.fn().mockResolvedValue("OK"),
+    };
+    const reaper = createReaper(client);
+
+    await reaper.reapStaleDispatcherGroups();
+
+    expect(client.xgroup).toHaveBeenCalledWith("DESTROY", STREAM_KEY, "realtime-dispatchers-dead");
+  });
 });

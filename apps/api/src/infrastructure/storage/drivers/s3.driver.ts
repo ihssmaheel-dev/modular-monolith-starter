@@ -148,4 +148,8 @@ export class S3Driver implements StorageDriver {
   getBucket(): string {
     return this.bucket;
   }
+
+  destroy(): void {
+    this.client.destroy();
+  }
 }

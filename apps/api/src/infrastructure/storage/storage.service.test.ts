@@ -14,6 +14,7 @@ const mockDriverInstance = {
   copy: vi.fn(),
   getPublicUrl: vi.fn(),
   getBucket: vi.fn().mockReturnValue("test-bucket"),
+  destroy: vi.fn(),
 };
 
 vi.mock("../../config/env", () => ({
@@ -46,6 +47,7 @@ vi.mock("./drivers/s3.driver", () => {
       copy = (...args: unknown[]) => mockDriverInstance.copy(...args);
       getPublicUrl = (...args: unknown[]) => mockDriverInstance.getPublicUrl(...(args as [string]));
       getBucket = () => mockDriverInstance.getBucket();
+      destroy = () => mockDriverInstance.destroy();
     },
   };
 });
@@ -257,5 +259,10 @@ describe("StorageService", () => {
     mockDriverInstance.getPublicUrl.mockReturnValue("https://cdn.example.com/file.txt");
     expect(service.getPublicUrl("file.txt")).toBe("https://cdn.example.com/file.txt");
     expect(mockDriverInstance.getPublicUrl).toHaveBeenCalledWith("file.txt");
+  });
+
+  it("should destroy driver on application shutdown", async () => {
+    await service.onApplicationShutdown();
+    expect(mockDriverInstance.destroy).toHaveBeenCalledTimes(1);
   });
 });

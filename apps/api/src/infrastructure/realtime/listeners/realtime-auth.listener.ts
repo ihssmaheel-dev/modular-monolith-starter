@@ -177,6 +177,11 @@ export class RealtimeAuthListener implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     this.unsubscribeReady?.();
     this.unsubscribeReady = undefined;
-    if (this.subscriber) await this.subscriber.quit();
+    if (this.subscriber) {
+      const sub = this.subscriber;
+      this.subscriber = null;
+      sub.removeAllListeners?.();
+      await sub.quit().catch(() => {});
+    }
   }
 }

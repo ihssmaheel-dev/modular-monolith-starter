@@ -125,7 +125,7 @@ export class RequestUploadCommand {
     if (scope.mode === "multi" && !scope.tenantId) return false;
     // Runs inside the caller's unit of work (under the quota lock), so the
     // sum and the subsequent insert observe the same serialized state.
-    const usage = await this.filesRepo.getActiveUsage(userId);
+    const usage = await this.filesRepo.getActiveUsage(userId, scope.tenantId);
     const userBytes =
       scope.mode === "multi" && this.database
         ? await this.database.withSystemScope(() =>

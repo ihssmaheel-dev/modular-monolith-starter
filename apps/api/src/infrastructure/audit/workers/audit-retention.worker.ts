@@ -16,7 +16,7 @@ export class AuditRetentionWorker {
     this.logger = logger.child({ module: "AuditRetentionWorker" });
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async purgeExpiredLogs(): Promise<number> {
     if (env.PROCESS_ROLE === "api") return 0;
     const run = async () => {
