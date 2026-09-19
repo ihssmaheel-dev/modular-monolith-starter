@@ -1,6 +1,12 @@
-import { eq, and, isNull, sql, gt, lt, desc, asc } from "drizzle-orm";
+import { eq, and, isNull, sql, gt } from "drizzle-orm";
 import { ok, err, type Result } from "neverthrow";
 import { BaseReadRepository, MAX_FIND_LIMIT } from "./base-read.repository";
+import {
+  decodeCursor,
+  encodeCursor,
+  buildCursorClause,
+  buildCursorOrder,
+} from "./cursor-pagination.helper";
 import type {
   Id,
   PaginatedResult,
@@ -142,6 +148,7 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       const direction = options.direction ?? "desc";
       const cols = this.table as unknown as Record<string, Parameters<typeof gt>[0]>;
       const col = cols[cursorField];
+      const idCol = cols["id"];
 
       const clauses: unknown[] = [];
       const baseConditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
@@ -149,8 +156,10 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
         clauses.push(baseConditions);
       }
 
-      if (options.cursor && col) {
-        clauses.push(direction === "desc" ? lt(col, options.cursor) : gt(col, options.cursor));
+      const decoded = decodeCursor(options.cursor);
+      if (decoded && col) {
+        const cursorClause = buildCursorClause(col, idCol, decoded, cursorField, direction);
+        if (cursorClause) clauses.push(cursorClause);
       }
 
       const conditions =
@@ -177,12 +186,12 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
         ? (itemQuery as { where: (condition: unknown) => unknown }).where(conditions)
         : itemQuery;
 
-      const orderCol = col ?? cols["id"];
+      const orderCol = col ?? idCol;
       if (orderCol) {
-        const orderClause = direction === "desc" ? desc(orderCol) : asc(orderCol);
+        const orderClauses = buildCursorOrder(orderCol, idCol, cursorField, direction);
         if (typeof (queryCandidate as { orderBy?: unknown }).orderBy === "function") {
           queryCandidate = (queryCandidate as { orderBy: (...v: unknown[]) => unknown }).orderBy(
-            orderClause,
+            ...orderClauses,
           );
         }
       }
@@ -194,7 +203,8 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       const itemsToReturn = hasNextPage ? rows.slice(0, limit) : rows;
       const lastItem = itemsToReturn[itemsToReturn.length - 1] as
         Record<string, unknown> | undefined;
-      const nextCursor = hasNextPage && lastItem ? String(lastItem[cursorField] ?? "") : null;
+
+      const nextCursor = hasNextPage && lastItem ? encodeCursor(cursorField, lastItem) : null;
 
       return ok({
         items: itemsToReturn.map((r) => this.toDomain(r)),

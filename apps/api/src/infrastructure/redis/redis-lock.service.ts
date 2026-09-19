@@ -93,11 +93,12 @@ export class RedisLockService {
   /**
    * Executes fn exclusively if the distributed lock is acquired.
    * Runs an unreferenced heartbeat timer to auto-renew the lock during execution.
+   * If lock auto-renewal fails, immediately aborts task execution.
    * Automatically releases the lock when fn completes or throws.
    */
   async withLock<T>(
     key: string,
-    fn: () => Promise<T>,
+    fn: (signal?: AbortSignal) => Promise<T>,
     ttlMs = 60_000,
   ): Promise<{ executed: boolean; result?: T }> {
     const handle = await this.acquire(key, ttlMs);
@@ -105,22 +106,38 @@ export class RedisLockService {
       return { executed: false };
     }
 
+    const abortController = new AbortController();
+    let rejectAbort: ((reason: unknown) => void) | null = null;
+    const abortPromise = new Promise<never>((_, reject) => {
+      rejectAbort = reject;
+    });
+
     const intervalMs = Math.max(1000, Math.floor(ttlMs / 3));
     let heartbeatTimer: NodeJS.Timeout | null = setInterval(async () => {
       try {
         const renewed = await handle.renew(ttlMs);
         if (!renewed) {
+          const lockLostError = new Error(
+            `DISTRIBUTED_LOCK_LOST: lock renewal failed for key ${key}`,
+          );
           this.logger.warn({ key }, "Distributed lock auto-renewal failed; lock may have expired");
+          abortController.abort(lockLostError);
+          rejectAbort?.(lockLostError);
         }
       } catch (error) {
-        this.logger.warn({ error, key }, "Error during distributed lock auto-renewal");
+        const lockLostError = new Error(
+          `DISTRIBUTED_LOCK_LOST: error during lock auto-renewal for key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        this.logger.warn({ error, key }, "Error during distributed lock auto-renewal; aborting");
+        abortController.abort(lockLostError);
+        rejectAbort?.(lockLostError);
       }
     }, intervalMs);
 
     heartbeatTimer.unref?.();
 
     try {
-      const result = await fn();
+      const result = await Promise.race([fn(abortController.signal), abortPromise]);
       return { executed: true, result };
     } finally {
       if (heartbeatTimer) {

@@ -189,5 +189,34 @@ describe("RedisLockService", () => {
       );
       expect(mockRedisClient.eval).toHaveBeenCalledTimes(1);
     });
+
+    it("aborts execution immediately when lock renewal fails during execution", async () => {
+      vi.useFakeTimers();
+      try {
+        mockRedisClient.set.mockResolvedValue("OK");
+        // First eval is renewal (fails with 0), second is release
+        mockRedisClient.eval.mockResolvedValue(0);
+
+        let signalObservedAborted = false;
+        const delayedPromise = (signal?: AbortSignal) =>
+          new Promise<string>((resolve) => {
+            signal?.addEventListener("abort", () => {
+              signalObservedAborted = true;
+            });
+            setTimeout(() => resolve("finished-too-late"), 10_000);
+          });
+
+        const withLockPromise = lockService.withLock("long-job", delayedPromise, 3_000);
+
+        // Advance timer to trigger renewal attempt (1000ms)
+        const advancePromise = vi.advanceTimersByTimeAsync(1100);
+        await expect(Promise.all([withLockPromise, advancePromise])).rejects.toThrow(
+          "DISTRIBUTED_LOCK_LOST",
+        );
+        expect(signalObservedAborted).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

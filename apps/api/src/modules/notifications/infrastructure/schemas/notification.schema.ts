@@ -71,6 +71,7 @@ export const notificationDeliveryIntents = pgTable(
   (t) => [
     unique("notification_delivery_channel_unique").on(t.notificationId, t.channel),
     index("notification_delivery_pending_idx").on(t.status, t.nextAttemptAt, t.createdAt),
+    index("notification_delivery_retention_idx").on(t.status, t.updatedAt),
     index("notification_delivery_user_idx").on(t.userId),
     index("notification_delivery_tenant_idx").on(t.tenantId),
   ],

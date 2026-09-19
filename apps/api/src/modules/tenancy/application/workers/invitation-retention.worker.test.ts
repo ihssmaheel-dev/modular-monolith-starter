@@ -40,4 +40,40 @@ describe("InvitationRetentionWorker", () => {
 
     await expect(worker.purgeExpiredInvitations()).resolves.toBe(0);
   });
+
+  it("executes under withExclusiveExecution when database service is present", async () => {
+    const mockDatabase = {
+      withExclusiveExecution: vi.fn(async (_key: string, fn: () => Promise<unknown>) => ({
+        executed: true,
+        result: await fn(),
+      })),
+    };
+    const logger = { child: vi.fn().mockReturnThis(), info: vi.fn(), error: vi.fn() };
+    const lockedWorker = new InvitationRetentionWorker(
+      purge,
+      logger as unknown as PinoLoggerService,
+      mockDatabase as never,
+    );
+
+    await expect(lockedWorker.purgeExpiredInvitations()).resolves.toBe(7);
+    expect(mockDatabase.withExclusiveExecution).toHaveBeenCalledWith(
+      "worker:invitation-retention",
+      expect.any(Function),
+    );
+  });
+
+  it("skips execution cleanly if exclusive lock is held by another worker node", async () => {
+    const mockDatabase = {
+      withExclusiveExecution: vi.fn().mockResolvedValue({ executed: false }),
+    };
+    const logger = { child: vi.fn().mockReturnThis(), info: vi.fn(), error: vi.fn() };
+    const lockedWorker = new InvitationRetentionWorker(
+      purge,
+      logger as unknown as PinoLoggerService,
+      mockDatabase as never,
+    );
+
+    await expect(lockedWorker.purgeExpiredInvitations()).resolves.toBe(0);
+    expect(purge.execute).not.toHaveBeenCalled();
+  });
 });

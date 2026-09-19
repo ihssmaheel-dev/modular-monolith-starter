@@ -39,7 +39,11 @@ export interface StorageDriver {
     contentLength: number,
     ttlSeconds?: number,
   ): Promise<string>;
-  getPresignedDownloadUrl(key: string, ttlSeconds?: number): Promise<string>;
+  getPresignedDownloadUrl(
+    key: string,
+    ttlSeconds?: number,
+    options?: { filename?: string },
+  ): Promise<string>;
   getMetadata(key: string): Promise<StoredObjectMetadata | null>;
   getDownloadStream(key: string): Promise<Readable>;
   delete(key: string): Promise<void>;

@@ -76,7 +76,9 @@ export class GetFileDownloadUrlQuery {
         downloadUrl: new URL(`${API_BASE_PATH}/files/${file.id}/content`, env.API_URL).toString(),
       });
     }
-    const urlResult = await this.storage.getPresignedDownloadUrl(file.key);
+    const urlResult = await this.storage.getPresignedDownloadUrl(file.key, undefined, {
+      filename: file.fileName,
+    });
 
     if (urlResult.isErr()) {
       return err({

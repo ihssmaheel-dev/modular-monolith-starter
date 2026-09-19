@@ -66,6 +66,7 @@ export const invitations = pgTable(
     index("invitations_tenant_email_status_idx").on(t.tenantId, t.email, t.status),
     index("invitations_token_hash_idx").on(t.tokenHash),
     index("invitations_expires_at_idx").on(t.expiresAt),
+    index("invitations_retention_idx").on(t.updatedAt, t.status, t.expiresAt),
   ],
 );
 

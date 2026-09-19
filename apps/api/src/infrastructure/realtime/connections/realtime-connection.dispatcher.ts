@@ -73,6 +73,7 @@ export function closeKeyConnections(
   key: string,
   code = 4001,
   reason = "Closed",
+  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => void,
 ): { ws: number; sse: number } {
   const closedWs = new Set<WebSocket>();
   const closedSse = new Set<Subject<NestMessageEvent>>();
@@ -82,6 +83,7 @@ export function closeKeyConnections(
       try {
         s.close(code, reason);
         closedWs.add(s);
+        onClosed?.(s);
       } catch {
         /* ignore */
       }
@@ -94,6 +96,7 @@ export function closeKeyConnections(
       try {
         sub.complete();
         closedSse.add(sub);
+        onClosed?.(sub);
       } catch {
         /* ignore */
       }
@@ -109,6 +112,7 @@ export function closeMatchingConnections(
   predicate: (key: string) => boolean,
   code = 4001,
   reason = "Closed",
+  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => void,
 ): { ws: number; sse: number } {
   const closedWs = new Set<WebSocket>();
   const closedSse = new Set<Subject<NestMessageEvent>>();
@@ -116,8 +120,11 @@ export function closeMatchingConnections(
     if (predicate(key)) {
       for (const s of sockets) {
         try {
-          if (!closedWs.has(s)) s.close(code, reason);
-          closedWs.add(s);
+          if (!closedWs.has(s)) {
+            s.close(code, reason);
+            closedWs.add(s);
+            onClosed?.(s);
+          }
         } catch {
           /* ignore */
         }
@@ -129,8 +136,11 @@ export function closeMatchingConnections(
     if (predicate(key)) {
       for (const sub of subjects) {
         try {
-          if (!closedSse.has(sub)) sub.complete();
-          closedSse.add(sub);
+          if (!closedSse.has(sub)) {
+            sub.complete();
+            closedSse.add(sub);
+            onClosed?.(sub);
+          }
         } catch {
           /* ignore */
         }

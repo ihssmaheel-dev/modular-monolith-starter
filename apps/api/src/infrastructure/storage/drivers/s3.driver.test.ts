@@ -32,4 +32,18 @@ describe("S3Driver upload signing", () => {
     expect(headers).toContain("content-type");
     expect(url.searchParams.get("x-amz-tagging")).toBe("lifecycle=quarantine");
   });
+
+  it("sets attachment ResponseContentDisposition on download URL for browser safety", async () => {
+    env.S3_ENDPOINT = "http://localhost:9000";
+    env.S3_ACCESS_KEY_ID = "test-access-key";
+    env.S3_SECRET_ACCESS_KEY = "test-secret-key";
+    env.S3_FORCE_PATH_STYLE = true;
+
+    const url = new URL(
+      await new S3Driver().getPresignedDownloadUrl("safe.pdf", 60, { filename: "report.pdf" }),
+    );
+    expect(url.searchParams.get("response-content-disposition")).toBe(
+      'attachment; filename="report.pdf"',
+    );
+  });
 });

@@ -43,6 +43,13 @@
       "when": 1789796190581,
       "tag": "0005_silent_redwing",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789803269336,
+      "tag": "0006_bitter_freak",
+      "breakpoints": true
     }
   ]
 }

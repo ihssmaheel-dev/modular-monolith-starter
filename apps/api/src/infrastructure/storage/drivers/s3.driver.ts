@@ -73,8 +73,19 @@ export class S3Driver implements StorageDriver {
     });
   }
 
-  async getPresignedDownloadUrl(key: string, ttlSeconds = DOWNLOAD_PRESIGN_TTL_SECONDS) {
-    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+  async getPresignedDownloadUrl(
+    key: string,
+    ttlSeconds = DOWNLOAD_PRESIGN_TTL_SECONDS,
+    options?: { filename?: string },
+  ) {
+    const disposition = options?.filename
+      ? `attachment; filename="${encodeURIComponent(options.filename)}"`
+      : "attachment";
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ResponseContentDisposition: disposition,
+    });
     return getSignedUrl(this.client, command, { expiresIn: ttlSeconds });
   }
 

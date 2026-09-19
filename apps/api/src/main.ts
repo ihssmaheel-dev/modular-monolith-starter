@@ -102,7 +102,9 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter({
       bodyLimit: MAX_BODY_SIZE_BYTES,
-      trustProxy: env.TRUST_PROXY,
+      trustProxy: env.TRUST_PROXY
+        ? ["127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+        : false,
     }),
     {
       routeConflictPolicy: {

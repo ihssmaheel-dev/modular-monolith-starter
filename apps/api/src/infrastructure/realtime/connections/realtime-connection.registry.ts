@@ -18,6 +18,9 @@ const MAX_CONNECTIONS_PER_TENANT = 500;
 export class RealtimeConnectionRegistry {
   private wsClients = new Map<string, Set<WebSocket>>();
   private sseClients = new Map<string, Set<Subject<NestMessageEvent>>>();
+  private totalConnections = 0;
+  private tenantConnections = new Map<string, number>();
+  private socketTenants = new WeakMap<WebSocket | Subject<NestMessageEvent>, string | undefined>();
   private logger: PinoLoggerService;
 
   constructor(
@@ -25,6 +28,33 @@ export class RealtimeConnectionRegistry {
     logger: PinoLoggerService,
   ) {
     this.logger = logger.child({ module: "RealtimeConnectionRegistry" });
+  }
+
+  private incrementCounters(
+    item: WebSocket | Subject<NestMessageEvent>,
+    tenantId: string | undefined,
+  ): void {
+    this.totalConnections += 1;
+    this.socketTenants.set(item, tenantId);
+    if (tenantId) {
+      this.tenantConnections.set(tenantId, (this.tenantConnections.get(tenantId) ?? 0) + 1);
+    }
+  }
+
+  private decrementCounters(
+    item: WebSocket | Subject<NestMessageEvent>,
+    tenantId?: string | undefined,
+  ): void {
+    this.totalConnections = Math.max(0, this.totalConnections - 1);
+    const resolvedTenantId = tenantId ?? this.socketTenants.get(item);
+    if (resolvedTenantId) {
+      const current = this.tenantConnections.get(resolvedTenantId) ?? 0;
+      if (current <= 1) {
+        this.tenantConnections.delete(resolvedTenantId);
+      } else {
+        this.tenantConnections.set(resolvedTenantId, current - 1);
+      }
+    }
   }
 
   addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
@@ -63,6 +93,7 @@ export class RealtimeConnectionRegistry {
       return;
     }
     clients.add(socket);
+    this.incrementCounters(socket, tenantId);
     this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
       type: "ws",
     });
@@ -90,6 +121,7 @@ export class RealtimeConnectionRegistry {
     const key = connectionKey(userId, tenantId);
     const clients = this.wsClients.get(key);
     if (clients?.delete(socket)) {
+      this.decrementCounters(socket, tenantId);
       this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
         type: "ws",
       });
@@ -137,6 +169,7 @@ export class RealtimeConnectionRegistry {
       return;
     }
     clients.add(subject);
+    this.incrementCounters(subject, tenantId);
     this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
       type: "sse",
     });
@@ -167,6 +200,7 @@ export class RealtimeConnectionRegistry {
     const key = connectionKey(userId, tenantId);
     const clients = this.sseClients.get(key);
     if (clients?.delete(subject)) {
+      this.decrementCounters(subject, tenantId);
       this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
         type: "sse",
       });
@@ -203,6 +237,7 @@ export class RealtimeConnectionRegistry {
       (key) => key.endsWith(`:${userId}`),
       4001,
       "Session invalidated",
+      (item) => this.decrementCounters(item),
     );
     this.recordClosed(closed);
     const closedCount = closed.ws + closed.sse;
@@ -217,6 +252,7 @@ export class RealtimeConnectionRegistry {
       connectionKey(userId, tenantId),
       4003,
       "Membership revoked",
+      (item) => this.decrementCounters(item, tenantId),
     );
     this.recordClosed(closed);
     const closedCount = closed.ws + closed.sse;
@@ -237,6 +273,7 @@ export class RealtimeConnectionRegistry {
       (key) => key.startsWith(prefix),
       4004,
       "Organization purged",
+      (item) => this.decrementCounters(item, tenantId),
     );
     this.recordClosed(closed);
     const closedCount = closed.ws + closed.sse;
@@ -257,22 +294,11 @@ export class RealtimeConnectionRegistry {
   }
 
   getConnectionCount(): number {
-    let total = 0;
-    for (const sockets of this.wsClients.values()) total += sockets.size;
-    for (const subjects of this.sseClients.values()) total += subjects.size;
-    return total;
+    return this.totalConnections;
   }
 
   getTenantConnectionCount(tenantId: string): number {
-    let total = 0;
-    const prefix = `${tenantId}:`;
-    for (const [key, sockets] of this.wsClients.entries()) {
-      if (key.startsWith(prefix)) total += sockets.size;
-    }
-    for (const [key, subjects] of this.sseClients.entries()) {
-      if (key.startsWith(prefix)) total += subjects.size;
-    }
-    return total;
+    return this.tenantConnections.get(tenantId) ?? 0;
   }
 
   private recordClosed(closed: { ws: number; sse: number }): void {

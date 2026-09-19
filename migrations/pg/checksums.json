@@ -4,5 +4,6 @@
   "0002_ambiguous_nova.sql": "16ab0ff6a5d4fa4fe779c5dd1f197fcbc734c2b83d3efd4419a45b03a618c0cb",
   "0003_third_menace.sql": "4b887cdfd5e2ba79452a48bc04179ac4c21a376300622d2f3efde335da7139cc",
   "0004_partial_unique_indexes.sql": "f43e85315692fd805c04ef32c024bb5fddb757e98062820e6c1c40f13043e4b3",
-  "0005_silent_redwing.sql": "14d66c91c3d4e476edc4761e1ce120714db55b32c10958f7500944665e5cb122"
+  "0005_silent_redwing.sql": "14d66c91c3d4e476edc4761e1ce120714db55b32c10958f7500944665e5cb122",
+  "0006_bitter_freak.sql": "7060c99e8372dc03467ebffa0546570ced3a7bb4d63046ff209ca13ea49070bb"
 }

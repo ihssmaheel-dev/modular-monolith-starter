@@ -190,4 +190,39 @@ describe("BaseRepository Tenant Isolation", () => {
       expect(pageResult.value.nextCursor).toBe("2");
     }
   });
+
+  it("handles composite keyset pagination when cursorField is not id", async () => {
+    vi.mocked(mockContext.get).mockReturnValue({ mode: "multi", tenantId: "tenant-123" });
+    const rows = [
+      { id: "3", tenantId: "tenant-123", name: "Alpha" },
+      { id: "2", tenantId: "tenant-123", name: "Beta" },
+      { id: "1", tenantId: "tenant-123", name: "Gamma" },
+    ];
+    const limitFn = vi.fn().mockResolvedValue(rows);
+    const orderByFn = vi.fn().mockReturnValue({ limit: limitFn });
+    const whereFn = vi.fn().mockReturnValue({ orderBy: orderByFn, limit: limitFn });
+    vi.mocked(mockDb.getDb).mockReturnValue({
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: whereFn,
+          orderBy: orderByFn,
+          limit: limitFn,
+        })),
+      })),
+    } as never);
+
+    const repo = new TestRepo(mockDb, mockContext, true);
+
+    const pageResult = await repo.paginateCursor({}, { limit: 2, cursorField: "name" });
+    expect(pageResult.isOk()).toBe(true);
+    if (pageResult.isOk()) {
+      expect(pageResult.value.items).toHaveLength(2);
+      expect(pageResult.value.hasNextPage).toBe(true);
+      // Decoded composite cursor should contain value and id
+      const decoded = JSON.parse(
+        Buffer.from(pageResult.value.nextCursor!, "base64url").toString("utf8"),
+      );
+      expect(decoded).toEqual({ v: "Beta", id: "2" });
+    }
+  });
 });

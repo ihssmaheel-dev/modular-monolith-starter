@@ -71,12 +71,16 @@ describe("RealtimeConnectionRegistry", () => {
 
     expect(metrics.incrementGauge).toHaveBeenCalledOnce();
     expect(registry.getUserCount()).toBe(1);
+    expect(registry.getConnectionCount()).toBe(1);
+    expect(registry.getTenantConnectionCount("tenant-1")).toBe(1);
 
     registry.removeWsClient("user-1", "tenant-1", socket);
     registry.removeWsAlias("user-1", socket);
 
     expect(metrics.decrementGauge).toHaveBeenCalledOnce();
     expect(registry.getUserCount()).toBe(0);
+    expect(registry.getConnectionCount()).toBe(0);
+    expect(registry.getTenantConnectionCount("tenant-1")).toBe(0);
   });
 
   it("delivers tenant messages to the scope key and global ones to the alias", () => {

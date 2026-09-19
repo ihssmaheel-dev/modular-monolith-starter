@@ -164,11 +164,12 @@ export class StorageService implements OnApplicationShutdown {
   async getPresignedDownloadUrl(
     key: string,
     ttlSeconds = DOWNLOAD_PRESIGN_TTL_SECONDS,
+    options?: { filename?: string },
   ): Promise<Result<string, StorageError>> {
     return this.timed("presign_download", () =>
       this.circuitBreaker.execute(async () => {
         try {
-          const url = await this.driver.getPresignedDownloadUrl(key, ttlSeconds);
+          const url = await this.driver.getPresignedDownloadUrl(key, ttlSeconds, options);
           return ok(url);
         } catch (error) {
           this.logger.error({ key, error }, "Presign download failed");

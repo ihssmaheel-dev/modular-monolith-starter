@@ -82,7 +82,9 @@ describe("GetFileDownloadUrlQuery", () => {
     if (result.isOk()) {
       expect(result.value.downloadUrl).toBe("https://s3.example.com/download");
     }
-    expect(storage.getPresignedDownloadUrl).toHaveBeenCalledWith(mockFile.key);
+    expect(storage.getPresignedDownloadUrl).toHaveBeenCalledWith(mockFile.key, undefined, {
+      filename: mockFile.fileName,
+    });
   });
 
   it("asks the owning domain for linked attachments when a registry is present (H10)", async () => {
