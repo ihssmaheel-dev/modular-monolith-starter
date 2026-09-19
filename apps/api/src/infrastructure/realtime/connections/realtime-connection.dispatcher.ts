@@ -73,17 +73,16 @@ export function closeKeyConnections(
   key: string,
   code = 4001,
   reason = "Closed",
-  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => void,
+  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => boolean | void,
 ): { ws: number; sse: number } {
-  const closedWs = new Set<WebSocket>();
-  const closedSse = new Set<Subject<NestMessageEvent>>();
+  let wsCount = 0;
+  let sseCount = 0;
   const ws = wsClients.get(key);
   if (ws) {
     for (const s of ws) {
       try {
         s.close(code, reason);
-        closedWs.add(s);
-        onClosed?.(s);
+        if (onClosed?.(s) !== false) wsCount += 1;
       } catch {
         /* ignore */
       }
@@ -95,15 +94,14 @@ export function closeKeyConnections(
     for (const sub of sse) {
       try {
         sub.complete();
-        closedSse.add(sub);
-        onClosed?.(sub);
+        if (onClosed?.(sub) !== false) sseCount += 1;
       } catch {
         /* ignore */
       }
     }
     sseClients.delete(key);
   }
-  return { ws: closedWs.size, sse: closedSse.size };
+  return { ws: wsCount, sse: sseCount };
 }
 
 export function closeMatchingConnections(
@@ -112,10 +110,12 @@ export function closeMatchingConnections(
   predicate: (key: string) => boolean,
   code = 4001,
   reason = "Closed",
-  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => void,
+  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => boolean | void,
 ): { ws: number; sse: number } {
   const closedWs = new Set<WebSocket>();
   const closedSse = new Set<Subject<NestMessageEvent>>();
+  let wsCount = 0;
+  let sseCount = 0;
   for (const [key, sockets] of wsClients.entries()) {
     if (predicate(key)) {
       for (const s of sockets) {
@@ -123,7 +123,7 @@ export function closeMatchingConnections(
           if (!closedWs.has(s)) {
             s.close(code, reason);
             closedWs.add(s);
-            onClosed?.(s);
+            if (onClosed?.(s) !== false) wsCount += 1;
           }
         } catch {
           /* ignore */
@@ -139,7 +139,7 @@ export function closeMatchingConnections(
           if (!closedSse.has(sub)) {
             sub.complete();
             closedSse.add(sub);
-            onClosed?.(sub);
+            if (onClosed?.(sub) !== false) sseCount += 1;
           }
         } catch {
           /* ignore */
@@ -148,5 +148,5 @@ export function closeMatchingConnections(
       sseClients.delete(key);
     }
   }
-  return { ws: closedWs.size, sse: closedSse.size };
+  return { ws: wsCount, sse: sseCount };
 }

@@ -123,4 +123,26 @@ describe("MetricsService", () => {
 
     expect(mockHistogram.observe).toHaveBeenCalledWith(0);
   });
+
+  it("rejects metric reuse when the registered metric has an incompatible type", async () => {
+    const { register } = await import("prom-client");
+    const mockCounter = {
+      type: "counter",
+      inc: vi.fn(),
+    };
+    vi.mocked(register.getSingleMetric).mockReturnValue(mockCounter as never);
+
+    expect(() => {
+      service.recordHistogram("conflict_metric", "Should be histogram", 10);
+    }).toThrow("Metric conflict_metric is registered but is not a Histogram");
+  });
+
+  it("creates histogram cleanly when buckets are undefined", async () => {
+    const { register } = await import("prom-client");
+    vi.mocked(register.getSingleMetric).mockReturnValue(undefined);
+
+    expect(() => {
+      service.recordHistogram("unbucketed_histogram", "No buckets passed", 42);
+    }).not.toThrow();
+  });
 });

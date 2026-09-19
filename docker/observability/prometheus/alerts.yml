@@ -204,7 +204,7 @@ groups:
   - name: container-health
     rules:
       - alert: ContainerOomKilled
-        expr: increase(container_oom_events_total{name=~"monorepo-.*"}[5m]) > 0
+        expr: increase(container_oom_events_total{container_label_com_docker_compose_service=~".+"}[5m]) > 0
         labels:
           severity: critical
         annotations:
@@ -212,7 +212,7 @@ groups:
           description: "One or more project containers experienced an Out-Of-Memory termination event."
 
       - alert: ContainerHighMemoryUsage
-        expr: (container_memory_working_set_bytes{name=~"monorepo-.*"} / container_spec_memory_limit_bytes{name=~"monorepo-.*"} > 0.85) and (container_spec_memory_limit_bytes{name=~"monorepo-.*"} > 0)
+        expr: (container_memory_working_set_bytes{container_label_com_docker_compose_service=~".+"} / container_spec_memory_limit_bytes{container_label_com_docker_compose_service=~".+"} > 0.85) and (container_spec_memory_limit_bytes{container_label_com_docker_compose_service=~".+"} > 0)
         for: 5m
         labels:
           severity: warning
@@ -221,7 +221,7 @@ groups:
           description: "Container working set memory exceeded 85% of its configured limit for over 5 minutes."
 
       - alert: ContainerHighCpuUsage
-        expr: (sum by (name) (rate(container_cpu_usage_seconds_total{name=~"monorepo-.*"}[5m])) / on (name) (container_spec_cpu_quota{name=~"monorepo-.*"} / container_spec_cpu_period{name=~"monorepo-.*"})) > 0.85
+        expr: (sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~".+"}[5m])) / on (container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_service=~".+"} / container_spec_cpu_period{container_label_com_docker_compose_service=~".+"})) > 0.85
         for: 5m
         labels:
           severity: warning

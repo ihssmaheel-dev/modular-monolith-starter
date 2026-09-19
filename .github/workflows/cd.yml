@@ -14,6 +14,7 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  actions: read
 
 env:
   REGISTRY: ghcr.io
@@ -107,11 +108,23 @@ jobs:
 
       - name: Push verified API image
         id: api_image
-        run: docker push ${{ env.IMAGE_API }}:${{ env.TAG }}
+        run: |
+          docker push ${{ env.IMAGE_API }}:${{ env.TAG }}
+          API_DIGEST=$(docker inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "${{ env.IMAGE_API }}:${{ env.TAG }}" | grep "${{ env.IMAGE_API }}@" | head -n 1 | cut -d'@' -f2)
+          if [ -z "${API_DIGEST}" ]; then
+            API_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${{ env.IMAGE_API }}:${{ env.TAG }}" | cut -d'@' -f2)
+          fi
+          echo "digest=${API_DIGEST}" >> $GITHUB_OUTPUT
 
       - name: Push verified Web image
         id: web_image
-        run: docker push ${{ env.IMAGE_WEB }}:${{ env.TAG }}
+        run: |
+          docker push ${{ env.IMAGE_WEB }}:${{ env.TAG }}
+          WEB_DIGEST=$(docker inspect --format='{{range .RepoDigests}}{{println .}}{{end}}' "${{ env.IMAGE_WEB }}:${{ env.TAG }}" | grep "${{ env.IMAGE_WEB }}@" | head -n 1 | cut -d'@' -f2)
+          if [ -z "${WEB_DIGEST}" ]; then
+            WEB_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${{ env.IMAGE_WEB }}:${{ env.TAG }}" | cut -d'@' -f2)
+          fi
+          echo "digest=${WEB_DIGEST}" >> $GITHUB_OUTPUT
 
   release-evidence:
     name: Validate release and publish evidence
@@ -123,6 +136,21 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Validate image digests
+        run: |
+          API_DIGEST="${{ needs.publish.outputs.api_digest }}"
+          WEB_DIGEST="${{ needs.publish.outputs.web_digest }}"
+          echo "Validating API digest: ${API_DIGEST}"
+          echo "Validating Web digest: ${WEB_DIGEST}"
+          echo "${API_DIGEST}" | grep -Eq '^sha256:[a-f0-9]{64}$' || {
+            echo "::error::Invalid or missing API digest: ${API_DIGEST}"
+            exit 1
+          }
+          echo "${WEB_DIGEST}" | grep -Eq '^sha256:[a-f0-9]{64}$' || {
+            echo "::error::Invalid or missing Web digest: ${WEB_DIGEST}"
+            exit 1
+          }
 
       - name: Validate prod compose
         run: |

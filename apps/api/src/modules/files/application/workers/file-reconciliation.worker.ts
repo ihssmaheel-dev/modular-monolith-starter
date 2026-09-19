@@ -31,7 +31,7 @@ export class FileReconciliationWorker {
   async reconcileUploadedFiles(): Promise<{ checked: number; repaired: number }> {
     if (env.PROCESS_ROLE === "api" || this.running) return { checked: 0, repaired: 0 };
 
-    const run = async (): Promise<{ checked: number; repaired: number }> => {
+    const run = async (signal?: AbortSignal): Promise<{ checked: number; repaired: number }> => {
       this.running = true;
       let checked = 0;
       let repaired = 0;
@@ -47,6 +47,13 @@ export class FileReconciliationWorker {
             ),
           );
           for (const file of files) {
+            if (signal?.aborted) {
+              this.logger.warn(
+                { checked, repaired },
+                "File reconciliation aborted due to lock loss or shutdown",
+              );
+              break;
+            }
             checked += 1;
             const metadata = await this.storage.getMetadata(file.key);
             if (metadata.isErr()) {

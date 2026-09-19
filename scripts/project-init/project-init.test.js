@@ -70,7 +70,10 @@ describe("project branding plan", () => {
     assert.equal(expo.ios.bundleIdentifier, "com.acme.portal");
     assert.equal(expo.android.package, "com.acme.portal");
     assert.match(read(root, "docker/docker-compose.staging.yml"), /acme-portal-staging-api/);
-    assert.match(read(root, "docker/observability/prometheus/alerts.yml"), /acme-portal-\.\*/);
+    assert.match(
+      read(root, "docker/observability/prometheus/alerts.yml"),
+      /acme-portal-reliability/,
+    );
     assert.doesNotMatch(read(root, "docker/observability/alloy/config.alloy"), /monorepo/);
     assert.match(
       read(root, "packages/contracts/src/schemas/env.schema.ts"),

@@ -4,7 +4,7 @@ test("authentication shell has named controls and valid document structure", asy
   await page.goto("/auth");
 
   await expect(page.locator("html")).toHaveAttribute("lang", /^(en|es|fr)$/);
-  await expect(page.getByRole("tab", { name: /sign in/i })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /log in|sign in/i })).toBeVisible();
   await expect(page.getByRole("tab", { name: /sign up|register/i })).toBeVisible();
   expect(await page.locator("input:not([type=hidden])").count()).toBeGreaterThan(0);
   expect(await page.locator("input:not([type=hidden])").evaluateAll(unnamedControls)).toEqual([]);

@@ -8,15 +8,17 @@ test("registration pends, login stays blocked, resend works, link verifies", asy
   await expect(page.getByText(/check your inbox/i)).toBeVisible();
   await expect(page).not.toHaveURL(/\/dashboard$/);
 
+  await page.getByRole("button", { name: /resend verification/i }).click();
+  await expect(page.getByText(/verification email sent/i)).toBeVisible();
+
   await page.goto("/auth");
   await page.locator("#login-email").fill(email);
   await page.locator("#login-password").fill("Password123!");
-  await page.getByRole("button", { name: /sign in/i }).click();
-  await expect(page.getByText(/verify your email/i).first()).toBeVisible();
+  await page.getByRole("button", { name: /log in|sign in/i }).click();
+  await expect(
+    page.getByText(/invalid email or password|verify your email/i).first(),
+  ).toBeVisible();
   await expect(page).not.toHaveURL(/\/dashboard$/);
-
-  await page.getByRole("button", { name: /resend verification/i }).click();
-  await expect(page.getByText(/verification email sent/i)).toBeVisible();
 
   const token = await verificationTokenFor(email);
   await page.goto(`/verify-email?token=${token}`);

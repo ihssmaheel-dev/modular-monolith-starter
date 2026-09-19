@@ -18,7 +18,6 @@ const BRAND_FILES = [
   "docker/docker-compose.yml",
   "docker/observability/alertmanager/alertmanager.yml",
   "docker/observability/alloy/config.alloy",
-  "docker/observability/grafana/dashboards/api-overview.json",
   "docker/observability/grafana/dashboards/database-redis.json",
   "docker/observability/prometheus/alerts.yml",
   "docker/observability/prometheus/prometheus.prod.yml",
@@ -132,21 +131,13 @@ function buildProjectPlan(root, options) {
     source.replace(/^(\s*service:)\s*[^\r\n]+$/m, `$1 ${options.slug}`),
   );
   update("docker/observability/prometheus/alerts.yml", (source, identity) =>
-    source
-      .replace(
-        new RegExp(escapeRegExp(`${identity.slug}-reliability`), "g"),
-        `${options.slug}-reliability`,
-      )
-      .replace(new RegExp(escapeRegExp(identity.containerPrefix), "g"), options.slug),
+    source.replace(
+      new RegExp(escapeRegExp(`${identity.slug}-reliability`), "g"),
+      `${options.slug}-reliability`,
+    ),
   );
   update("docker/observability/alloy/config.alloy", (source, identity) =>
     source.replace(new RegExp(escapeRegExp(identity.containerPrefix), "g"), options.slug),
-  );
-  update("docker/observability/grafana/dashboards/api-overview.json", (source, identity) =>
-    source.replace(
-      new RegExp(escapeRegExp(`${identity.containerPrefix}-.*`), "g"),
-      `${options.slug}-.*`,
-    ),
   );
   update("docker/observability/alertmanager/alertmanager.yml", (source, identity) =>
     source.replace(
@@ -332,9 +323,7 @@ function assertBrandOutput(sources, options) {
     ["packages/email/src/emails/PasswordResetEmail.tsx", `Reset your ${options.name} password`],
     ["docker/observability/prometheus/prometheus.prod.yml", `service: ${options.slug}`],
     ["docker/observability/prometheus/alerts.yml", `${options.slug}-reliability`],
-    ["docker/observability/prometheus/alerts.yml", `${options.slug}-.*`],
     ["docker/observability/alloy/config.alloy", `/${options.slug}-(alloy|loki)`],
-    ["docker/observability/grafana/dashboards/api-overview.json", `${options.slug}-.*`],
     [".github/workflows/ci.yml", `${options.slug}-api:ci`],
   ];
   for (const [file, value] of required) requireIncludes(sources, file, value);

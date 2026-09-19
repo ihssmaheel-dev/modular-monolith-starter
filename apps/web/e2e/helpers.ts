@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
-const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8025";
+const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://127.0.0.1:8025";
 
 interface MailpitSearchResult {
   messages?: Array<{ ID?: string; Date?: string }>;

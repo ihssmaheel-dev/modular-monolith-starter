@@ -303,7 +303,8 @@ describe("API liveness", () => {
       url: "/api/v1/auth/login",
       payload: { email, password: "Password123!" },
     });
-    expect(blocked.statusCode).toBe(403);
+    expect(blocked.statusCode).toBe(401);
+    expect(blocked.json()).toMatchObject({ code: "INVALID_CREDENTIALS" });
 
     await pool.query("UPDATE public.users SET email_verified_at = now() WHERE email = $1", [email]);
     const allowed = await instance.inject({

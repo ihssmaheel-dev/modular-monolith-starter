@@ -66,7 +66,7 @@ export class DigestWorker {
   @Cron(CronExpression.EVERY_MINUTE)
   async closeDueWindows(): Promise<{ delivered: number }> {
     if (env.PROCESS_ROLE === "api" || this.isRunning) return { delivered: 0 };
-    const run = async () => {
+    const run = async (signal?: AbortSignal) => {
       this.isRunning = true;
       let delivered = 0;
       try {
@@ -75,6 +75,10 @@ export class DigestWorker {
             this.batches.findDueWindows(DIGEST_BATCH_LIMIT),
           );
           for (const window of due) {
+            if (signal?.aborted) {
+              this.logger.warn({ delivered }, "Digest run aborted due to lock loss or shutdown");
+              break;
+            }
             try {
               if (await this.deliverWindow(window.id)) delivered += 1;
             } catch (error) {

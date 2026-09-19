@@ -8,6 +8,8 @@ test.describe("theme", () => {
         document.documentElement.classList.contains("light") ||
         document.documentElement.classList.contains("dark"),
     );
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur?.());
+    await page.locator("body").click({ position: { x: 0, y: 0 } });
     const before = await readTheme(page);
     await page.keyboard.press("d");
     await expect.poll(() => readTheme(page)).not.toEqual(before);

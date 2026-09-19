@@ -19,7 +19,8 @@ export class AuditRetentionWorker {
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async purgeExpiredLogs(): Promise<number> {
     if (env.PROCESS_ROLE === "api") return 0;
-    const run = async () => {
+    const run = async (signal?: AbortSignal) => {
+      if (signal?.aborted) return 0;
       try {
         const result = await this.database.withSystemScope(() =>
           this.database.runTransaction(async () => {

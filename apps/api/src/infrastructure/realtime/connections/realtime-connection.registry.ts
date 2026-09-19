@@ -21,6 +21,7 @@ export class RealtimeConnectionRegistry {
   private totalConnections = 0;
   private tenantConnections = new Map<string, number>();
   private socketTenants = new WeakMap<WebSocket | Subject<NestMessageEvent>, string | undefined>();
+  private readonly countedConnections = new WeakSet<object>();
   private logger: PinoLoggerService;
 
   constructor(
@@ -33,18 +34,22 @@ export class RealtimeConnectionRegistry {
   private incrementCounters(
     item: WebSocket | Subject<NestMessageEvent>,
     tenantId: string | undefined,
-  ): void {
+  ): boolean {
+    if (this.countedConnections.has(item)) return false;
+    this.countedConnections.add(item);
     this.totalConnections += 1;
     this.socketTenants.set(item, tenantId);
     if (tenantId) {
       this.tenantConnections.set(tenantId, (this.tenantConnections.get(tenantId) ?? 0) + 1);
     }
+    return true;
   }
 
   private decrementCounters(
     item: WebSocket | Subject<NestMessageEvent>,
     tenantId?: string | undefined,
-  ): void {
+  ): boolean {
+    if (!this.countedConnections.delete(item)) return false;
     this.totalConnections = Math.max(0, this.totalConnections - 1);
     const resolvedTenantId = tenantId ?? this.socketTenants.get(item);
     if (resolvedTenantId) {
@@ -55,6 +60,7 @@ export class RealtimeConnectionRegistry {
         this.tenantConnections.set(resolvedTenantId, current - 1);
       }
     }
+    return true;
   }
 
   addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): boolean {
@@ -121,12 +127,13 @@ export class RealtimeConnectionRegistry {
   removeWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
     const key = connectionKey(userId, tenantId);
     const clients = this.wsClients.get(key);
-    if (clients?.delete(socket)) {
-      this.decrementCounters(socket, tenantId);
+    if (clients?.delete(socket) && clients.size === 0) {
+      this.wsClients.delete(key);
+    }
+    if (this.decrementCounters(socket, tenantId)) {
       this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
         type: "ws",
       });
-      if (clients.size === 0) this.wsClients.delete(key);
     }
   }
 
@@ -201,12 +208,13 @@ export class RealtimeConnectionRegistry {
   ): void {
     const key = connectionKey(userId, tenantId);
     const clients = this.sseClients.get(key);
-    if (clients?.delete(subject)) {
-      this.decrementCounters(subject, tenantId);
+    if (clients?.delete(subject) && clients.size === 0) {
+      this.sseClients.delete(key);
+    }
+    if (this.decrementCounters(subject, tenantId)) {
       this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
         type: "sse",
       });
-      if (clients.size === 0) this.sseClients.delete(key);
     }
   }
 
@@ -248,14 +256,29 @@ export class RealtimeConnectionRegistry {
   }
 
   disconnectTenantUser(tenantId: string, userId: string): number {
+    const wsAliasClients = this.wsClients.get(connectionKey(userId, undefined));
+    const sseAliasClients = this.sseClients.get(connectionKey(userId, undefined));
     const closed = closeKeyConnections(
       this.wsClients,
       this.sseClients,
       connectionKey(userId, tenantId),
       4003,
       "Membership revoked",
-      (item) => this.decrementCounters(item, tenantId),
+      (item) => {
+        if ("send" in item) {
+          wsAliasClients?.delete(item as WebSocket);
+        } else {
+          sseAliasClients?.delete(item as Subject<NestMessageEvent>);
+        }
+        return this.decrementCounters(item, tenantId);
+      },
     );
+    if (wsAliasClients && wsAliasClients.size === 0) {
+      this.wsClients.delete(connectionKey(userId, undefined));
+    }
+    if (sseAliasClients && sseAliasClients.size === 0) {
+      this.sseClients.delete(connectionKey(userId, undefined));
+    }
     this.recordClosed(closed);
     const closedCount = closed.ws + closed.sse;
     if (closedCount > 0) {
@@ -275,7 +298,15 @@ export class RealtimeConnectionRegistry {
       (key) => key.startsWith(prefix),
       4004,
       "Organization purged",
-      (item) => this.decrementCounters(item, tenantId),
+      (item) => {
+        for (const sockets of this.wsClients.values()) {
+          if ("send" in item) sockets.delete(item as WebSocket);
+        }
+        for (const subjects of this.sseClients.values()) {
+          if (!("send" in item)) subjects.delete(item as Subject<NestMessageEvent>);
+        }
+        return this.decrementCounters(item, tenantId);
+      },
     );
     this.recordClosed(closed);
     const closedCount = closed.ws + closed.sse;

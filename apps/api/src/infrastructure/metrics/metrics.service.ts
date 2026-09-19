@@ -2,6 +2,46 @@ import { Injectable } from "@nestjs/common";
 import { Counter, Gauge, Histogram, register, Summary } from "prom-client";
 
 type Labels = Record<string, string | number>;
+function isCounterMetric(metric: unknown): metric is Counter<string> {
+  return (
+    metric instanceof Counter ||
+    (typeof metric === "object" &&
+      metric !== null &&
+      (metric as { type?: string }).type === "counter")
+  );
+}
+
+function isHistogramMetric(metric: unknown): metric is Histogram<string> {
+  return (
+    metric instanceof Histogram ||
+    (typeof metric === "object" &&
+      metric !== null &&
+      ((metric as { type?: string }).type === "histogram" ||
+        (typeof (metric as { observe?: unknown }).observe === "function" &&
+          typeof (metric as { startTimer?: unknown }).startTimer === "function")))
+  );
+}
+
+function isGaugeMetric(metric: unknown): metric is Gauge<string> {
+  return (
+    metric instanceof Gauge ||
+    (typeof metric === "object" &&
+      metric !== null &&
+      ((metric as { type?: string }).type === "gauge" ||
+        (typeof (metric as { set?: unknown }).set === "function" &&
+          typeof (metric as { inc?: unknown }).inc === "function" &&
+          typeof (metric as { dec?: unknown }).dec === "function")))
+  );
+}
+
+function isSummaryMetric(metric: unknown): metric is Summary<string> {
+  return (
+    metric instanceof Summary ||
+    (typeof metric === "object" &&
+      metric !== null &&
+      (metric as { type?: string }).type === "summary")
+  );
+}
 
 @Injectable()
 export class MetricsService {
@@ -83,7 +123,14 @@ export class MetricsService {
     let metric = this.counters.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric = (existing as Counter<string> | undefined) ?? new Counter({ name, help, labelNames });
+      if (existing) {
+        if (!isCounterMetric(existing)) {
+          throw new Error(`Metric ${name} is registered but is not a Counter`);
+        }
+        metric = existing;
+      } else {
+        metric = new Counter({ name, help, labelNames });
+      }
       this.counters.set(name, metric);
     }
     return metric;
@@ -99,15 +146,23 @@ export class MetricsService {
     let metric = this.histograms.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric =
-        (existing as Histogram<string> | undefined) ??
-        new Histogram({
+      if (existing) {
+        if (!isHistogramMetric(existing)) {
+          throw new Error(`Metric ${name} is registered but is not a Histogram`);
+        }
+        metric = existing;
+      } else {
+        const canEnableExemplars = Boolean(
+          (register as { contentType?: string } | undefined)?.contentType?.includes("openmetrics"),
+        );
+        metric = new Histogram({
           name,
           help,
           labelNames,
-          buckets,
-          enableExemplars: true,
+          ...(buckets && buckets.length > 0 ? { buckets } : {}),
+          ...(canEnableExemplars ? { enableExemplars: true } : {}),
         });
+      }
       this.histograms.set(name, metric);
     }
     return metric;
@@ -118,7 +173,14 @@ export class MetricsService {
     let metric = this.gauges.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric = (existing as Gauge<string> | undefined) ?? new Gauge({ name, help, labelNames });
+      if (existing) {
+        if (!isGaugeMetric(existing)) {
+          throw new Error(`Metric ${name} is registered but is not a Gauge`);
+        }
+        metric = existing;
+      } else {
+        metric = new Gauge({ name, help, labelNames });
+      }
       this.gauges.set(name, metric);
     }
     return metric;
@@ -129,7 +191,14 @@ export class MetricsService {
     let metric = this.summaries.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
-      metric = (existing as Summary<string> | undefined) ?? new Summary({ name, help, labelNames });
+      if (existing) {
+        if (!isSummaryMetric(existing)) {
+          throw new Error(`Metric ${name} is registered but is not a Summary`);
+        }
+        metric = existing;
+      } else {
+        metric = new Summary({ name, help, labelNames });
+      }
       this.summaries.set(name, metric);
     }
     return metric;

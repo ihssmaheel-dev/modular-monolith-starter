@@ -3,7 +3,6 @@ import { FRONTEND_ROUTES } from "@repo/contracts";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/")({
-  ssr: false,
   beforeLoad: () => {
     const destination = useAuthStore.getState().user
       ? FRONTEND_ROUTES.dashboard

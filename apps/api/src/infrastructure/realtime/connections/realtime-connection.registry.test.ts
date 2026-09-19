@@ -126,4 +126,26 @@ describe("RealtimeConnectionRegistry", () => {
       { type: "sse" },
     );
   });
+
+  it("prevents double decrement when tenant user is revoked and then socket closes", () => {
+    const socket = createSocket();
+    registry.addWsClient("user-1", "tenant-1", socket);
+    registry.addWsAlias("user-1", socket);
+
+    expect(registry.getConnectionCount()).toBe(1);
+    expect(registry.getTenantConnectionCount("tenant-1")).toBe(1);
+
+    const revoked = registry.disconnectTenantUser("tenant-1", "user-1");
+    expect(revoked).toBe(1);
+    expect(registry.getConnectionCount()).toBe(0);
+    expect(registry.getTenantConnectionCount("tenant-1")).toBe(0);
+    expect(metrics.decrementGauge).toHaveBeenCalledTimes(1);
+
+    registry.removeWsClient("user-1", "tenant-1", socket);
+    registry.removeWsAlias("user-1", socket);
+
+    expect(registry.getConnectionCount()).toBe(0);
+    expect(registry.getTenantConnectionCount("tenant-1")).toBe(0);
+    expect(metrics.decrementGauge).toHaveBeenCalledTimes(1);
+  });
 });
