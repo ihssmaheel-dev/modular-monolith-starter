@@ -44,7 +44,7 @@ export class LoginCommand {
 
     const user = result.value;
     if (!user.isEmailVerified) {
-      return this.rejectCredentials(data.email);
+      return err({ type: "EMAIL_NOT_VERIFIED" });
     }
     const session = await this.sessions.create({
       userId: user.id,

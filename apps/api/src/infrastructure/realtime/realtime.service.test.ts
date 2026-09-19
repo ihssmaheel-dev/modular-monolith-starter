@@ -108,4 +108,28 @@ describe("RealtimeService", () => {
     expect(scoped.removeWsAlias).toHaveBeenCalledTimes(1);
     expect(scoped.removeSseAlias).toHaveBeenCalledTimes(1);
   });
+
+  it("does not register aliases when client admission is rejected", () => {
+    const socket = { readyState: 1 } as never;
+    const subject = { next: vi.fn() } as never;
+    const scoped = {
+      addWsClient: vi.fn().mockReturnValue(false),
+      addWsAlias: vi.fn(),
+      addSseClient: vi.fn().mockReturnValue(false),
+      addSseAlias: vi.fn(),
+    } as unknown as RealtimeConnectionRegistry;
+    const redis = { getClient: vi.fn().mockReturnValue(null) } as unknown as RedisService;
+    const logger = {
+      child: vi.fn().mockReturnValue({ error: vi.fn() }),
+    } as unknown as PinoLoggerService;
+    const service = new RealtimeService(redis, scoped, logger);
+
+    const wsAdmitted = service.addWsClient("user-1", "tenant-1", socket);
+    const sseAdmitted = service.addSseClient("user-1", "tenant-1", subject);
+
+    expect(wsAdmitted).toBe(false);
+    expect(sseAdmitted).toBe(false);
+    expect(scoped.addWsAlias).not.toHaveBeenCalled();
+    expect(scoped.addSseAlias).not.toHaveBeenCalled();
+  });
 });

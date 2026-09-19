@@ -13,6 +13,13 @@ import { NO_DATABASE_TRANSACTION_KEY } from "../decorators/database-transaction.
 
 const LONG_TRANSACTION_WARNING_MS = 100;
 
+/**
+ * Optional request-level database transaction interceptor.
+ * Note: By default, the architecture avoids global request transaction wrapping to prevent
+ * connection pool starvation during external I/O (S3, SMTP, Argon2 hashing). Instead,
+ * short explicit transactions are used in commands/repositories. This interceptor is available
+ * for selective controller-level binding when request-scoped transactions are specifically required.
+ */
 @Injectable()
 export class DatabaseTransactionInterceptor implements NestInterceptor {
   constructor(

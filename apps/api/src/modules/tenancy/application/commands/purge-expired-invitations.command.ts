@@ -19,11 +19,13 @@ export class PurgeExpiredInvitationsCommand {
 
   async execute(
     retentionDays = env.INVITATION_RETENTION_DAYS,
+    signal?: AbortSignal,
   ): Promise<Result<number, TenancyError>> {
     const cutoff = new Date(Date.now() - retentionDays * MS_PER_DAY);
     let purged = 0;
     return this.database.withSystemScope(async () => {
       for (let batch = 0; batch < MAX_PURGE_BATCHES; batch += 1) {
+        if (signal?.aborted) break;
         const deleted = await this.invitations.deleteSettledBefore(cutoff, PURGE_BATCH_SIZE);
         purged += deleted;
         if (deleted < PURGE_BATCH_SIZE) break;

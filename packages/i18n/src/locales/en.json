@@ -229,6 +229,7 @@
     "checkInboxDescription": "We sent a verification link to your email. Click the link, then sign in.",
     "resendVerification": "Resend verification email",
     "emailVerified": "Email verified. Welcome!",
+    "emailNotVerified": "Please verify your email before signing in.",
     "accountLocked": "Account temporarily locked due to too many failed attempts. Please try again later.",
     "termsNotice": "By continuing, you agree to our Terms of Service and Privacy Policy.",
     "heroTagline": "Enterprise Modular Monolith",

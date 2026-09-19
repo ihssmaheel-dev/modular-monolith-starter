@@ -35,6 +35,11 @@ describe("cursor-pagination.helper", () => {
       const decoded = decodeCursor("plain-uuid-123");
       expect(decoded).toEqual({ val: "plain-uuid-123", id: undefined });
     });
+
+    it("returns null for malformed or illegal characters in cursor", () => {
+      expect(decodeCursor("invalid!!@@##$$%%^^&&**")).toBeNull();
+      expect(decodeCursor("bad%20token/with/slashes")).toBeNull();
+    });
   });
 
   describe("encodeCursor", () => {

@@ -26,9 +26,10 @@ export class RealtimeService {
    * their scope key, while tenant-less (global) messages still reach
    * tenant-scoped subscribers. Removal mirrors registration exactly.
    */
-  addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
-    this.registry.addWsClient(userId, tenantId, socket);
-    if (tenantId !== undefined) this.registry.addWsAlias(userId, socket);
+  addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): boolean {
+    const admitted = this.registry.addWsClient(userId, tenantId, socket);
+    if (admitted !== false && tenantId !== undefined) this.registry.addWsAlias(userId, socket);
+    return admitted !== false;
   }
 
   removeWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
@@ -40,9 +41,10 @@ export class RealtimeService {
     userId: string,
     tenantId: string | undefined,
     subject: Subject<NestMessageEvent>,
-  ): void {
-    this.registry.addSseClient(userId, tenantId, subject);
-    if (tenantId !== undefined) this.registry.addSseAlias(userId, subject);
+  ): boolean {
+    const admitted = this.registry.addSseClient(userId, tenantId, subject);
+    if (admitted !== false && tenantId !== undefined) this.registry.addSseAlias(userId, subject);
+    return admitted !== false;
   }
 
   removeSseClient(

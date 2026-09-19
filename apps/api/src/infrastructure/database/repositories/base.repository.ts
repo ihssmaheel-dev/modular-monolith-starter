@@ -135,12 +135,7 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
     options: CursorPaginationOptions = {},
   ): Promise<Result<CursorPaginatedResult<TEntity>, never>> {
     if (this.hasMissingTenantContext()) {
-      return ok({
-        items: [],
-        limit: options.limit ?? 20,
-        nextCursor: null,
-        hasNextPage: false,
-      });
+      return ok({ items: [], limit: options.limit ?? 20, nextCursor: null, hasNextPage: false });
     }
     return this.scopedRead(async (db) => {
       const limit = Math.min(MAX_FIND_LIMIT, Math.max(1, options.limit ?? 20));
@@ -149,14 +144,16 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       const cols = this.table as unknown as Record<string, Parameters<typeof gt>[0]>;
       const col = cols[cursorField];
       const idCol = cols["id"];
+      const decoded = decodeCursor(options.cursor);
+
+      if ((options.cursorField && !col) || (options.cursor && !decoded)) {
+        return ok({ items: [], limit, nextCursor: null, hasNextPage: false });
+      }
 
       const clauses: unknown[] = [];
       const baseConditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
-      if (baseConditions) {
-        clauses.push(baseConditions);
-      }
+      if (baseConditions) clauses.push(baseConditions);
 
-      const decoded = decodeCursor(options.cursor);
       if (decoded && col) {
         const cursorClause = buildCursorClause(col, idCol, decoded, cursorField, direction);
         if (cursorClause) clauses.push(cursorClause);

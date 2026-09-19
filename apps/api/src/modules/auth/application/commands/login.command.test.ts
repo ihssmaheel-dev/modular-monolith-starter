@@ -127,7 +127,7 @@ describe("LoginCommand", () => {
     expect(verifyCredentials.execute).not.toHaveBeenCalled();
   });
 
-  it("should not reveal an unverified account after correct credentials", async () => {
+  it("should reject an unverified account after correct credentials with EMAIL_NOT_VERIFIED", async () => {
     // Arrange
     const user = User.fromPersistence({
       id: "user-123",
@@ -145,10 +145,10 @@ describe("LoginCommand", () => {
     // Assert
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toEqual({ type: "INVALID_CREDENTIALS" });
+      expect(result.error).toEqual({ type: "EMAIL_NOT_VERIFIED" });
     }
     expect(jwtUtils.signAccessToken).not.toHaveBeenCalled();
-    expect(lockoutService.recordFailedAttempt).toHaveBeenCalledWith("test@example.com");
+    expect(lockoutService.recordFailedAttempt).not.toHaveBeenCalled();
     expect(lockoutService.resetAttempts).not.toHaveBeenCalled();
     expect(metricsService.incrementCounter).not.toHaveBeenCalledWith(
       "auth_successful_logins_total",

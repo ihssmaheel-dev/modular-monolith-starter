@@ -286,7 +286,7 @@ export class DatabaseService implements OnApplicationShutdown {
    */
   async withExclusiveExecution<T>(
     key: string,
-    fn: () => Promise<T>,
+    fn: (signal?: AbortSignal) => Promise<T>,
   ): Promise<{ executed: boolean; result?: T }> {
     if (this.redisLock?.isAvailable()) {
       return this.redisLock.withLock(key, fn);
@@ -294,6 +294,7 @@ export class DatabaseService implements OnApplicationShutdown {
 
     const client = await this.pool.connect();
     let acquired = false;
+    const controller = new AbortController();
     try {
       const check = await client.query<{ acquired: boolean }>(
         "SELECT pg_try_advisory_lock($1, hashtext($2)) as acquired",
@@ -304,7 +305,7 @@ export class DatabaseService implements OnApplicationShutdown {
         return { executed: false };
       }
 
-      const result = await fn();
+      const result = await fn(controller.signal);
       return { executed: true, result };
     } finally {
       if (acquired) {

@@ -8,6 +8,7 @@ if (process.env.E2E_USE_CONTAINERS !== "true") {
 // This suite exercises the HTTP process. Dedicated worker behavior is covered
 // by integration and unit suites and must not race API assertions here.
 process.env.PROCESS_ROLE = "api";
+process.env.TENANCY_MODE = "multi";
 
 const postgresContainer: StartedTestContainer = await new GenericContainer("postgres:16-alpine")
   .withEnvironment({

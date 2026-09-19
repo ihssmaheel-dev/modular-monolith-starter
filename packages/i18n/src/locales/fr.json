@@ -98,6 +98,7 @@
     "checkInboxDescription": "Nous vous avons envoyé un lien de vérification. Cliquez dessus, puis connectez-vous.",
     "resendVerification": "Renvoyer l'e-mail de vérification",
     "emailVerified": "E-mail vérifié. Bienvenue !",
+    "emailNotVerified": "Veuillez vérifier votre adresse e-mail avant de vous connecter.",
     "accountLocked": "Compte temporairement bloqué en raison de trop de tentatives échouées. Veuillez réessayer plus tard.",
     "termsNotice": "En continuant, vous acceptez nos Conditions d'utilisation et notre Politique de confidentialité.",
     "heroTagline": "Monolithe modulaire d'entreprise",

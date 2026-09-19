@@ -218,7 +218,7 @@ token lifetime has elapsed before removing them.
 
 ## Transaction boundaries
 
-HTTP requests use a short transaction by default so PostgreSQL RLS context is always configured; long-lived or external-I/O handlers opt out with `@NoDatabaseTransaction` and create short explicit database scopes around their reads/writes. Commands own explicit `withResultTransaction` units of work. SMTP, S3 presigning/deletion, Redis, and other network calls are performed outside mutation transactions. The interceptor emits a structured warning when a request transaction exceeds the short-work budget. PostgreSQL statement, lock, and idle-in-transaction timeouts are configured from validated environment variables.
+HTTP requests deliberately avoid holding open a global database transaction by default, preventing PostgreSQL connection pool exhaustion during asynchronous I/O, S3 presigning/deletion, SMTP email sending, Redis round-trips, and CPU-intensive Argon2 password hashing. Instead, database mutations and queries use short, explicit, repository- and command-scoped transaction boundaries (`runTransaction`, `withResultTransaction`, and `withSystemScope`). Handlers and controllers maintain explicit scoping, with `@NoDatabaseTransaction` serving as a declarative boundary marker on external-I/O endpoints. Long-running or scheduled operations run in dedicated background workers with distributed exclusive execution (`withExclusiveExecution`) that cooperatively aborts on lock loss. PostgreSQL statement, lock, and idle-in-transaction timeouts are configured from validated environment variables.
 
 ## File lifecycle
 

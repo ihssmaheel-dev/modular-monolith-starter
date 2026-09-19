@@ -209,7 +209,7 @@ groups:
           severity: critical
         annotations:
           summary: Container was OOM killed by the kernel
-          description: "One or more monorepo containers experienced an Out-Of-Memory termination event."
+          description: "One or more project containers experienced an Out-Of-Memory termination event."
 
       - alert: ContainerHighMemoryUsage
         expr: (container_memory_working_set_bytes{name=~"monorepo-.*"} / container_spec_memory_limit_bytes{name=~"monorepo-.*"} > 0.85) and (container_spec_memory_limit_bytes{name=~"monorepo-.*"} > 0)

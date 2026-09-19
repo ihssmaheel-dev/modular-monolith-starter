@@ -84,18 +84,27 @@ export class OutboxRelayWorker {
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async retainPublishedEvents(): Promise<void> {
     if (env.PROCESS_ROLE === "api") return;
-    const cutoff = new Date(Date.now() - PUBLISHED_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-    let pruned = 0;
-    for (let index = 0; index < RETENTION_MAX_BATCHES; index += 1) {
-      const deleted = await this.database.withSystemScope(() =>
-        this.database.runTransaction(() =>
-          this.repository.deletePublishedBefore(cutoff, RETENTION_BATCH_SIZE),
-        ),
-      );
-      pruned += deleted;
-      if (deleted < RETENTION_BATCH_SIZE) break;
+    const run = async (signal?: AbortSignal) => {
+      const cutoff = new Date(Date.now() - PUBLISHED_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+      let pruned = 0;
+      for (let index = 0; index < RETENTION_MAX_BATCHES; index += 1) {
+        if (signal?.aborted) break;
+        const deleted = await this.database.withSystemScope(() =>
+          this.database.runTransaction(() =>
+            this.repository.deletePublishedBefore(cutoff, RETENTION_BATCH_SIZE),
+          ),
+        );
+        pruned += deleted;
+        if (deleted < RETENTION_BATCH_SIZE) break;
+      }
+      if (pruned > 0) this.logger.info({ pruned }, "Pruned published outbox events");
+    };
+
+    if (typeof this.database.withExclusiveExecution === "function") {
+      await this.database.withExclusiveExecution("worker:outbox-retention", run);
+      return;
     }
-    if (pruned > 0) this.logger.info({ pruned }, "Pruned published outbox events");
+    await run();
   }
 }
 

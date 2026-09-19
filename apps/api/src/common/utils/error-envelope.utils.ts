@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from "@nestjs/common";
+import type { ZodIssue } from "zod";
 import {
   ApiErrorEnvelopeSchema,
   formatErrorRef,
@@ -43,7 +44,8 @@ export function createApiErrorEnvelope(
   const safeStatus = normalizeStatus(status);
   const safeRequestId = resolveRequestId(requestId);
   const errorRef = formatErrorRef(traceId, safeRequestId);
-  if (exception instanceof ZodValidationException) {
+  const zodIssues = extractZodIssues(exception);
+  if (zodIssues) {
     return ApiErrorEnvelopeSchema.parse({
       code: "VALIDATION_FAILED",
       i18nKey: "api.error.validationFailed",
@@ -52,7 +54,7 @@ export function createApiErrorEnvelope(
       requestId: safeRequestId,
       ...(traceId ? { traceId } : {}),
       errorRef,
-      fieldErrors: zodFieldErrors(exception, language, i18n),
+      fieldErrors: zodFieldErrorsFromIssues(zodIssues, language, i18n),
     });
   }
   const payload = payloadOf(exception);
@@ -71,13 +73,40 @@ export function createApiErrorEnvelope(
   });
 }
 
-function zodFieldErrors(
-  exception: ZodValidationException,
+function extractZodIssues(exception: unknown): ZodIssue[] | undefined {
+  if (exception instanceof ZodValidationException) {
+    return exception.zodError.issues;
+  }
+  if (exception && typeof exception === "object") {
+    if ("issues" in exception && Array.isArray((exception as { issues: unknown }).issues)) {
+      return (exception as { issues: ZodIssue[] }).issues;
+    }
+    if (
+      "zodError" in exception &&
+      typeof (exception as { zodError: unknown }).zodError === "object"
+    ) {
+      const ze = (exception as { zodError: { issues?: unknown } }).zodError;
+      if (Array.isArray(ze?.issues)) return ze.issues as ZodIssue[];
+    }
+    if ("data" in exception && typeof (exception as { data: unknown }).data === "object") {
+      const data = (exception as { data: { issues?: unknown } }).data;
+      if (Array.isArray(data?.issues)) return data.issues as ZodIssue[];
+    }
+    if ("cause" in exception && typeof (exception as { cause: unknown }).cause === "object") {
+      const cause = (exception as { cause: { issues?: unknown } }).cause;
+      if (Array.isArray(cause?.issues)) return cause.issues as ZodIssue[];
+    }
+  }
+  return undefined;
+}
+
+function zodFieldErrorsFromIssues(
+  issues: ZodIssue[],
   language: string | undefined,
   i18n: I18nService,
 ): FieldErrors {
   const errors: FieldErrors = {};
-  for (const issue of exception.zodError.issues) {
+  for (const issue of issues) {
     const path = issue.path.join(".") || "root";
     errors[path] ??= [];
     const key = `zod.errors.${issue.code}`;
@@ -90,9 +119,14 @@ function zodFieldErrors(
 }
 
 function payloadOf(exception: unknown): ErrorPayload | undefined {
-  if (!(exception instanceof HttpException)) return undefined;
-  const value = exception.getResponse();
-  return typeof value === "object" && value !== null ? (value as ErrorPayload) : undefined;
+  if (exception instanceof HttpException) {
+    const value = exception.getResponse();
+    return typeof value === "object" && value !== null ? (value as ErrorPayload) : undefined;
+  }
+  if (exception && typeof exception === "object") {
+    return exception as ErrorPayload;
+  }
+  return undefined;
 }
 
 function codeOf(payload: ErrorPayload | undefined, status: number, exception?: unknown): string {

@@ -57,11 +57,11 @@ export class RealtimeConnectionRegistry {
     }
   }
 
-  addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
+  addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): boolean {
     const key = connectionKey(userId, tenantId);
     if (!this.wsClients.has(key)) this.wsClients.set(key, new Set());
     const clients = this.wsClients.get(key)!;
-    if (clients.has(socket)) return;
+    if (clients.has(socket)) return true;
 
     if (this.getConnectionCount() >= MAX_PROCESS_CONNECTIONS) {
       this.logger.warn({ userId }, "Max process realtime connections reached");
@@ -72,7 +72,7 @@ export class RealtimeConnectionRegistry {
         { reason: "process_limit", type: "ws" },
       );
       socket.close(1013, "Try again later");
-      return;
+      return false;
     }
 
     if (tenantId && this.getTenantConnectionCount(tenantId) >= MAX_CONNECTIONS_PER_TENANT) {
@@ -84,19 +84,20 @@ export class RealtimeConnectionRegistry {
         { reason: "tenant_limit", type: "ws" },
       );
       socket.close(1013, "Try again later");
-      return;
+      return false;
     }
 
     if (clients.size >= MAX_CLIENTS_PER_CONNECTION) {
       this.logger.warn({ userId }, "Max WebSocket connections reached");
       socket.close();
-      return;
+      return false;
     }
     clients.add(socket);
     this.incrementCounters(socket, tenantId);
     this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
       type: "ws",
     });
+    return true;
   }
 
   /**
@@ -133,11 +134,11 @@ export class RealtimeConnectionRegistry {
     userId: string,
     tenantId: string | undefined,
     subject: Subject<NestMessageEvent>,
-  ): void {
+  ): boolean {
     const key = connectionKey(userId, tenantId);
     if (!this.sseClients.has(key)) this.sseClients.set(key, new Set());
     const clients = this.sseClients.get(key)!;
-    if (clients.has(subject)) return;
+    if (clients.has(subject)) return true;
 
     if (this.getConnectionCount() >= MAX_PROCESS_CONNECTIONS) {
       this.logger.warn({ userId }, "Max process realtime connections reached");
@@ -148,7 +149,7 @@ export class RealtimeConnectionRegistry {
         { reason: "process_limit", type: "sse" },
       );
       subject.complete();
-      return;
+      return false;
     }
 
     if (tenantId && this.getTenantConnectionCount(tenantId) >= MAX_CONNECTIONS_PER_TENANT) {
@@ -160,19 +161,20 @@ export class RealtimeConnectionRegistry {
         { reason: "tenant_limit", type: "sse" },
       );
       subject.complete();
-      return;
+      return false;
     }
 
     if (clients.size >= MAX_CLIENTS_PER_CONNECTION) {
       this.logger.warn({ userId }, "Max SSE connections reached");
       subject.complete();
-      return;
+      return false;
     }
     clients.add(subject);
     this.incrementCounters(subject, tenantId);
     this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
       type: "sse",
     });
+    return true;
   }
 
   /**

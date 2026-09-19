@@ -5,5 +5,6 @@ export type AuthError =
   | { type: "INVALID_TOKEN" }
   | { type: "EMAIL_NOT_FOUND" }
   | { type: "ACCOUNT_LOCKED" }
+  | { type: "EMAIL_NOT_VERIFIED" }
   | { type: "SESSION_UNAVAILABLE" }
   | { type: "TRANSACTION_FAILED" };

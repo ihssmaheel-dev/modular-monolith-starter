@@ -21,10 +21,10 @@ describe("API liveness", () => {
   let originalTenancyMode: "single" | "multi" = "single";
 
   beforeAll(async () => {
-    ({ AppModule } = await import("./app.module.js"));
     ({ env } = await import("./config/env.js"));
     originalTenancyMode = env.TENANCY_MODE;
     env.TENANCY_MODE = "multi";
+    ({ AppModule } = await import("./app.module.js"));
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     app.useWebSocketAdapter(new WsAdapter(app));
@@ -126,6 +126,7 @@ describe("API liveness", () => {
     const registration = await instance.inject({
       method: "POST",
       url: "/api/v1/auth/register",
+      headers: { "idempotency-key": crypto.randomUUID() },
       payload: {
         name: "Cookie Owner",
         email,
@@ -174,6 +175,7 @@ describe("API liveness", () => {
     const registration = await instance.inject({
       method: "POST",
       url: "/api/v1/auth/register",
+      headers: { "idempotency-key": crypto.randomUUID() },
       payload: { name: "Organization Owner", email, password: "Password123!" },
     });
     expect(registration.statusCode).toBe(201);
@@ -217,10 +219,12 @@ describe("API liveness", () => {
 
   it("keeps REST and oRPC validation errors semantically aligned", async () => {
     const instance = app.getHttpAdapter().getInstance();
+    const requestId = crypto.randomUUID();
+    const headers = { "x-request-id": requestId };
     const payload = { email: "invalid", password: "short" };
     const [rest, orpc] = await Promise.all([
-      instance.inject({ method: "POST", url: "/api/v1/auth/login", payload }),
-      instance.inject({ method: "POST", url: "/api/v1/rpc/auth/login", payload }),
+      instance.inject({ method: "POST", url: "/api/v1/auth/login", headers, payload }),
+      instance.inject({ method: "POST", url: "/api/v1/rpc/auth/login", headers, payload }),
     ]);
 
     expect(rest.statusCode).toBe(400);
@@ -250,6 +254,7 @@ describe("API liveness", () => {
         .inject({
           method: "POST",
           url: "/api/v1/auth/register",
+          headers: { "idempotency-key": crypto.randomUUID() },
           payload: { name: `Registration ${mode}`, email, password: "Password123!" },
         });
 
@@ -269,7 +274,7 @@ describe("API liveness", () => {
 
   it.each([
     ["/api/v1/auth/verify-email", { token: "0".repeat(64) }],
-    ["/api/v1/rpc/auth/verifyEmail", { token: "0".repeat(64) }],
+    ["/api/v1/rpc/auth/verify-email", { token: "0".repeat(64) }],
   ])("rejects unknown verification tokens on %s", async (url, payload) => {
     if (!pool) throw new Error("E2E database pool was not initialized.");
     const response = await app.getHttpAdapter().getInstance().inject({
@@ -288,6 +293,7 @@ describe("API liveness", () => {
     const registration = await instance.inject({
       method: "POST",
       url: "/api/v1/auth/register",
+      headers: { "idempotency-key": crypto.randomUUID() },
       payload: { name: "Gate User", email, password: "Password123!" },
     });
     expect(registration.statusCode).toBe(201);
@@ -311,7 +317,10 @@ describe("API liveness", () => {
 
   it("accepts resend requests without revealing account existence", async () => {
     const instance = app.getHttpAdapter().getInstance();
-    for (const url of ["/api/v1/auth/resend-verification", "/api/v1/rpc/auth/resendVerification"]) {
+    for (const url of [
+      "/api/v1/auth/resend-verification",
+      "/api/v1/rpc/auth/resend-verification",
+    ]) {
       const response = await instance.inject({
         method: "POST",
         url,

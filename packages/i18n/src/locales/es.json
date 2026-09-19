@@ -98,6 +98,7 @@
     "checkInboxDescription": "Te enviamos un enlace de verificación. Haz clic en el enlace e inicia sesión.",
     "resendVerification": "Reenviar correo de verificación",
     "emailVerified": "Correo verificado. ¡Bienvenido!",
+    "emailNotVerified": "Por favor verifique su correo electrónico antes de iniciar sesión.",
     "accountLocked": "Cuenta bloqueada temporalmente por demasiados intentos fallidos. Inténtelo de nuevo más tarde.",
     "termsNotice": "Al continuar, aceptas nuestros Términos de servicio y Política de privacidad.",
     "heroTagline": "Monolito modular empresarial",

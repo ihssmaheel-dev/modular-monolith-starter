@@ -39,7 +39,7 @@ export class FileCleanupWorker {
       return { purgedCount: 0, reclaimedBytes: 0 };
     }
 
-    const run = async () => {
+    const run = async (signal?: AbortSignal) => {
       this.isRunning = true;
       let purgedCount = 0;
       let reclaimedBytes = 0;
@@ -51,8 +51,10 @@ export class FileCleanupWorker {
         );
         await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
           for (let index = 0; index < MAX_BATCHES_PER_RUN; index += 1) {
+            if (signal?.aborted) break;
             const candidates = await this.findCandidates(cutoff, unlinkedCutoff);
             for (const file of candidates) {
+              if (signal?.aborted) break;
               const deleted = await this.purgeFile(file);
               if (deleted) {
                 purgedCount += 1;

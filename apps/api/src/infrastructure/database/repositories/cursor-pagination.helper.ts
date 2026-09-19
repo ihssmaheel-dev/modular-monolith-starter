@@ -8,18 +8,39 @@ export interface DecodedCursor {
 export function decodeCursor(cursor?: string): DecodedCursor | null {
   if (!cursor || typeof cursor !== "string") return null;
 
-  let val: unknown = cursor;
+  let val: unknown = undefined;
   let id: string | undefined;
 
   try {
-    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-    if (parsed && typeof parsed === "object" && "v" in parsed) {
-      val = (parsed as { v: unknown }).v;
-      const parsedId = (parsed as { id?: unknown }).id;
-      id = typeof parsedId === "string" ? parsedId : undefined;
+    const jsonStr = Buffer.from(cursor, "base64url").toString("utf8");
+    const parsed = JSON.parse(jsonStr);
+    if (parsed && typeof parsed === "object") {
+      if ("val" in parsed) {
+        val = (parsed as { val: unknown }).val;
+        const parsedId = (parsed as { id?: unknown }).id;
+        id = typeof parsedId === "string" ? parsedId : undefined;
+      } else if ("v" in parsed) {
+        val = (parsed as { v: unknown }).v;
+        const parsedId = (parsed as { id?: unknown }).id;
+        id = typeof parsedId === "string" ? parsedId : undefined;
+      }
     }
   } catch {
-    val = cursor;
+    if (/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)) {
+      val = cursor;
+      id = undefined;
+    } else {
+      return null;
+    }
+  }
+
+  if (val === undefined) {
+    if (/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)) {
+      val = cursor;
+      id = undefined;
+    } else {
+      return null;
+    }
   }
 
   if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}T/.test(val)) {

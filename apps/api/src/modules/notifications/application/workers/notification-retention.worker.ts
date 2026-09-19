@@ -25,7 +25,7 @@ export class NotificationRetentionWorker {
   @Cron("30 3 * * *")
   async pruneExpiredIntents(): Promise<number> {
     if (env.PROCESS_ROLE === "api") return 0;
-    const run = async () => {
+    const run = async (signal?: AbortSignal) => {
       try {
         const deliveredCutoff = new Date(
           Date.now() - DELIVERED_RETENTION_DAYS * 24 * 60 * 60 * 1000,
@@ -34,6 +34,7 @@ export class NotificationRetentionWorker {
 
         let totalPruned = 0;
         for (let index = 0; index < RETENTION_MAX_BATCHES; index += 1) {
+          if (signal?.aborted) break;
           const deleted = await this.database.withSystemScope(() =>
             this.database.runTransaction(() =>
               this.intents.deleteOldIntents(deliveredCutoff, deadCutoff, RETENTION_BATCH_SIZE),

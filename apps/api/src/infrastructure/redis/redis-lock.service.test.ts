@@ -218,5 +218,35 @@ describe("RedisLockService", () => {
         vi.useRealTimers();
       }
     });
+
+    it("ensures a batched worker cooperatively halts further batches when signal aborts", async () => {
+      vi.useFakeTimers();
+      try {
+        mockRedisClient.set.mockResolvedValue("OK");
+        mockRedisClient.eval.mockResolvedValue(0); // Renewal fails
+
+        let completedBatches = 0;
+        const batchedWorker = async (signal?: AbortSignal) => {
+          for (let batch = 0; batch < 10; batch += 1) {
+            if (signal?.aborted) break;
+            completedBatches += 1;
+            // simulate async batch step
+            await new Promise((res) => setTimeout(res, 1200));
+          }
+          return completedBatches;
+        };
+
+        const withLockPromise = lockService.withLock("batch-job", batchedWorker, 3_000);
+        const advancePromise = vi.advanceTimersByTimeAsync(1500);
+
+        await expect(Promise.all([withLockPromise, advancePromise])).rejects.toThrow(
+          "DISTRIBUTED_LOCK_LOST",
+        );
+        // Only 1 batch executed before the renewal failed and aborted further batches
+        expect(completedBatches).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

@@ -52,24 +52,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push API image
-        id: api_image
+      - name: Verify CI check status for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Verifying that CI passed for commit ${{ github.sha }} before manual release dispatch..."
+          gh run list --workflow=ci.yml --commit="${{ github.sha }}" --status=success --json conclusion --jq '.[0].conclusion' | grep -q '^success$' || {
+            echo "::error::Manual release dispatch requires a successful CI run for commit ${{ github.sha }}"
+            exit 1
+          }
+
+      - name: Build API image locally
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          load: true
+          push: false
           tags: ${{ env.IMAGE_API }}:${{ env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push Web image
-        id: web_image
+      - name: Build Web image locally
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./apps/web/Dockerfile
-          push: true
+          load: true
+          push: false
           tags: ${{ env.IMAGE_WEB }}:${{ env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -93,6 +104,14 @@ jobs:
           exit-code: "1"
           format: sarif
           output: trivy-web.sarif
+
+      - name: Push verified API image
+        id: api_image
+        run: docker push ${{ env.IMAGE_API }}:${{ env.TAG }}
+
+      - name: Push verified Web image
+        id: web_image
+        run: docker push ${{ env.IMAGE_WEB }}:${{ env.TAG }}
 
   release-evidence:
     name: Validate release and publish evidence

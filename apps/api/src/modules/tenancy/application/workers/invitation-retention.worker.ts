@@ -20,9 +20,9 @@ export class InvitationRetentionWorker {
   @Cron("30 2 * * *")
   async purgeExpiredInvitations(): Promise<number> {
     if (env.PROCESS_ROLE === "api") return 0;
-    const run = async () => {
+    const run = async (signal?: AbortSignal) => {
       try {
-        const result = await this.purgeExpired.execute();
+        const result = await this.purgeExpired.execute(undefined, signal);
         if (result.isErr()) {
           this.logger.error({ error: result.error }, "Invitation retention run failed");
           return 0;

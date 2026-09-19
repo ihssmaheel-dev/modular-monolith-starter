@@ -35,6 +35,12 @@ discovery.relabel "docker_log_labels" {
 	}
 
 	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		regex         = "(.+)"
+		target_label  = "service"
+	}
+
+	rule {
 		source_labels = ["__meta_docker_container_name"]
 		regex         = "/(.*)"
 		target_label  = "container"
