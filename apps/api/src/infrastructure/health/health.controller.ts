@@ -24,6 +24,13 @@ export class HealthController {
     return this.healthService.checkReadiness();
   }
 
+  @Get("workers")
+  @HealthCheck()
+  @ResponseSchema(HealthCheckResponseSchema)
+  workers(): Promise<HealthCheckResponse> {
+    return this.healthService.checkWorkerHealth();
+  }
+
   @Get("live")
   @ResponseSchema(HealthCheckResponseSchema)
   liveness(): { status: "ok" } {

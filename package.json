@@ -6,6 +6,7 @@
     "doctor": "node scripts/doctor.js",
     "project:init": "node scripts/initialize-project.js",
     "prune:examples": "node scripts/prune-examples.js",
+    "disable:examples": "node scripts/prune-examples.js --disable --yes",
     "dev": "turbo dev",
     "dev:api": "turbo build --filter=\"api...\" --filter=\"!api\" && pnpm --filter api dev",
     "dev:api:debug": "turbo build --filter=\"api...\" --filter=\"!api\" && pnpm --filter api dev:debug",

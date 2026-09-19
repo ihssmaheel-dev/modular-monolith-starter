@@ -112,6 +112,7 @@ export class AppHealthService {
   check(): Promise<HealthCheckResult> {
     return this.health.check([
       () => this.memory.checkHeap("memory_heap", 500 * 1024 * 1024),
+      () => this.memory.checkRSS("memory_rss", 700 * 1024 * 1024),
       () => this.postgres.isHealthy("postgres"),
       () => this.redis.isHealthy("redis"),
     ]);
@@ -129,6 +130,12 @@ export class AppHealthService {
     return this.health.check([
       () => this.postgres.isHealthy("postgres"),
       () => this.redis.isHealthy("redis"),
+    ]);
+  }
+
+  @HealthCheck()
+  checkWorkerHealth(): Promise<HealthCheckResult> {
+    return this.health.check([
       () => this.outbox.isHealthy("outbox_queue"),
       () => this.worker.isHealthy("worker"),
     ]);

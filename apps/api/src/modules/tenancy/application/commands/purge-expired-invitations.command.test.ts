@@ -6,12 +6,15 @@ import { PurgeExpiredInvitationsCommand } from "./purge-expired-invitations.comm
 describe("PurgeExpiredInvitationsCommand", () => {
   let command: PurgeExpiredInvitationsCommand;
   let invitations: InvitationsRepository;
+  const mockDatabase = {
+    withSystemScope: vi.fn((fn: () => Promise<unknown>) => fn()),
+  };
 
   beforeEach(() => {
     invitations = {
       deleteSettledBefore: vi.fn().mockResolvedValue(0),
     } as unknown as InvitationsRepository;
-    command = new PurgeExpiredInvitationsCommand(invitations);
+    command = new PurgeExpiredInvitationsCommand(invitations, mockDatabase as never);
   });
 
   it("stops after a short batch", async () => {

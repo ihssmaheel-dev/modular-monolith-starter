@@ -207,7 +207,7 @@
           "links": [
             {
               "title": "Investigate High-Latency Traces in Tempo",
-              "url": "/explore?left={\"datasource\":\"tempo\",\"queries\":[{\"queryType\":\"search\",\"serviceName\":\"api-service\",\"minDuration\":\"250ms\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "url": "/explore?left={\"datasource\":\"tempo\",\"queries\":[{\"queryType\":\"search\",\"serviceName\":\"api\",\"minDuration\":\"250ms\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
               "targetBlank": false
             }
           ],
@@ -253,7 +253,7 @@
             },
             {
               "title": "Find Traces in Tempo",
-              "url": "/explore?left={\"datasource\":\"tempo\",\"queries\":[{\"queryType\":\"search\",\"serviceName\":\"api-service\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "url": "/explore?left={\"datasource\":\"tempo\",\"queries\":[{\"queryType\":\"search\",\"serviceName\":\"api\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
               "targetBlank": false
             }
           ],

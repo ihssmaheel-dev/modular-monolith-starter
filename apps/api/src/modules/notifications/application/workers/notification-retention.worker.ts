@@ -34,8 +34,10 @@ export class NotificationRetentionWorker {
 
         let totalPruned = 0;
         for (let index = 0; index < RETENTION_MAX_BATCHES; index += 1) {
-          const deleted = await this.database.runTransaction(() =>
-            this.intents.deleteOldIntents(deliveredCutoff, deadCutoff, RETENTION_BATCH_SIZE),
+          const deleted = await this.database.withSystemScope(() =>
+            this.database.runTransaction(() =>
+              this.intents.deleteOldIntents(deliveredCutoff, deadCutoff, RETENTION_BATCH_SIZE),
+            ),
           );
           totalPruned += deleted;
           if (deleted < RETENTION_BATCH_SIZE) break;

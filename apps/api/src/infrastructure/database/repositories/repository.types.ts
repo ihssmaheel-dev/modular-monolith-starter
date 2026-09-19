@@ -23,6 +23,20 @@ export interface PaginatedResult<T> {
   hasPrevPage: boolean;
 }
 
+export interface CursorPaginationOptions extends BaseFindOptions {
+  cursor?: string;
+  limit?: number;
+  cursorField?: string;
+  direction?: "asc" | "desc";
+}
+
+export interface CursorPaginatedResult<T> {
+  items: T[];
+  limit: number;
+  nextCursor: string | null;
+  hasNextPage: boolean;
+}
+
 export interface CreateOptions {
   audit?: boolean;
 }

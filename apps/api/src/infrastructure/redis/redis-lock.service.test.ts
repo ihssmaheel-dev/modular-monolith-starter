@@ -94,6 +94,33 @@ describe("RedisLockService", () => {
         expect.any(String),
       );
     });
+
+    it("renews lock via Lua script and returns true on success", async () => {
+      mockRedisClient.set.mockResolvedValue("OK");
+      mockRedisClient.eval.mockResolvedValue(1);
+
+      const handle = await lockService.acquire("retention-job", 30_000);
+      const renewed = await handle.renew(45_000);
+
+      expect(renewed).toBe(true);
+      expect(mockRedisClient.eval).toHaveBeenCalledWith(
+        expect.stringContaining('redis.call("pexpire", KEYS[1], ARGV[2])'),
+        1,
+        "lock:retention-job",
+        expect.any(String),
+        45_000,
+      );
+    });
+
+    it("returns false when renew fails or lock ownership is lost", async () => {
+      mockRedisClient.set.mockResolvedValue("OK");
+      mockRedisClient.eval.mockResolvedValue(0);
+
+      const handle = await lockService.acquire("retention-job", 30_000);
+      const renewed = await handle.renew();
+
+      expect(renewed).toBe(false);
+    });
   });
 
   describe("withLock", () => {
@@ -107,6 +134,37 @@ describe("RedisLockService", () => {
       expect(result).toEqual({ executed: true, result: "work-completed" });
       expect(fn).toHaveBeenCalledTimes(1);
       expect(mockRedisClient.eval).toHaveBeenCalledTimes(1);
+    });
+
+    it("auto-renews lock via heartbeat timer for long-running jobs", async () => {
+      vi.useFakeTimers();
+      try {
+        mockRedisClient.set.mockResolvedValue("OK");
+        mockRedisClient.eval.mockResolvedValue(1);
+
+        let resolveFn: (val: string) => void;
+        const delayedPromise = new Promise<string>((res) => {
+          resolveFn = res;
+        });
+
+        const withLockPromise = lockService.withLock("long-job", async () => delayedPromise, 3_000);
+
+        // Advance 1.5s (heartbeat interval for 3000ms is max(1000, 1000) = 1000ms)
+        await vi.advanceTimersByTimeAsync(1100);
+        expect(mockRedisClient.eval).toHaveBeenCalledWith(
+          expect.stringContaining('redis.call("pexpire", KEYS[1], ARGV[2])'),
+          1,
+          "lock:long-job",
+          expect.any(String),
+          3_000,
+        );
+
+        resolveFn!("done");
+        const result = await withLockPromise;
+        expect(result).toEqual({ executed: true, result: "done" });
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("skips execution cleanly if lock cannot be acquired", async () => {

@@ -1,7 +1,13 @@
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { eq, and, isNull, sql, gt, lt, desc, asc } from "drizzle-orm";
 import { ok, err, type Result } from "neverthrow";
 import { BaseReadRepository, MAX_FIND_LIMIT } from "./base-read.repository";
-import type { Id, PaginatedResult, PaginationOptions } from "./repository.types";
+import type {
+  Id,
+  PaginatedResult,
+  PaginationOptions,
+  CursorPaginatedResult,
+  CursorPaginationOptions,
+} from "./repository.types";
 
 export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<TEntity, TRow> {
   async create(
@@ -114,6 +120,87 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
+      });
+    });
+  }
+
+  async paginateCursor(
+    filter: Record<string, unknown> = {},
+    options: CursorPaginationOptions = {},
+  ): Promise<Result<CursorPaginatedResult<TEntity>, never>> {
+    if (this.hasMissingTenantContext()) {
+      return ok({
+        items: [],
+        limit: options.limit ?? 20,
+        nextCursor: null,
+        hasNextPage: false,
+      });
+    }
+    return this.scopedRead(async (db) => {
+      const limit = Math.min(MAX_FIND_LIMIT, Math.max(1, options.limit ?? 20));
+      const cursorField = options.cursorField ?? "id";
+      const direction = options.direction ?? "desc";
+      const cols = this.table as unknown as Record<string, Parameters<typeof gt>[0]>;
+      const col = cols[cursorField];
+
+      const clauses: unknown[] = [];
+      const baseConditions = this.buildConditions({ ...filter, ...this.tenantFilter() }, options);
+      if (baseConditions) {
+        clauses.push(baseConditions);
+      }
+
+      if (options.cursor && col) {
+        clauses.push(direction === "desc" ? lt(col, options.cursor) : gt(col, options.cursor));
+      }
+
+      const conditions =
+        clauses.length > 1 ? and(...(clauses as Parameters<typeof and>)) : clauses[0];
+
+      const itemQuery = (
+        db as unknown as {
+          select: () => {
+            from: (table: unknown) => {
+              where: (condition: unknown) => {
+                orderBy?: (...v: unknown[]) => unknown;
+                limit: (n: number) => Promise<TRow[]>;
+              };
+              orderBy?: (...v: unknown[]) => { limit: (n: number) => Promise<TRow[]> };
+              limit: (n: number) => Promise<TRow[]>;
+            };
+          };
+        }
+      )
+        .select()
+        .from(this.table);
+
+      let queryCandidate: unknown = conditions
+        ? (itemQuery as { where: (condition: unknown) => unknown }).where(conditions)
+        : itemQuery;
+
+      const orderCol = col ?? cols["id"];
+      if (orderCol) {
+        const orderClause = direction === "desc" ? desc(orderCol) : asc(orderCol);
+        if (typeof (queryCandidate as { orderBy?: unknown }).orderBy === "function") {
+          queryCandidate = (queryCandidate as { orderBy: (...v: unknown[]) => unknown }).orderBy(
+            orderClause,
+          );
+        }
+      }
+
+      const limited = this.applyNumberMethod(queryCandidate, "limit", limit + 1);
+      const rows = ((await limited) as TRow[]) ?? [];
+
+      const hasNextPage = rows.length > limit;
+      const itemsToReturn = hasNextPage ? rows.slice(0, limit) : rows;
+      const lastItem = itemsToReturn[itemsToReturn.length - 1] as
+        Record<string, unknown> | undefined;
+      const nextCursor = hasNextPage && lastItem ? String(lastItem[cursorField] ?? "") : null;
+
+      return ok({
+        items: itemsToReturn.map((r) => this.toDomain(r)),
+        limit,
+        nextCursor,
+        hasNextPage,
       });
     });
   }

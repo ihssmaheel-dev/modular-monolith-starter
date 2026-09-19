@@ -91,6 +91,9 @@ export class RealtimeSseController {
       try {
         const access = await this.tenantAccess.execute(userId, tenantId);
         if (access.isErr()) subject.complete();
+      } catch (error) {
+        this.logger.error({ error, userId, tenantId }, "SSE tenant access revalidation failed");
+        subject.complete();
       } finally {
         running = false;
       }

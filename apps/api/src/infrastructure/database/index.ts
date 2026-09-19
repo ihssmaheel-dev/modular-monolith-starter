@@ -13,6 +13,8 @@ export { BaseReadRepository } from "./repositories/base-read.repository";
 export type {
   BaseFindOptions,
   CreateOptions,
+  CursorPaginatedResult,
+  CursorPaginationOptions,
   DeleteOptions,
   Id,
   PaginatedResult,

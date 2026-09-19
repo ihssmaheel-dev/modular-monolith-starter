@@ -70,6 +70,7 @@ services:
     environment:
       NODE_ENV: production
       PROCESS_ROLE: api
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_NAME: ${APP_NAME:-Workspace}
       APP_SLUG: ${APP_SLUG:-modular-monolith}
       EXAMPLE_FEATURES_ENABLED: ${EXAMPLE_FEATURES_ENABLED:-false}

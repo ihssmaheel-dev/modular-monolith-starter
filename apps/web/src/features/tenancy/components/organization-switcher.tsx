@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, ChevronsUpDown, Plus } from "lucide-react";
@@ -45,7 +45,7 @@ export function OrganizationSwitcher() {
     enabled: isMultiTenant,
   });
 
-  const organizations = orgsQuery.data?.items ?? [];
+  const organizations = useMemo(() => orgsQuery.data?.items ?? [], [orgsQuery.data?.items]);
 
   // Auto-select first organization if none is selected in multi-tenant mode
   useEffect(() => {
@@ -144,20 +144,20 @@ export function OrganizationSwitcher() {
                 id="org-name"
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
-                placeholder="Acme Corp"
+                placeholder={t("tenancy.orgNamePlaceholder")}
                 required
                 className="h-8 text-xs"
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="org-slug" className="text-xs font-medium">
-                Slug ({t("common.optional", "optional")})
+                {t("tenancy.orgSlug")} ({t("common.optional", "optional")})
               </Label>
               <Input
                 id="org-slug"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.toLowerCase())}
-                placeholder="acme-corp"
+                placeholder={t("tenancy.orgSlugPlaceholder")}
                 className="h-8 text-xs font-mono"
               />
             </div>

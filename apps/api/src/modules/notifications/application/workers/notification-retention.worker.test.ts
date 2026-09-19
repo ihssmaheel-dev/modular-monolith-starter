@@ -17,6 +17,7 @@ describe("NotificationRetentionWorker", () => {
 
     database = {
       runTransaction: vi.fn(async (fn: () => unknown) => await fn()),
+      withSystemScope: vi.fn(async (fn: () => unknown) => await fn()),
       withExclusiveExecution: vi.fn(async (_key: string, fn: () => unknown) => ({
         executed: true,
         result: await fn(),

@@ -158,4 +158,36 @@ describe("BaseRepository Tenant Isolation", () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error).toEqual({ type: "CONFLICT" });
   });
+
+  it("paginates by cursor and determines nextCursor correctly", async () => {
+    vi.mocked(mockContext.get).mockReturnValue({ mode: "multi", tenantId: "tenant-123" });
+    const rows = [
+      { id: "3", tenantId: "tenant-123", name: "Third" },
+      { id: "2", tenantId: "tenant-123", name: "Second" },
+      { id: "1", tenantId: "tenant-123", name: "First" },
+    ];
+    const limitFn = vi.fn().mockResolvedValue(rows);
+    const orderByFn = vi.fn().mockReturnValue({ limit: limitFn });
+    const whereFn = vi.fn().mockReturnValue({ orderBy: orderByFn, limit: limitFn });
+    vi.mocked(mockDb.getDb).mockReturnValue({
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: whereFn,
+          orderBy: orderByFn,
+          limit: limitFn,
+        })),
+      })),
+    } as never);
+
+    const repo = new TestRepo(mockDb, mockContext, true);
+
+    // Limit is 2, returning 3 rows means hasNextPage = true, nextCursor = "2"
+    const pageResult = await repo.paginateCursor({}, { limit: 2, cursorField: "id" });
+    expect(pageResult.isOk()).toBe(true);
+    if (pageResult.isOk()) {
+      expect(pageResult.value.items).toHaveLength(2);
+      expect(pageResult.value.hasNextPage).toBe(true);
+      expect(pageResult.value.nextCursor).toBe("2");
+    }
+  });
 });

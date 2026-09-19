@@ -19,6 +19,7 @@ export const auditLogs = pgTable(
     index("audit_tenant_created_idx").on(t.tenantId, t.createdAt),
     index("audit_collection_created_idx").on(t.collectionName, t.createdAt),
     index("audit_document_id_idx").on(t.documentId),
+    index("audit_created_at_idx").on(t.createdAt),
   ],
 );
 

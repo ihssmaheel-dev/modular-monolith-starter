@@ -22,10 +22,8 @@ apps/web/dist/
 web-build/
 
 # Environment
-.env
-.env.local
-.env.*.local
-docker/.env.staging
+.env*
+!.env.example
 
 # IDE
 .vscode/
