@@ -238,7 +238,7 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "unit": "bytes"
+          "unit": "decbytes"
         }
       },
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
@@ -266,7 +266,7 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "unit": "bytes"
+          "unit": "decbytes"
         }
       },
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
@@ -357,7 +357,7 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "unit": "bytes"
+          "unit": "decbytes"
         }
       },
       "gridPos": { "h": 4, "w": 8, "x": 16, "y": 15 },
@@ -426,7 +426,7 @@
             "fillOpacity": 10,
             "lineWidth": 2
           },
-          "unit": "Bps"
+          "unit": "decBps"
         }
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
