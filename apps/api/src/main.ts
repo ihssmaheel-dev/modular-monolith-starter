@@ -8,6 +8,7 @@ import { WsAdapter } from "@nestjs/platform-ws";
 import helmet from "@fastify/helmet";
 import compress from "@fastify/compress";
 import cookie from "@fastify/cookie";
+import etag from "@fastify/etag";
 import underPressure from "@fastify/under-pressure";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
@@ -139,6 +140,8 @@ async function bootstrap() {
     secret: env.JWT_SECRET,
     hook: "onRequest",
   });
+
+  await app.register(etag as unknown as never);
 
   app
     .getHttpAdapter()

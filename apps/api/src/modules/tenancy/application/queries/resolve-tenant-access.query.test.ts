@@ -70,6 +70,77 @@ describe("ResolveTenantAccessQuery", () => {
 
     expect(result).toMatchObject({ error: { type: "MEMBERSHIP_NOT_FOUND" } });
   });
+
+  it("returns cached tenant context on Redis hit without querying database", async () => {
+    const cachedContext = {
+      mode: "multi",
+      tenantId: "org-1",
+      membershipId: "membership-cached",
+      role: "member",
+    };
+    const mockRedisClient = {
+      get: vi.fn().mockResolvedValue(JSON.stringify(cachedContext)),
+      set: vi.fn(),
+    };
+    const mockRedis = {
+      getClient: () => mockRedisClient,
+    } as unknown as import("../../../../infrastructure/redis").RedisService;
+    const database = {
+      withResultTransaction: vi.fn().mockImplementation(async (callback) => callback()),
+    } as unknown as DatabaseService;
+    const tenantContext = {
+      run: vi.fn((_context, callback) => callback()),
+    } as unknown as TenantContextService;
+    const queryWithRedis = new ResolveTenantAccessQuery(
+      memberships,
+      database,
+      tenantContext,
+      mockRedis,
+    );
+
+    const result = await queryWithRedis.execute("user-1", "org-1");
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual(cachedContext);
+    }
+    expect(mockRedisClient.get).toHaveBeenCalledWith("cache:membership:org-1:user-1");
+    expect(memberships.findMembership).not.toHaveBeenCalled();
+  });
+
+  it("writes to Redis cache on database fetch and fails open if Redis throws", async () => {
+    vi.mocked(memberships.findMembership).mockResolvedValue(ok(membership()));
+    const mockRedisClient = {
+      get: vi.fn().mockRejectedValue(new Error("Redis connection dropped")),
+      set: vi.fn().mockRejectedValue(new Error("Redis write timeout")),
+    };
+    const mockRedis = {
+      getClient: () => mockRedisClient,
+    } as unknown as import("../../../../infrastructure/redis").RedisService;
+    const database = {
+      withResultTransaction: vi.fn().mockImplementation(async (callback) => callback()),
+    } as unknown as DatabaseService;
+    const tenantContext = {
+      run: vi.fn((_context, callback) => callback()),
+    } as unknown as TenantContextService;
+    const queryWithRedis = new ResolveTenantAccessQuery(
+      memberships,
+      database,
+      tenantContext,
+      mockRedis,
+    );
+
+    const result = await queryWithRedis.execute("user-1", "org-1");
+
+    expect(result.isOk()).toBe(true);
+    expect(memberships.findMembership).toHaveBeenCalledWith("org-1", "user-1");
+    expect(mockRedisClient.set).toHaveBeenCalledWith(
+      "cache:membership:org-1:user-1",
+      expect.any(String),
+      "EX",
+      120,
+    );
+  });
 });
 
 function membership(): Membership {

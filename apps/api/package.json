@@ -37,6 +37,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1136.0",
     "@fastify/compress": "^9.2.0",
     "@fastify/cookie": "^11.1.2",
+    "@fastify/etag": "^6.2.0",
     "@fastify/helmet": "^13.1.1",
     "@fastify/static": "^10.1.4",
     "@fastify/under-pressure": "^9.2.0",

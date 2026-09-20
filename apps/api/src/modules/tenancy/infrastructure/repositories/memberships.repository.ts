@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
@@ -8,10 +8,15 @@ import { memberships, type MembershipRow } from "../schemas/tenancy.schema";
 import { Membership } from "../../domain/entities/tenancy.entity";
 import type { TenantRole } from "@repo/contracts";
 import type { PaginatedResult, PaginationOptions } from "../../../../infrastructure/database";
+import { RedisService } from "../../../../infrastructure/redis";
 
 @Injectable()
 export class MembershipsRepository extends BaseRepository<Membership, MembershipRow> {
-  constructor(database: DatabaseService, tenantContext: TenantContextService) {
+  constructor(
+    database: DatabaseService,
+    tenantContext: TenantContextService,
+    @Optional() private readonly redis?: RedisService,
+  ) {
     super(memberships, database, tenantContext, false);
   }
 
@@ -58,18 +63,50 @@ export class MembershipsRepository extends BaseRepository<Membership, Membership
     return this.exists({ userId, role: "owner" } as unknown as Record<string, unknown>);
   }
 
-  updateRole(
+  async invalidateCache(tenantId: string, userId: string): Promise<void> {
+    const client = this.redis?.getClient();
+    if (!client) return;
+    try {
+      await client.del(`cache:membership:${tenantId}:${userId}`);
+    } catch {
+      // Fail open
+    }
+  }
+
+  override async create(
+    data: Record<string, unknown>,
+  ): Promise<Result<Membership, { type: "TENANT_REQUIRED" }>> {
+    const result = await super.create(data);
+    if (
+      result.isOk() &&
+      typeof data["tenantId"] === "string" &&
+      typeof data["userId"] === "string"
+    ) {
+      await this.invalidateCache(data["tenantId"], data["userId"]);
+    }
+    return result;
+  }
+
+  async updateRole(
     tenantId: string,
     userId: string,
     role: TenantRole,
   ): Promise<Result<Membership | null, { type: "CONFLICT" }>> {
-    return this.updateOne({ tenantId, userId }, { role });
+    const result = await this.updateOne({ tenantId, userId }, { role });
+    if (result.isOk() && result.value) {
+      await this.invalidateCache(tenantId, userId);
+    }
+    return result;
   }
 
   async remove(tenantId: string, userId: string): Promise<Result<boolean, never>> {
     const membership = await this.findMembership(tenantId, userId);
     if (membership.isErr() || !membership.value) return ok(false);
-    return this.deleteById(membership.value.data.id);
+    const result = await this.deleteById(membership.value.data.id);
+    if (result.isOk() && result.value) {
+      await this.invalidateCache(tenantId, userId);
+    }
+    return result;
   }
 
   async updateUserSnapshot(
@@ -92,17 +129,29 @@ export class MembershipsRepository extends BaseRepository<Membership, Membership
   }
 
   async removeUser(userId: string): Promise<void> {
+    const userMemberships = await this.paginateForUser(userId, { limit: 100 });
     const db = this.getDb();
     await (db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } })
       .delete(memberships)
       .where(eq(memberships.userId, userId));
+    if (userMemberships.isOk()) {
+      await Promise.all(
+        userMemberships.value.items.map((m) => this.invalidateCache(m.data.tenantId, userId)),
+      );
+    }
   }
 
   async deleteByTenant(tenantId: string): Promise<void> {
+    const tenantMemberships = await this.paginateForTenant(tenantId, { limit: 100 });
     const db = this.getDb();
     await (db as unknown as { delete: (t: unknown) => { where: (c: unknown) => Promise<void> } })
       .delete(memberships)
       .where(eq(memberships.tenantId, tenantId));
+    if (tenantMemberships.isOk()) {
+      await Promise.all(
+        tenantMemberships.value.items.map((m) => this.invalidateCache(tenantId, m.data.userId)),
+      );
+    }
   }
 
   private exists(filter: Record<string, unknown>): Promise<Result<boolean, never>> {

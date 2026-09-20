@@ -59,6 +59,9 @@ importers:
       '@fastify/cookie':
         specifier: ^11.1.2
         version: 11.1.2
+      '@fastify/etag':
+        specifier: ^6.2.0
+        version: 6.2.0
       '@fastify/helmet':
         specifier: ^13.1.1
         version: 13.1.1
@@ -2430,6 +2433,9 @@ packages:
 
   '@fastify/error@4.2.0':
     resolution: {integrity: sha512-RSo3sVDXfHskiBZKBPRgnQTtIqpi/7zhJOEmAxCiBcM7d0uwdGdxLlsCaLzGs8v8NnxIRlfG0N51p5yFaOentQ==}
+
+  '@fastify/etag@6.2.0':
+    resolution: {integrity: sha512-ptNM6UYBY+DFbZ4UPCSlGN0YRRIBy1ZAoo/cPLu8m7xJ58XpfTYLvS5bpS5KFws7MEcCqJJuAMu+rvrRCISfgw==}
 
   '@fastify/fast-json-stringify-compiler@5.1.0':
     resolution: {integrity: sha512-PxcYtKLbQ8Z+yApiqjK8FwxIwvEj38k2OiLc17u8dkJSlmfi2wHHPaSnaoqBPQqtvF8YVsDgDpP2snDCfFrpfw==}
@@ -13607,6 +13613,10 @@ snapshots:
       toad-cache: 3.7.4
 
   '@fastify/error@4.2.0': {}
+
+  '@fastify/etag@6.2.0':
+    dependencies:
+      fastify-plugin: 6.0.0
 
   '@fastify/fast-json-stringify-compiler@5.1.0':
     dependencies:

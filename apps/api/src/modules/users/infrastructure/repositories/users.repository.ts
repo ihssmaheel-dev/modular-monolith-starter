@@ -1,15 +1,20 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { eq, and, gt, sql } from "drizzle-orm";
 import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
-import { BaseRepository } from "../../../../infrastructure/database";
+import { BaseRepository, type Id } from "../../../../infrastructure/database";
 import { users, type UserRow } from "../schemas/user.schema";
 import { User } from "../../domain/entities/user.entity";
+import { RedisService } from "../../../../infrastructure/redis";
 
 @Injectable()
 export class UsersRepository extends BaseRepository<User, UserRow> {
-  constructor(database: DatabaseService, tenantContext: TenantContextService) {
+  constructor(
+    database: DatabaseService,
+    tenantContext: TenantContextService,
+    @Optional() private readonly redis?: RedisService,
+  ) {
     super(users, database, tenantContext, false);
   }
 
@@ -25,6 +30,45 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });
+  }
+
+  async invalidateCache(userId: string): Promise<void> {
+    const client = this.redis?.getClient();
+    if (!client) return;
+    try {
+      await client.del(`cache:user:${userId}`);
+      await client.del(`user:${userId}`);
+    } catch {
+      // Fail open
+    }
+  }
+
+  override async updateById(
+    id: Id,
+    update: Record<string, unknown>,
+    expectedVersion?: Date | number,
+  ): Promise<Result<User | null, { type: "CONFLICT" }>> {
+    const result = await super.updateById(id, update, expectedVersion);
+    if (result.isOk()) {
+      await this.invalidateCache(id as string);
+    }
+    return result;
+  }
+
+  override async deleteById(id: Id): Promise<Result<boolean, never>> {
+    const result = await super.deleteById(id);
+    if (result.isOk()) {
+      await this.invalidateCache(id as string);
+    }
+    return result;
+  }
+
+  override async softDeleteById(id: Id): Promise<Result<User | null, never>> {
+    const result = await super.softDeleteById(id);
+    if (result.isOk()) {
+      await this.invalidateCache(id as string);
+    }
+    return result;
   }
 
   async findByEmailWithPassword(
@@ -92,7 +136,11 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
         ),
       )
       .returning();
-    return ok(rows[0] ? this.toDomain(rows[0]) : null);
+    const row = rows[0];
+    if (row) {
+      await this.invalidateCache(row.id);
+    }
+    return ok(row ? this.toDomain(row) : null);
   }
 
   async setEmailVerificationToken(
@@ -141,7 +189,11 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
         ),
       )
       .returning();
-    return ok(rows[0] ? this.toDomain(rows[0]) : null);
+    const row = rows[0];
+    if (row) {
+      await this.invalidateCache(row.id);
+    }
+    return ok(row ? this.toDomain(row) : null);
   }
 
   async setEmailChangeRequest(
@@ -197,7 +249,11 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
         and(eq(users.emailChangeTokenHash, tokenHash), gt(users.emailChangeExpiresAt, new Date())),
       )
       .returning();
-    return ok(rows[0] ? this.toDomain(rows[0]) : null);
+    const row = rows[0];
+    if (row) {
+      await this.invalidateCache(row.id);
+    }
+    return ok(row ? this.toDomain(row) : null);
   }
 
   async incrementAuthVersion(userId: string): Promise<Result<User | null, never>> {
@@ -216,6 +272,10 @@ export class UsersRepository extends BaseRepository<User, UserRow> {
       >)
       .where(eq(users.id, userId))
       .returning();
-    return ok(rows[0] ? this.toDomain(rows[0]) : null);
+    const row = rows[0];
+    if (row) {
+      await this.invalidateCache(userId);
+    }
+    return ok(row ? this.toDomain(row) : null);
   }
 }

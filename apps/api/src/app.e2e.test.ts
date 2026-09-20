@@ -3,6 +3,7 @@ import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify
 import { WsAdapter } from "@nestjs/platform-ws";
 import { ClsService } from "nestjs-cls";
 import cookie from "@fastify/cookie";
+import etag from "@fastify/etag";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { API_GLOBAL_PREFIX } from "@repo/contracts";
@@ -40,6 +41,7 @@ describe("API liveness", () => {
       secret: env.JWT_SECRET,
       hook: "onRequest",
     });
+    await app.register(etag as unknown as never);
     app
       .getHttpAdapter()
       .getInstance()
@@ -80,6 +82,22 @@ describe("API liveness", () => {
     const response = await instance.inject({ method: "GET", url: "/api/v1/health/live" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok" });
+  });
+
+  it("generates ETag header and returns 304 Not Modified when If-None-Match matches", async () => {
+    const instance = app.getHttpAdapter().getInstance();
+    const firstResponse = await instance.inject({ method: "GET", url: "/api/v1/health/live" });
+    expect(firstResponse.statusCode).toBe(200);
+    const etagHeader = firstResponse.headers["etag"] as string;
+    expect(etagHeader).toBeDefined();
+
+    const secondResponse = await instance.inject({
+      method: "GET",
+      url: "/api/v1/health/live",
+      headers: { "if-none-match": etagHeader },
+    });
+    expect(secondResponse.statusCode).toBe(304);
+    expect(secondResponse.body).toBe("");
   });
 
   it("serves the tenancy status through REST and oRPC transports", async () => {

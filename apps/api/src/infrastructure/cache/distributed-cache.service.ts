@@ -147,6 +147,10 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
     const publisher = this.redisService.getClient();
     if (publisher) {
       try {
+        await publisher.del(key);
+        if (!key.startsWith("cache:")) {
+          await publisher.del(`cache:${key}`);
+        }
         await publisher.publish(CACHE_CHANNEL, key);
       } catch (error) {
         this.logger.error({ key, error }, "Failed to publish global cache invalidation");
