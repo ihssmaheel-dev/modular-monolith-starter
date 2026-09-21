@@ -6,6 +6,8 @@ import { useLocaleStore } from "@/stores/locale.store";
 import { useTenantStore } from "@/stores/tenant.store";
 import { clearIdentityBoundary } from "./identity-boundary";
 
+import { publishRefreshed } from "./cross-tab/auth-sync";
+
 let client: ApiClient | null = null;
 
 export function getApiClient(): ApiClient {
@@ -20,6 +22,7 @@ export function getApiClient(): ApiClient {
     getTenantId: () => useTenantStore.getState().tenantId,
     onAuthRefreshed: (response) => {
       useAuthStore.getState().setAuth(response);
+      publishRefreshed(response);
     },
     onAuthFailure: async () => {
       await clearIdentityBoundary();

@@ -23,16 +23,20 @@ scrape_configs:
     metrics_path: "/metrics"
     authorization:
       credentials_file: /run/secrets/metrics_token
-    static_configs:
-      - targets: ["api:3000"]
+    dns_sd_configs:
+      - names: ["api"]
+        type: A
+        port: 3000
 
   - job_name: "worker-service"
     sample_limit: 20000
     metrics_path: "/metrics"
     authorization:
       credentials_file: /run/secrets/metrics_token
-    static_configs:
-      - targets: ["worker:9464"]
+    dns_sd_configs:
+      - names: ["worker"]
+        type: A
+        port: 9464
 
   - job_name: "postgres-exporter"
     scrape_interval: 30s

@@ -62,6 +62,7 @@ describe("MetricsService", () => {
     const mockExistingHistogram = {
       observe: vi.fn(),
       startTimer: vi.fn(),
+      enableExemplars: true,
     };
     vi.mocked(register.getSingleMetric).mockReturnValue(mockExistingHistogram as never);
 
@@ -79,6 +80,30 @@ describe("MetricsService", () => {
       value: 0.05,
       exemplarLabels: { trace_id: "test-trace-123" },
     });
+  });
+
+  it("should discard exemplar labels when histogram does not support exemplars", async () => {
+    const { register } = await import("prom-client");
+    const mockNonExemplarHistogram = {
+      observe: vi.fn(),
+      startTimer: vi.fn(),
+      enableExemplars: false,
+    };
+    vi.mocked(register.getSingleMetric).mockReturnValue(mockNonExemplarHistogram as never);
+
+    service.recordHistogram(
+      "http_request_duration_seconds",
+      "Duration",
+      0.05,
+      { method: "GET", route: "/notes" },
+      [0.1, 0.5],
+      { trace_id: "test-trace-123" },
+    );
+
+    expect(mockNonExemplarHistogram.observe).toHaveBeenCalledWith(
+      { method: "GET", route: "/notes" },
+      0.05,
+    );
   });
 
   it("rejects inconsistent label sets after a metric has been cached", async () => {

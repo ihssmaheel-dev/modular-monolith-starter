@@ -76,8 +76,6 @@ export class MetricsService {
         value: validValue,
         ...(exemplarLabels && Object.keys(exemplarLabels).length > 0 ? { exemplarLabels } : {}),
       });
-    } else if (exemplarLabels && Object.keys(exemplarLabels).length > 0) {
-      histogram.observe({ labels: labels ?? {}, value: validValue, exemplarLabels });
     } else if (labels) {
       histogram.observe(labels, validValue);
     } else {

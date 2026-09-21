@@ -178,11 +178,10 @@ claims, conflicts, replay, stale recovery, and lock release.
 ## Request security pipeline
 
 Guards run in registration order: the cheap IP limit, authentication, CSRF, tenant resolution,
-explicit actor/tenant aggregate limits, then permissions. Interceptors establish the request ID,
-validate mutation origins, record metrics/traces/logs, deduplicate eligible HTTP requests, establish
-the database transaction when required, and validate responses. Password hashing, external I/O, and
-long-lived transports opt out and use short command-owned database units of work. Zod validates
-transport input before the thin controller delegates to an application command or query.
+explicit actor/tenant aggregate limits, then permissions. Interceptors establish the request ID, validate mutation origins, record metrics/traces/logs,
+deduplicate eligible HTTP requests, and validate responses. Password hashing, external I/O, and
+long-lived transports use short command-owned database units of work rather than global request transactions.
+Zod validates transport input before the thin controller delegates to an application command or query.
 
 ## Modules
 

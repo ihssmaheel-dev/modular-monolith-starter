@@ -54,11 +54,26 @@ export class FileScanWorker {
   }): Promise<boolean> {
     const quarantineKey = quarantineKeyFor(file.key);
     const source = await this.storage.getMetadata(quarantineKey);
-    if (source.isErr() || !source.value || !this.matches(file, source.value)) {
+    if (source.isErr()) {
+      this.logger.warn(
+        { fileId: file.id, error: source.error },
+        "Transient S3 error fetching quarantine metadata, will retry",
+      );
+      return false;
+    }
+    if (!source.value || !this.matches(file, source.value)) {
       await this.markFailed(file.id);
+      await this.storage.delete(quarantineKey);
       return false;
     }
     const scan = await this.scanner.scan({ ...file, ...source.value, key: quarantineKey });
+    if ("error" in scan) {
+      this.logger.warn(
+        { fileId: file.id, error: scan.error },
+        "Transient scanner service error, will retry",
+      );
+      return false;
+    }
     const clean = "result" in scan && scan.result === "clean";
     if (clean) {
       // Promote by server-side copy, then verify the promoted bytes still

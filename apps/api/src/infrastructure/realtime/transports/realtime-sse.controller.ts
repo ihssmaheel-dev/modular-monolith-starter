@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import { RealtimeService } from "../realtime.service";
-import { Subject, Observable } from "rxjs";
+import { Subject, ReplaySubject, Observable } from "rxjs";
 import { finalize } from "rxjs/operators";
 import { NoDatabaseTransaction, TenantAgnostic, requireAuthenticatedUser } from "../../../common";
 import { PinoLoggerService } from "../../logger/logger.service";
@@ -42,20 +42,32 @@ export class RealtimeSseController {
     const user = requireAuthenticatedUser(request);
     // EventSource cannot send headers, so the tenant travels as ?tenantId=.
     // Membership is resolved (never trusted blindly); an unresolvable
-    // tenant degrades to the user-global scope instead of failing the
-    // endlessly-retrying EventSource connection.
+    // tenant rejects the connection with 403 Forbidden.
     const tenantId = await this.resolveTenant(user.sub, request);
 
-    const subject = new Subject<NestMessageEvent>();
-    this.realtimeService.addSseClient(user.sub, tenantId, subject);
-    const timers = this.scheduleRevalidation(subject, user.sub, tenantId, request);
+    const subject = new ReplaySubject<NestMessageEvent>(1);
+    this.realtimeService.addSseClient(
+      user.sub,
+      tenantId,
+      subject as unknown as Subject<NestMessageEvent>,
+    );
+    const timers = this.scheduleRevalidation(
+      subject as unknown as Subject<NestMessageEvent>,
+      user.sub,
+      tenantId,
+      request,
+    );
 
     subject.next({ data: { status: "connected" } } as NestMessageEvent);
 
     return subject.asObservable().pipe(
       finalize(() => {
         for (const timer of timers) clearTimeout(timer);
-        this.realtimeService.removeSseClient(user.sub, tenantId, subject);
+        this.realtimeService.removeSseClient(
+          user.sub,
+          tenantId,
+          subject as unknown as Subject<NestMessageEvent>,
+        );
       }),
     );
   }

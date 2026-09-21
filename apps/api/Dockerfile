@@ -7,7 +7,7 @@ RUN apk add --no-cache libc6-compat
 # Set working directory
 WORKDIR /app
 RUN corepack enable pnpm
-RUN pnpm install turbo --global
+RUN pnpm install turbo@2.11.2 --global
 COPY . .
 RUN turbo prune api --docker
 
@@ -37,7 +37,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nestjs
 USER nestjs
 
-COPY --from=installer /app .
+COPY --from=installer --chown=nestjs:nodejs /app .
 
 EXPOSE 3000
 

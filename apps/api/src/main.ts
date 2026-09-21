@@ -163,6 +163,7 @@ async function bootstrap() {
           // require the double-submit header (see CsrfGuard).
           sameSite: "lax",
           path: "/",
+          domain: env.COOKIE_DOMAIN ? env.COOKIE_DOMAIN : undefined,
           maxAge: 24 * 60 * 60,
         });
       }

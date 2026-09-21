@@ -221,7 +221,7 @@ groups:
           description: "Container working set memory exceeded 85% of its configured limit for over 5 minutes."
 
       - alert: ContainerHighCpuUsage
-        expr: (sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~".+"}[5m])) / on (container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_service=~".+"} / container_spec_cpu_period{container_label_com_docker_compose_service=~".+"})) > 0.85
+        expr: (sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~".+"}[5m])) / on (container_label_com_docker_compose_service) sum by (container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_service=~".+"} / container_spec_cpu_period{container_label_com_docker_compose_service=~".+"})) > 0.85
         for: 5m
         labels:
           severity: warning

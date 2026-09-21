@@ -67,6 +67,7 @@ export const envSchema = z
     CLIENT_URL: z.string().url().default("http://localhost:5155"),
 
     API_URL: z.string().url().default("http://localhost:5156"),
+    COOKIE_DOMAIN: z.string().optional(),
 
     DATABASE_URL: z.string().url().default("postgres://postgres:postgres@127.0.0.1:5432/app"),
     DB_DIRECT_URL: z

@@ -278,7 +278,7 @@ migrations/
 - Apply: `pnpm --filter api db:migrate`.
 - Check status: `pnpm --filter api db:migrate:status`.
 - Verify fresh + upgrade paths: `pnpm --filter api db:migrate:check`.
-- `0000_initial.sql` is append-only history in one file while pre-production: schema DDL is generated, hardening SQL (RLS, retention function, audit trigger) is appended by hand. After the first production deploy, add numbered migrations and never edit `0000_initial.sql`.
+- `0000_initial.sql` is the baseline schema migration. In production, migrations are strictly append-only: create new numbered migrations (e.g. `0001_...`, `0002_...`), and never edit existing applied migrations or modify `0000_initial.sql`.
 
 ---
 
@@ -343,7 +343,7 @@ apps/web/
   REST subclients remain compatibility fallbacks while both transports share contracts and parity
   tests.
 - Forms: `react-hook-form` + `@hookform/resolvers/zod` + `@repo/contracts` schemas (LoginSchema, RegisterSchema, CreateNoteSchema).
-- Auth: Zustand stores `accessToken/refreshToken/user` (persist localStorage). `getApiClient` wires refresh via `requestRefresh` + `onAuthFailure` -> redirect `/auth`.
+- Auth: Zustand in-memory stores `accessToken/refreshToken`; user profile persists to localStorage via partialize. Refresh credential survives via httpOnly cookie. Never persist tokens to localStorage. `getApiClient` wires refresh via `requestRefresh` + `onAuthFailure` -> redirect `/auth`.
 - Tenant: `useTenantStore.tenantId` automatically sent as `x-tenant-id` via api-client.
 - i18n: `useTranslation()` via `react-i18next`; keys from `@repo/i18n` (`common.*`, `auth.*`, `dashboard.*`, `notes.*`). See `I18N_RULES.md`.
 - Styling: Use `@repo/ui` components (`Button`, `Card`, `Input`, `Tabs`, `Badge`, etc) + `cn()` + Tailwind 4. No custom CSS libraries beyond Tailwind.

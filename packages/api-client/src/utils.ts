@@ -85,6 +85,25 @@ export function createRefreshCoordinator(
   let failureNotified = false;
   return {
     refresh: () => {
+      if (
+        typeof navigator !== "undefined" &&
+        "locks" in navigator &&
+        typeof (navigator as { locks?: { request: (...args: unknown[]) => Promise<unknown> } })
+          .locks?.request === "function"
+      ) {
+        pending ??= (
+          navigator as {
+            locks: {
+              request: <T>(name: string, callback: () => Promise<T>) => Promise<T>;
+            };
+          }
+        ).locks
+          .request("app:auth:refresh_mutex", () => requestRefresh(baseUrl, options))
+          .finally(() => {
+            pending = null;
+          });
+        return pending;
+      }
       pending ??= requestRefresh(baseUrl, options).finally(() => {
         pending = null;
       });

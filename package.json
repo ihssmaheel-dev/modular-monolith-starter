@@ -85,11 +85,6 @@
   "engines": {
     "node": ">=20.19.0"
   },
-  "pnpm": {
-    "overrides": {
-      "undici": "^7.29.1"
-    }
-  },
   "lint-staged": {
     "apps/api/src/**/*.ts": [
       "pnpm --filter api lint"

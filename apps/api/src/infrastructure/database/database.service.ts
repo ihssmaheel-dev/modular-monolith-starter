@@ -288,7 +288,14 @@ export class DatabaseService implements OnApplicationShutdown {
     key: string,
     fn: (signal?: AbortSignal) => Promise<T>,
   ): Promise<{ executed: boolean; result?: T }> {
-    if (this.redisLock?.isAvailable()) {
+    if (this.redisLock) {
+      if (!this.redisLock.isAvailable()) {
+        this.logger.warn(
+          { key },
+          "Redis lock authority is unavailable; failing closed to prevent split-brain dual execution",
+        );
+        return { executed: false };
+      }
       return this.redisLock.withLock(key, fn);
     }
 

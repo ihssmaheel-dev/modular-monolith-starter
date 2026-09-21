@@ -143,7 +143,8 @@ export class QueueService implements BeforeApplicationShutdown {
       for (const [name, queue] of this.queues) {
         try {
           const counts = await queue.getJobCounts("waiting", "active", "delayed", "failed");
-          const [oldest] = (counts.waiting ?? 0) > 0 ? await queue.getJobs(["waiting"], 0, 0) : [];
+          const [oldest] =
+            (counts.waiting ?? 0) > 0 ? await queue.getJobs(["waiting"], 0, 0, true) : [];
           const oldestAgeSeconds = oldest ? Math.max(0, (Date.now() - oldest.timestamp) / 1000) : 0;
           this.metricsService.setGauge(
             "bullmq_queue_waiting_jobs",

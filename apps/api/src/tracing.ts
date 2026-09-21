@@ -26,6 +26,9 @@ export const otelSDK = new NodeSDK({
     root: new TraceIdRatioBasedSampler(
       env.NODE_ENV === "production" ? env.OTEL_TRACE_SAMPLE_RATIO : 1.0,
     ),
+    remoteParentSampled: new TraceIdRatioBasedSampler(
+      env.NODE_ENV === "production" ? env.OTEL_TRACE_SAMPLE_RATIO : 1.0,
+    ),
   }),
   ...(traceExporter
     ? {

@@ -65,9 +65,8 @@ export class RealtimeConnectionRegistry {
 
   addWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): boolean {
     const key = connectionKey(userId, tenantId);
-    if (!this.wsClients.has(key)) this.wsClients.set(key, new Set());
-    const clients = this.wsClients.get(key)!;
-    if (clients.has(socket)) return true;
+    const clients = this.wsClients.get(key);
+    if (clients?.has(socket)) return true;
 
     if (this.getConnectionCount() >= MAX_PROCESS_CONNECTIONS) {
       this.logger.warn({ userId }, "Max process realtime connections reached");
@@ -93,12 +92,15 @@ export class RealtimeConnectionRegistry {
       return false;
     }
 
-    if (clients.size >= MAX_CLIENTS_PER_CONNECTION) {
+    if (clients && clients.size >= MAX_CLIENTS_PER_CONNECTION) {
       this.logger.warn({ userId }, "Max WebSocket connections reached");
       socket.close();
       return false;
     }
-    clients.add(socket);
+
+    const targetSet = clients ?? new Set();
+    if (!clients) this.wsClients.set(key, targetSet);
+    targetSet.add(socket);
     this.incrementCounters(socket, tenantId);
     this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
       type: "ws",
@@ -118,17 +120,24 @@ export class RealtimeConnectionRegistry {
   }
 
   removeWsAlias(userId: string, socket: WebSocket): void {
-    const clients = this.wsClients.get(connectionKey(userId, undefined));
-    if (clients?.delete(socket) && clients.size === 0) {
-      this.wsClients.delete(connectionKey(userId, undefined));
+    const key = connectionKey(userId, undefined);
+    const clients = this.wsClients.get(key);
+    if (clients) {
+      clients.delete(socket);
+      if (clients.size === 0) {
+        this.wsClients.delete(key);
+      }
     }
   }
 
   removeWsClient(userId: string, tenantId: string | undefined, socket: WebSocket): void {
     const key = connectionKey(userId, tenantId);
     const clients = this.wsClients.get(key);
-    if (clients?.delete(socket) && clients.size === 0) {
-      this.wsClients.delete(key);
+    if (clients) {
+      clients.delete(socket);
+      if (clients.size === 0) {
+        this.wsClients.delete(key);
+      }
     }
     if (this.decrementCounters(socket, tenantId)) {
       this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
@@ -143,9 +152,8 @@ export class RealtimeConnectionRegistry {
     subject: Subject<NestMessageEvent>,
   ): boolean {
     const key = connectionKey(userId, tenantId);
-    if (!this.sseClients.has(key)) this.sseClients.set(key, new Set());
-    const clients = this.sseClients.get(key)!;
-    if (clients.has(subject)) return true;
+    const clients = this.sseClients.get(key);
+    if (clients?.has(subject)) return true;
 
     if (this.getConnectionCount() >= MAX_PROCESS_CONNECTIONS) {
       this.logger.warn({ userId }, "Max process realtime connections reached");
@@ -171,12 +179,15 @@ export class RealtimeConnectionRegistry {
       return false;
     }
 
-    if (clients.size >= MAX_CLIENTS_PER_CONNECTION) {
+    if (clients && clients.size >= MAX_CLIENTS_PER_CONNECTION) {
       this.logger.warn({ userId }, "Max SSE connections reached");
       subject.complete();
       return false;
     }
-    clients.add(subject);
+
+    const targetSet = clients ?? new Set();
+    if (!clients) this.sseClients.set(key, targetSet);
+    targetSet.add(subject);
     this.incrementCounters(subject, tenantId);
     this.metrics.incrementGauge("realtime_active_connections", "Active realtime connections", 1, {
       type: "sse",
@@ -195,9 +206,13 @@ export class RealtimeConnectionRegistry {
   }
 
   removeSseAlias(userId: string, subject: Subject<NestMessageEvent>): void {
-    const clients = this.sseClients.get(connectionKey(userId, undefined));
-    if (clients?.delete(subject) && clients.size === 0) {
-      this.sseClients.delete(connectionKey(userId, undefined));
+    const key = connectionKey(userId, undefined);
+    const clients = this.sseClients.get(key);
+    if (clients) {
+      clients.delete(subject);
+      if (clients.size === 0) {
+        this.sseClients.delete(key);
+      }
     }
   }
 
@@ -208,8 +223,11 @@ export class RealtimeConnectionRegistry {
   ): void {
     const key = connectionKey(userId, tenantId);
     const clients = this.sseClients.get(key);
-    if (clients?.delete(subject) && clients.size === 0) {
-      this.sseClients.delete(key);
+    if (clients) {
+      clients.delete(subject);
+      if (clients.size === 0) {
+        this.sseClients.delete(key);
+      }
     }
     if (this.decrementCounters(subject, tenantId)) {
       this.metrics.decrementGauge("realtime_active_connections", "Active realtime connections", 1, {
@@ -299,11 +317,17 @@ export class RealtimeConnectionRegistry {
       4004,
       "Organization purged",
       (item) => {
-        for (const sockets of this.wsClients.values()) {
-          if ("send" in item) sockets.delete(item as WebSocket);
+        for (const [k, sockets] of this.wsClients.entries()) {
+          if ("send" in item) {
+            sockets.delete(item as WebSocket);
+            if (sockets.size === 0) this.wsClients.delete(k);
+          }
         }
-        for (const subjects of this.sseClients.values()) {
-          if (!("send" in item)) subjects.delete(item as Subject<NestMessageEvent>);
+        for (const [k, subjects] of this.sseClients.entries()) {
+          if (!("send" in item)) {
+            subjects.delete(item as Subject<NestMessageEvent>);
+            if (subjects.size === 0) this.sseClients.delete(k);
+          }
         }
         return this.decrementCounters(item, tenantId);
       },

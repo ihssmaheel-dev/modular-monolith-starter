@@ -212,5 +212,7 @@ async createUser(data: CreateUserInput): Promise<Result<User, UserError>> {
 
 - One listener per event concern (welcome email, analytics, notifications).
 - Listeners are idempotent — safe to replay.
-- Listeners never throw. Catch and log.
 - Listeners live in `application/` (not in a separate `listeners/` folder at the module root).
+- **Error handling depends on listener type:**
+  - **Ephemeral observers** (in-memory fire-and-forget events): Must never throw or bubble errors. Catch, log, and return `ok(undefined)`.
+  - **Durable consumers** (outbox listeners dispatched by `OutboxEventWorker`): Must never throw exceptions in the application layer, but **MUST return `Result<void, E>`** (`err(...)` on failure). The infrastructure worker inspects the `Result` and throws if any consumer returns `err()`, allowing BullMQ to execute exponential backoff retry and eventual dead-lettering.

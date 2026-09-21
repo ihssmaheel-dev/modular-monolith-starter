@@ -65,7 +65,8 @@ export class OutboxEventWorker implements OnModuleInit {
         ownsEvent = claim.claimed;
         receiptId = claim.receiptId;
         if (claim.claimed) {
-          await this.emitInScope(event);
+          const results = await this.emitInScope(event);
+          this.assertConsumerSuccess(event, results);
           await this.markEventProcessed(event.id);
           await this.completeEvent(receiptId);
           eventProcessed = true;
@@ -170,6 +171,27 @@ export class OutboxEventWorker implements OnModuleInit {
     return this.tenantContext.runSystem({ mode: env.TENANCY_MODE, tenantId: event.tenantId }, () =>
       this.events.emitAsync(event.topic, event.payload, meta),
     );
+  }
+
+  private assertConsumerSuccess(event: OutboxEventEnvelope, results: unknown[]): void {
+    for (const result of results) {
+      if (
+        result &&
+        typeof result === "object" &&
+        "isErr" in result &&
+        typeof (result as { isErr?: () => boolean }).isErr === "function" &&
+        (result as { isErr: () => boolean }).isErr()
+      ) {
+        const errorDetail = (result as { error?: unknown }).error;
+        this.logger.error(
+          { eventId: event.id, topic: event.topic, error: errorDetail },
+          "Required durable consumer returned failure Result",
+        );
+        throw new Error(
+          `DURABLE_CONSUMER_FAILED:${event.topic}:${JSON.stringify(errorDetail ?? "unknown")}`,
+        );
+      }
+    }
   }
 
   private async markPublished(eventId: string): Promise<void> {

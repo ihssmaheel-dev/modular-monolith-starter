@@ -31,9 +31,44 @@ export function dispatchToConnection(
     socket.send(message);
   }
   for (const subject of sseClients.get(key) ?? []) {
-    subject.next({ type: event, data: payload } as NestMessageEvent);
+    if (!dispatchToSseSubject(subject, event, payload)) {
+      droppedSlowClients += 1;
+    }
   }
   return { droppedSlowClients };
+}
+
+const MAX_SSE_BACKLOG = 50;
+const sseBacklogs = new WeakMap<Subject<NestMessageEvent>, number>();
+
+function dispatchToSseSubject(
+  subject: Subject<NestMessageEvent>,
+  event: string,
+  payload: unknown,
+): boolean {
+  if (subject.closed) return false;
+  const currentBacklog = sseBacklogs.get(subject) ?? 0;
+  if (currentBacklog >= MAX_SSE_BACKLOG) {
+    try {
+      subject.next({
+        type: "sync_required",
+        data: { reason: "slow_consumer_backlog" },
+      } as NestMessageEvent);
+      subject.complete();
+    } catch {
+      // Ignore completed errors
+    }
+    return false;
+  }
+  sseBacklogs.set(subject, currentBacklog + 1);
+  subject.next({ type: event, data: payload } as NestMessageEvent);
+  queueMicrotask(() => {
+    const count = sseBacklogs.get(subject);
+    if (count !== undefined && count > 0) {
+      sseBacklogs.set(subject, count - 1);
+    }
+  });
+  return true;
 }
 
 export function dispatchToEveryConnection(
@@ -60,7 +95,7 @@ export function dispatchToEveryConnection(
   for (const subjects of sseClients.values()) {
     for (const subject of subjects) {
       if (!sentSubjects.has(subject)) {
-        subject.next({ type: event, data: payload } as NestMessageEvent);
+        dispatchToSseSubject(subject, event, payload);
         sentSubjects.add(subject);
       }
     }

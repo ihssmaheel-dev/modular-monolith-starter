@@ -4,7 +4,7 @@ RUN corepack enable pnpm
 
 FROM base AS builder
 WORKDIR /app
-RUN pnpm install turbo@2.10.12 --global
+RUN pnpm install turbo@2.11.2 --global
 COPY . .
 RUN turbo prune web --docker
 
@@ -27,9 +27,8 @@ RUN pnpm turbo build --filter=web...
 FROM base AS runner
 WORKDIR /app
 RUN addgroup --system --gid 1001 webgroup && adduser --system --uid 1001 webuser
-COPY --from=installer /app .
+COPY --from=installer --chown=webuser:webgroup /app .
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
-RUN chown -R webuser:webgroup /app
 USER webuser
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

@@ -129,12 +129,16 @@ export class OutboxRelayDelivery {
         "outbox_processing_latency_ms",
         "Latency between outbox event creation and queue handoff",
         Date.now() - event.createdAt.getTime(),
+        undefined,
+        OUTBOX_LATENCY_BUCKETS_MS,
       );
     } catch (error) {
       this.logger.warn({ err: error, eventId: event.id }, "Outbox latency metric failed");
     }
   }
 }
+
+const OUTBOX_LATENCY_BUCKETS_MS = [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
 
 function withJitter(delayMs: number): number {
   return Math.round(delayMs * (0.8 + Math.random() * 0.4));

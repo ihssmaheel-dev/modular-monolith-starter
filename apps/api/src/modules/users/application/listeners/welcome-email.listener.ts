@@ -12,6 +12,7 @@ import { env } from "../../../../config/env";
 import { EmailService } from "../../../../infrastructure/email/email.service";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
+import { ok, err, type Result } from "neverthrow";
 import { QueueService } from "../../../../infrastructure/queue/queue.service";
 import { UserCreatedEvent } from "../../domain/events/user.events";
 
@@ -28,7 +29,10 @@ export class WelcomeEmailListener {
   ) {}
 
   @OnEvent("user.created")
-  async handle(event: UserCreatedEvent, meta?: OutboxEventMetadata): Promise<void> {
+  async handle(
+    event: UserCreatedEvent,
+    meta?: OutboxEventMetadata,
+  ): Promise<Result<void, unknown>> {
     const data = await this.buildEmail(event);
     const queue = this.queueService.getQueue<EmailJobData>("email");
     if (queue) {
@@ -43,7 +47,7 @@ export class WelcomeEmailListener {
           removeOnComplete: 100,
           removeOnFail: 1000,
         });
-        return;
+        return ok(undefined);
       } catch (error) {
         this.logger.error({ error, userId: event.userId }, "Welcome email queueing failed");
       }
@@ -52,7 +56,9 @@ export class WelcomeEmailListener {
     const result = await this.emailService.send(data);
     if (result.isErr()) {
       this.logger.error({ userId: event.userId, code: result.error.code }, "Welcome email failed");
+      return err(result.error);
     }
+    return ok(undefined);
   }
 
   private async buildEmail(event: UserCreatedEvent): Promise<EmailJobData> {

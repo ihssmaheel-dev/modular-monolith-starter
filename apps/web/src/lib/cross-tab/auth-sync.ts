@@ -7,7 +7,9 @@ import { createBroadcastChannel, type BroadcastHandle } from "./channel";
 export const AUTH_SYNC_CHANNEL = "app:auth";
 
 export type AuthSyncEvent =
-  { type: "signed-out"; userId: string | null } | { type: "signed-in"; response: AuthResponse };
+  | { type: "signed-out"; userId: string | null }
+  | { type: "signed-in"; response: AuthResponse }
+  | { type: "refreshed"; response: AuthResponse };
 
 let publishChannel: BroadcastHandle<AuthSyncEvent> | null = null;
 
@@ -32,6 +34,10 @@ export function publishSignedOut(userId: string | null): void {
 
 export function publishSignedIn(response: AuthResponse): void {
   channel().post({ type: "signed-in", response });
+}
+
+export function publishRefreshed(response: AuthResponse): void {
+  channel().post({ type: "refreshed", response });
 }
 
 export interface AuthSyncOptions {
@@ -64,6 +70,11 @@ export function initAuthSync(options: AuthSyncOptions): () => void {
       if (shouldAdopt) {
         useAuthStore.getState().setAuth(message.response);
         options.onSignedIn?.();
+      }
+    } else if (message.type === "refreshed") {
+      const current = useAuthStore.getState();
+      if (current.user && current.user.id === message.response.user.id) {
+        useAuthStore.getState().setAuth(message.response);
       }
     }
   });

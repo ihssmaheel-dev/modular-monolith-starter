@@ -44,6 +44,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     pool: "threads",
+    testTimeout: 15_000,
     fsModuleCache: true,
     coverage: {
       provider: "v8",

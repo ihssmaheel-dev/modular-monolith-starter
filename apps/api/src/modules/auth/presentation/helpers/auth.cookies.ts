@@ -19,6 +19,7 @@ const COOKIE_OPTIONS = {
   // authenticated; cross-site mutation CSRF is still blocked by the
   // double-submit CsrfGuard.
   sameSite: "lax" as const,
+  domain: env.COOKIE_DOMAIN ? env.COOKIE_DOMAIN : undefined,
 };
 
 export function setAccessTokenCookie(reply: FastifyReply, token: string): void {

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
+import { ok, err, type Result } from "neverthrow";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { GetUserByEmailQuery } from "../../../users/application/queries/get-user-by-email.query";
 import { SendNotificationCommand } from "../commands/send-notification.command";
@@ -22,7 +23,7 @@ export class DomainEventFanoutListener {
   }
 
   @OnEvent("user.created")
-  async onUserCreated(event: { userId: string; name: string }): Promise<void> {
+  async onUserCreated(event: { userId: string; name: string }): Promise<Result<void, unknown>> {
     try {
       const result = await this.notify.execute({
         userId: event.userId,
@@ -32,9 +33,12 @@ export class DomainEventFanoutListener {
       });
       if (result.isErr()) {
         this.logger.warn({ error: result.error }, "Welcome notification failed");
+        return err(result.error);
       }
+      return ok(undefined);
     } catch (error) {
       this.logger.error({ error }, "Welcome fan-out failed");
+      return err(error);
     }
   }
 
@@ -44,10 +48,10 @@ export class DomainEventFanoutListener {
     organizationName: string;
     email: string;
     token: string;
-  }): Promise<void> {
+  }): Promise<Result<void, unknown>> {
     try {
       const user = await this.getUserByEmail.execute(event.email);
-      if (user.isErr() || !user.value) return;
+      if (user.isErr() || !user.value) return ok(undefined);
       const result = await this.notify.execute({
         userId: user.value.id,
         tenantId: event.tenantId,
@@ -61,14 +65,20 @@ export class DomainEventFanoutListener {
       });
       if (result.isErr()) {
         this.logger.warn({ error: result.error }, "Invitation notification failed");
+        return err(result.error);
       }
+      return ok(undefined);
     } catch (error) {
       this.logger.error({ error }, "Invitation fan-out failed");
+      return err(error);
     }
   }
 
   @OnEvent("privacy.export.ready")
-  async onExportReady(event: { requestId: string; userId: string }): Promise<void> {
+  async onExportReady(event: {
+    requestId: string;
+    userId: string;
+  }): Promise<Result<void, unknown>> {
     try {
       const result = await this.notify.execute({
         userId: event.userId,
@@ -78,9 +88,12 @@ export class DomainEventFanoutListener {
       });
       if (result.isErr()) {
         this.logger.warn({ error: result.error }, "Export-ready notification failed");
+        return err(result.error);
       }
+      return ok(undefined);
     } catch (error) {
       this.logger.error({ error }, "Export-ready fan-out failed");
+      return err(error);
     }
   }
 }
