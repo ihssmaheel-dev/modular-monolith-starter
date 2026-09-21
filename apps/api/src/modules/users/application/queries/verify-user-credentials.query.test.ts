@@ -32,6 +32,7 @@ describe("VerifyUserCredentialsQuery", () => {
 
     getUserById = {
       execute: vi.fn(),
+      executeFresh: vi.fn(),
     } as unknown as GetUserByIdQuery;
 
     query = new VerifyUserCredentialsQuery(repository, getUserById);
@@ -51,7 +52,7 @@ describe("VerifyUserCredentialsQuery", () => {
       expect(result.value).toBeNull();
     }
     expect(argon2.verify).toHaveBeenCalledWith(expect.any(String), "pwd");
-    expect(getUserById.execute).not.toHaveBeenCalled();
+    expect(getUserById.executeFresh).not.toHaveBeenCalled();
   });
 
   it("should return ok(null) if password does not match", async () => {
@@ -82,7 +83,7 @@ describe("VerifyUserCredentialsQuery", () => {
 
     vi.mocked(repository.findByEmailWithPassword).mockResolvedValue(credentialsResult("123"));
     vi.mocked(argon2.verify).mockResolvedValue(true as never);
-    vi.mocked(getUserById.execute).mockResolvedValue(ok(user));
+    vi.mocked(getUserById.executeFresh).mockResolvedValue(ok(user));
 
     // Act
     const result = await query.execute("test@example.com", "correct");

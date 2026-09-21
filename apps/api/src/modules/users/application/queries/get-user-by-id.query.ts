@@ -53,9 +53,23 @@ export class GetUserByIdQuery {
     return result;
   }
 
-  /** Used by token validation so a revoked auth version is observed immediately. */
-  executeFresh(id: string): Promise<Result<User, UserNotFound>> {
-    return this.fetch(id);
+  /** Used by token validation and credentials verification so the latest DB state is observed immediately. */
+  async executeFresh(id: string): Promise<Result<User, UserNotFound>> {
+    const result = await this.fetch(id);
+    const client = this.redis?.getClient();
+    if (result.isOk() && client) {
+      try {
+        await client.set(
+          `cache:user:${id}`,
+          JSON.stringify(result.value.toJSON()),
+          "EX",
+          USER_CACHE_TTL_SECONDS,
+        );
+      } catch {
+        // Fail open if Redis caching fails
+      }
+    }
+    return result;
   }
 
   private async fetch(id: string): Promise<Result<User, UserNotFound>> {

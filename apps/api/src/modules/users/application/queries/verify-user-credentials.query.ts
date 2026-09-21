@@ -24,7 +24,7 @@ export class VerifyUserCredentialsQuery {
     const passwordValid = await verify(credentials?.passwordHash ?? DUMMY_PASSWORD_HASH, password);
     if (!credentials || !passwordValid) return ok(null);
 
-    const userResult = await this.getUserById.execute(credentials.id);
+    const userResult = await this.getUserById.executeFresh(credentials.id);
     if (userResult.isErr()) return ok(null);
     return ok(userResult.value);
   }

@@ -12,6 +12,7 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { ErrorReporterService } from "./infrastructure/error-reporting";
 import { I18nService } from "./infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "./infrastructure/logger/logger.service";
+import { RedisService } from "./infrastructure/redis/redis.service";
 
 let AppModule: typeof import("./app.module.js").AppModule;
 let env: typeof import("./config/env.js").env;
@@ -20,11 +21,15 @@ describe("API liveness", () => {
   let app: NestFastifyApplication;
   let pool: Pool | undefined;
   let originalTenancyMode: "single" | "multi" = "single";
+  let originalExampleFeatures = false;
 
   beforeAll(async () => {
+    process.env.EXAMPLE_FEATURES_ENABLED = "true";
     ({ env } = await import("./config/env.js"));
     originalTenancyMode = env.TENANCY_MODE;
+    originalExampleFeatures = env.EXAMPLE_FEATURES_ENABLED;
     env.TENANCY_MODE = "multi";
+    env.EXAMPLE_FEATURES_ENABLED = true;
     ({ AppModule } = await import("./app.module.js"));
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -71,7 +76,10 @@ describe("API liveness", () => {
   });
 
   afterAll(async () => {
-    if (env) env.TENANCY_MODE = originalTenancyMode;
+    if (env) {
+      env.TENANCY_MODE = originalTenancyMode;
+      env.EXAMPLE_FEATURES_ENABLED = originalExampleFeatures;
+    }
     await pool?.end();
     await app?.close();
   });
@@ -325,6 +333,7 @@ describe("API liveness", () => {
     expect(blocked.json()).toMatchObject({ code: "INVALID_CREDENTIALS" });
 
     await pool.query("UPDATE public.users SET email_verified_at = now() WHERE email = $1", [email]);
+    await app.get(RedisService, { strict: false })?.getClient()?.flushall();
     const allowed = await instance.inject({
       method: "POST",
       url: "/api/v1/auth/login",

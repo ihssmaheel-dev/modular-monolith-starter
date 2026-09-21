@@ -9,6 +9,7 @@ if (process.env.E2E_USE_CONTAINERS !== "true") {
 // by integration and unit suites and must not race API assertions here.
 process.env.PROCESS_ROLE = "api";
 process.env.TENANCY_MODE = "multi";
+process.env.EXAMPLE_FEATURES_ENABLED = "true";
 
 const postgresContainer: StartedTestContainer = await new GenericContainer("postgres:16-alpine")
   .withEnvironment({
