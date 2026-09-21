@@ -104,7 +104,7 @@ display names, mobile identifiers, Docker names, and observability selectors syn
 | ------------------------------- | -------------------------------------------------------------------- |
 | `METRICS_TOKEN`                 | Optional locally, at least 32 characters and required in production  |
 | `WORKER_METRICS_PORT`           | `9464`; worker metrics and readiness listener                        |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`   | `http://localhost:4318/v1/traces`; trace collector                   |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`   | `http://127.0.0.1:4318/v1/traces`; trace collector                   |
 | `OTEL_TRACE_SAMPLE_RATIO`       | `0.2`; production Compose defaults to `0.1`, constrained to `0-1`    |
 | `LOKI_HOST`                     | Optional direct Loki endpoint; structured stdout is always available |
 | `ERROR_REPORTING_URL`           | Optional provider-neutral HTTPS JSON error sink                      |

@@ -11,9 +11,14 @@ import pino from "pino";
 
 const logger = pino({ name: "tracing", level: env.LOG_LEVEL });
 
-const traceExporter = env.OTEL_EXPORTER_OTLP_ENDPOINT
-  ? new OTLPTraceExporter({ url: env.OTEL_EXPORTER_OTLP_ENDPOINT })
-  : undefined;
+export function resolveOtelEndpoint(endpoint?: string): string | undefined {
+  if (!endpoint) return undefined;
+  return endpoint.replace("://localhost:", "://127.0.0.1:");
+}
+
+const otelEndpoint = resolveOtelEndpoint(env.OTEL_EXPORTER_OTLP_ENDPOINT);
+
+const traceExporter = otelEndpoint ? new OTLPTraceExporter({ url: otelEndpoint }) : undefined;
 
 export const otelSDK = new NodeSDK({
   serviceName: process.env.OTEL_SERVICE_NAME || (env.PROCESS_ROLE === "worker" ? "worker" : "api"),
@@ -22,7 +27,13 @@ export const otelSDK = new NodeSDK({
       env.NODE_ENV === "production" ? env.OTEL_TRACE_SAMPLE_RATIO : 1.0,
     ),
   }),
-  ...(traceExporter ? { spanProcessor: new BatchSpanProcessor(traceExporter) } : {}),
+  ...(traceExporter
+    ? {
+        spanProcessor: new BatchSpanProcessor(traceExporter, {
+          scheduledDelayMillis: env.NODE_ENV === "production" ? 5000 : 1000,
+        }),
+      }
+    : {}),
   instrumentations: [
     getNodeAutoInstrumentations({
       "@opentelemetry/instrumentation-fs": { enabled: false },
@@ -33,9 +44,12 @@ export const otelSDK = new NodeSDK({
 
 otelSDK.start();
 
-process.on("SIGTERM", () => {
+const shutdownTracing = () => {
   otelSDK
     .shutdown()
     .then(() => logger.info("Tracing terminated"))
     .catch((error: unknown) => logger.error({ error }, "Error terminating tracing"));
-});
+};
+
+process.on("SIGTERM", shutdownTracing);
+process.on("SIGINT", shutdownTracing);
