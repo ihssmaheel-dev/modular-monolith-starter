@@ -762,7 +762,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "container_memory_working_set_bytes{container_label_com_docker_compose_service=~\\\".+\\\"}",
+          "expr": "container_memory_working_set_bytes{container_label_com_docker_compose_service=~\".+\"}",
           "legendFormat": "{{container_label_com_docker_compose_service}}",
           "refId": "A"
         }
@@ -802,7 +802,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~\\\".+\\\"}[1m])) by (container_label_com_docker_compose_service) * 100",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~\".+\"}[1m])) by (container_label_com_docker_compose_service) * 100",
           "legendFormat": "{{container_label_com_docker_compose_service}}",
           "refId": "A"
         }
@@ -827,12 +827,12 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(container_network_receive_bytes_total{container_label_com_docker_compose_service=~\\\".+\\\"}[1m])) by (container_label_com_docker_compose_service)",
+          "expr": "sum(rate(container_network_receive_bytes_total{container_label_com_docker_compose_service=~\".+\"}[1m])) by (container_label_com_docker_compose_service)",
           "legendFormat": "Rx: {{container_label_com_docker_compose_service}}",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service=~\\\".+\\\"}[1m])) by (container_label_com_docker_compose_service)",
+          "expr": "sum(rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service=~\".+\"}[1m])) by (container_label_com_docker_compose_service)",
           "legendFormat": "Tx: {{container_label_com_docker_compose_service}}",
           "refId": "B"
         }
@@ -863,7 +863,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "increase(container_oom_events_total{container_label_com_docker_compose_service=~\\\".+\\\"}[10m])",
+          "expr": "increase(container_oom_events_total{container_label_com_docker_compose_service=~\".+\"}[10m])",
           "legendFormat": "OOM: {{container_label_com_docker_compose_service}}",
           "refId": "A"
         }
