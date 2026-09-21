@@ -1,12 +1,24 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { uploadFile } from "@repo/api-client";
 import { getApiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { renderWithProviders } from "@/test/utils";
 import { AvatarUpload } from "./avatar-upload";
 
 vi.mock("@/lib/api", () => ({ getApiClient: vi.fn() }));
+vi.mock("@repo/api-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/api-client")>()),
+  uploadFile: vi.fn(),
+}));
+
+vi.mock("@repo/ui/lib/crop-image", () => ({
+  DEFAULT_AVATAR_SIZE: 512,
+  getCroppedImg: vi.fn().mockImplementation(async () => {
+    return new File(["mock-webp-bytes"], "avatar.webp", { type: "image/webp" });
+  }),
+}));
 
 const user = {
   id: "u-1",
@@ -37,6 +49,13 @@ describe("AvatarUpload", () => {
     client.files.getDownloadUrl.mockResolvedValue({
       status: 200,
       body: { downloadUrl: "https://cdn.test/a.png" },
+    });
+    globalThis.URL.createObjectURL = vi.fn().mockReturnValue("blob:http://localhost/mock-avatar");
+    globalThis.URL.revokeObjectURL = vi.fn();
+    vi.mocked(uploadFile).mockResolvedValue({ id: "file-new" } as never);
+    client.users.attachAvatar.mockResolvedValue({
+      status: 201,
+      body: { ...user, avatarFileId: "file-new" },
     });
     signInAs(user);
   });
@@ -83,6 +102,7 @@ describe("AvatarUpload", () => {
     await vi.waitFor(() => {
       expect(client.users.attachAvatar).not.toHaveBeenCalled();
     });
+    expect(screen.queryByText("Adjust profile photo")).not.toBeInTheDocument();
     expect(client.files.getDownloadUrl).toHaveBeenCalledTimes(1);
   });
 
@@ -92,5 +112,68 @@ describe("AvatarUpload", () => {
 
     expect(screen.queryByRole("button", { name: "Remove photo" })).not.toBeInTheDocument();
     expect(screen.getByText("AU")).toBeInTheDocument();
+  });
+
+  it("opens the cropper dialog when a valid image is selected", async () => {
+    const { container } = renderWithProviders(<AvatarUpload />);
+    const input = container.querySelector('input[type="file"]')!;
+
+    fireEvent.change(input, {
+      target: { files: [new File(["valid-img"], "profile.png", { type: "image/png" })] },
+    });
+
+    expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+    expect(await screen.findByText("Adjust profile photo")).toBeInTheDocument();
+    expect(screen.getByText("Save photo")).toBeInTheDocument();
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
+  });
+
+  it("canceling the cropper closes dialog and cleans up object URL without upload", async () => {
+    const viewer = userEvent.setup();
+    const { container } = renderWithProviders(<AvatarUpload />);
+    const input = container.querySelector('input[type="file"]')!;
+
+    fireEvent.change(input, {
+      target: { files: [new File(["valid-img"], "profile.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByText("Adjust profile photo")).toBeInTheDocument();
+
+    await viewer.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Adjust profile photo")).not.toBeInTheDocument();
+    });
+    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith(
+      "blob:http://localhost/mock-avatar",
+    );
+    expect(client.users.attachAvatar).not.toHaveBeenCalled();
+    expect(vi.mocked(uploadFile)).not.toHaveBeenCalled();
+  });
+
+  it("confirming the cropper saves photo and updates avatar", async () => {
+    const viewer = userEvent.setup();
+    const { container } = renderWithProviders(<AvatarUpload />);
+    const input = container.querySelector('input[type="file"]')!;
+
+    fireEvent.change(input, {
+      target: { files: [new File(["valid-img"], "profile.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByText("Adjust profile photo")).toBeInTheDocument();
+
+    await viewer.click(screen.getByRole("button", { name: "Save photo" }));
+
+    await vi.waitFor(() => {
+      expect(vi.mocked(uploadFile)).toHaveBeenCalled();
+      expect(client.users.attachAvatar).toHaveBeenCalledWith({ fileId: "file-new" });
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Adjust profile photo")).not.toBeInTheDocument();
+    });
+    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith(
+      "blob:http://localhost/mock-avatar",
+    );
   });
 });

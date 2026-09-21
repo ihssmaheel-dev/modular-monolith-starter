@@ -1,10 +1,12 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/ui/avatar";
 import { Button } from "@repo/ui/components/ui/button";
-import { AVATAR_MIME_TYPES } from "@repo/contracts";
+import { toast } from "@repo/ui/components/ui/toast";
+import { ImageCropperDialog } from "@repo/ui/components/composed/image-cropper-dialog";
+import { AVATAR_MAX_FILE_SIZE_BYTES, AVATAR_MIME_TYPES } from "@repo/contracts";
 import { useAuthStore } from "@/stores/auth.store";
 import { useAttachAvatarMutation, useRemoveAvatarMutation } from "../avatar.mutations";
 import { userAvatarQuery } from "../users.queries";
@@ -26,11 +28,58 @@ export function AvatarUpload() {
   const attachMutation = useAttachAvatarMutation();
   const removeMutation = useRemoveAvatarMutation();
 
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+
   const avatarUrlQuery = useQuery(userAvatarQuery(user?.avatarFileId));
+
+  const closeCropper = () => {
+    setIsCropperOpen(false);
+    if (selectedImageSrc) {
+      URL.revokeObjectURL(selectedImageSrc);
+      setSelectedImageSrc(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (selectedImageSrc) {
+        URL.revokeObjectURL(selectedImageSrc);
+      }
+    };
+  }, [selectedImageSrc]);
 
   if (!user) return null;
   const busy = attachMutation.isPending || removeMutation.isPending;
   const avatarUrl = user.avatarFileId ? avatarUrlQuery.data : undefined;
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const allowed = (AVATAR_MIME_TYPES as readonly string[]).includes(file.type);
+    if (!allowed || file.size <= 0 || file.size > AVATAR_MAX_FILE_SIZE_BYTES) {
+      toast.add({ title: t("api.user.invalidAvatar"), type: "error" } as never);
+      return;
+    }
+
+    if (selectedImageSrc) {
+      URL.revokeObjectURL(selectedImageSrc);
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setSelectedImageSrc(objectUrl);
+    setIsCropperOpen(true);
+  };
+
+  const handleCropComplete = async (croppedFile: File) => {
+    try {
+      await attachMutation.mutateAsync({ file: croppedFile, onProgress: () => undefined });
+      closeCropper();
+    } catch {
+      // Handled by attachMutation.onError toast
+    }
+  };
 
   return (
     <div className="flex items-center gap-4">
@@ -67,11 +116,29 @@ export function AvatarUpload() {
         type="file"
         className="hidden"
         accept={AVATAR_MIME_TYPES.join(",")}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) attachMutation.mutate({ file, onProgress: () => undefined });
+        onChange={handleFileSelect}
+      />
+
+      <ImageCropperDialog
+        open={isCropperOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeCropper();
+          } else {
+            setIsCropperOpen(true);
+          }
         }}
+        imageSrc={selectedImageSrc}
+        onCropComplete={handleCropComplete}
+        isPending={attachMutation.isPending}
+        title={t("users.cropperTitle")}
+        description={t("users.cropperDescription")}
+        zoomLabel={t("users.cropperZoom")}
+        rotateLabel={t("users.cropperRotate")}
+        resetLabel={t("users.cropperReset")}
+        cancelLabel={t("users.cropperCancel")}
+        applyLabel={t("users.cropperApply")}
+        previewLabel={t("users.cropperPreview")}
       />
     </div>
   );

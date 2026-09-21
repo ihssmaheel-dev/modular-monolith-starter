@@ -25,6 +25,7 @@
     "react": "19.2.8",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
+    "react-easy-crop": "^6.2.3",
     "react-resizable-panels": "^4.12.4",
     "recharts": "3.10.1",
     "shadcn": "^4.21.0",
