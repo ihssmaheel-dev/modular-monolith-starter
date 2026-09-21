@@ -59,10 +59,9 @@ export class QueueService implements BeforeApplicationShutdown {
     name: string,
     handler: (job: Job<T, unknown, string>) => Promise<void>,
   ): Worker<T, unknown, string> | null {
-    if (!env.REDIS_URL) return null;
-    this.getQueue(name);
     const existing = this.workers.get(name);
     if (existing) {
+      this.workers.delete(name);
       existing.close().catch((err) => {
         this.loggerService.warn(
           { queue: name, err },
@@ -70,6 +69,8 @@ export class QueueService implements BeforeApplicationShutdown {
         );
       });
     }
+    if (!env.REDIS_URL) return null;
+    this.getQueue(name);
     const worker = new Worker<T, unknown, string>(
       name,
       (job) => this.runWorker(name, job, handler),

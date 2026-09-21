@@ -18,6 +18,7 @@ const isolatedTestPatterns = [
   "**/src/infrastructure/error-reporting/error-reporter.service.test.ts",
   "**/src/infrastructure/feature-flags/feature-flags.service.test.ts",
   "**/src/infrastructure/metrics/metrics.service.test.ts",
+  "**/src/infrastructure/queue/queue.service.test.ts",
   "**/src/infrastructure/queue/workbench.setup.test.ts",
   "**/src/infrastructure/rate-limit/rate-limit.service.test.ts",
   "**/src/infrastructure/realtime/transports/realtime-websocket.gateway.test.ts",

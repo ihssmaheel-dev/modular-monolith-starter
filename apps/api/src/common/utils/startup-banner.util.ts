@@ -41,7 +41,12 @@ function getWorkbenchInfo(app: INestApplication): WorkbenchInfo {
   const isProd = env.NODE_ENV === "production";
   const url = `${env.API_URL}${workbenchRoute}`;
 
-  if (!env.REDIS_URL) {
+  const redis = app.get(RedisService, { strict: false });
+  const hasRedis = Boolean(
+    env.REDIS_URL || (typeof redis?.getClient === "function" && Boolean(redis.getClient())),
+  );
+
+  if (!hasRedis) {
     return {
       url,
       isActive: false,
