@@ -13,9 +13,14 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
-const LOKI_LABELS = {
-  application: env.APP_SLUG,
-  service: `app-${env.PROCESS_ROLE}`,
+const isWorker = env.PROCESS_ROLE === "worker";
+const serviceName = isWorker ? "worker" : "api";
+
+export const LOKI_LABELS: Record<string, string> = {
+  application: isWorker ? "worker-service" : "api-service",
+  service: serviceName,
+  job: serviceName,
+  container: `monorepo-${serviceName}`,
   process_role: env.PROCESS_ROLE,
 };
 
@@ -54,6 +59,10 @@ const REDACTED_PATHS = [
   "*.actualIp",
 ];
 
+export function resolveLokiHost(rawHost: string): string {
+  return rawHost.replace("://localhost:", "://127.0.0.1:");
+}
+
 function buildDevTargets(): pino.TransportTargetOptions[] {
   const targets: pino.TransportTargetOptions[] = [
     {
@@ -68,14 +77,16 @@ function buildDevTargets(): pino.TransportTargetOptions[] {
     },
   ];
 
-  if (env.LOKI_HOST) {
+  const rawLokiHost =
+    env.LOKI_HOST || (env.NODE_ENV === "development" ? "http://127.0.0.1:3100" : undefined);
+
+  if (rawLokiHost) {
     targets.push({
       target: "pino-loki",
       options: {
-        host: env.LOKI_HOST,
-        batching: true,
-        interval: 2,
-        silenceErrors: true,
+        host: resolveLokiHost(rawLokiHost),
+        batching: { interval: 1 },
+        silenceErrors: false,
         labels: LOKI_LABELS,
       },
       level: env.LOG_LEVEL,
@@ -101,9 +112,8 @@ function buildLoggerTransport():
       {
         target: "pino-loki",
         options: {
-          host: env.LOKI_HOST,
-          batching: true,
-          interval: 5,
+          host: resolveLokiHost(env.LOKI_HOST),
+          batching: { interval: 5 },
           silenceErrors: true,
           labels: LOKI_LABELS,
         },
