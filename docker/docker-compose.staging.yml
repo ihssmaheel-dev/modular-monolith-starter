@@ -15,7 +15,7 @@
 # bypass the pooler via DB_DIRECT_URL (advisory locks need direct connections).
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.27.4-alpine
     container_name: monorepo-staging-nginx
     ports:
       - "127.0.0.1:8080:80"

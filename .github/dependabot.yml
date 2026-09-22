@@ -8,11 +8,48 @@ updates:
       workspace-dependencies:
         patterns: ["*"]
     open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     groups:
       workflow-actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      docker-base-images:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: docker
+    directory: /apps/api
+    schedule:
+      interval: weekly
+    groups:
+      docker-base-images:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: docker
+    directory: /apps/web
+    schedule:
+      interval: weekly
+    groups:
+      docker-base-images:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: docker-compose
+    directory: /docker
+    schedule:
+      interval: weekly
+    groups:
+      infrastructure-images:
         patterns: ["*"]
     open-pull-requests-limit: 5

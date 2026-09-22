@@ -2,7 +2,7 @@
 # Use docker/docker-compose.yml for local plaintext development dependencies.
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.27.4-alpine
     container_name: monorepo-nginx
     labels:
       observability.logs: "true"

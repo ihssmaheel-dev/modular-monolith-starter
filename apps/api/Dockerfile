@@ -1,4 +1,4 @@
-FROM node:22.12.0-alpine AS base
+FROM node:22.14.0-alpine AS base
 
 # Stage 1: Builder (Prune workspace)
 FROM base AS builder

@@ -1,5 +1,5 @@
 # Stage 1: Base
-ARG NODE_VERSION=22.12.0
+ARG NODE_VERSION=22.14.0
 FROM node:${NODE_VERSION}-alpine AS base
 RUN corepack enable pnpm
 
@@ -7,7 +7,7 @@ RUN corepack enable pnpm
 FROM base AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-RUN pnpm install turbo@2.10.12 --global
+RUN pnpm install turbo@2.11.2 --global
 COPY . .
 RUN turbo prune api --docker
 
