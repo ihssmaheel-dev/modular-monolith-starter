@@ -179,6 +179,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     leaseMs: number,
     maxAttempts: number,
     systemScope = false,
+    fileId?: string,
   ): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
@@ -189,6 +190,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
         SELECT id
         FROM files
         WHERE deleted_at IS NULL
+          ${fileId ? sql`AND id = ${fileId}` : sql``}
           AND (
             (status = 'uploading' AND (scan_next_attempt_at IS NULL OR scan_next_attempt_at <= NOW()))
             OR (status = 'scanning' AND scan_lease_expires_at < NOW())
@@ -239,6 +241,16 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
         target.deleted_at AS "deletedAt"
     `);
     return result.rows.map((row) => this.toDomain(row));
+  }
+
+  async claimUploadingFile(
+    fileId: string,
+    leaseMs: number,
+    maxAttempts: number,
+    systemScope = false,
+  ): Promise<FileEntity | null> {
+    const [claimed] = await this.claimUploadingFiles(1, leaseMs, maxAttempts, systemScope, fileId);
+    return claimed ?? null;
   }
 
   async renewScanLease(id: string, claimToken: string, leaseMs: number): Promise<boolean> {

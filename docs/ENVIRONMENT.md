@@ -7,14 +7,18 @@ commit an `.env` file or a real credential.
 
 ## Web (TanStack Start)
 
-| Variable                        | Default / purpose                                             |
-| ------------------------------- | ------------------------------------------------------------- |
-| `VITE_API_URL`                  | Required; versioned browser-facing API base URL               |
-| `VITE_APP_NAME`                 | `Workspace`; display name                                     |
-| `VITE_EXAMPLE_FEATURES_ENABLED` | `false`; compile the Notes reference UI into the web artifact |
+| Variable                        | Default / purpose                                                             |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| `VITE_API_URL`                  | Required; versioned browser-facing API base URL                               |
+| `VITE_FILE_UPLOAD_ORIGIN`       | Optional exact direct-upload origin; local MinIO uses `http://127.0.0.1:9000` |
+| `VITE_APP_NAME`                 | `Workspace`; display name                                                     |
+| `VITE_EXAMPLE_FEATURES_ENABLED` | `false`; compile the Notes reference UI into the web artifact                 |
 
 Vite values are public build-time configuration. The production web image must be built with its
 final values; changing only the container environment does not rewrite an existing client bundle.
+`VITE_FILE_UPLOAD_ORIGIN` must contain only a scheme, host, and optional port, never a path or
+credentials. It extends `connect-src` for an HTTP development object store; HTTPS upload origins
+are already permitted by the document policy.
 
 ## Mobile (Expo)
 
@@ -138,6 +142,12 @@ leave endpoint and keys absent so the SDK obtains short-lived credentials from t
 instance identity. The application never makes the bucket public; file metadata links to the
 authenticated API download route. A project that needs CDN delivery must add provider-specific
 signed delivery URLs while preserving the same authorization boundary.
+
+Direct browser uploads use content-length- and content-type-bound presigned URLs. The S3 client
+uses `WHEN_REQUIRED` checksum calculation because presigning has no body from which to calculate an
+optional SDK checksum; upload confirmation validates stored object metadata after the browser PUT.
+Configure the provider's bucket CORS to allow the application origin, `PUT`, `HEAD`, and the signed
+request headers.
 
 ## Email and seed
 

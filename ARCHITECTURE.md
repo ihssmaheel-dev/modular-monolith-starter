@@ -208,7 +208,9 @@ The web client is **fully wired** to the modular monolith via `@repo/contracts` 
 - **API:** `src/lib/api.ts` => `getApiClient()` singleton: `createApiClient(getWebEnv().VITE_API_URL, { getAccessToken, getAuthFingerprint, getLocale, getTenantId, onAuthRefreshed, onAuthFailure })`. Automatically sends `accept-language`, `x-tenant-id`, and `idempotency-key`. Its bounded `RefreshCoordinator` serializes browser refresh with Web Locks, uses the httpOnly cookie, rejects unsupported cross-tab coordination, and distinguishes retryable transport failure from an invalid session.
 - **State:** `src/stores/auth.store.ts` (zustand; access/refresh tokens memory-only, only the user profile persists), `locale.store.ts`, `tenant.store.ts`. Query keys come from `src/lib/query-keys.ts` (notes/users/files tenant-scoped; privacy/notifications user-scoped). Query/mutation helpers live in `src/features/[domain]/` with UI in `components/` subfolders; dates go through `src/lib/format.ts` (`date-fns`, locale-aware).
 - **UI:** `@repo/ui` primitives (`Button`, `Card`, `Input`, `Tabs`, `Badge`, `Dialog`, etc) + Tailwind + `ThemeProvider` (light/dark/system, localStorage, `d` toggles). shadcn CLI: `pnpm dlx shadcn@latest add <component> -c apps/web` writes to `packages/ui/src/components/ui`.
-- **Env:** `src/lib/env.ts` Zod `VITE_API_URL` from `import.meta.env` (required; `ensure-web-env` writes the `/api` same-origin default). Validated, never raw `process.env` beyond that file.
+- **Env:** `src/lib/env.ts` validates `VITE_API_URL` and optional `VITE_FILE_UPLOAD_ORIGIN` from
+  `import.meta.env` (the local helper writes the API URL and MinIO upload origin). Raw environment
+  access stays inside that file.
 - **i18n:** `src/lib/i18n.tsx` `resources = { en: { translation: locales.en }, es, fr }` + `LanguageDetector`. Keys like `auth.login`, `dashboard.welcome`, `notes.createNote` shared with backend.
 
 ### 4.2 The Single UI Source (`packages/ui`)

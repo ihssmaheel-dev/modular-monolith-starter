@@ -19,6 +19,23 @@ describe("buildDocumentCsp", () => {
     expect(policy).not.toContain("connect-src 'self' http:");
   });
 
+  it("allows the configured direct-upload origin without opening every HTTP origin", () => {
+    const policy = buildDocumentCsp(NONCE, "http://localhost:5156/api/v1", "http://127.0.0.1:9000");
+
+    expect(policy).toContain("http://localhost:5156 http://127.0.0.1:9000");
+    expect(policy).not.toContain("connect-src 'self' http:");
+  });
+
+  it("deduplicates API and upload origins", () => {
+    const policy = buildDocumentCsp(
+      NONCE,
+      "https://app.example.com/api/v1",
+      "https://app.example.com",
+    );
+
+    expect(policy.match(/https:\/\/app\.example\.com/g)).toHaveLength(1);
+  });
+
   it("keeps a root-relative API on the document origin", () => {
     const policy = buildDocumentCsp(NONCE, "/api/v1");
 

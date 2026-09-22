@@ -11,15 +11,24 @@ const POLICY_DIRECTIVES = [
 
 const VALID_NONCE = /^[a-f0-9]{32}$/;
 
-export function buildDocumentCsp(nonce: string, apiBaseUrl: string): string {
+export function buildDocumentCsp(
+  nonce: string,
+  apiBaseUrl: string,
+  fileUploadOrigin?: string,
+): string {
   if (!VALID_NONCE.test(nonce)) {
     throw new Error("Invalid server-generated CSP nonce");
   }
 
   const apiSource = apiBaseUrl.startsWith("/") ? undefined : new URL(apiBaseUrl).origin;
-  const connectSources = ["'self'", "ws:", "wss:", "https:", apiSource]
-    .filter((source): source is string => Boolean(source))
-    .join(" ");
+  const uploadSource = fileUploadOrigin ? new URL(fileUploadOrigin).origin : undefined;
+  const connectSources = [
+    ...new Set(
+      ["'self'", "ws:", "wss:", "https:", apiSource, uploadSource].filter(
+        (source): source is string => Boolean(source),
+      ),
+    ),
+  ].join(" ");
 
   return [
     ...POLICY_DIRECTIVES,

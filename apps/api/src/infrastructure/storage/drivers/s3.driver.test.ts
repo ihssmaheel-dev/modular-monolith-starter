@@ -31,6 +31,8 @@ describe("S3Driver upload signing", () => {
     expect(headers).toContain("content-length");
     expect(headers).toContain("content-type");
     expect(url.searchParams.get("x-amz-tagging")).toBe("lifecycle=quarantine");
+    expect(url.searchParams.has("x-amz-checksum-crc32")).toBe(false);
+    expect(url.searchParams.has("x-amz-sdk-checksum-algorithm")).toBe(false);
   });
 
   it("sets attachment ResponseContentDisposition on download URL for browser safety", async () => {

@@ -3,6 +3,7 @@ import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
 import { QueueService } from "./queue.service";
 import { OUTBOX_QUEUE } from "../outbox/outbox.constants";
+import { FILE_SCAN_QUEUE } from "./queue.constants";
 
 export const DEFAULT_WORKBENCH_PATH = "/ops/queues";
 
@@ -12,7 +13,7 @@ export const DEFAULT_WORKBENCH_PATH = "/ops/queues";
  * Security & Environment Rules:
  * - Disabled if Redis is not configured (REDIS_URL missing).
  * - In production, disabled unless WORKBENCH_ENABLED=true with validated HTTP Basic Auth.
- * - Outbox and email queues are pre-registered so they appear in the UI immediately.
+ * - Standard system queues are pre-registered so they appear in the UI immediately.
  */
 export async function setupWorkbench(app: NestFastifyApplication): Promise<void> {
   const logger = app.get(PinoLoggerService).child({ module: "Workbench" });
@@ -34,6 +35,7 @@ export async function setupWorkbench(app: NestFastifyApplication): Promise<void>
     // Pre-register standard system queues so they appear in the dashboard immediately
     queueService.getQueue(OUTBOX_QUEUE);
     queueService.getQueue("email");
+    queueService.getQueue(FILE_SCAN_QUEUE);
 
     const queues = queueService.getRegisteredQueues();
     if (queues.length === 0) {

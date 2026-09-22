@@ -34,7 +34,8 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 - `src/stores/locale.store.ts` persists the selected locale.
 - `src/stores/tenant.store.ts` persists the active tenant ID and is the only source for `x-tenant-id`.
 - `src/lib/api.ts` exposes one `getApiClient()` singleton configured with auth, locale, tenant, idempotency, and refresh callbacks.
-- `src/lib/env.ts` validates `VITE_API_URL` with Zod; do not read raw environment variables elsewhere.
+- `src/lib/env.ts` validates `VITE_API_URL` and the optional exact `VITE_FILE_UPLOAD_ORIGIN` with
+  Zod; do not read raw environment variables elsewhere.
 - Every tenant-scoped TanStack Query key includes the tenant ID. Logout and tenant switches remove affected cached data.
 
 ### Features, forms, and UI

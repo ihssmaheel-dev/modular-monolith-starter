@@ -38,6 +38,10 @@ export class S3Driver implements StorageDriver {
           }
         : {}),
       forcePathStyle: env.S3_FORCE_PATH_STYLE,
+      // A presigned PUT has no body at signing time. Since AWS SDK 3.729.0,
+      // WHEN_SUPPORTED would therefore bind the CRC32 of an empty body to the
+      // URL, making every non-empty browser upload fail checksum validation.
+      requestChecksumCalculation: "WHEN_REQUIRED",
     });
   }
 
@@ -49,6 +53,9 @@ export class S3Driver implements StorageDriver {
         Body: body,
         ContentType: contentType,
         Tagging: ACTIVE_OBJECT_TAG,
+        // Server-side uploads have the body available, so retain end-to-end
+        // integrity validation even though presigned uploads cannot precompute it.
+        ChecksumAlgorithm: "CRC32",
       }),
     );
     return { key, url: `/${this.bucket}/${key}` };

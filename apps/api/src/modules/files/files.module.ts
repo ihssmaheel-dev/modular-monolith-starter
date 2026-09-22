@@ -21,6 +21,7 @@ import { DatabaseModule } from "../../infrastructure/database";
 import { FilesOrpcController } from "./presentation/orpc/files.orpc.controller";
 import { DataLifecycleRegistry } from "../../infrastructure/lifecycle/data-lifecycle.registry";
 import { FilesLifecycleContributor } from "./application/adapters/files-lifecycle.contributor";
+import { FileScanQueue } from "./application/services/file-scan.queue";
 
 @Module({
   imports: [DatabaseModule],
@@ -43,6 +44,7 @@ import { FilesLifecycleContributor } from "./application/adapters/files-lifecycl
     FilesRepository,
     FileAccessRegistry,
     FilesLifecycleContributor,
+    FileScanQueue,
   ],
   exports: [
     RequestUploadCommand,

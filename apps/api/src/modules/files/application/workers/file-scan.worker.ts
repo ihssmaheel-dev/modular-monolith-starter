@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, type OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
 import { env } from "../../../../config/env";
@@ -14,6 +14,9 @@ import {
   quarantineKeyFor,
 } from "../../domain/value-objects/file-keys.vo";
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
+import { FILE_SCAN_QUEUE } from "../../../../infrastructure/queue/queue.constants";
+import { QueueService } from "../../../../infrastructure/queue/queue.service";
+import { FileScanQueue, type FileScanJobData } from "../services/file-scan.queue";
 
 const SCAN_BATCH_SIZE = 50;
 const SCAN_LEASE_MS = 2 * 60 * 1_000;
@@ -23,7 +26,7 @@ const SCAN_RETRY_MAX_MS = 5 * 60 * 1_000;
 
 /** The only owner of scan, promotion, and terminal upload transitions. */
 @Injectable()
-export class FileScanWorker {
+export class FileScanWorker implements OnModuleInit {
   private readonly logger: PinoLoggerService;
   private running = false;
 
@@ -34,9 +37,26 @@ export class FileScanWorker {
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
     private readonly metrics: MetricsService,
+    private readonly queues: QueueService,
+    private readonly scanQueue: FileScanQueue,
     logger: PinoLoggerService,
   ) {
     this.logger = logger.child({ module: "FileScanWorker" });
+  }
+
+  onModuleInit(): void {
+    if (env.PROCESS_ROLE === "api") return;
+    const worker = this.queues.addWorker<FileScanJobData>(FILE_SCAN_QUEUE, async (job) => {
+      const data = job.data;
+      if (!isFileScanJobData(data)) {
+        this.logger.warn({ jobId: job.id }, "Discarding invalid file scan queue job");
+        return;
+      }
+      await this.scanQueuedFile(data);
+    });
+    if (!worker) {
+      this.logger.warn({}, "Immediate file scan queue disabled; cron recovery remains active");
+    }
   }
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -55,6 +75,23 @@ export class FileScanWorker {
     } finally {
       this.running = false;
     }
+  }
+
+  private async scanQueuedFile(data: FileScanJobData): Promise<void> {
+    const dispatchDelaySeconds = Math.max(0, Date.now() - data.availableAt) / 1_000;
+    this.metrics.recordHistogram(
+      "file_scan_queue_dispatch_delay_seconds",
+      "Delay between a file scan becoming available and worker dispatch",
+      dispatchDelaySeconds,
+      undefined,
+      [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+    );
+    await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
+      const claim = await this.database.runTransaction(() =>
+        this.files.claimUploadingFile(data.fileId, SCAN_LEASE_MS, SCAN_MAX_ATTEMPTS, true),
+      );
+      if (claim) await this.scanOne(claim);
+    });
   }
 
   async scanOne(file: FileEntity): Promise<boolean> {
@@ -136,7 +173,7 @@ export class FileScanWorker {
     const attempts = file.scanAttempts ?? 1;
     const exponent = Math.max(0, attempts - 1);
     const delay = Math.min(SCAN_RETRY_MAX_MS, SCAN_RETRY_BASE_MS * 2 ** exponent);
-    await this.database.runTransaction(() =>
+    const scheduled = await this.database.runTransaction(() =>
       this.files.retryScan(
         file.id,
         claimToken,
@@ -145,6 +182,7 @@ export class FileScanWorker {
         SCAN_MAX_ATTEMPTS,
       ),
     );
+    if (scheduled) await this.scanQueue.enqueue(file.id, delay);
     this.metrics.incrementCounter("file_scan_outcomes_total", "File scan outcomes", 1, {
       outcome: attempts >= SCAN_MAX_ATTEMPTS ? "attempts_exhausted" : "retry",
     });
@@ -199,4 +237,15 @@ export class FileScanWorker {
     if (!source.checksumSha256) return true;
     return source.checksumSha256 === promoted.checksumSha256;
   }
+}
+
+function isFileScanJobData(value: unknown): value is FileScanJobData {
+  if (typeof value !== "object" || value === null) return false;
+  const data = value as Record<string, unknown>;
+  return (
+    typeof data.fileId === "string" &&
+    data.fileId.length > 0 &&
+    typeof data.availableAt === "number" &&
+    Number.isFinite(data.availableAt)
+  );
 }

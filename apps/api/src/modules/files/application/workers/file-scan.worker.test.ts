@@ -4,11 +4,14 @@ import { err, ok } from "neverthrow";
 import type { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import type { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
+import { FILE_SCAN_QUEUE } from "../../../../infrastructure/queue/queue.constants";
+import type { QueueService } from "../../../../infrastructure/queue/queue.service";
 import type { FileScannerService } from "../../../../infrastructure/storage/scanner/file-scanner.service";
 import type { StorageService } from "../../../../infrastructure/storage/storage.service";
 import type { FileEntity } from "../../domain/entities/file.entity";
 import type { FilesRepository } from "../../infrastructure/repositories/files.repository";
 import { FileScanWorker } from "./file-scan.worker";
+import { type FileScanJobData, type FileScanQueue } from "../services/file-scan.queue";
 
 const FILE: FileEntity = {
   id: "file-1",
@@ -39,11 +42,14 @@ describe("FileScanWorker", () => {
   let tenant: TenantContextService;
   let logger: PinoLoggerService;
   let metrics: MetricsService;
+  let queues: QueueService;
+  let scanQueue: FileScanQueue;
 
   beforeEach(() => {
     vi.clearAllMocks();
     files = {
       claimUploadingFiles: vi.fn().mockResolvedValue([FILE]),
+      claimUploadingFile: vi.fn().mockResolvedValue(FILE),
       renewScanLease: vi.fn().mockResolvedValue(true),
       completeScan: vi.fn().mockResolvedValue(true),
       retryScan: vi.fn().mockResolvedValue(true),
@@ -72,11 +78,41 @@ describe("FileScanWorker", () => {
       incrementCounter: vi.fn(),
       recordHistogram: vi.fn(),
     } as unknown as MetricsService;
+    queues = {
+      addWorker: vi.fn().mockReturnValue({}),
+    } as unknown as QueueService;
+    scanQueue = {
+      enqueue: vi.fn().mockResolvedValue(undefined),
+    } as unknown as FileScanQueue;
   });
 
   function worker() {
-    return new FileScanWorker(files, scanner, storage, database, tenant, metrics, logger);
+    return new FileScanWorker(
+      files,
+      scanner,
+      storage,
+      database,
+      tenant,
+      metrics,
+      queues,
+      scanQueue,
+      logger,
+    );
   }
+
+  it("registers an immediate queue consumer that claims only the requested file", async () => {
+    const subject = worker();
+    subject.onModuleInit();
+    const handler = vi.mocked(queues.addWorker).mock.calls[0]?.[1] as (job: {
+      data: FileScanJobData;
+    }) => Promise<void>;
+
+    await handler({ data: { fileId: FILE.id, availableAt: Date.now() } });
+
+    expect(queues.addWorker).toHaveBeenCalledWith(FILE_SCAN_QUEUE, expect.any(Function));
+    expect(files.claimUploadingFile).toHaveBeenCalledWith(FILE.id, 120_000, 5, true);
+    expect(files.completeScan).toHaveBeenCalledWith(FILE.id, "claim-1", CANDIDATE_KEY);
+  });
 
   it("promotes clean bytes to an immutable claim candidate", async () => {
     await worker().scanQuarantinedFiles();
@@ -113,6 +149,7 @@ describe("FileScanWorker", () => {
       expect.any(Date),
       5,
     );
+    expect(scanQueue.enqueue).toHaveBeenCalledWith(FILE.id, 5_000);
     expect(storage.delete).not.toHaveBeenCalledWith(`${FILE.key}.quarantine`);
   });
 

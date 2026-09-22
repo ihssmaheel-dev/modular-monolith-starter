@@ -9,6 +9,7 @@ function loadEnv(): WebEnv {
   const raw = import.meta.env as Record<string, string | undefined>;
   const parsed = webEnvSchema.safeParse({
     VITE_API_URL: raw.VITE_API_URL,
+    VITE_FILE_UPLOAD_ORIGIN: raw.VITE_FILE_UPLOAD_ORIGIN,
     VITE_APP_NAME: raw.VITE_APP_NAME,
     VITE_EXAMPLE_FEATURES_ENABLED: raw.VITE_EXAMPLE_FEATURES_ENABLED,
   });
@@ -27,6 +28,7 @@ export function getWebEnv(): WebEnv {
     };
     const serverRaw = {
       VITE_API_URL: runtime.process?.env?.VITE_API_URL,
+      VITE_FILE_UPLOAD_ORIGIN: runtime.process?.env?.VITE_FILE_UPLOAD_ORIGIN,
       VITE_APP_NAME: runtime.process?.env?.VITE_APP_NAME,
       VITE_EXAMPLE_FEATURES_ENABLED: runtime.process?.env?.VITE_EXAMPLE_FEATURES_ENABLED,
     };

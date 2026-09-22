@@ -67,6 +67,7 @@
         "S3_SECRET_ACCESS_KEY",
         "MAILPIT_URL",
         "VITE_API_URL",
+        "VITE_FILE_UPLOAD_ORIGIN",
         "PORT",
         "CLIENT_URL",
         "API_URL",

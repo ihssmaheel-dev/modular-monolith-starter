@@ -32,8 +32,13 @@ export interface RouterContext {
 export const Route = createRootRouteWithContext<RouterContext>()({
   headers: ({ ssr }) => {
     if (!ssr?.nonce) return undefined;
+    const webEnv = getWebEnv();
     return {
-      "Content-Security-Policy": buildDocumentCsp(ssr.nonce, getWebEnv().VITE_API_URL),
+      "Content-Security-Policy": buildDocumentCsp(
+        ssr.nonce,
+        webEnv.VITE_API_URL,
+        webEnv.VITE_FILE_UPLOAD_ORIGIN,
+      ),
     };
   },
   head: () => ({

@@ -6,6 +6,7 @@ import { ok, err } from "neverthrow";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import type { AuthorizationService } from "../../../../infrastructure/authorization";
 import type { TenantContextService } from "../../../../infrastructure/database";
+import type { FileScanQueue } from "../services/file-scan.queue";
 
 const ACTOR = { sub: "user-1", email: "user@example.com", role: "user" } as const;
 
@@ -15,6 +16,7 @@ describe("ConfirmUploadCommand", () => {
   let storage: StorageService;
   let authorization: AuthorizationService;
   let tenantContext: TenantContextService;
+  let scanQueue: FileScanQueue;
 
   beforeEach(() => {
     filesRepo = {
@@ -30,8 +32,18 @@ describe("ConfirmUploadCommand", () => {
     tenantContext = {
       get: vi.fn().mockReturnValue({ mode: "single" }),
     } as unknown as TenantContextService;
+    scanQueue = {
+      enqueue: vi.fn().mockResolvedValue(undefined),
+    } as unknown as FileScanQueue;
 
-    command = new ConfirmUploadCommand(filesRepo, storage, undefined, authorization, tenantContext);
+    command = new ConfirmUploadCommand(
+      filesRepo,
+      storage,
+      scanQueue,
+      undefined,
+      authorization,
+      tenantContext,
+    );
   });
 
   it("should return FILE_NOT_FOUND when file does not exist", async () => {
@@ -128,6 +140,7 @@ describe("ConfirmUploadCommand", () => {
       file.id,
       expect.objectContaining({ size: 1024, contentType: "application/pdf" }),
     );
+    expect(scanQueue.enqueue).toHaveBeenCalledWith(file.id);
   });
 
   it("validates the quarantine object, never the final key (H09)", async () => {
@@ -150,6 +163,17 @@ describe("ConfirmUploadCommand", () => {
     expect(result.isOk()).toBe(true);
     expect(storage.getMetadata).not.toHaveBeenCalled();
     expect(filesRepo.markUploadReady).not.toHaveBeenCalled();
+    expect(scanQueue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("reissues the worker wake-up when confirmation is repeated while uploading", async () => {
+    const file: FileEntity = { ...createFile(), status: "uploading" };
+    vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
+
+    const result = await command.execute(file.key, ACTOR);
+
+    expect(result.isOk()).toBe(true);
+    expect(scanQueue.enqueue).toHaveBeenCalledWith(file.id);
   });
 });
 

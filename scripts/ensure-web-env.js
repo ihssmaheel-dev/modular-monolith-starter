@@ -17,5 +17,9 @@ if (!fs.existsSync(destination)) {
     process.stdout.write(
       "Fixed apps/web/.env — restored VITE_API_URL=http://localhost:5156/api/v1\n",
     );
+  } else if (!/^VITE_FILE_UPLOAD_ORIGIN=/m.test(content)) {
+    const separator = content.endsWith("\n") ? "" : "\n";
+    fs.appendFileSync(destination, `${separator}VITE_FILE_UPLOAD_ORIGIN=http://127.0.0.1:9000\n`);
+    process.stdout.write("Updated apps/web/.env with the local file upload origin\n");
   }
 }

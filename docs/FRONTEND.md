@@ -28,9 +28,9 @@ pnpm --filter web typecheck
 ```
 
 `start` runs the built SSR handler with the static client bundle on port `3000` (`PORT` can override it).
-It is independent of the API process. `VITE_API_URL` is baked into the client bundle at build time — changing it
-at runtime does not affect already-built browser assets (only the SSR server process reads runtime env), so set it
-correctly before `pnpm --filter web build`.
+It is independent of the API process. `VITE_API_URL` and `VITE_FILE_UPLOAD_ORIGIN` are public web
+configuration. Values read by browser code are baked into the client bundle; only the SSR server can
+observe runtime environment changes, so set final values before `pnpm --filter web build`.
 
 ### Structure
 
@@ -58,7 +58,7 @@ apps/web/
 - Tenant-scoped query keys include the active tenant ID. Logout and tenant switches clear affected cached data.
 - Error displays use stable error codes and i18n keys; raw response bodies and exception text never reach users.
 - Authentication prefers httpOnly cookies, with short-lived Bearer tokens as a fallback.
-- `VITE_API_URL` is validated in `src/lib/env.ts`.
+- `VITE_API_URL` and the optional exact `VITE_FILE_UPLOAD_ORIGIN` are validated in `src/lib/env.ts`.
 
 ### SSR security and refresh coordination
 
@@ -66,6 +66,9 @@ Each server render creates a fresh CSP nonce in `src/router.tsx` before TanStack
 scripts. The root route builds the matching response policy and applies the nonce to the theme
 bootstrap. The proxy must forward this application-owned policy instead of adding another document
 policy. Do not cache personalized HTML; cache immutable client assets normally.
+The CSP adds `VITE_FILE_UPLOAD_ORIGIN` to `connect-src` for direct uploads to a local HTTP object
+store. Production object storage must use HTTPS and must independently allow the application origin
+through bucket CORS.
 
 The shared `RefreshCoordinator` bounds both Web Lock acquisition and the refresh request. Browser
 refresh uses only the httpOnly cookie and requires Web Locks for cross-tab rotation safety; an

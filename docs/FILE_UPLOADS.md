@@ -149,6 +149,12 @@ quarantine object and makes the row eligible; the worker is the sole scan/promot
 use a token and expiring lease, and terminal updates compare that token so a stale worker cannot
 overwrite a winner. Candidate active keys keep promotion safe across lease expiry.
 
+Confirmation also publishes a disposable `file-scan` BullMQ wake-up so an available worker claims
+the specific row immediately. PostgreSQL remains the durable source of state: delayed retry jobs
+follow the recorded retry deadline, and the minute scanner cron recovers any wake-up missed during a
+Redis outage or process restart. Queue delivery therefore improves latency without becoming a second
+state authority.
+
 The shared API-client upload helper polls the same file ID until `uploaded` or `failed`, with a
 bounded deadline. Parent attachment happens only after `uploaded`. A new upload attempt requests a
 new URL and file record; never reuse a URL past its 15-minute expiry.

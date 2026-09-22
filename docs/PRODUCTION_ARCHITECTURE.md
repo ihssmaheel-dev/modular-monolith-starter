@@ -222,7 +222,9 @@ HTTP requests deliberately avoid holding open a global database transaction by d
 ## File lifecycle
 
 Uploads are recorded as `pending`, confirmed as `uploading` quarantine records only after an S3
-metadata check, and promoted to `uploaded` by the scheduled scanner. The presigned PUT binds content
+metadata check, and promoted to `uploaded` by the file-scan worker. Confirmation sends an immediate
+BullMQ wake-up for the specific row; database claims, fencing tokens, and retry deadlines remain the
+durable authority, while the minute cron recovers missed wake-ups. The presigned PUT binds content
 length/type and quarantine tagging. Promotion binds the scanned object version, ETag, and checksum.
 Failed or stale records are marked/removed by bounded cleanup and cursor-based reconciliation.
 Deletion marks the database row first, then removes the object; deleted rows remain retryable when S3

@@ -9,12 +9,14 @@ import { DatabaseService, TenantContextService } from "../../../../infrastructur
 import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
 import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
+import { FileScanQueue } from "../services/file-scan.queue";
 
 @Injectable()
 export class ConfirmUploadCommand {
   constructor(
     private readonly filesRepo: FilesRepository,
     private readonly storage: StorageService,
+    private readonly scanQueue: FileScanQueue,
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly authorization?: AuthorizationService,
     @Optional() private readonly tenantContext?: TenantContextService,
@@ -42,7 +44,10 @@ export class ConfirmUploadCommand {
       });
     }
 
-    if (["uploading", "scanning", "uploaded"].includes(file.status)) return ok(file);
+    if (["uploading", "scanning", "uploaded"].includes(file.status)) {
+      if (file.status === "uploading") await this.scanQueue.enqueue(file.id);
+      return ok(file);
+    }
     if (file.status !== "pending") {
       return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
     }
@@ -63,11 +68,13 @@ export class ConfirmUploadCommand {
     if (!updated) {
       const current = await this.filesRepo.findByKey(fileKey);
       if (current && ["uploading", "scanning", "uploaded"].includes(current.status)) {
+        if (current.status === "uploading") await this.scanQueue.enqueue(current.id);
         return ok(current);
       }
       return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
     }
 
+    await this.scanQueue.enqueue(updated.id);
     return ok(updated);
   }
 

@@ -5,6 +5,7 @@ import { setupWorkbench, DEFAULT_WORKBENCH_PATH } from "./workbench.setup";
 import { PinoLoggerService } from "../logger/logger.service";
 import { QueueService } from "./queue.service";
 import { OUTBOX_QUEUE } from "../outbox/outbox.constants";
+import { FILE_SCAN_QUEUE } from "./queue.constants";
 
 const { mockEnv } = vi.hoisted(() => ({
   mockEnv: {
@@ -122,6 +123,7 @@ describe("setupWorkbench", () => {
 
     expect(queueServiceMock.getQueue).toHaveBeenCalledWith(OUTBOX_QUEUE);
     expect(queueServiceMock.getQueue).toHaveBeenCalledWith("email");
+    expect(queueServiceMock.getQueue).toHaveBeenCalledWith(FILE_SCAN_QUEUE);
     expect(loggerMock.info).toHaveBeenCalledWith(
       expect.objectContaining({
         path: DEFAULT_WORKBENCH_PATH,
