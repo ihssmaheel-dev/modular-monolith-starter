@@ -55,7 +55,8 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      test:
+        ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/auth || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -96,6 +97,7 @@ services:
       METRICS_TOKEN: ${METRICS_TOKEN:?set METRICS_TOKEN}
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       CDN_BASE_URL: ${CDN_BASE_URL:-}
       AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-90}
       INVITATION_RETENTION_DAYS: ${INVITATION_RETENTION_DAYS:-90}
@@ -130,7 +132,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health/live || exit 1",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/v1/health/live || exit 1",
         ]
       interval: 10s
       timeout: 5s
@@ -166,8 +168,10 @@ services:
       JWT_ACTIVE_KEY_ID: ${JWT_ACTIVE_KEY_ID:-primary}
       JWT_REFRESH_ACTIVE_KEY_ID: ${JWT_REFRESH_ACTIVE_KEY_ID:-primary}
       METRICS_TOKEN: ${METRICS_TOKEN:?set METRICS_TOKEN}
+      WORKER_METRICS_PORT: ${WORKER_METRICS_PORT:-9464}
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       CDN_BASE_URL: ${CDN_BASE_URL:-}
       AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-90}
       INVITATION_RETENTION_DAYS: ${INVITATION_RETENTION_DAYS:-90}
@@ -197,10 +201,14 @@ services:
         condition: service_completed_successfully
       pgbouncer:
         condition: service_started
-    # Worker has no HTTP port. Process liveness proves the outbox relay /
-    # queue consumers are running. Do not disable this.
+    expose:
+      - "9464"
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q '[n]ode.*main.js'"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:9464/health/ready || exit 1",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -232,6 +240,8 @@ services:
       PGBOUNCER_DB_NAME: app
       PGBOUNCER_DB_USER: postgres
       PGBOUNCER_DB_PASSWORD: postgres
+      PGBOUNCER_CLIENT_TLS_MODE: disable
+      PGBOUNCER_SERVER_TLS_MODE: disable
     volumes:
       - ./pgbouncer-entrypoint.sh:/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]

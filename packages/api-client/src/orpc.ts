@@ -2,12 +2,8 @@ import { createORPCClient } from "@orpc/client";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
 import { ApiErrorEnvelopeSchema, apiContract } from "@repo/contracts";
 import type { ContractRouterClient } from "@orpc/contract";
-import {
-  createIdempotencyKey,
-  createRefreshCoordinator,
-  readCookie,
-  type RefreshCoordinator,
-} from "./utils";
+import { createIdempotencyKey, readCookie } from "./utils";
+import { createRefreshCoordinator, type RefreshCoordinator } from "./auth/refresh-coordinator";
 import type { ApiClientOptions } from "./types";
 import type { ApiResponse } from "./types";
 import type { ZodType } from "zod";
@@ -31,14 +27,16 @@ export function createOrpcClient(
       const response = await fetch(headed, { credentials: "include" });
       if (response.status !== 401 || !canRefreshRequest(request)) return response;
 
-      const refreshed = await coordinator.refresh();
-      if (!refreshed) {
-        await coordinator.handleFailure();
+      const outcome = await coordinator.refresh();
+      if (outcome.kind !== "refreshed") {
+        if (outcome.kind === "invalid_session" || outcome.kind === "unsupported") {
+          await coordinator.handleFailure();
+        }
         return response;
       }
 
-      coordinator.handleSuccess(refreshed);
-      return fetch(withHeaders(initial, options, refreshed.accessToken), {
+      const accessToken = outcome.response?.accessToken ?? options.getAccessToken?.();
+      return fetch(withHeaders(initial, options, accessToken ?? undefined), {
         credentials: "include",
       });
     },

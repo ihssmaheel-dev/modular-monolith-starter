@@ -26,6 +26,15 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       slot: row.slot ?? null,
       uploadedBy: row.uploadedBy,
       status: row.status as FileEntity["status"],
+      activeKey: row.activeKey ?? undefined,
+      scanClaimToken: row.scanClaimToken ?? undefined,
+      scanLeaseExpiresAt: row.scanLeaseExpiresAt ?? undefined,
+      scanAttempts: row.scanAttempts,
+      scanNextAttemptAt: row.scanNextAttemptAt ?? undefined,
+      scanFailureCode: row.scanFailureCode ?? undefined,
+      scanSourceEtag: row.scanSourceEtag ?? undefined,
+      scanSourceVersionId: row.scanSourceVersionId ?? undefined,
+      scanCandidateKeys: row.scanCandidateKeys,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -48,6 +57,26 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
 
   async claimPendingUpload(key: string) {
     return this.updateOne({ key, status: "pending" }, { status: "uploading" });
+  }
+
+  async markUploadReady(
+    id: string,
+    source: { etag?: string; versionId?: string },
+  ): Promise<FileEntity | null> {
+    const rows = await this.getDb()
+      .update(files)
+      .set({
+        status: "uploading",
+        scanSourceEtag: source.etag ?? null,
+        scanSourceVersionId: source.versionId ?? null,
+        scanNextAttemptAt: new Date(),
+        scanFailureCode: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(files.id, id), eq(files.status, "pending"), isNull(files.deletedAt)))
+      .returning();
+    const row = rows[0];
+    return row ? this.toDomain(row) : null;
   }
 
   async findPendingFilesBefore(
@@ -145,7 +174,12 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     return (rows ?? []).map((r) => this.toDomain(r));
   }
 
-  async claimUploadingFiles(limit: number, systemScope = false): Promise<FileEntity[]> {
+  async claimUploadingFiles(
+    limit: number,
+    leaseMs: number,
+    maxAttempts: number,
+    systemScope = false,
+  ): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
     const db = this.getDb();
     const result = await (
@@ -156,33 +190,120 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
         FROM files
         WHERE deleted_at IS NULL
           AND (
-            status = 'uploading'
-            OR (status = 'scanning' AND updated_at < NOW() - INTERVAL '10 minutes')
+            (status = 'uploading' AND (scan_next_attempt_at IS NULL OR scan_next_attempt_at <= NOW()))
+            OR (status = 'scanning' AND scan_lease_expires_at < NOW())
           )
+          AND scan_attempts < ${maxAttempts}
         ORDER BY updated_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
+      ), claims AS (
+        SELECT id, md5(random()::text || clock_timestamp()::text || id) AS token
+        FROM candidates
       )
-      UPDATE files
-      SET status = 'scanning', updated_at = NOW()
-      WHERE id IN (SELECT id FROM candidates)
+      UPDATE files AS target
+      SET status = 'scanning',
+          scan_claim_token = claims.token,
+          scan_lease_expires_at = NOW() + (${leaseMs} * INTERVAL '1 millisecond'),
+          scan_attempts = target.scan_attempts + 1,
+          scan_failure_code = NULL,
+          scan_candidate_keys = COALESCE(target.scan_candidate_keys, '[]'::jsonb)
+            || jsonb_build_array(target.key || '.candidate-' || claims.token),
+          updated_at = NOW()
+      FROM claims
+      WHERE target.id = claims.id
       RETURNING
-        id,
-        tenant_id AS "tenantId",
-        key,
-        file_name AS "fileName",
-        content_type AS "contentType",
-        file_size AS "fileSize",
-        bucket,
-        parent_id AS "parentId",
-        parent_type AS "parentType",
-        uploaded_by AS "uploadedBy",
-        status,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt",
-        deleted_at AS "deletedAt"
+        target.id,
+        target.tenant_id AS "tenantId",
+        target.key,
+        target.file_name AS "fileName",
+        target.content_type AS "contentType",
+        target.file_size AS "fileSize",
+        target.bucket,
+        target.parent_id AS "parentId",
+        target.parent_type AS "parentType",
+        target.slot,
+        target.uploaded_by AS "uploadedBy",
+        target.status,
+        target.active_key AS "activeKey",
+        target.scan_claim_token AS "scanClaimToken",
+        target.scan_lease_expires_at AS "scanLeaseExpiresAt",
+        target.scan_attempts AS "scanAttempts",
+        target.scan_next_attempt_at AS "scanNextAttemptAt",
+        target.scan_failure_code AS "scanFailureCode",
+        target.scan_source_etag AS "scanSourceEtag",
+        target.scan_source_version_id AS "scanSourceVersionId",
+        target.scan_candidate_keys AS "scanCandidateKeys",
+        target.created_at AS "createdAt",
+        target.updated_at AS "updatedAt",
+        target.deleted_at AS "deletedAt"
     `);
     return result.rows.map((row) => this.toDomain(row));
+  }
+
+  async renewScanLease(id: string, claimToken: string, leaseMs: number): Promise<boolean> {
+    const result = await this.getDb().execute(sql`UPDATE files
+      SET scan_lease_expires_at = NOW() + (${leaseMs} * INTERVAL '1 millisecond'),
+          updated_at = NOW()
+      WHERE id = ${id}
+        AND status = 'scanning'
+        AND scan_claim_token = ${claimToken}
+        AND deleted_at IS NULL`);
+    return (result.rowCount ?? 0) === 1;
+  }
+
+  async completeScan(id: string, claimToken: string, activeKey: string): Promise<boolean> {
+    const result = await this.getDb().execute(sql`UPDATE files
+      SET status = 'uploaded',
+          active_key = ${activeKey},
+          scan_claim_token = NULL,
+          scan_lease_expires_at = NULL,
+          scan_next_attempt_at = NULL,
+          scan_failure_code = NULL,
+          updated_at = NOW()
+      WHERE id = ${id}
+        AND status = 'scanning'
+        AND scan_claim_token = ${claimToken}
+        AND deleted_at IS NULL`);
+    return (result.rowCount ?? 0) === 1;
+  }
+
+  async retryScan(
+    id: string,
+    claimToken: string,
+    failureCode: string,
+    nextAttemptAt: Date,
+    maxAttempts: number,
+  ): Promise<boolean> {
+    const result = await this.getDb().execute(sql`UPDATE files
+      SET status = CASE WHEN scan_attempts >= ${maxAttempts} THEN 'failed'::file_status
+                        ELSE 'uploading'::file_status END,
+          scan_claim_token = NULL,
+          scan_lease_expires_at = NULL,
+          scan_next_attempt_at = CASE WHEN scan_attempts >= ${maxAttempts}
+                                     THEN NULL ELSE ${nextAttemptAt} END,
+          scan_failure_code = ${failureCode},
+          updated_at = NOW()
+      WHERE id = ${id}
+        AND status = 'scanning'
+        AND scan_claim_token = ${claimToken}
+        AND deleted_at IS NULL`);
+    return (result.rowCount ?? 0) === 1;
+  }
+
+  async rejectScan(id: string, claimToken: string, failureCode: string): Promise<boolean> {
+    const result = await this.getDb().execute(sql`UPDATE files
+      SET status = 'failed',
+          scan_claim_token = NULL,
+          scan_lease_expires_at = NULL,
+          scan_next_attempt_at = NULL,
+          scan_failure_code = ${failureCode},
+          updated_at = NOW()
+      WHERE id = ${id}
+        AND status = 'scanning'
+        AND scan_claim_token = ${claimToken}
+        AND deleted_at IS NULL`);
+    return (result.rowCount ?? 0) === 1;
   }
 
   async findDeletedFiles(limit: number, systemScope = false): Promise<FileEntity[]> {

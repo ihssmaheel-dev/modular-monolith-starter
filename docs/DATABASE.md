@@ -64,20 +64,20 @@ transaction stored in CLS context (`databaseTx`), isolating sub-operations via P
 effects (`emitAfterCommit`, `runAfterCommit`) are held in CLS and drained only after the outermost
 transaction promise commits.
 
-HTTP handlers use a transaction by default to establish transaction-local PostgreSQL RLS context.
-Handlers that perform password hashing, external I/O, streams, or other slow work must use
-`@NoDatabaseTransaction()` and let their commands open short explicit transactions only around SQL
-state changes. Login and registration follow this pattern so Argon2 work never occupies a pooled
-database connection.
+HTTP handlers do not receive a request-wide transaction by default. Repository reads open a short
+transaction when no command transaction exists, and mutation commands use `withResultTransaction`
+around only related SQL changes and outbox/audit writes. `@DatabaseTransaction()` is an exceptional,
+explicit opt-in for a short SQL-only handler; `@NoDatabaseTransaction()` can override a class-level
+opt-in. Password hashing, Redis, storage, SMTP, streams, and other external work must stay outside
+database transactions so they cannot exhaust the connection pool.
 
 Scheduled background worker tasks execute exclusively across clustered worker instances via
 `DatabaseService.withExclusiveExecution(key, fn)`. Clustered environments MUST configure Redis:
 `withExclusiveExecution` delegates to `RedisLockService` (using atomic `SET NX PX` with a Lua token
 release script), ensuring lock safety that does not interfere with connection pooling or autovacuum.
-If Redis is unconfigured or unavailable, the fallback uses PostgreSQL session-level advisory locks
-(`pg_try_advisory_lock`) on a checked-out pool connection. Note: because transaction-mode PgBouncer
-pooling does not guarantee session-level lock persistence across transactions, clustered production
-deployments utilizing transaction-mode poolers must treat Redis as mandatory for worker task exclusivity.
+If Redis is unconfigured or unavailable, scheduled exclusive work fails closed and is retried later.
+There is no automatic PostgreSQL runtime fallback and therefore no split lock authority. PostgreSQL
+advisory locking remains limited to direct-connection migration coordination.
 
 ## Connection pooling (PgBouncer)
 
@@ -90,9 +90,9 @@ Staging exercises PgBouncer in transaction mode. Production offers it through th
 - **Drizzle prepared statements** work in transaction mode because the pooler runs
   `max_prepared_statements = 100` (PgBouncer >= 1.21 tracks them per protocol). Never lower
   it without re-verifying; `prepared statement does not exist` errors mean exactly this.
-  `server_reset_query` stays at the transaction-mode default (`DISCARD ALL`), so no
-  session state survives across pooled checkouts.
-- **Bypass list (direct connections only):** migrations (advisory locks) and `drizzle-kit`
+- Transaction pooling does not normally run `server_reset_query` between transactions. Correctness
+  therefore comes from transaction-local `set_config(..., true)` and never from session state.
+- **Bypass list (direct connections only):** migrations and `drizzle-kit`
   commands use `DB_DIRECT_URL`, falling back to `DATABASE_URL`. Seed scripts are plain
   CRUD with no locks or `LISTEN`, so they are pooler-safe; `staging-seed` still pins the
   direct URL by construction.

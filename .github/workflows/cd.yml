@@ -130,14 +130,14 @@ jobs:
           echo "digest=${WEB_DIGEST}" >> $GITHUB_OUTPUT
 
       - name: Attest API build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8 # v3.1.0
         with:
           subject-name: ${{ env.IMAGE_API }}
           subject-digest: ${{ steps.api_image.outputs.digest }}
           push-to-registry: true
 
       - name: Attest Web build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8 # v3.1.0
         with:
           subject-name: ${{ env.IMAGE_WEB }}
           subject-digest: ${{ steps.web_image.outputs.digest }}
@@ -169,6 +169,13 @@ jobs:
             echo "::error::Invalid or missing Web digest: ${WEB_DIGEST}"
             exit 1
           }
+
+      - name: Verify published provenance attestations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh attestation verify "oci://${IMAGE_API}@${{ needs.publish.outputs.api_digest }}" --repo "${{ github.repository }}"
+          gh attestation verify "oci://${IMAGE_WEB}@${{ needs.publish.outputs.web_digest }}" --repo "${{ github.repository }}"
 
       - name: Validate prod compose
         run: |

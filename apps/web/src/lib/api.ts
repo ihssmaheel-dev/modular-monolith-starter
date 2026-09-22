@@ -17,7 +17,10 @@ export function getApiClient(): ApiClient {
 
   client = createApiClient(env.VITE_API_URL, {
     getAccessToken: () => useAuthStore.getState().accessToken,
-    getRefreshToken: () => useAuthStore.getState().refreshToken,
+    getAuthFingerprint: () => {
+      const auth = useAuthStore.getState();
+      return `${auth.status}:${auth.user?.id ?? "none"}:${auth.accessToken ?? "none"}`;
+    },
     getLocale: () => useLocaleStore.getState().locale,
     getTenantId: () => useTenantStore.getState().tenantId,
     onAuthRefreshed: (response) => {

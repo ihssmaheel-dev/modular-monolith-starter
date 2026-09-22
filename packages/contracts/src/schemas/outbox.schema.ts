@@ -72,6 +72,31 @@ const payloadSchemas: Record<string, z.ZodType<Record<string, unknown>>> = {
     count: z.number().int().nonnegative(),
     tenantId: z.string().min(1).optional(),
   }),
+  "privacy.export.requested": z.object({
+    requestId: z.string().min(1),
+    userId: z.string().min(1),
+  }),
+  "privacy.export.ready": z.object({
+    requestId: z.string().min(1),
+    userId: z.string().min(1),
+  }),
+  "privacy.account.erasure.requested": z.object({
+    requestId: z.string().min(1),
+    userId: z.string().min(1),
+  }),
+  "privacy.account.purged": z.object({
+    requestId: z.string().min(1),
+    userId: z.string().min(1),
+  }),
+  "privacy.organization.erasure.requested": z.object({
+    requestId: z.string().min(1),
+    tenantId: z.string().min(1),
+    requestedBy: z.string().min(1),
+  }),
+  "privacy.organization.purged": z.object({
+    requestId: z.string().min(1),
+    tenantId: z.string().min(1),
+  }),
 };
 
 export function parseOutboxEventEnvelope(value: unknown): OutboxEventEnvelope {

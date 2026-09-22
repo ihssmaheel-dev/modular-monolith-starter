@@ -66,9 +66,17 @@ that is making progress. The worker container healthcheck uses `/health/ready`.
 
 ## Ingress, TLS, and proxy trust
 
-The supported browser topology is one public origin: NGINX serves web traffic and proxies `/api/` and
-`/ws`. Host-only cookies make direct split-host cookie authentication unsupported. Mobile and service
-clients use bearer tokens.
+The default and recommended browser topology is one public origin: NGINX serves web traffic and
+proxies `/api/` and `/ws`. Cookies remain host-only in this topology. A sibling-subdomain topology is
+an explicit opt-in: set `COOKIE_DOMAIN` to the validated common DNS parent, configure both HTTPS
+origins in `CLIENT_URL`/`API_URL`, and treat every sibling allowed to receive that cookie as trusted.
+Never use a public suffix or a parent shared with untrusted applications. Mobile and service clients
+use bearer tokens.
+
+The SSR web response owns the document Content Security Policy. It creates a fresh cryptographic
+nonce before router initialization and applies the same nonce to the policy and framework scripts.
+NGINX forwards that policy and does not add a second document CSP. Authenticated HTML is `no-store`;
+immutable assets keep long-lived caching.
 
 Two explicit ingress modes exist:
 

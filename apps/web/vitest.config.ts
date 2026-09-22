@@ -14,7 +14,7 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["e2e/**", "src/**/*.e2e.*"],
     pool: "threads",
-    maxWorkers: 4,
+    maxWorkers: 2,
     fsModuleCache: true,
     setupFiles: ["./src/test/setup.ts"],
     testTimeout: 15000,

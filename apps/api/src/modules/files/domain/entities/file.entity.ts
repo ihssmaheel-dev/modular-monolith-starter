@@ -11,6 +11,15 @@ export interface FileEntity {
   slot?: string | null;
   uploadedBy: string;
   status: "pending" | "uploading" | "scanning" | "uploaded" | "failed";
+  activeKey?: string;
+  scanClaimToken?: string;
+  scanLeaseExpiresAt?: Date;
+  scanAttempts?: number;
+  scanNextAttemptAt?: Date;
+  scanFailureCode?: string;
+  scanSourceEtag?: string;
+  scanSourceVersionId?: string;
+  scanCandidateKeys?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

@@ -11,6 +11,7 @@ const isolatedTestPatterns = [
   "**/src/common/utils/origin.utils.test.ts",
   "**/src/infrastructure/api-docs/api-docs.test.ts",
   "**/src/infrastructure/cache/cache.service.test.ts",
+  "**/src/infrastructure/database/connection/database-pool.test.ts",
   "**/src/infrastructure/database/database.service.test.ts",
   "**/src/infrastructure/database/tenancy/tenant-context.service.test.ts",
   "**/src/infrastructure/database/tenancy/verify-tenancy-mode.test.ts",
@@ -24,6 +25,7 @@ const isolatedTestPatterns = [
   "**/src/infrastructure/realtime/transports/realtime-websocket.gateway.test.ts",
   "**/src/infrastructure/session/session.service.test.ts",
   "**/src/infrastructure/storage/storage.service.test.ts",
+  "**/src/infrastructure/tracing/tracing.interceptor.test.ts",
   "**/src/modules/auth/application/commands/forgot-password.command.test.ts",
   "**/src/modules/auth/application/commands/login.command.test.ts",
   "**/src/modules/auth/application/commands/refresh-tokens.command.test.ts",
@@ -44,6 +46,10 @@ export default defineConfig({
     globals: true,
     environment: "node",
     pool: "threads",
+    // API tests load the Nest dependency graph and compiler state. Keep the
+    // worker count bounded so high-core developer and CI hosts do not multiply
+    // that memory footprint until the operating system starts killing workers.
+    maxWorkers: 1,
     testTimeout: 15_000,
     fsModuleCache: true,
     coverage: {

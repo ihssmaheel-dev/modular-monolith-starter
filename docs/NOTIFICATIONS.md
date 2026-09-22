@@ -7,13 +7,19 @@ send email, push, or realtime messages directly.
 
 ```
 Feature command → outbox.dispatch("<domain>.<event>")
-  → OutboxEventWorker → DomainEventFanoutListener
+  → OutboxEventWorker → required consumer registry → DomainEventFanoutListener
   → SendNotificationCommand (THE single entry point)
     1. validate recipient + resolve preferences (seeded defaults on first use)
     2. persist center row + outbox event in one transaction
        (notification.created now, digest.ready when its window closes)
     3. after commit: deliver on enabled channels (realtime, email, push)
 ```
+
+Required consumers have stable versioned IDs. Notification persistence claims a source-event effect
+receipt in the same short database transaction, so retry after partial consumer success returns the
+existing row instead of creating a duplicate. Event consumption, a queued/persisted delivery intent,
+and provider acceptance are separate outcomes. SMTP cannot prove exactly-once external delivery
+when provider acceptance succeeds but the acknowledgement is lost.
 
 ## Channels (ports, swappable)
 
@@ -67,7 +73,8 @@ inline during fan-out.
 
 - Web: header bell (unread badge + recent dropdown), `/notifications` feed,
   preferences card, SSE hook (`useRealtimeNotifications`) invalidating
-  `["notifications"]`. No `fetch` outside `getApiClient()`.
+  `["notifications"]`. Reconnect and `sync_required` refetch durable state; realtime events are
+  hints rather than the record of truth. No `fetch` outside `getApiClient()`.
 - Mobile: `expo-notifications` (permissions, foreground handler, badge),
   `PushBootstrap` (token registration + tap routing + invalidation),
   `(tabs)/notifications` feed, settings preferences card.

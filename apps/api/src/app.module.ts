@@ -50,6 +50,7 @@ import {
   RequestIdInterceptor,
   LoggingInterceptor,
   ResponseValidationInterceptor,
+  DatabaseTransactionInterceptor,
 } from "./common";
 import { ORPCModule } from "./infrastructure/orpc/orpc-runtime";
 import { env } from "./config/env";
@@ -177,6 +178,10 @@ export function applicationFeatureModules(includeExamples = env.EXAMPLE_FEATURES
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: DatabaseTransactionInterceptor,
     },
     {
       provide: APP_INTERCEPTOR,

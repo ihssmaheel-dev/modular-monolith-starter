@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, type OnModuleInit } from "@nestjs/common";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { OutboxModule } from "../../infrastructure/outbox/outbox.module";
 import { DatabaseModule } from "../../infrastructure/database";
@@ -13,6 +13,7 @@ import { DownloadExportQuery } from "./application/queries/download-export.query
 import { ListRequestsQuery } from "./application/queries/list-requests.query";
 import { PrivacyRepository } from "./infrastructure/repositories/privacy.repository";
 import { PrivacyExportWorker } from "./application/workers/privacy-export.worker";
+import { OutboxConsumerRegistry } from "../../infrastructure/outbox";
 
 @Module({
   imports: [EventEmitterModule, OutboxModule, DatabaseModule, UsersModule],
@@ -30,4 +31,16 @@ import { PrivacyExportWorker } from "./application/workers/privacy-export.worker
   ],
   exports: [RequestExportCommand, PurgeExpiredErasuresCommand],
 })
-export class PrivacyModule {}
+export class PrivacyModule implements OnModuleInit {
+  constructor(private readonly outboxConsumers: OutboxConsumerRegistry) {}
+
+  onModuleInit(): void {
+    this.outboxConsumers.registerObserverTopics([
+      "privacy.export.requested",
+      "privacy.account.erasure.requested",
+      "privacy.organization.erasure.requested",
+      "privacy.account.purged",
+      "privacy.organization.purged",
+    ]);
+  }
+}

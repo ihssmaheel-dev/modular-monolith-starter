@@ -19,7 +19,7 @@ describe("ConfirmUploadCommand", () => {
   beforeEach(() => {
     filesRepo = {
       findByKey: vi.fn(),
-      updateById: vi.fn(),
+      markUploadReady: vi.fn(),
     } as unknown as FilesRepository;
     storage = {
       getMetadata: vi.fn().mockResolvedValue(ok({ size: 1024, contentType: "application/pdf" })),
@@ -61,7 +61,7 @@ describe("ConfirmUploadCommand", () => {
       updatedAt: new Date(),
     };
     vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
-    vi.mocked(filesRepo.updateById).mockResolvedValue(err({ type: "CONFLICT" }));
+    vi.mocked(filesRepo.markUploadReady).mockResolvedValue(null);
 
     const result = await command.execute(file.key, ACTOR);
 
@@ -82,7 +82,7 @@ describe("ConfirmUploadCommand", () => {
     if (result.isErr()) {
       expect(result.error.message).toBe("api.file.metadataMismatch");
     }
-    expect(filesRepo.updateById).not.toHaveBeenCalled();
+    expect(filesRepo.markUploadReady).not.toHaveBeenCalled();
   });
 
   it("reports storage failure separately from invalid uploaded metadata", async () => {
@@ -95,7 +95,7 @@ describe("ConfirmUploadCommand", () => {
     const result = await command.execute(file.key, ACTOR);
 
     expect(result.isErr() && result.error.type).toBe("STORAGE_UNAVAILABLE");
-    expect(filesRepo.updateById).not.toHaveBeenCalled();
+    expect(filesRepo.markUploadReady).not.toHaveBeenCalled();
   });
 
   it("should update status to uploaded on success", async () => {
@@ -116,7 +116,7 @@ describe("ConfirmUploadCommand", () => {
     vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
 
     const updatedFile: FileEntity = { ...file, status: "uploading" };
-    vi.mocked(filesRepo.updateById).mockResolvedValue(ok(updatedFile));
+    vi.mocked(filesRepo.markUploadReady).mockResolvedValue(updatedFile);
 
     const result = await command.execute(file.key, ACTOR);
 
@@ -124,13 +124,16 @@ describe("ConfirmUploadCommand", () => {
     if (result.isOk()) {
       expect(result.value.status).toBe("uploading");
     }
-    expect(filesRepo.updateById).toHaveBeenCalledWith(file.id, { status: "uploading" });
+    expect(filesRepo.markUploadReady).toHaveBeenCalledWith(
+      file.id,
+      expect.objectContaining({ size: 1024, contentType: "application/pdf" }),
+    );
   });
 
   it("validates the quarantine object, never the final key (H09)", async () => {
     const file = createFile();
     vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
-    vi.mocked(filesRepo.updateById).mockResolvedValue(ok({ ...file, status: "uploading" }));
+    vi.mocked(filesRepo.markUploadReady).mockResolvedValue({ ...file, status: "uploading" });
 
     const result = await command.execute(file.key, ACTOR);
 
@@ -138,32 +141,15 @@ describe("ConfirmUploadCommand", () => {
     expect(storage.getMetadata).toHaveBeenCalledWith(`${file.key}.quarantine`);
   });
 
-  it("promotes file to uploaded immediately when scanWorker is provided", async () => {
-    const file = createFile();
-    const promotedFile: FileEntity = { ...file, status: "uploaded" };
-    vi.mocked(filesRepo.findByKey).mockResolvedValueOnce(file).mockResolvedValueOnce(promotedFile);
-    vi.mocked(filesRepo.updateById).mockResolvedValue(ok({ ...file, status: "uploading" }));
+  it("returns the existing processing record on repeat confirmation", async () => {
+    const file: FileEntity = { ...createFile(), status: "scanning" };
+    vi.mocked(filesRepo.findByKey).mockResolvedValue(file);
 
-    const scanWorker = {
-      scanOne: vi.fn().mockResolvedValue(true),
-    };
-
-    const commandWithWorker = new ConfirmUploadCommand(
-      filesRepo,
-      storage,
-      undefined,
-      authorization,
-      tenantContext,
-      scanWorker as never,
-    );
-
-    const result = await commandWithWorker.execute(file.key, ACTOR);
+    const result = await command.execute(file.key, ACTOR);
 
     expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value.status).toBe("uploaded");
-    }
-    expect(scanWorker.scanOne).toHaveBeenCalledWith(file);
+    expect(storage.getMetadata).not.toHaveBeenCalled();
+    expect(filesRepo.markUploadReady).not.toHaveBeenCalled();
   });
 });
 

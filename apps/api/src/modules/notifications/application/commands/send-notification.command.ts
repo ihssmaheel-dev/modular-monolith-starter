@@ -25,6 +25,7 @@ import { NotificationsRepository } from "../../infrastructure/repositories/notif
 import { PreferencesRepository } from "../../infrastructure/repositories/preferences.repository";
 import { BatchesRepository } from "../../infrastructure/repositories/batches.repository";
 import { DeliveryIntentsRepository } from "../../infrastructure/repositories/delivery-intents.repository";
+import { OperationReceiptService } from "../../../../infrastructure/idempotency";
 
 export interface SendNotificationInput {
   userId: string;
@@ -35,6 +36,7 @@ export interface SendNotificationInput {
   data?: Record<string, unknown> & { entityId?: string };
   /** Overrides the type's default channels (e.g. email already sent elsewhere). */
   channels?: NotificationChannel[];
+  sourceEvent?: { id: string; consumer: string };
 }
 
 const CADENCE_WINDOW_MINUTES: Record<DigestCadence, number> = {
@@ -42,6 +44,7 @@ const CADENCE_WINDOW_MINUTES: Record<DigestCadence, number> = {
   hourly: 60,
   daily: 1440,
 };
+const EFFECT_RECEIPT_RETENTION_MS = 8 * 24 * 60 * 60 * 1_000;
 
 /**
  * THE single entry point for notifications. Features dispatch domain events;
@@ -65,6 +68,7 @@ export class SendNotificationCommand {
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly tenantContext?: TenantContextService,
     @Optional() private readonly cache?: DistributedCacheService,
+    @Optional() private readonly operationReceipts?: OperationReceiptService,
   ) {
     this.logger = logger.child({ module: "SendNotificationCommand" });
   }
@@ -72,7 +76,7 @@ export class SendNotificationCommand {
   async execute(
     input: SendNotificationInput,
   ): Promise<Result<Notification, NotificationError | TransactionError>> {
-    const operation = () => this.persist(input);
+    const operation = () => this.persistWithReceipt(input);
     const result = this.database
       ? await this.database.withResultTransaction(operation)
       : await operation();
@@ -80,8 +84,51 @@ export class SendNotificationCommand {
     // Channel delivery runs after commit: providers are slow, lossy, and must
     // never roll back the persisted row. Batched rows defer every channel
     // ping to the digest (the row itself is already visible in the feed).
-    await this.deliver(result.value.notification, result.value.deliverNow, input.tenantId);
+    if (!result.value.replayed) {
+      await this.deliver(result.value.notification, result.value.deliverNow, input.tenantId);
+    }
     return ok(result.value.notification);
+  }
+
+  private async persistWithReceipt(
+    input: SendNotificationInput,
+  ): Promise<
+    Result<
+      { notification: Notification; deliverNow: NotificationChannel[]; replayed: boolean },
+      NotificationError | TransactionError
+    >
+  > {
+    if (!input.sourceEvent || !this.operationReceipts || !this.database) {
+      const persisted = await this.persist(input);
+      return persisted.map((value) => ({ ...value, replayed: false }));
+    }
+
+    const receipt = await this.operationReceipts.claim({
+      operationId: input.sourceEvent.id,
+      operationType: input.sourceEvent.consumer,
+      scopeId: input.tenantId ?? input.userId,
+      tenantId: input.tenantId,
+      requestHash: input.sourceEvent.id,
+      expiresAt: new Date(Date.now() + EFFECT_RECEIPT_RETENTION_MS),
+    });
+    if (receipt.isErr()) return err({ type: "NOTIFICATION_SEND_FAILED" });
+    if (receipt.value.state === "COMPLETED") {
+      const notificationId = completedNotificationId(receipt.value.result);
+      if (!notificationId) return err({ type: "NOTIFICATION_SEND_FAILED" });
+      const existing = await this.notifications.findById(notificationId);
+      if (existing.isErr() || !existing.value) return err({ type: "NOTIFICATION_SEND_FAILED" });
+      return ok({ notification: existing.value, deliverNow: [], replayed: true });
+    }
+
+    const persisted = await this.persist(input);
+    if (persisted.isErr()) return err(persisted.error);
+    const completed = await this.operationReceipts.complete(
+      receipt.value.receiptId,
+      { notificationId: persisted.value.notification.id },
+      new Date(Date.now() + EFFECT_RECEIPT_RETENTION_MS),
+    );
+    if (completed.isErr()) return err({ type: "NOTIFICATION_SEND_FAILED" });
+    return ok({ ...persisted.value, replayed: false });
   }
 
   private async persist(
@@ -296,4 +343,11 @@ export class SendNotificationCommand {
       }
     }
   }
+}
+
+function completedNotificationId(value: unknown): string | undefined {
+  if (typeof value !== "object" || value === null || !("notificationId" in value)) {
+    return undefined;
+  }
+  return typeof value.notificationId === "string" ? value.notificationId : undefined;
 }

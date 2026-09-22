@@ -16,8 +16,9 @@ function stubClient(overrides: Record<string, unknown> = {}) {
     }),
     confirmUpload: vi.fn().mockResolvedValue({
       status: 200,
-      body: { id: "file-1", key: "k" },
+      body: { id: "file-1", key: "k", status: "uploaded" },
     }),
+    getById: vi.fn(),
     ...overrides,
   };
 }
@@ -52,7 +53,7 @@ describe("uploadFile", () => {
       SOURCE.contentType,
     );
     expect(client.confirmUpload).toHaveBeenCalledWith({ body: { fileKey: "k" } });
-    expect(file).toEqual({ id: "file-1", key: "k" });
+    expect(file).toEqual({ id: "file-1", key: "k", status: "uploaded" });
   });
 
   it("should surface the server i18n key when requesting fails", async () => {
@@ -81,5 +82,24 @@ describe("uploadFile", () => {
     });
 
     await expect(uploadFile(client, SOURCE, vi.fn())).rejects.toThrow("api.error.uploadFailed");
+  });
+
+  it("waits for the scan worker before returning the file", async () => {
+    const uploaded = { id: "file-1", key: "k", status: "uploaded" };
+    const client = stubClient({
+      confirmUpload: vi.fn().mockResolvedValue({
+        status: 200,
+        body: { id: "file-1", key: "k", status: "uploading" },
+      }),
+      getById: vi
+        .fn()
+        .mockResolvedValueOnce({ status: 200, body: { ...uploaded, status: "scanning" } })
+        .mockResolvedValueOnce({ status: 200, body: uploaded }),
+    });
+
+    await expect(
+      uploadFile(client, SOURCE, vi.fn(), { pollIntervalMs: 1, deadlineMs: 100 }),
+    ).resolves.toEqual(uploaded);
+    expect(client.getById).toHaveBeenCalledTimes(2);
   });
 });

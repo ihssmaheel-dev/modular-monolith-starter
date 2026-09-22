@@ -1,4 +1,4 @@
-import { DynamicModule, Global, Module } from "@nestjs/common";
+import { DynamicModule, Global, Module, type OnModuleInit } from "@nestjs/common";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { env } from "../../config/env";
 import { AcceptInvitationCommand } from "./application/commands/accept-invitation.command";
@@ -32,6 +32,9 @@ import { OrganizationsOrpcController } from "./presentation/orpc/organizations.o
 import { MembershipsOrpcController } from "./presentation/orpc/memberships.orpc.controller";
 import { TENANT_ACCESS_RESOLVER_PORT } from "../../common/ports/tenant-access-resolver.port";
 import { TenancyAccessResolverAdapter } from "./application/adapters/tenancy-access-resolver.adapter";
+import { OutboxConsumerRegistry } from "../../infrastructure/outbox";
+import type { UserDeletedEventPayload, UserUpdatedEventPayload } from "@repo/contracts";
+import type { InvitationCreatedEvent } from "./domain/events/tenancy.events";
 
 const providers = [
   OrganizationsRepository,
@@ -64,7 +67,33 @@ const providers = [
 
 @Global()
 @Module({})
-export class TenancyModule {
+export class TenancyModule implements OnModuleInit {
+  constructor(
+    private readonly outboxConsumers: OutboxConsumerRegistry,
+    private readonly invitationEmail: InvitationEmailListener,
+    private readonly membershipUsers: MembershipUserListener,
+  ) {}
+
+  onModuleInit(): void {
+    this.outboxConsumers.register({
+      id: "tenancy.invitation-email.v1",
+      topics: ["tenancy.invitation.created"],
+      handle: (payload, metadata) =>
+        this.invitationEmail.handle(payload as InvitationCreatedEvent, metadata),
+    });
+    this.outboxConsumers.register({
+      id: "tenancy.membership-user-snapshot.v1",
+      topics: ["user.updated"],
+      handle: (payload) => this.membershipUsers.updateSnapshots(payload as UserUpdatedEventPayload),
+    });
+    this.outboxConsumers.register({
+      id: "tenancy.membership-user-delete.v1",
+      topics: ["user.deleted"],
+      handle: (payload) =>
+        this.membershipUsers.removeMemberships(payload as UserDeletedEventPayload),
+    });
+  }
+
   static forRoot(): DynamicModule {
     const domainControllers =
       env.TENANCY_MODE === "multi"

@@ -8,6 +8,7 @@
 
 - `OutboxPendingDepthHigh` (`outbox_pending_events_depth > 1000` for 10m) or
   `OutboxEventLagHigh` (`outbox_pending_age_ms > 300000` for 5m).
+- `RequiredOutboxConsumerFailures` reports repeated failures from a required durable consumer.
 - Users report missing side effects: notifications never arrive, emails unsent, realtime
   silent — while direct reads/writes look fine (the write path works; the relay doesn't).
 

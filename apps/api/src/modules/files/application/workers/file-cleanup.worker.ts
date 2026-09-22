@@ -109,7 +109,7 @@ export class FileCleanupWorker {
 
   private async purgeFile(file: { id: string; key: string; fileSize: number }): Promise<boolean> {
     try {
-      const deletedObject = await deleteFileObjects(this.storageService, file.key);
+      const deletedObject = await deleteFileObjects(this.storageService, file);
       if (deletedObject.isErr()) return false;
       const deletedRow = await this.database.runTransaction(() =>
         this.filesRepository.deleteById(file.id),

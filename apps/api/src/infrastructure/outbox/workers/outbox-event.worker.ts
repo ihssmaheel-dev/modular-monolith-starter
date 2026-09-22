@@ -20,9 +20,10 @@ import {
 } from "../outbox.constants";
 import { RedisService } from "../../redis/redis.service";
 import { OperationReceiptService } from "../../idempotency/operation-receipt.service";
+import { OutboxConsumerRegistry } from "../services/outbox-consumer.registry";
 
 const OUTBOX_CONSUMER_OPERATION = "outbox:event-consumer:v1";
-const OUTBOX_COMPLETED_RECEIPT_RETENTION_MS = 3 * 24 * 60 * 60 * 1_000;
+const OUTBOX_COMPLETED_RECEIPT_RETENTION_MS = 8 * 24 * 60 * 60 * 1_000;
 
 /**
  * At-least-once delivery contract: a job may be redelivered after crashes,
@@ -41,6 +42,7 @@ export class OutboxEventWorker implements OnModuleInit {
     private readonly queues: QueueService,
     private readonly events: EventEmitter2,
     logger: PinoLoggerService,
+    private readonly consumers: OutboxConsumerRegistry,
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly repository?: OutboxRepository,
     @Optional() private readonly tenantContext?: TenantContextService,
@@ -65,8 +67,7 @@ export class OutboxEventWorker implements OnModuleInit {
         ownsEvent = claim.claimed;
         receiptId = claim.receiptId;
         if (claim.claimed) {
-          const results = await this.emitInScope(event);
-          this.assertConsumerSuccess(event, results);
+          await this.consumeInScope(event);
           await this.markEventProcessed(event.id);
           await this.completeEvent(receiptId);
           eventProcessed = true;
@@ -161,37 +162,21 @@ export class OutboxEventWorker implements OnModuleInit {
     }
   }
 
-  private emitInScope(event: OutboxEventEnvelope): Promise<unknown[]> {
+  private consumeInScope(event: OutboxEventEnvelope): Promise<void> {
     const meta: OutboxEventMetadata = {
       eventId: event.id,
       topic: event.topic,
       tenantId: event.tenantId,
     };
-    if (!this.tenantContext) return this.events.emitAsync(event.topic, event.payload, meta);
-    return this.tenantContext.runSystem({ mode: env.TENANCY_MODE, tenantId: event.tenantId }, () =>
-      this.events.emitAsync(event.topic, event.payload, meta),
+    const consume = async () => {
+      await this.consumers.executeRequired(event);
+      await this.events.emitAsync(event.topic, event.payload, meta);
+    };
+    if (!this.tenantContext) return consume();
+    return this.tenantContext.runSystem(
+      { mode: env.TENANCY_MODE, tenantId: event.tenantId },
+      consume,
     );
-  }
-
-  private assertConsumerSuccess(event: OutboxEventEnvelope, results: unknown[]): void {
-    for (const result of results) {
-      if (
-        result &&
-        typeof result === "object" &&
-        "isErr" in result &&
-        typeof (result as { isErr?: () => boolean }).isErr === "function" &&
-        (result as { isErr: () => boolean }).isErr()
-      ) {
-        const errorDetail = (result as { error?: unknown }).error;
-        this.logger.error(
-          { eventId: event.id, topic: event.topic, error: errorDetail },
-          "Required durable consumer returned failure Result",
-        );
-        throw new Error(
-          `DURABLE_CONSUMER_FAILED:${event.topic}:${JSON.stringify(errorDetail ?? "unknown")}`,
-        );
-      }
-    }
   }
 
   private async markPublished(eventId: string): Promise<void> {

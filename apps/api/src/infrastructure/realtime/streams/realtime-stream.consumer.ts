@@ -119,6 +119,10 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
         grouped.xreadgroup ? grouped : null,
       );
     } catch (err) {
+      // ioredis rejects a blocking read when quit() unblocks the connection.
+      // Shutdown is expected control flow and must not create false production
+      // incidents or wait for the normal retry delay.
+      if (this.isShuttingDown) return;
       if (String(err).includes("NOGROUP")) {
         // Our group was reaped while we were idle (or Redis lost it): recreate and continue.
         await this.ensureConsumerGroup();

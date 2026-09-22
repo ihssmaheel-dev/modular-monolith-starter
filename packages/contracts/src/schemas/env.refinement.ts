@@ -30,6 +30,7 @@ export type EnvironmentForValidation = {
   DATABASE_URL: string;
   CLIENT_URL: string;
   API_URL: string;
+  COOKIE_DOMAIN?: string;
   S3_ENDPOINT?: string;
   S3_REGION: string;
   S3_BUCKET: string;

@@ -60,6 +60,21 @@ apps/web/
 - Authentication prefers httpOnly cookies, with short-lived Bearer tokens as a fallback.
 - `VITE_API_URL` is validated in `src/lib/env.ts`.
 
+### SSR security and refresh coordination
+
+Each server render creates a fresh CSP nonce in `src/router.tsx` before TanStack attaches its SSR
+scripts. The root route builds the matching response policy and applies the nonce to the theme
+bootstrap. The proxy must forward this application-owned policy instead of adding another document
+policy. Do not cache personalized HTML; cache immutable client assets normally.
+
+The shared `RefreshCoordinator` bounds both Web Lock acquisition and the refresh request. Browser
+refresh uses only the httpOnly cookie and requires Web Locks for cross-tab rotation safety; an
+environment without Web Locks returns a typed `unsupported` outcome instead of starting competing
+refreshes. Mobile and trusted non-browser clients may pass an explicit refresh token. Transient
+network/timeout outcomes preserve the current auth state; only an invalid session clears it. The
+coordinator rechecks the active identity before applying a late response so logout or user switching
+cannot be undone.
+
 ### Public links and authentication handoff
 
 Public browser destinations are defined once in `@repo/contracts` as

@@ -7,7 +7,7 @@ import { err, ok, type Result } from "neverthrow";
 import { ClsService } from "nestjs-cls";
 import { PinoLoggerService } from "../logger/logger.service";
 import type { TransactionError } from "./transactions/transaction.types";
-import { TransactionScopes, ADVISORY_LOCK_NAMESPACE } from "./transactions/transaction-scopes";
+import { TransactionScopes } from "./transactions/transaction-scopes";
 import { writeAuditMutation } from "../audit/writers/audit-mutation.writer";
 import { isDatabaseMutationAudit, type DatabaseMutationAudit } from "../audit/audit.types";
 import { createDatabasePool } from "./connection/database-pool";
@@ -288,48 +288,14 @@ export class DatabaseService implements OnApplicationShutdown {
     key: string,
     fn: (signal?: AbortSignal) => Promise<T>,
   ): Promise<{ executed: boolean; result?: T }> {
-    if (this.redisLock) {
-      if (!this.redisLock.isAvailable()) {
-        this.logger.warn(
-          { key },
-          "Redis lock authority is unavailable; failing closed to prevent split-brain dual execution",
-        );
-        return { executed: false };
-      }
-      return this.redisLock.withLock(key, fn);
-    }
-
-    const client = await this.pool.connect();
-    let acquired = false;
-    const controller = new AbortController();
-    try {
-      const check = await client.query<{ acquired: boolean }>(
-        "SELECT pg_try_advisory_lock($1, hashtext($2)) as acquired",
-        [ADVISORY_LOCK_NAMESPACE, key],
+    if (!this.redisLock?.isAvailable()) {
+      this.logger.warn(
+        { key },
+        "Redis lock authority is unavailable; failing closed to prevent split-brain execution",
       );
-      acquired = Boolean(check.rows[0]?.acquired);
-      if (!acquired) {
-        return { executed: false };
-      }
-
-      const result = await fn(controller.signal);
-      return { executed: true, result };
-    } finally {
-      if (acquired) {
-        try {
-          await client.query("SELECT pg_advisory_unlock($1, hashtext($2))", [
-            ADVISORY_LOCK_NAMESPACE,
-            key,
-          ]);
-        } catch (unlockError) {
-          this.logger.warn(
-            { error: String(unlockError), key },
-            "Failed to release session advisory lock",
-          );
-        }
-      }
-      client.release();
+      return { executed: false };
     }
+    return this.redisLock.withLock(key, fn);
   }
 
   /** Runs fn in a savepoint of the ambient transaction; a throw rolls back and propagates. */

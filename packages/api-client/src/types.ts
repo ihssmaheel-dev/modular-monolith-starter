@@ -6,6 +6,7 @@ export interface ApiClientOptions {
   getRefreshToken?: () => string | null;
   getLocale?: () => string | null;
   getTenantId?: () => string | null;
+  getAuthFingerprint?: () => string;
   onAuthRefreshed?: (response: AuthResponse) => void;
   onAuthFailure?: () => void | Promise<void>;
 }

@@ -1,11 +1,35 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { err, ok } from "neverthrow";
-import { FileScanWorker } from "./file-scan.worker";
-import type { FilesRepository } from "../../infrastructure/repositories/files.repository";
-import type { FileScannerService } from "../../../../infrastructure/storage/scanner/file-scanner.service";
-import type { StorageService } from "../../../../infrastructure/storage/storage.service";
+
 import type { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import type { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
+import type { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
+import type { FileScannerService } from "../../../../infrastructure/storage/scanner/file-scanner.service";
+import type { StorageService } from "../../../../infrastructure/storage/storage.service";
+import type { FileEntity } from "../../domain/entities/file.entity";
+import type { FilesRepository } from "../../infrastructure/repositories/files.repository";
+import { FileScanWorker } from "./file-scan.worker";
+
+const FILE: FileEntity = {
+  id: "file-1",
+  key: "general/user-1/abc.pdf",
+  fileName: "abc.pdf",
+  fileSize: 10,
+  contentType: "text/plain",
+  bucket: "uploads",
+  parentType: "general",
+  uploadedBy: "user-1",
+  status: "scanning",
+  scanClaimToken: "claim-1",
+  scanAttempts: 1,
+  scanSourceEtag: '"approved"',
+  scanCandidateKeys: ["general/user-1/abc.pdf.candidate-old-claim"],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+const SOURCE = { size: 10, contentType: "text/plain", etag: '"approved"' };
+const CANDIDATE_KEY = "general/user-1/abc.pdf.candidate-claim-1";
 
 describe("FileScanWorker", () => {
   let files: FilesRepository;
@@ -14,16 +38,16 @@ describe("FileScanWorker", () => {
   let database: DatabaseService;
   let tenant: TenantContextService;
   let logger: PinoLoggerService;
+  let metrics: MetricsService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     files = {
-      claimUploadingFiles: vi
-        .fn()
-        .mockResolvedValue([
-          { id: "file-1", key: "general/user-1/abc.pdf", fileSize: 10, contentType: "text/plain" },
-        ]),
-      updateById: vi.fn().mockResolvedValue(ok({})),
+      claimUploadingFiles: vi.fn().mockResolvedValue([FILE]),
+      renewScanLease: vi.fn().mockResolvedValue(true),
+      completeScan: vi.fn().mockResolvedValue(true),
+      retryScan: vi.fn().mockResolvedValue(true),
+      rejectScan: vi.fn().mockResolvedValue(true),
     } as unknown as FilesRepository;
     scanner = {
       scan: vi.fn().mockResolvedValue({ result: "clean" }),
@@ -31,9 +55,7 @@ describe("FileScanWorker", () => {
     storage = {
       copy: vi.fn().mockResolvedValue(ok(undefined)),
       delete: vi.fn().mockResolvedValue(ok(undefined)),
-      getMetadata: vi
-        .fn()
-        .mockResolvedValue(ok({ size: 10, contentType: "text/plain", etag: '"approved"' })),
+      getMetadata: vi.fn().mockResolvedValueOnce(ok(SOURCE)).mockResolvedValueOnce(ok(SOURCE)),
     } as unknown as StorageService;
     database = {
       runTransaction: vi.fn(async (callback: () => Promise<unknown>) => callback()),
@@ -46,64 +68,69 @@ describe("FileScanWorker", () => {
       warn: vi.fn(),
       error: vi.fn(),
     } as unknown as PinoLoggerService;
+    metrics = {
+      incrementCounter: vi.fn(),
+      recordHistogram: vi.fn(),
+    } as unknown as MetricsService;
   });
 
   function worker() {
-    return new FileScanWorker(files, scanner, storage, database, tenant, logger);
+    return new FileScanWorker(files, scanner, storage, database, tenant, metrics, logger);
   }
 
-  it("promotes clean bytes by copying quarantine to the final key (H09)", async () => {
+  it("promotes clean bytes to an immutable claim candidate", async () => {
     await worker().scanQuarantinedFiles();
 
-    // Scanned at the quarantine key, promoted by server-side copy, served key verified.
-    expect(scanner.scan).toHaveBeenCalledWith(
-      expect.objectContaining({ key: "general/user-1/abc.pdf.quarantine" }),
-    );
     expect(storage.copy).toHaveBeenCalledWith(
-      "general/user-1/abc.pdf.quarantine",
-      "general/user-1/abc.pdf",
+      `${FILE.key}.quarantine`,
+      CANDIDATE_KEY,
       expect.objectContaining({ etag: '"approved"' }),
     );
-    expect(files.updateById).toHaveBeenCalledWith("file-1", { status: "uploaded" });
-    expect(storage.delete).toHaveBeenCalledWith("general/user-1/abc.pdf.quarantine");
+    expect(files.completeScan).toHaveBeenCalledWith(FILE.id, "claim-1", CANDIDATE_KEY);
+    expect(storage.delete).toHaveBeenCalledWith(`${FILE.key}.quarantine`);
   });
 
-  it("quarantines objects that fail antivirus or integrity checks", async () => {
+  it("rejects infected content through the current claim token", async () => {
     vi.mocked(scanner.scan).mockResolvedValue({ result: "infected" });
 
     await worker().scanQuarantinedFiles();
 
-    expect(files.updateById).toHaveBeenCalledWith("file-1", { status: "failed" });
+    expect(files.rejectScan).toHaveBeenCalledWith(FILE.id, "claim-1", "CONTENT_REJECTED");
     expect(storage.copy).not.toHaveBeenCalled();
-    expect(storage.delete).toHaveBeenCalledWith("general/user-1/abc.pdf.quarantine");
   });
 
-  it("leaves the record unpromoted when the copy fails", async () => {
+  it("keeps recoverable bytes and schedules retry when promotion fails", async () => {
     vi.mocked(storage.copy).mockResolvedValue(
       err({ code: "COPY_FAILED", message: "api.error.uploadFailed" }),
     );
 
     await worker().scanQuarantinedFiles();
 
-    expect(files.updateById).not.toHaveBeenCalled();
+    expect(files.retryScan).toHaveBeenCalledWith(
+      FILE.id,
+      "claim-1",
+      "COPY_FAILED",
+      expect.any(Date),
+      5,
+    );
+    expect(storage.delete).not.toHaveBeenCalledWith(`${FILE.key}.quarantine`);
   });
 
-  it("binds promotion to the object identity that was scanned", async () => {
-    const scanStarted = new Promise<void>((resolve) => {
-      vi.mocked(scanner.scan).mockImplementation(async (file) => {
-        expect(file).toEqual(expect.objectContaining({ etag: '"approved"' }));
-        resolve();
-        return { result: "clean" };
-      });
-    });
+  it("deletes only its candidate when a stale owner loses completion", async () => {
+    vi.mocked(files.completeScan).mockResolvedValue(false);
 
     await worker().scanQuarantinedFiles();
-    await scanStarted;
 
-    expect(storage.copy).toHaveBeenCalledWith(
-      "general/user-1/abc.pdf.quarantine",
-      "general/user-1/abc.pdf",
-      expect.objectContaining({ etag: '"approved"' }),
-    );
+    expect(storage.delete).toHaveBeenCalledWith(CANDIDATE_KEY);
+    expect(storage.delete).not.toHaveBeenCalledWith(`${FILE.key}.quarantine`);
+  });
+
+  it("does not copy after lease ownership is lost", async () => {
+    vi.mocked(files.renewScanLease).mockResolvedValue(false);
+
+    await worker().scanQuarantinedFiles();
+
+    expect(storage.copy).not.toHaveBeenCalled();
+    expect(files.completeScan).not.toHaveBeenCalled();
   });
 });

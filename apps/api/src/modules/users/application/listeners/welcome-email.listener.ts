@@ -1,5 +1,4 @@
 import { Injectable } from "@nestjs/common";
-import { OnEvent } from "@nestjs/event-emitter";
 import { WelcomeEmail, render } from "@repo/email";
 import {
   buildFrontendUrl,
@@ -9,7 +8,6 @@ import {
 } from "@repo/contracts";
 import * as React from "react";
 import { env } from "../../../../config/env";
-import { EmailService } from "../../../../infrastructure/email/email.service";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { ok, err, type Result } from "neverthrow";
@@ -18,47 +16,40 @@ import { UserCreatedEvent } from "../../domain/events/user.events";
 
 const EMAIL_RETRY_ATTEMPTS = 5;
 const EMAIL_RETRY_DELAY_MS = 5_000;
+const EMAIL_JOB_RETENTION_SECONDS = 8 * 24 * 60 * 60;
 
 @Injectable()
 export class WelcomeEmailListener {
   constructor(
     private readonly logger: PinoLoggerService,
     private readonly queueService: QueueService,
-    private readonly emailService: EmailService,
     private readonly i18n: I18nService,
   ) {}
 
-  @OnEvent("user.created")
   async handle(
     event: UserCreatedEvent,
     meta?: OutboxEventMetadata,
   ): Promise<Result<void, unknown>> {
-    const data = await this.buildEmail(event);
+    const operationId = `welcome-email-${meta?.eventId ?? event.userId}`;
+    const data = { ...(await this.buildEmail(event)), operationId };
     const queue = this.queueService.getQueue<EmailJobData>("email");
-    if (queue) {
-      try {
-        const dedupeKey = meta?.eventId ?? event.userId;
-        await queue.add("welcome", data, {
-          // BullMQ prohibits colons in custom job IDs; hyphens keep the
-          // id stable and retryable instead of failing into the fallback.
-          jobId: `welcome-email-${dedupeKey}`,
-          attempts: EMAIL_RETRY_ATTEMPTS,
-          backoff: { type: "exponential", delay: EMAIL_RETRY_DELAY_MS },
-          removeOnComplete: 100,
-          removeOnFail: 1000,
-        });
-        return ok(undefined);
-      } catch (error) {
-        this.logger.error({ error, userId: event.userId }, "Welcome email queueing failed");
-      }
+    if (!queue) {
+      return err({ type: "EMAIL_QUEUE_UNAVAILABLE" });
     }
 
-    const result = await this.emailService.send(data);
-    if (result.isErr()) {
-      this.logger.error({ userId: event.userId, code: result.error.code }, "Welcome email failed");
-      return err(result.error);
+    try {
+      await queue.add("welcome", data, {
+        jobId: operationId,
+        attempts: EMAIL_RETRY_ATTEMPTS,
+        backoff: { type: "exponential", delay: EMAIL_RETRY_DELAY_MS },
+        removeOnComplete: { age: EMAIL_JOB_RETENTION_SECONDS, count: 10_000 },
+        removeOnFail: { age: EMAIL_JOB_RETENTION_SECONDS, count: 10_000 },
+      });
+      return ok(undefined);
+    } catch (error) {
+      this.logger.error({ error, userId: event.userId }, "Welcome email queueing failed");
+      return err({ type: "EMAIL_QUEUE_FAILED" });
     }
-    return ok(undefined);
   }
 
   private async buildEmail(event: UserCreatedEvent): Promise<EmailJobData> {

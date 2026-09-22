@@ -29,6 +29,7 @@ describe("DatabaseService", () => {
     const mockLogger = {
       info: vi.fn(),
       error: vi.fn(),
+      warn: vi.fn(),
       child: vi.fn().mockReturnThis(),
     } as unknown as PinoLoggerService;
     const mockCls = {
@@ -45,6 +46,7 @@ describe("DatabaseService", () => {
     const mockLogger = {
       info: vi.fn(),
       error: vi.fn(),
+      warn: vi.fn(),
       child: vi.fn().mockReturnThis(),
     } as unknown as PinoLoggerService;
     let current: Record<string, unknown> = { ...context };
@@ -357,72 +359,13 @@ describe("DatabaseService", () => {
   });
 
   describe("withExclusiveExecution", () => {
-    it("acquires session lock, executes fn, releases lock, and releases client", async () => {
-      const mockQuery = vi
-        .fn()
-        .mockResolvedValueOnce({ rows: [{ acquired: true }] })
-        .mockResolvedValueOnce({ rows: [] });
-      const mockRelease = vi.fn();
-      const mockConnect = vi.fn().mockResolvedValue({
-        query: mockQuery,
-        release: mockRelease,
-      });
-      const pool = service.getPool();
-      vi.spyOn(pool, "connect").mockImplementation(mockConnect as never);
-
+    it("fails closed when the distributed lock authority is unavailable", async () => {
       const fn = vi.fn(async () => "result-data");
-      const result = await service.withExclusiveExecution("test-job", fn);
 
-      expect(result).toEqual({ executed: true, result: "result-data" });
-      expect(fn).toHaveBeenCalledTimes(1);
-      expect(mockQuery).toHaveBeenCalledTimes(2);
-      expect(mockQuery.mock.calls[0]?.[0]).toContain("pg_try_advisory_lock");
-      expect(mockQuery.mock.calls[1]?.[0]).toContain("pg_advisory_unlock");
-      expect(mockRelease).toHaveBeenCalledTimes(1);
-    });
-
-    it("skips execution cleanly if lock is not acquired", async () => {
-      const mockQuery = vi.fn().mockResolvedValueOnce({ rows: [{ acquired: false }] });
-      const mockRelease = vi.fn();
-      const mockConnect = vi.fn().mockResolvedValue({
-        query: mockQuery,
-        release: mockRelease,
-      });
-      const pool = service.getPool();
-      vi.spyOn(pool, "connect").mockImplementation(mockConnect as never);
-
-      const fn = vi.fn(async () => "result-data");
       const result = await service.withExclusiveExecution("test-job", fn);
 
       expect(result).toEqual({ executed: false });
       expect(fn).not.toHaveBeenCalled();
-      expect(mockQuery).toHaveBeenCalledTimes(1);
-      expect(mockRelease).toHaveBeenCalledTimes(1);
-    });
-
-    it("releases lock and client even if fn throws", async () => {
-      const mockQuery = vi
-        .fn()
-        .mockResolvedValueOnce({ rows: [{ acquired: true }] })
-        .mockResolvedValueOnce({ rows: [] });
-      const mockRelease = vi.fn();
-      const mockConnect = vi.fn().mockResolvedValue({
-        query: mockQuery,
-        release: mockRelease,
-      });
-      const pool = service.getPool();
-      vi.spyOn(pool, "connect").mockImplementation(mockConnect as never);
-
-      const fn = vi.fn(async () => {
-        throw new Error("worker task crashed");
-      });
-
-      await expect(service.withExclusiveExecution("test-job", fn)).rejects.toThrow(
-        "worker task crashed",
-      );
-      expect(mockQuery).toHaveBeenCalledTimes(2);
-      expect(mockQuery.mock.calls[1]?.[0]).toContain("pg_advisory_unlock");
-      expect(mockRelease).toHaveBeenCalledTimes(1);
     });
 
     it("delegates to RedisLockService when available (PgBouncer compatibility)", async () => {

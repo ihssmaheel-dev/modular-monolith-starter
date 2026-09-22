@@ -27,6 +27,8 @@
     "test:unit": "turbo test:unit --concurrency=2",
     "test:integration": "turbo test:integration",
     "test:e2e": "turbo test:e2e",
+    "test:production": "node scripts/test-environment.js",
+    "test:release": "pnpm rules:check && pnpm typecheck && pnpm test:unit && pnpm test:integration && pnpm test:production && pnpm observability:check && pnpm observability:rules:test && pnpm build && pnpm bundle:check && pnpm format:check",
     "test:api:watch": "pnpm --filter api test:watch",
     "db:generate": "pnpm --filter api db:generate",
     "db:migrate": "pnpm --filter api db:migrate",
@@ -46,6 +48,7 @@
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
     "docker:prod": "docker compose -f docker/docker-compose.prod.yml up -d --wait",
     "staging:up": "node scripts/staging-up.js",
+    "test:tooling": "node --test scripts/staging-up.test.js scripts/project-init/*.test.js",
     "staging:logs": "docker compose -f docker/docker-compose.staging.yml logs -f",
     "staging:down": "docker compose -f docker/docker-compose.staging.yml down",
     "staging:seed": "node scripts/staging-seed.js",
@@ -53,6 +56,7 @@
     "observability:down": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.observability.yml down",
     "observability:logs": "docker compose -f docker/docker-compose.observability.yml logs -f",
     "observability:check": "node scripts/validate-observability-config.js",
+    "observability:rules:test": "node scripts/validate-alert-rules.js",
     "clean": "node scripts/clean.js",
     "clean:all": "node scripts/clean.js --all",
     "prepare": "husky",
@@ -83,7 +87,7 @@
   },
   "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": "^22.12.0 || >=24.0.0"
+    "node": ">=24.21.0 <25"
   },
   "lint-staged": {
     "apps/api/src/**/*.ts": [

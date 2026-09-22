@@ -1,16 +1,27 @@
 import { Injectable } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
+
 import { env } from "../../../../config/env";
 import { DatabaseService, TenantContextService } from "../../../../infrastructure/database";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
+import { MetricsService } from "../../../../infrastructure/metrics/metrics.service";
 import { FileScannerService } from "../../../../infrastructure/storage/scanner/file-scanner.service";
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
+import type { StoredObjectMetadata } from "../../../../infrastructure/storage/storage.types";
+import type { FileEntity } from "../../domain/entities/file.entity";
+import {
+  promotionCandidateKeyFor,
+  quarantineKeyFor,
+} from "../../domain/value-objects/file-keys.vo";
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
-import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
 const SCAN_BATCH_SIZE = 50;
+const SCAN_LEASE_MS = 2 * 60 * 1_000;
+const SCAN_MAX_ATTEMPTS = 5;
+const SCAN_RETRY_BASE_MS = 5_000;
+const SCAN_RETRY_MAX_MS = 5 * 60 * 1_000;
 
-/** Promotes only objects that pass integrity and optional antivirus scanning. */
+/** The only owner of scan, promotion, and terminal upload transitions. */
 @Injectable()
 export class FileScanWorker {
   private readonly logger: PinoLoggerService;
@@ -22,6 +33,7 @@ export class FileScanWorker {
     private readonly storage: StorageService,
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
+    private readonly metrics: MetricsService,
     logger: PinoLoggerService,
   ) {
     this.logger = logger.child({ module: "FileScanWorker" });
@@ -29,15 +41,14 @@ export class FileScanWorker {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async scanQuarantinedFiles(): Promise<void> {
-    if (env.PROCESS_ROLE === "api") return;
-    if (this.running) return;
+    if (env.PROCESS_ROLE === "api" || this.running) return;
     this.running = true;
     try {
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        const files = await this.database.runTransaction(() =>
-          this.files.claimUploadingFiles(SCAN_BATCH_SIZE, true),
+        const claims = await this.database.runTransaction(() =>
+          this.files.claimUploadingFiles(SCAN_BATCH_SIZE, SCAN_LEASE_MS, SCAN_MAX_ATTEMPTS, true),
         );
-        for (const file of files) await this.scanOne(file);
+        for (const claim of claims) await this.scanOne(claim);
       });
     } catch (error) {
       this.logger.error({ error }, "Quarantine scan failed");
@@ -46,91 +57,144 @@ export class FileScanWorker {
     }
   }
 
-  async scanOne(file: {
-    id: string;
-    key: string;
-    fileSize: number;
-    contentType: string;
-  }): Promise<boolean> {
+  async scanOne(file: FileEntity): Promise<boolean> {
+    const claimToken = file.scanClaimToken;
+    this.metrics.recordHistogram(
+      "file_scan_attempts",
+      "File scan attempt number when processing starts",
+      file.scanAttempts ?? 1,
+      undefined,
+      [1, 2, 3, 4, 5],
+    );
+    if (!claimToken) {
+      this.logger.error({ fileId: file.id }, "Scan claim is missing its fencing token");
+      return false;
+    }
+
     const quarantineKey = quarantineKeyFor(file.key);
     const source = await this.storage.getMetadata(quarantineKey);
-    if (source.isErr()) {
-      this.logger.warn(
-        { fileId: file.id, error: source.error },
-        "Transient S3 error fetching quarantine metadata, will retry",
-      );
+    if (source.isErr() || !source.value) {
+      await this.retry(file, claimToken, source.isErr() ? source.error.code : "OBJECT_MISSING");
       return false;
     }
-    if (!source.value || !this.matches(file, source.value)) {
-      await this.markFailed(file.id);
-      await this.storage.delete(quarantineKey);
+    if (!this.matchesSource(file, source.value)) {
+      await this.reject(file, claimToken, "SOURCE_METADATA_MISMATCH", quarantineKey);
       return false;
     }
+    if (!(await this.renewLease(file.id, claimToken))) return false;
+
     const scan = await this.scanner.scan({ ...file, ...source.value, key: quarantineKey });
     if ("error" in scan) {
-      this.logger.warn(
-        { fileId: file.id, error: scan.error },
-        "Transient scanner service error, will retry",
-      );
+      await this.retry(file, claimToken, scan.error);
       return false;
     }
-    const clean = "result" in scan && scan.result === "clean";
-    if (clean) {
-      // Promote by server-side copy, then verify the promoted bytes still
-      // match: anything overwritten through the (still-valid) upload URL in
-      // between only ever touched the quarantine object.
-      const copied = await this.storage.copy(quarantineKey, file.key, source.value);
-      if (copied.isErr()) {
-        this.logger.error({ fileId: file.id, key: file.key }, "Quarantine promote failed");
-        return false;
-      }
-      const promoted = await this.storage.getMetadata(file.key);
-      if (
-        promoted.isErr() ||
-        !promoted.value ||
-        !this.matchesPromoted(source.value, promoted.value)
-      ) {
-        this.logger.error({ fileId: file.id, key: file.key }, "Promoted bytes mismatch");
-        await this.storage.delete(file.key);
-        await this.markFailed(file.id);
-        return false;
-      }
-      await this.database.runTransaction(() =>
-        this.files.updateById(file.id, { status: "uploaded" }),
-      );
-      const cleaned = await this.storage.delete(quarantineKey);
-      if (cleaned.isErr()) {
-        this.logger.warn({ fileId: file.id, key: quarantineKey }, "Quarantine cleanup failed");
-      }
-      return true;
+    if (scan.result !== "clean") {
+      await this.reject(file, claimToken, "CONTENT_REJECTED", quarantineKey);
+      return false;
     }
-    await this.markFailed(file.id);
-    const cleaned = await this.storage.delete(quarantineKey);
-    if (cleaned.isErr()) {
-      this.logger.warn({ fileId: file.id, key: quarantineKey }, "Quarantine cleanup failed");
+    if (!(await this.renewLease(file.id, claimToken))) return false;
+
+    const candidateKey = promotionCandidateKeyFor(file.key, claimToken);
+    const copied = await this.storage.copy(quarantineKey, candidateKey, source.value);
+    if (copied.isErr()) {
+      await this.retry(file, claimToken, copied.error.code);
+      return false;
     }
-    this.logger.warn(
-      { fileId: file.id, key: file.key, error: "error" in scan ? scan.error : "unknown" },
-      "File failed quarantine scan",
+    const promoted = await this.storage.getMetadata(candidateKey);
+    if (
+      promoted.isErr() ||
+      !promoted.value ||
+      !this.matchesPromoted(source.value, promoted.value)
+    ) {
+      await this.storage.delete(candidateKey);
+      await this.reject(file, claimToken, "PROMOTED_METADATA_MISMATCH");
+      return false;
+    }
+
+    const completed = await this.database.runTransaction(() =>
+      this.files.completeScan(file.id, claimToken, candidateKey),
     );
-    return false;
+    if (!completed) {
+      await this.storage.delete(candidateKey);
+      return false;
+    }
+
+    await this.cleanupAfterWin(file, candidateKey, quarantineKey);
+    this.metrics.incrementCounter("file_scan_outcomes_total", "File scan outcomes", 1, {
+      outcome: "uploaded",
+    });
+    return true;
   }
 
-  private async markFailed(fileId: string): Promise<void> {
-    await this.database.runTransaction(() => this.files.updateById(fileId, { status: "failed" }));
+  private renewLease(fileId: string, claimToken: string): Promise<boolean> {
+    return this.database.runTransaction(() =>
+      this.files.renewScanLease(fileId, claimToken, SCAN_LEASE_MS),
+    );
   }
 
-  private matches(
-    file: { fileSize: number; contentType: string },
-    metadata: { size: number; contentType?: string },
-  ): boolean {
-    return metadata.size === file.fileSize && metadata.contentType === file.contentType;
+  private async retry(file: FileEntity, claimToken: string, failureCode: string): Promise<void> {
+    const attempts = file.scanAttempts ?? 1;
+    const exponent = Math.max(0, attempts - 1);
+    const delay = Math.min(SCAN_RETRY_MAX_MS, SCAN_RETRY_BASE_MS * 2 ** exponent);
+    await this.database.runTransaction(() =>
+      this.files.retryScan(
+        file.id,
+        claimToken,
+        failureCode,
+        new Date(Date.now() + delay),
+        SCAN_MAX_ATTEMPTS,
+      ),
+    );
+    this.metrics.incrementCounter("file_scan_outcomes_total", "File scan outcomes", 1, {
+      outcome: attempts >= SCAN_MAX_ATTEMPTS ? "attempts_exhausted" : "retry",
+    });
+    this.logger.warn(
+      { fileId: file.id, failureCode, attempt: attempts },
+      "File scan scheduled for retry",
+    );
   }
 
-  private matchesPromoted(
-    source: { size: number; contentType?: string; checksumSha256?: string },
-    promoted: { size: number; contentType?: string; checksumSha256?: string },
-  ): boolean {
+  private async reject(
+    file: FileEntity,
+    claimToken: string,
+    failureCode: string,
+    quarantineKey?: string,
+  ): Promise<void> {
+    const rejected = await this.database.runTransaction(() =>
+      this.files.rejectScan(file.id, claimToken, failureCode),
+    );
+    if (rejected && quarantineKey) await this.storage.delete(quarantineKey);
+    this.metrics.incrementCounter("file_scan_outcomes_total", "File scan outcomes", 1, {
+      outcome: "rejected",
+    });
+    this.logger.warn({ fileId: file.id, failureCode }, "File rejected by quarantine scan");
+  }
+
+  private async cleanupAfterWin(
+    file: FileEntity,
+    activeKey: string,
+    quarantineKey: string,
+  ): Promise<void> {
+    const quarantineDelete = await this.storage.delete(quarantineKey);
+    if (quarantineDelete.isErr()) {
+      this.logger.warn({ fileId: file.id }, "Quarantine cleanup failed after promotion");
+    }
+    for (const candidate of file.scanCandidateKeys ?? []) {
+      if (candidate === activeKey) continue;
+      const removed = await this.storage.delete(candidate);
+      if (removed.isErr()) {
+        this.logger.warn({ fileId: file.id }, "Abandoned promotion cleanup failed");
+      }
+    }
+  }
+
+  private matchesSource(file: FileEntity, metadata: StoredObjectMetadata): boolean {
+    if (metadata.size !== file.fileSize || metadata.contentType !== file.contentType) return false;
+    if (file.scanSourceVersionId && metadata.versionId !== file.scanSourceVersionId) return false;
+    return !file.scanSourceEtag || metadata.etag === file.scanSourceEtag;
+  }
+
+  private matchesPromoted(source: StoredObjectMetadata, promoted: StoredObjectMetadata): boolean {
     if (source.size !== promoted.size || source.contentType !== promoted.contentType) return false;
     if (!source.checksumSha256) return true;
     return source.checksumSha256 === promoted.checksumSha256;

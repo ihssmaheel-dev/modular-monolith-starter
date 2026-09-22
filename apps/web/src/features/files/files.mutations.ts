@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "@repo/ui/components/ui/toast";
-import { uploadFile, type UploadBody } from "@repo/api-client";
+import { uploadFile, UploadProcessingTimeoutError, type UploadBody } from "@repo/api-client";
 import { getApiClient } from "@/lib/api";
 
 export function putBytesWithProgress(
@@ -61,18 +61,21 @@ export function useAttachNoteFileMutation(noteId: string, slot?: string) {
   return useMutation({
     mutationFn: async ({ file, onProgress }: UploadQueueItem) => {
       const uploaded = await upload.mutateAsync({ file, onProgress });
-      let response = await getApiClient().notes.attach(noteId, uploaded.id, slot);
-      for (let attempt = 0; attempt < 5 && response.status === 409; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        response = await getApiClient().notes.attach(noteId, uploaded.id, slot);
-      }
+      const response = await getApiClient().notes.attach(noteId, uploaded.id, slot);
       if (response.status !== 201) throw new Error("api.error.uploadFailed");
       return response.body;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["files"] });
     },
-    onError: () => toast.add({ title: t("api.error.uploadFailed"), type: "error" } as never),
+    onError: (error) =>
+      toast.add({
+        title:
+          error instanceof UploadProcessingTimeoutError
+            ? t("files.processingTimeout")
+            : t("api.error.uploadFailed"),
+        type: "error",
+      } as never),
   });
 }
 

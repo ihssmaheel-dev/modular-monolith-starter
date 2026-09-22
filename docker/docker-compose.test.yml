@@ -1,0 +1,172 @@
+services:
+  gateway:
+    image: nginx:1.27.4-alpine
+    ports:
+      - "127.0.0.1::80"
+    volumes:
+      - ./nginx-insecure.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/health/live || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: ${TEST_API_IMAGE:?set TEST_API_IMAGE}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment: &application-environment
+      NODE_ENV: test
+      PROCESS_ROLE: api
+      TENANCY_MODE: multi
+      EXAMPLE_FEATURES_ENABLED: "true"
+      PORT: 3000
+      TRUST_PROXY: "true"
+      CLIENT_URL: http://gateway
+      API_URL: http://gateway
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/app_test
+      TEST_DATABASE_URL: postgres://postgres:postgres@postgres:5432/app_test
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: test-access-secret-at-least-32-characters
+      JWT_REFRESH_SECRET: test-refresh-secret-at-least-32-characters
+      METRICS_TOKEN: test-metrics-secret-at-least-32-characters
+      EMAIL_DRIVER: smtp
+      EMAIL_FROM: tests@example.test
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      STORAGE_DRIVER: s3
+      STORAGE_PROVIDER: minio
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: uploads
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_FORCE_PATH_STYLE: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/v1/health/ready || exit 1",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    image: ${TEST_API_IMAGE:?set TEST_API_IMAGE}
+    command: ["node", "apps/api/dist/apps/api/src/main.js"]
+    environment:
+      <<: *application-environment
+      PROCESS_ROLE: worker
+      WORKER_METRICS_PORT: 9464
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:9464/health/ready || exit 1",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  web:
+    image: ${TEST_WEB_IMAGE:?set TEST_WEB_IMAGE}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+        VITE_EXAMPLE_FEATURES_ENABLED: "true"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      VITE_API_URL: /api/v1
+      VITE_APP_NAME: Workspace
+      VITE_EXAMPLE_FEATURES_ENABLED: "true"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/auth || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: ${TEST_API_IMAGE:?set TEST_API_IMAGE}
+    command: ["node", "apps/api/dist/apps/api/src/infrastructure/database/migrate.js"]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/app_test
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio-init:
+    image: quay.io/minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - mc alias set test http://minio:9000 minioadmin minioadmin && mc mb --ignore-existing test/uploads
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  mailpit:
+    image: axllent/mailpit:v1.30.0
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

@@ -10,3 +10,7 @@ export const QUARANTINE_KEY_SUFFIX = ".quarantine";
 export function quarantineKeyFor(finalKey: string): string {
   return `${finalKey}${QUARANTINE_KEY_SUFFIX}`;
 }
+
+export function promotionCandidateKeyFor(finalKey: string, claimToken: string): string {
+  return `${finalKey}.candidate-${claimToken}`;
+}

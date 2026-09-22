@@ -18,14 +18,27 @@ function runProcess(command, args, timeout = DEFAULT_COMMAND_TIMEOUT_MS) {
 }
 
 function runPnpmVersion() {
+  return runPnpmCommand(["--version"]);
+}
+
+function runPnpmNodeVersion() {
+  return runPnpmCommand(["exec", "node", "--version"]);
+}
+
+function runPnpmCommand(args) {
   const pnpmEntry = process.env.npm_execpath;
   if (pnpmEntry && fs.existsSync(pnpmEntry)) {
-    return runProcess(process.execPath, [pnpmEntry, "--version"]);
+    return runProcess(process.execPath, [pnpmEntry, ...args]);
   }
   if (process.platform === "win32") {
-    return runProcess(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "pnpm --version"]);
+    return runProcess(process.env.ComSpec || "cmd.exe", [
+      "/d",
+      "/s",
+      "/c",
+      `pnpm ${args.join(" ")}`,
+    ]);
   }
-  return runProcess("pnpm", ["--version"]);
+  return runProcess("pnpm", args);
 }
 
 function parseVersion(value) {
@@ -111,5 +124,6 @@ module.exports = {
   readEnv,
   readJson,
   runPnpmVersion,
+  runPnpmNodeVersion,
   runProcess,
 };

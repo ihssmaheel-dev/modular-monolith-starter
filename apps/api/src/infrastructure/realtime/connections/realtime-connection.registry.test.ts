@@ -1,16 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MessageEvent as NestMessageEvent } from "@nestjs/common";
-import { Subject } from "rxjs";
 import type { WebSocket } from "ws";
 
 import type { PinoLoggerService } from "../../logger/logger.service";
 import type { MetricsService } from "../../metrics/metrics.service";
 import { RealtimeConnectionRegistry } from "./realtime-connection.registry";
+import type { SseClient } from "../transports/sse-connection";
 
 const WS_READY_STATE_OPEN = 1;
 
 function createSocket(): WebSocket {
   return { readyState: WS_READY_STATE_OPEN, close: vi.fn(), send: vi.fn() } as unknown as WebSocket;
+}
+
+function createSseClient(): SseClient {
+  return {
+    kind: "sse",
+    closed: false,
+    queuedBytes: 0,
+    send: vi.fn().mockReturnValue(true),
+    close: vi.fn(),
+  };
 }
 
 describe("RealtimeConnectionRegistry", () => {
@@ -21,6 +30,8 @@ describe("RealtimeConnectionRegistry", () => {
     metrics = {
       incrementGauge: vi.fn(),
       decrementGauge: vi.fn(),
+      incrementCounter: vi.fn(),
+      recordHistogram: vi.fn(),
     } as unknown as MetricsService;
     const logger = {
       child: vi.fn().mockReturnThis(),
@@ -57,7 +68,7 @@ describe("RealtimeConnectionRegistry", () => {
 
   it("does not count the same tenant user twice when both transports are connected", () => {
     const socket = createSocket();
-    const subject = new Subject<NestMessageEvent>();
+    const subject = createSseClient();
     registry.addWsClient("user-1", "tenant-1", socket);
     registry.addSseClient("user-1", "tenant-1", subject);
 
@@ -105,7 +116,7 @@ describe("RealtimeConnectionRegistry", () => {
 
   it("removes closed connections from gauges during revocation", () => {
     const socket = createSocket();
-    const subject = new Subject<NestMessageEvent>();
+    const subject = createSseClient();
     registry.addWsClient("user-1", "tenant-1", socket);
     registry.addWsAlias("user-1", socket);
     registry.addSseClient("user-1", "tenant-1", subject);

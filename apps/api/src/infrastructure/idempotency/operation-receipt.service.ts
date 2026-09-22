@@ -1,7 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { err, ok, type Result } from "neverthrow";
 
 import { DatabaseService } from "../database";
+import { MetricsService } from "../metrics/metrics.service";
 import { OperationReceiptRepository } from "./repositories/operation-receipt.repository";
 
 const DEFAULT_RECEIPT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -37,6 +38,7 @@ export class OperationReceiptService {
   constructor(
     private readonly database: DatabaseService,
     private readonly receipts: OperationReceiptRepository,
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   async claim(identity: OperationIdentity): Promise<Result<OperationClaim, OperationReceiptError>> {
@@ -47,7 +49,10 @@ export class OperationReceiptService {
       id: receiptId,
       expiresAt: identity.expiresAt ?? new Date(Date.now() + DEFAULT_RECEIPT_TTL_MS),
     });
-    if (created) return ok({ state: "CLAIMED", receiptId });
+    if (created) {
+      this.recordClaim("claimed");
+      return ok({ state: "CLAIMED", receiptId });
+    }
 
     const existing = await this.receipts.find(
       identity.operationType,
@@ -58,6 +63,7 @@ export class OperationReceiptService {
       return err({ type: "OPERATION_ID_REUSED" });
     }
     if (existing.status !== "COMPLETED") return err({ type: "OPERATION_IN_PROGRESS" });
+    this.recordClaim("deduplicated");
     return ok({ state: "COMPLETED", result: existing.result });
   }
 
@@ -100,5 +106,14 @@ export class OperationReceiptService {
     } catch {
       return false;
     }
+  }
+
+  private recordClaim(state: "claimed" | "deduplicated"): void {
+    this.metrics?.incrementCounter(
+      "operation_receipt_claims_total",
+      "Durable operation receipt claims",
+      1,
+      { state },
+    );
   }
 }

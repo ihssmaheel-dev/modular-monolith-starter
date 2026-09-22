@@ -6,6 +6,7 @@ import { useTenantStore } from "@/stores/tenant.store";
 import { queryKeys } from "@/lib/query-keys";
 
 const SSE_EVENT = "notification.created";
+const SSE_SYNC_EVENT = "sync_required";
 
 /**
  * Live notification fan-in over SSE (`GET /api/v1/realtime/events`, cookie auth).
@@ -31,18 +32,25 @@ export function useRealtimeNotifications() {
     } catch {
       return;
     }
-    const invalidate = (event: Event) => {
+    const invalidateDurableState = () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() });
+    };
+    const invalidateNotification = (event: Event) => {
       try {
         const payload = JSON.parse((event as MessageEvent).data as string) as unknown;
         if (payload === null || typeof payload !== "object") return;
       } catch {
         return;
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() });
+      invalidateDurableState();
     };
-    source.addEventListener(SSE_EVENT, invalidate);
+    source.addEventListener("open", invalidateDurableState);
+    source.addEventListener(SSE_SYNC_EVENT, invalidateDurableState);
+    source.addEventListener(SSE_EVENT, invalidateNotification);
     return () => {
-      source.removeEventListener(SSE_EVENT, invalidate);
+      source.removeEventListener("open", invalidateDurableState);
+      source.removeEventListener(SSE_SYNC_EVENT, invalidateDurableState);
+      source.removeEventListener(SSE_EVENT, invalidateNotification);
       source.close();
     };
   }, [userId, tenantId, queryClient]);

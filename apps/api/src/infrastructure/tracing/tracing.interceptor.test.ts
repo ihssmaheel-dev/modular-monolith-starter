@@ -3,7 +3,7 @@ import { TracingInterceptor } from "./tracing.interceptor";
 import { resolveOtelEndpoint } from "../../tracing";
 import { trace } from "@opentelemetry/api";
 import type { ExecutionContext, CallHandler } from "@nestjs/common";
-import { of } from "rxjs";
+import { firstValueFrom, of } from "rxjs";
 import type { FastifyReply } from "fastify";
 
 vi.mock("@opentelemetry/api", () => ({
@@ -67,27 +67,21 @@ describe("Tracing Infrastructure", () => {
       } as ReturnType<typeof trace.getActiveSpan>);
 
       const result$ = interceptor.intercept(mockContext, mockCallHandler);
-      await new Promise<void>((resolve) => {
-        result$.subscribe(() => {
-          expect(mockResponse.header).toHaveBeenCalledWith(
-            "x-trace-id",
-            "4bf92f3577b34da6a3ce929d0e0e4736",
-          );
-          resolve();
-        });
-      });
+      await firstValueFrom(result$);
+
+      expect(mockResponse.header).toHaveBeenCalledWith(
+        "x-trace-id",
+        "4bf92f3577b34da6a3ce929d0e0e4736",
+      );
     });
 
     it("should proceed without setting header when no active span exists", async () => {
       vi.mocked(trace.getActiveSpan).mockReturnValue(undefined);
 
       const result$ = interceptor.intercept(mockContext, mockCallHandler);
-      await new Promise<void>((resolve) => {
-        result$.subscribe(() => {
-          expect(mockResponse.header).not.toHaveBeenCalled();
-          resolve();
-        });
-      });
+      await firstValueFrom(result$);
+
+      expect(mockResponse.header).not.toHaveBeenCalled();
     });
   });
 });

@@ -441,6 +441,7 @@
     "noAttachments": "Sin archivos adjuntos.",
     "deleteConfirm": "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
     "attachments": "Archivos adjuntos",
+    "processingTimeout": "El archivo aún se está comprobando. Vuelve a intentar con el mismo archivo en breve.",
     "status": {
       "pending": "Pendiente",
       "uploading": "Subiendo",

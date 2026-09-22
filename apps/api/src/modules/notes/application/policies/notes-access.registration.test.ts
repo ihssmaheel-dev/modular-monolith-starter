@@ -6,6 +6,7 @@ import type { AuthorizationService } from "../../../../infrastructure/authorizat
 import type { GetNoteByIdQuery } from "../queries/get-note-by-id.query";
 import type { DataLifecycleRegistry } from "../../../../infrastructure/lifecycle/data-lifecycle.registry";
 import type { NotesLifecycleContributor } from "../adapters/notes-lifecycle.contributor";
+import { OutboxConsumerRegistry } from "../../../../infrastructure/outbox";
 
 const ACTOR = { sub: "user-1", email: "user@example.com", role: "user" } as const;
 
@@ -25,7 +26,14 @@ describe("NotesModule file access registration (H10)", () => {
     const getNoteById = { execute: vi.fn() } as unknown as GetNoteByIdQuery;
     const lifecycle = { register: vi.fn() } as unknown as DataLifecycleRegistry;
     const contributor = {} as NotesLifecycleContributor;
-    const module = new NotesModule(authService, registry, getNoteById, lifecycle, contributor);
+    const module = new NotesModule(
+      authService,
+      registry,
+      getNoteById,
+      lifecycle,
+      contributor,
+      new OutboxConsumerRegistry(),
+    );
     module.onModuleInit();
     return { registry, getNoteById };
   }

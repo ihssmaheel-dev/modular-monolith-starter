@@ -25,6 +25,7 @@ import { PushDriverFactory } from "./infrastructure/push/push.factory";
 import { DeliveryIntentsRepository } from "./infrastructure/repositories/delivery-intents.repository";
 import { DataLifecycleRegistry } from "../../infrastructure/lifecycle/data-lifecycle.registry";
 import { NotificationsLifecycleContributor } from "./application/adapters/notifications-lifecycle.contributor";
+import { OutboxConsumerRegistry } from "../../infrastructure/outbox";
 
 @Module({
   imports: [EventEmitterModule, OutboxModule, DatabaseModule, UsersModule],
@@ -62,9 +63,41 @@ export class NotificationsModule implements OnModuleInit {
   constructor(
     private readonly lifecycle: DataLifecycleRegistry,
     private readonly lifecycleContributor: NotificationsLifecycleContributor,
+    private readonly outboxConsumers: OutboxConsumerRegistry,
+    private readonly domainEvents: DomainEventFanoutListener,
   ) {}
 
   onModuleInit(): void {
     this.lifecycle.register(this.lifecycleContributor);
+    this.outboxConsumers.register({
+      id: "notifications.user-welcome.v1",
+      topics: ["user.created"],
+      handle: (payload, metadata) =>
+        this.domainEvents.onUserCreated(payload as { userId: string; name: string }, metadata),
+    });
+    this.outboxConsumers.register({
+      id: "notifications.invitation-received.v1",
+      topics: ["tenancy.invitation.created"],
+      handle: (payload, metadata) =>
+        this.domainEvents.onInvitationCreated(
+          payload as {
+            tenantId: string;
+            organizationName: string;
+            email: string;
+            token: string;
+          },
+          metadata,
+        ),
+    });
+    this.outboxConsumers.register({
+      id: "notifications.export-ready.v1",
+      topics: ["privacy.export.ready"],
+      handle: (payload, metadata) =>
+        this.domainEvents.onExportReady(payload as { requestId: string; userId: string }, metadata),
+    });
+    this.outboxConsumers.registerObserverTopics([
+      "notification.created",
+      "notification.digest.ready",
+    ]);
   }
 }

@@ -97,7 +97,9 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("Observability configuration is production-safe and dashboards are valid JSON.");
+console.log(
+  "Observability profile structure, resource bounds, secret wiring, and dashboard JSON validated. Run observability:rules:test for Prometheus rule semantics.",
+);
 
 function renderProductionConfig() {
   const requiredVariables = new Set();

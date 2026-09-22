@@ -61,7 +61,7 @@ export class DeleteFileCommand {
       });
     }
 
-    const storageResult = await deleteFileObjects(this.storage, file.key);
+    const storageResult = await deleteFileObjects(this.storage, file);
     if (storageResult.isErr()) {
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });
     }

@@ -91,10 +91,12 @@ API client factory and helpers.
 ```
 packages/api-client/src/
 ├── index.ts                   ← createApiClient() factory (shared RefreshCoordinator for 401s)
+├── auth/
+│   └── refresh-coordinator.ts ← bounded, cross-tab refresh ownership and typed outcomes
 ├── orpc.ts                    ← oRPC OpenAPI-link client factory
 ├── response.ts                ← error-envelope parsing
 ├── types.ts                   ← Client-specific types
-├── utils.ts                   ← idempotency keys, auth/tenant headers, refresh coordinator
+├── utils.ts                   ← idempotency keys and auth/tenant/locale header helpers
 └── subclients/                ← one file per domain (auth, notes, users, files, tenancy, privacy, notifications) + upload.ts (shared presigned-upload orchestrator)
 ```
 

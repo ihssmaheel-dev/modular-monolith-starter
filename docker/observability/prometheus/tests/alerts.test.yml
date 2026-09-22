@@ -1,0 +1,52 @@
+rule_files:
+  - ../alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: bounded-sse-backpressure-alerts
+    interval: 1m
+    input_series:
+      - series: 'realtime_sse_disconnects_total{reason="backlog_bytes"}'
+        values: "0 1 2 3 4"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: RealtimeSseBackpressureDisconnects
+        exp_alerts:
+          - exp_labels:
+              reason: backlog_bytes
+              severity: warning
+            exp_annotations:
+              summary: SSE clients are being disconnected by backpressure limits
+              description: At least one realtime client exceeded the bounded SSE transport budget.
+
+  - name: required-consumer-failure-alerts
+    interval: 1m
+    input_series:
+      - series: 'outbox_required_consumer_outcomes_total{consumer="users.welcome.v1",outcome="failed"}'
+        values: "0 1 1"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RequiredOutboxConsumerFailures
+        exp_alerts:
+          - exp_labels:
+              consumer: users.welcome.v1
+              outcome: failed
+              severity: critical
+            exp_annotations:
+              summary: A required durable event consumer failed
+              description: Required outbox side effects are retrying or a durable topic is unclassified.
+
+  - name: unlimited-cpu-quota-does-not-alert
+    interval: 1m
+    input_series:
+      - series: 'container_cpu_usage_seconds_total{container_label_com_docker_compose_project="alpha",container_label_com_docker_compose_service="api"}'
+        values: "0+60x10"
+      - series: 'container_spec_cpu_quota{container_label_com_docker_compose_project="alpha",container_label_com_docker_compose_service="api"}'
+        values: "-1x10"
+      - series: 'container_spec_cpu_period{container_label_com_docker_compose_project="alpha",container_label_com_docker_compose_service="api"}'
+        values: "100000x10"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ContainerHighCpuUsage
+        exp_alerts: []

@@ -46,6 +46,7 @@ describe("MetricsService", () => {
   it("should reuse already registered metrics from prom-client registry", async () => {
     const { register } = await import("prom-client");
     const mockExistingHistogram = {
+      type: "histogram",
       observe: vi.fn(),
       startTimer: vi.fn(),
     };
@@ -60,6 +61,7 @@ describe("MetricsService", () => {
   it("should pass exemplar labels to histogram observe when provided", async () => {
     const { register } = await import("prom-client");
     const mockExistingHistogram = {
+      type: "histogram",
       observe: vi.fn(),
       startTimer: vi.fn(),
       enableExemplars: true,
@@ -85,6 +87,7 @@ describe("MetricsService", () => {
   it("should discard exemplar labels when histogram does not support exemplars", async () => {
     const { register } = await import("prom-client");
     const mockNonExemplarHistogram = {
+      type: "histogram",
       observe: vi.fn(),
       startTimer: vi.fn(),
       enableExemplars: false,
@@ -119,6 +122,7 @@ describe("MetricsService", () => {
   it("should observe histogram with object payload when enableExemplars is true even without exemplarLabels", async () => {
     const { register } = await import("prom-client");
     const mockExemplarHistogram = {
+      type: "histogram",
       observe: vi.fn(),
       startTimer: vi.fn(),
       enableExemplars: true,
@@ -139,6 +143,7 @@ describe("MetricsService", () => {
   it("should sanitize non-finite values when recording metrics", async () => {
     const { register } = await import("prom-client");
     const mockHistogram = {
+      type: "histogram",
       observe: vi.fn(),
       startTimer: vi.fn(),
     };
@@ -169,5 +174,21 @@ describe("MetricsService", () => {
     expect(() => {
       service.recordHistogram("unbucketed_histogram", "No buckets passed", 42);
     }).not.toThrow();
+  });
+
+  it("distinguishes an empty label signature from missing metadata", () => {
+    service.setGauge("unlabelled_metric", "Unlabelled", 1);
+
+    expect(() =>
+      service.setGauge("unlabelled_metric", "Unlabelled", 2, { service: "api" }),
+    ).toThrow("Metric unlabelled_metric was called with an incompatible label set");
+  });
+
+  it("rejects using one metric name for two metric types", () => {
+    service.setGauge("metric_kind_conflict", "Gauge", 1);
+
+    expect(() => service.incrementCounter("metric_kind_conflict", "Counter", 1)).toThrow(
+      "Metric metric_kind_conflict was called with incompatible types",
+    );
   });
 });

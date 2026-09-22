@@ -8,11 +8,11 @@ const {
   parseVersion,
   readJson,
   runPnpmVersion,
+  runPnpmNodeVersion,
   runProcess,
 } = require("./runtime");
 const { result } = require("./result");
 
-const MINIMUM_NODE_VERSION = [20, 19, 0];
 const MINIMUM_COMPOSE_VERSION = [2, 17, 0];
 const MINIMUM_MEMORY_BYTES = 8 * 1024 ** 3;
 const LOW_FREE_MEMORY_BYTES = 1.5 * 1024 ** 3;
@@ -21,16 +21,38 @@ const LOW_FREE_DISK_BYTES = 5 * 1024 ** 3;
 function checkToolchain(results, options) {
   const rootPackage = readJson("package.json");
   const expectedPnpm = rootPackage.packageManager?.split("@")[1];
+  const expectedNodeText = fs.readFileSync(`${ROOT}/.node-version`, "utf8").trim();
+  const expectedNode = parseVersion(expectedNodeText);
   const currentNode = parseVersion(process.versions.node);
-  const nodeOk = currentNode && compareVersions(currentNode, MINIMUM_NODE_VERSION) >= 0;
+  const nodeOk = currentNode && expectedNode && compareVersions(currentNode, expectedNode) === 0;
   results.push(
     result(
       "Toolchain",
       "node-version",
       "Node.js",
       nodeOk ? "pass" : "fail",
-      `${process.version} ${nodeOk ? "meets" : "does not meet"} the >=20.19.0 requirement`,
-      nodeOk ? undefined : "Install an active Node.js LTS release at or above 20.19.0.",
+      `${process.version} ${nodeOk ? "matches" : "does not match"} the ${expectedNodeText} pin`,
+      nodeOk ? undefined : `Install the pinned Node.js ${expectedNodeText} runtime.`,
+    ),
+  );
+
+  const pnpmNode = runPnpmNodeVersion();
+  const pnpmNodeVersion = parseVersion(pnpmNode.stdout);
+  const pnpmNodeOk =
+    pnpmNode.status === 0 &&
+    expectedNode &&
+    pnpmNodeVersion &&
+    compareVersions(pnpmNodeVersion, expectedNode) === 0;
+  results.push(
+    result(
+      "Toolchain",
+      "pnpm-node-version",
+      "pnpm-spawned Node.js",
+      pnpmNodeOk ? "pass" : "fail",
+      pnpmNodeOk
+        ? `${pnpmNode.stdout.trim()} matches the runtime pin`
+        : `${pnpmNode.stdout.trim() || commandDetail(pnpmNode)} does not match ${expectedNodeText}`,
+      pnpmNodeOk ? undefined : "Repair Corepack/PATH so pnpm and the shell use the same Node.js.",
     ),
   );
 

@@ -1,5 +1,5 @@
 import { Injectable, Optional } from "@nestjs/common";
-import { OnEvent } from "@nestjs/event-emitter";
+import { err, ok, type Result } from "neverthrow";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { DatabaseService } from "../../../../infrastructure/database";
 import type { UserDeletedEventPayload, UserUpdatedEventPayload } from "@repo/contracts";
@@ -13,21 +13,23 @@ export class MembershipUserListener {
     @Optional() private readonly database?: DatabaseService,
   ) {}
 
-  @OnEvent("user.updated")
-  async updateSnapshots(event: UserUpdatedEventPayload): Promise<void> {
+  async updateSnapshots(event: UserUpdatedEventPayload): Promise<Result<void, unknown>> {
     try {
       await this.scoped(() => this.memberships.updateUserSnapshot(event.userId, event.changes));
+      return ok(undefined);
     } catch (error) {
       this.logger.error({ error, userId: event.userId }, "Membership snapshot update failed");
+      return err(error);
     }
   }
 
-  @OnEvent("user.deleted")
-  async removeMemberships(event: UserDeletedEventPayload): Promise<void> {
+  async removeMemberships(event: UserDeletedEventPayload): Promise<Result<void, unknown>> {
     try {
       await this.scoped(() => this.memberships.removeUser(event.userId));
+      return ok(undefined);
     } catch (error) {
       this.logger.error({ error, userId: event.userId }, "Membership cleanup failed");
+      return err(error);
     }
   }
 

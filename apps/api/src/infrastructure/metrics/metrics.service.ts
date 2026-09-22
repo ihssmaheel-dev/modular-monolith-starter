@@ -16,9 +16,7 @@ function isHistogramMetric(metric: unknown): metric is Histogram<string> {
     metric instanceof Histogram ||
     (typeof metric === "object" &&
       metric !== null &&
-      ((metric as { type?: string }).type === "histogram" ||
-        (typeof (metric as { observe?: unknown }).observe === "function" &&
-          typeof (metric as { startTimer?: unknown }).startTimer === "function")))
+      (metric as { type?: string }).type === "histogram")
   );
 }
 
@@ -27,10 +25,7 @@ function isGaugeMetric(metric: unknown): metric is Gauge<string> {
     metric instanceof Gauge ||
     (typeof metric === "object" &&
       metric !== null &&
-      ((metric as { type?: string }).type === "gauge" ||
-        (typeof (metric as { set?: unknown }).set === "function" &&
-          typeof (metric as { inc?: unknown }).inc === "function" &&
-          typeof (metric as { dec?: unknown }).dec === "function")))
+      (metric as { type?: string }).type === "gauge")
   );
 }
 
@@ -50,6 +45,7 @@ export class MetricsService {
   private gauges = new Map<string, Gauge<string>>();
   private summaries = new Map<string, Summary<string>>();
   private labelNames = new Map<string, string>();
+  private metricTypes = new Map<string, "counter" | "gauge" | "histogram" | "summary">();
 
   incrementCounter(name: string, help: string, value = 1, labels?: Labels): void {
     const counter = this.getCounter(name, help, labels);
@@ -117,7 +113,7 @@ export class MetricsService {
   }
 
   private getCounter(name: string, help: string, labels?: Labels): Counter<string> {
-    const labelNames = this.assertLabelNames(name, labels);
+    const labelNames = this.assertDefinition(name, "counter", labels);
     let metric = this.counters.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
@@ -140,7 +136,7 @@ export class MetricsService {
     labels?: Labels,
     buckets?: number[],
   ): Histogram<string> {
-    const labelNames = this.assertLabelNames(name, labels);
+    const labelNames = this.assertDefinition(name, "histogram", labels);
     let metric = this.histograms.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
@@ -167,7 +163,7 @@ export class MetricsService {
   }
 
   private getGauge(name: string, help: string, labels?: Labels): Gauge<string> {
-    const labelNames = this.assertLabelNames(name, labels);
+    const labelNames = this.assertDefinition(name, "gauge", labels);
     let metric = this.gauges.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
@@ -185,7 +181,7 @@ export class MetricsService {
   }
 
   private getSummary(name: string, help: string, labels?: Labels): Summary<string> {
-    const labelNames = this.assertLabelNames(name, labels);
+    const labelNames = this.assertDefinition(name, "summary", labels);
     let metric = this.summaries.get(name);
     if (!metric) {
       const existing = register?.getSingleMetric?.(name);
@@ -202,14 +198,23 @@ export class MetricsService {
     return metric;
   }
 
-  private assertLabelNames(name: string, labels?: Labels): string[] {
+  private assertDefinition(
+    name: string,
+    type: "counter" | "gauge" | "histogram" | "summary",
+    labels?: Labels,
+  ): string[] {
     const labelNames = Object.keys(labels ?? {})
       .sort()
       .join(",");
+    const previousType = this.metricTypes.get(name);
+    if (previousType !== undefined && previousType !== type) {
+      throw new Error(`Metric ${name} was called with incompatible types`);
+    }
     const previous = this.labelNames.get(name);
-    if (previous && previous !== labelNames) {
+    if (previous !== undefined && previous !== labelNames) {
       throw new Error(`Metric ${name} was called with an incompatible label set`);
     }
+    this.metricTypes.set(name, type);
     this.labelNames.set(name, labelNames);
     return labelNames ? labelNames.split(",") : [];
   }

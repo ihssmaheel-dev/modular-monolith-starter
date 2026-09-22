@@ -441,6 +441,7 @@
     "noAttachments": "Aucune pièce jointe.",
     "deleteConfirm": "Supprimer « {{name}} » ? Cette action est irréversible.",
     "attachments": "Pièces jointes",
+    "processingTimeout": "Le fichier est toujours en cours de vérification. Réessayez avec le même fichier dans un instant.",
     "status": {
       "pending": "En attente",
       "uploading": "Envoi",

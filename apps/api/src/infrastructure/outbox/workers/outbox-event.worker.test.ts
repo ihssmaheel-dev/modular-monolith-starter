@@ -9,6 +9,13 @@ import type { DatabaseService } from "../../database";
 import type { OutboxRepository } from "../repositories/outbox.repository";
 import type { OperationReceiptService } from "../../idempotency/operation-receipt.service";
 import { ok } from "neverthrow";
+import { OutboxConsumerRegistry } from "../services/outbox-consumer.registry";
+
+function observerRegistry(): OutboxConsumerRegistry {
+  const registry = new OutboxConsumerRegistry();
+  registry.registerObserverTopics(["note.created"]);
+  return registry;
+}
 
 describe("OutboxEventWorker", () => {
   it("consumes durable queue events through the system scope in single-tenant mode", async () => {
@@ -31,6 +38,7 @@ describe("OutboxEventWorker", () => {
       queues,
       events,
       logger,
+      observerRegistry(),
       undefined,
       undefined,
       tenantContext,
@@ -78,6 +86,7 @@ describe("OutboxEventWorker", () => {
       queues,
       events,
       logger,
+      observerRegistry(),
       undefined,
       undefined,
       tenantContext,
@@ -123,6 +132,7 @@ describe("OutboxEventWorker", () => {
       queues,
       events,
       logger,
+      observerRegistry(),
       undefined,
       undefined,
       undefined,
@@ -170,6 +180,7 @@ describe("OutboxEventWorker", () => {
       queues,
       events,
       logger,
+      observerRegistry(),
       database,
       undefined,
       undefined,
@@ -229,6 +240,7 @@ describe("OutboxEventWorker", () => {
       queues,
       events,
       logger,
+      observerRegistry(),
       database,
       repository,
       undefined,
@@ -267,6 +279,7 @@ describe("OutboxEventWorker", () => {
       queues,
       events,
       logger,
+      observerRegistry(),
       database,
       repository,
       undefined,
@@ -295,7 +308,14 @@ describe("OutboxEventWorker", () => {
       child: vi.fn().mockReturnThis(),
       debug: vi.fn(),
     } as unknown as PinoLoggerService;
-    const worker = new OutboxEventWorker(queues, events, logger, database, repository);
+    const worker = new OutboxEventWorker(
+      queues,
+      events,
+      logger,
+      observerRegistry(),
+      database,
+      repository,
+    );
 
     worker.onModuleInit();
     await expect(

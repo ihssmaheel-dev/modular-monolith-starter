@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ok } from "neverthrow";
 import type { ReactElement } from "react";
 
 vi.mock("@repo/email", () => ({
@@ -9,7 +8,6 @@ vi.mock("@repo/email", () => ({
 vi.mock("../../../../config/env", () => ({ env: { CLIENT_URL: "https://app.example.com" } }));
 
 import { render } from "@repo/email";
-import { EmailService } from "../../../../infrastructure/email/email.service";
 import { I18nService } from "../../../../infrastructure/i18n/i18n.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { QueueService } from "../../../../infrastructure/queue/queue.service";
@@ -19,15 +17,13 @@ import { InvitationEmailListener } from "./invitation-email.listener";
 describe("InvitationEmailListener", () => {
   let listener: InvitationEmailListener;
   let queue: QueueService;
-  let email: EmailService;
   let logger: PinoLoggerService;
 
   beforeEach(() => {
     queue = { getQueue: vi.fn() } as unknown as QueueService;
-    email = { send: vi.fn().mockResolvedValue(ok(undefined)) } as unknown as EmailService;
     logger = { error: vi.fn() } as unknown as PinoLoggerService;
     const i18n = { t: vi.fn().mockImplementation((key: string) => key) } as unknown as I18nService;
-    listener = new InvitationEmailListener(queue, email, i18n, logger);
+    listener = new InvitationEmailListener(queue, i18n, logger);
   });
 
   it("queues a rendered invitation email when the queue is available", async () => {
@@ -43,8 +39,8 @@ describe("InvitationEmailListener", () => {
       expect.objectContaining({
         attempts: 5,
         jobId: expect.stringMatching(/^invitation-email-[0-9a-f]{32}$/),
-        removeOnComplete: 100,
-        removeOnFail: 1000,
+        removeOnComplete: { age: 691_200, count: 10_000 },
+        removeOnFail: { age: 691_200, count: 10_000 },
       }),
     );
     const element = vi.mocked(render).mock.calls[0]?.[0] as
@@ -52,21 +48,20 @@ describe("InvitationEmailListener", () => {
     expect(element?.props.acceptUrl).toBe(
       "https://app.example.com/accept-invitation?token=token%2Bwith+spaces",
     );
-    expect(email.send).not.toHaveBeenCalled();
   });
 
-  it("falls back to direct email when queueing fails", async () => {
+  it("returns a retryable failure when queueing fails", async () => {
     vi.mocked(queue.getQueue).mockReturnValue({
       add: vi.fn().mockRejectedValue(new Error("redis unavailable")),
     } as never);
 
-    await listener.handle(event());
+    const result = await listener.handle(event());
 
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "org-1" }),
       "Invitation queueing failed",
     );
-    expect(email.send).toHaveBeenCalledWith(expect.objectContaining({ to: "invitee@example.com" }));
+    expect(result.isErr()).toBe(true);
   });
 });
 

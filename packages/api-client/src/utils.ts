@@ -1,8 +1,5 @@
-import { AuthResponseSchema, type AuthResponse } from "@repo/contracts";
 import { DEFAULT_PAGE_LIMIT, type PaginationQuery } from "@repo/contracts";
 import type { ApiClientOptions } from "./types";
-
-const RPC_PATH = "/rpc";
 
 export function createIdempotencyKey(): string {
   if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
@@ -41,85 +38,4 @@ export function readCookie(name: string): string | null {
 
 export function normalizePagination(query?: Partial<PaginationQuery>): PaginationQuery {
   return { page: query?.page ?? 1, limit: query?.limit ?? DEFAULT_PAGE_LIMIT };
-}
-
-export async function requestRefresh(
-  baseUrl: string,
-  options: ApiClientOptions,
-): Promise<AuthResponse | null> {
-  try {
-    const csrf = readCookie("XSRF-TOKEN");
-    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${RPC_PATH}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "content-type": "application/json",
-        "accept-language": options.getLocale?.() ?? "en",
-        ...(csrf ? { "x-xsrf-token": csrf } : {}),
-      },
-      body: JSON.stringify({ refreshToken: options.getRefreshToken?.() ?? undefined }),
-    });
-    if (!response.ok) return null;
-    const parsed = AuthResponseSchema.safeParse(await response.json());
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
-export interface RefreshCoordinator {
-  refresh: () => Promise<AuthResponse | null>;
-  handleFailure: () => Promise<void>;
-  handleSuccess: (response: AuthResponse) => void;
-}
-
-/**
- * Single-flight refresh shared by both transports, with a deduped
- * auth-failure signal so N concurrent 401s cause one refresh and one logout.
- */
-export function createRefreshCoordinator(
-  baseUrl: string,
-  options: ApiClientOptions,
-): RefreshCoordinator {
-  let pending: Promise<AuthResponse | null> | null = null;
-  let failureNotified = false;
-  return {
-    refresh: () => {
-      if (
-        typeof navigator !== "undefined" &&
-        "locks" in navigator &&
-        typeof (navigator as { locks?: { request: (...args: unknown[]) => Promise<unknown> } })
-          .locks?.request === "function"
-      ) {
-        pending ??= (
-          navigator as {
-            locks: {
-              request: <T>(name: string, callback: () => Promise<T>) => Promise<T>;
-            };
-          }
-        ).locks
-          .request("app:auth:refresh_mutex", () => requestRefresh(baseUrl, options))
-          .finally(() => {
-            pending = null;
-          });
-        return pending;
-      }
-      pending ??= requestRefresh(baseUrl, options).finally(() => {
-        pending = null;
-      });
-      return pending;
-    },
-    handleFailure: async () => {
-      if (failureNotified) return;
-      failureNotified = true;
-      queueMicrotask(() => {
-        failureNotified = false;
-      });
-      await options.onAuthFailure?.();
-    },
-    handleSuccess: (response: AuthResponse) => {
-      failureNotified = false;
-      options.onAuthRefreshed?.(response);
-    },
-  };
 }

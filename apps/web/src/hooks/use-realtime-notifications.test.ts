@@ -8,7 +8,7 @@ import { useRealtimeNotifications } from "./use-realtime-notifications";
 const SSE_EVENT = "notification.created";
 const SSE_URL = "http://localhost:5156/api/v1/realtime/events";
 
-type Handler = (event: { data: string }) => void;
+type Handler = (event: Event | { data: string }) => void;
 
 class MockEventSource {
   static instances: MockEventSource[] = [];
@@ -36,7 +36,11 @@ class MockEventSource {
 
   emit(type: string, payload: unknown) {
     for (const handler of this.listeners.get(type) ?? []) {
-      handler({ data: typeof payload === "string" ? payload : JSON.stringify(payload) });
+      handler(
+        type === "open"
+          ? new Event("open")
+          : { data: typeof payload === "string" ? payload : JSON.stringify(payload) },
+      );
     }
   }
 }
@@ -84,6 +88,18 @@ describe("useRealtimeNotifications", () => {
     expect(invalidate).not.toHaveBeenCalled();
   });
 
+  it("resynchronizes durable state after reconnect and explicit sync requests", () => {
+    const { queryClient } = renderHookWithProviders(() => useRealtimeNotifications());
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const source = MockEventSource.instances[0]!;
+
+    source.emit("open", undefined);
+    source.emit("sync_required", { reason: "slow_consumer" });
+
+    expect(invalidate).toHaveBeenCalledTimes(2);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications.all() });
+  });
+
   it("never closes on its own but cleans up on unmount", () => {
     const { unmount } = renderHookWithProviders(() => useRealtimeNotifications());
     const source = MockEventSource.instances[0]!;
@@ -93,6 +109,8 @@ describe("useRealtimeNotifications", () => {
     unmount();
 
     expect(source.listeners.get(SSE_EVENT)).toHaveLength(0);
+    expect(source.listeners.get("open")).toHaveLength(0);
+    expect(source.listeners.get("sync_required")).toHaveLength(0);
     expect(source.close).toHaveBeenCalledTimes(1);
   });
 

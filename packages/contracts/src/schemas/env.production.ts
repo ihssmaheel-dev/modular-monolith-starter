@@ -29,6 +29,7 @@ export function validateProductionEndpoints(
     addIssue(context, "CLIENT_URL", "CLIENT_URL must use a real production domain");
   if (hasExampleHost(env.API_URL))
     addIssue(context, "API_URL", "API_URL must use a real production domain");
+  validateCookieDomain(env, context);
   if (env.S3_ENDPOINT && hasExampleHost(env.S3_ENDPOINT))
     addIssue(context, "S3_ENDPOINT", "S3_ENDPOINT must use a real production domain");
   if (env.EMAIL_DRIVER === "resend" && !env.RESEND_API_KEY.trim()) {
@@ -66,6 +67,19 @@ export function validateProductionEndpoints(
         "WORKBENCH_PASSWORD must be at least 8 characters when WORKBENCH_ENABLED=true in production",
       );
     }
+  }
+}
+
+function validateCookieDomain(env: EnvironmentForValidation, context: RefinementCtx): void {
+  if (!env.COOKIE_DOMAIN) return;
+  const domain = env.COOKIE_DOMAIN.toLowerCase().replace(/^\./, "");
+  const hosts = [new URL(env.CLIENT_URL).hostname, new URL(env.API_URL).hostname];
+  if (hosts.some((host) => host !== domain && !host.endsWith(`.${domain}`))) {
+    addIssue(
+      context,
+      "COOKIE_DOMAIN",
+      "COOKIE_DOMAIN must be a parent domain of both CLIENT_URL and API_URL",
+    );
   }
 }
 

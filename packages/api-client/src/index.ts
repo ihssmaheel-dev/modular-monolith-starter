@@ -3,11 +3,11 @@ import type { ZodType } from "zod";
 import type { ApiClientOptions, ApiResponse } from "./types";
 import {
   createIdempotencyKey,
-  createRefreshCoordinator,
   getAuthorizationHeader,
   getTransferHeaders,
   readCookie,
 } from "./utils";
+import { createRefreshCoordinator } from "./auth/refresh-coordinator";
 import {
   createAuthClient,
   createFilesClient,
@@ -58,9 +58,11 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     const normalizedPath = path.replace(/^\/+/, "");
     const canRefresh = normalizedPath === "auth/me" || !normalizedPath.startsWith("auth/");
     if (res.status === 401 && canRefresh) {
-      const refreshed = await coordinator.refresh();
-      if (!refreshed) {
-        await coordinator.handleFailure();
+      const outcome = await coordinator.refresh();
+      if (outcome.kind !== "refreshed") {
+        if (outcome.kind === "invalid_session" || outcome.kind === "unsupported") {
+          await coordinator.handleFailure();
+        }
         let body: unknown = null;
         try {
           body = await res.json();
@@ -74,8 +76,8 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
         };
       }
 
-      coordinator.handleSuccess(refreshed);
-      headers.authorization = `Bearer ${refreshed.accessToken}`;
+      const accessToken = outcome.response?.accessToken ?? options.getAccessToken?.();
+      if (accessToken) headers.authorization = `Bearer ${accessToken}`;
       res = await fetch(url, { ...init, headers, credentials: "include" });
     }
 
@@ -129,6 +131,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
 export type ApiClient = ReturnType<typeof createApiClient>;
 export * from "./types";
 export * from "./utils";
+export * from "./auth/refresh-coordinator";
 export * from "./subclients";
 export { createOrpcClient } from "./orpc";
 export { createTanstackQueryUtils };

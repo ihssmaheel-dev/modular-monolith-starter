@@ -67,7 +67,18 @@ export const envSchema = z
     CLIENT_URL: z.string().url().default("http://localhost:5155"),
 
     API_URL: z.string().url().default("http://localhost:5156"),
-    COOKIE_DOMAIN: z.string().optional(),
+    COOKIE_DOMAIN: z.preprocess(
+      emptyStringAsUndefined,
+      z
+        .string()
+        .trim()
+        .regex(
+          /^\.?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i,
+          "COOKIE_DOMAIN must be a registrable DNS domain without a URL or port",
+        )
+        .transform((value) => value.replace(/^\./, "").toLowerCase())
+        .optional(),
+    ),
 
     DATABASE_URL: z.string().url().default("postgres://postgres:postgres@127.0.0.1:5432/app"),
     DB_DIRECT_URL: z

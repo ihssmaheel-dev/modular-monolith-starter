@@ -68,7 +68,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22.14.0
+          node-version: 24.21.0
 
       - name: Install pnpm
         uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
@@ -247,14 +247,17 @@ jobs:
           PGBOUNCER_DB_PASSWORD=ci-password-32-characters-long \
           docker compose -f docker/docker-compose.prod.yml -f docker/docker-compose.observability.yml -f docker/docker-compose.prod.observability.yml --profile observability config --format json > /tmp/observability-compose.json
           node scripts/validate-observability-config.js /tmp/observability-compose.json
-          docker run --rm --entrypoint promtool -v "$PWD/docker/observability/prometheus:/etc/prometheus:ro" -v /tmp/metrics_token:/run/secrets/metrics_token:ro prom/prometheus:v2.54.1 check config /etc/prometheus/prometheus.prod.yml
-          docker run --rm --entrypoint promtool -v "$PWD/docker/observability/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 check rules /etc/prometheus/alerts.yml
+          docker run --rm --entrypoint promtool -v "$PWD/docker/observability/prometheus:/etc/prometheus:ro" -v /tmp/metrics_token:/run/secrets/metrics_token:ro prom/prometheus:v2.55.1 check config /etc/prometheus/prometheus.prod.yml
+          pnpm observability:rules:test
 
       - name: Build production API image
         run: docker build --file Dockerfile --tag modular-monolith-api:ci .
 
       - name: Build production web image
         run: docker build --file apps/web/Dockerfile --build-arg VITE_API_URL=http://localhost:5156/api/v1 --tag modular-monolith-web:ci .
+
+      - name: Built-output production browser smoke test
+        run: pnpm test:production
 
       - name: Build Storybook catalog
         run: pnpm turbo build-storybook --filter=@repo/ui

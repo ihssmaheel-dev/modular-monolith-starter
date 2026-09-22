@@ -4,6 +4,7 @@ import { OutboxService } from "./outbox.service";
 import { OutboxRelayWorker } from "./workers/outbox-relay.worker";
 import { OutboxEventWorker } from "./workers/outbox-event.worker";
 import { OutboxRelayDelivery } from "./services/outbox-relay.delivery";
+import { OutboxConsumerRegistry } from "./services/outbox-consumer.registry";
 
 @Global()
 @Module({
@@ -13,7 +14,8 @@ import { OutboxRelayDelivery } from "./services/outbox-relay.delivery";
     OutboxRelayWorker,
     OutboxEventWorker,
     OutboxRelayDelivery,
+    OutboxConsumerRegistry,
   ],
-  exports: [OutboxService],
+  exports: [OutboxService, OutboxConsumerRegistry],
 })
 export class OutboxModule {}

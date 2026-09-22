@@ -3,7 +3,6 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { WelcomeEmailListener } from "../../../modules/users/application/listeners/welcome-email.listener";
 import { InvitationEmailListener } from "../../../modules/tenancy/application/listeners/invitation-email.listener";
 import type { QueueService } from "../../queue/queue.service";
-import type { EmailService } from "../../email/email.service";
 import type { I18nService } from "../../i18n/i18n.service";
 import type { PinoLoggerService } from "../../logger/logger.service";
 import type { OutboxEventMetadata } from "@repo/contracts";
@@ -11,7 +10,6 @@ import type { OutboxEventMetadata } from "@repo/contracts";
 describe("Event-Consumer Idempotency Contract", () => {
   let mockQueue: { add: ReturnType<typeof vi.fn> };
   let mockQueueService: QueueService;
-  let mockEmailService: EmailService;
   let mockI18n: I18nService;
   let mockLogger: PinoLoggerService;
 
@@ -23,9 +21,6 @@ describe("Event-Consumer Idempotency Contract", () => {
     mockQueueService = {
       getQueue: vi.fn().mockReturnValue(mockQueue),
     } as unknown as QueueService;
-    mockEmailService = {
-      send: vi.fn(),
-    } as unknown as EmailService;
     mockI18n = {
       t: vi.fn((key: string) => key),
     } as unknown as I18nService;
@@ -39,12 +34,7 @@ describe("Event-Consumer Idempotency Contract", () => {
   });
 
   it("welcome email listener uses meta.eventId as stable deduplication key when provided", async () => {
-    const listener = new WelcomeEmailListener(
-      mockLogger,
-      mockQueueService,
-      mockEmailService,
-      mockI18n,
-    );
+    const listener = new WelcomeEmailListener(mockLogger, mockQueueService, mockI18n);
 
     const eventPayload = {
       userId: "user-123",
@@ -71,12 +61,7 @@ describe("Event-Consumer Idempotency Contract", () => {
   });
 
   it("welcome email listener falls back to userId when meta is not provided", async () => {
-    const listener = new WelcomeEmailListener(
-      mockLogger,
-      mockQueueService,
-      mockEmailService,
-      mockI18n,
-    );
+    const listener = new WelcomeEmailListener(mockLogger, mockQueueService, mockI18n);
 
     const eventPayload = {
       userId: "user-123",
@@ -98,12 +83,7 @@ describe("Event-Consumer Idempotency Contract", () => {
   });
 
   it("invitation email listener uses meta.eventId for stable deduplication across retries", async () => {
-    const listener = new InvitationEmailListener(
-      mockQueueService,
-      mockEmailService,
-      mockI18n,
-      mockLogger,
-    );
+    const listener = new InvitationEmailListener(mockQueueService, mockI18n, mockLogger);
 
     const eventPayload = {
       tenantId: "tenant-abc",

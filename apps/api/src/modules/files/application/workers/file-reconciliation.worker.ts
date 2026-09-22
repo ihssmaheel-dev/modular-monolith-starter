@@ -6,6 +6,7 @@ import { MetricsService } from "../../../../infrastructure/metrics/metrics.servi
 import { StorageService } from "../../../../infrastructure/storage/storage.service";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { FilesRepository } from "../../infrastructure/repositories/files.repository";
+import { activeObjectKey } from "../services/file-objects.service";
 
 const RECONCILIATION_BATCH_SIZE = 100;
 const RECONCILIATION_WINDOW_HOURS = 24;
@@ -55,7 +56,7 @@ export class FileReconciliationWorker {
               break;
             }
             checked += 1;
-            const metadata = await this.storage.getMetadata(file.key);
+            const metadata = await this.storage.getMetadata(activeObjectKey(file));
             if (metadata.isErr()) {
               this.metrics.incrementCounter(
                 "file_reconciliation_error_total",

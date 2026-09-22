@@ -42,7 +42,7 @@ export class PurgeTenantFilesCommand {
   }
 
   private async purgeOne(file: { id: string; key: string }): Promise<Result<void, FileError>> {
-    const storageResult = await deleteFileObjects(this.storage, file.key);
+    const storageResult = await deleteFileObjects(this.storage, file);
     if (storageResult.isErr()) {
       this.logger.error({ key: file.key }, "Tenant erasure storage delete failed");
       return err({ type: "DELETE_FAILED", message: "api.error.deleteFailed" });

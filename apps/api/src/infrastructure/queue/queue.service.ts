@@ -1,6 +1,12 @@
 import { BeforeApplicationShutdown, Injectable, Optional } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
-import { context as otelContext, propagation, trace, type Context } from "@opentelemetry/api";
+import {
+  context as otelContext,
+  propagation,
+  SpanStatusCode,
+  trace,
+  type Context,
+} from "@opentelemetry/api";
 import { Job, Queue, Worker, type JobsOptions } from "bullmq";
 import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
@@ -198,6 +204,7 @@ export class QueueService implements BeforeApplicationShutdown {
           await handler(job);
         } catch (error) {
           span.recordException(toError(error));
+          span.setStatus({ code: SpanStatusCode.ERROR, message: toError(error).message });
           throw error;
         } finally {
           span.end();

@@ -8,6 +8,7 @@ import { API_BASE_PATH, type AuthenticatedUser } from "@repo/contracts";
 import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
+import { activeObjectKey } from "../services/file-objects.service";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { FileAccessRegistry } from "../../../../common/file-access/file-access.registry";
 
@@ -76,7 +77,7 @@ export class GetFileDownloadUrlQuery {
         downloadUrl: new URL(`${API_BASE_PATH}/files/${file.id}/content`, env.API_URL).toString(),
       });
     }
-    const urlResult = await this.storage.getPresignedDownloadUrl(file.key, undefined, {
+    const urlResult = await this.storage.getPresignedDownloadUrl(activeObjectKey(file), undefined, {
       filename: file.fileName,
     });
 

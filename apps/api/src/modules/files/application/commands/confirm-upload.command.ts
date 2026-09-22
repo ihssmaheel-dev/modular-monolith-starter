@@ -10,8 +10,6 @@ import { AuthorizationService } from "../../../../infrastructure/authorization";
 import { canAccessResource } from "../../../../common/utils/resource-authorization";
 import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
 
-import { FileScanWorker } from "../workers/file-scan.worker";
-
 @Injectable()
 export class ConfirmUploadCommand {
   constructor(
@@ -20,7 +18,6 @@ export class ConfirmUploadCommand {
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly authorization?: AuthorizationService,
     @Optional() private readonly tenantContext?: TenantContextService,
-    @Optional() private readonly scanWorker?: FileScanWorker,
   ) {}
 
   async execute(fileKey: string, actor: AuthenticatedUser): Promise<Result<FileEntity, FileError>> {
@@ -45,8 +42,10 @@ export class ConfirmUploadCommand {
       });
     }
 
-    if (file.status !== "pending")
+    if (["uploading", "scanning", "uploaded"].includes(file.status)) return ok(file);
+    if (file.status !== "pending") {
       return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
+    }
 
     // Validate the quarantine object the browser actually uploaded, not the
     // final key (which must not exist before the scan worker promotes it).
@@ -58,25 +57,18 @@ export class ConfirmUploadCommand {
       return err({ type: "METADATA_MISMATCH", message: "api.file.metadataMismatch" });
     }
 
-    const update = () => this.filesRepo.updateById(file.id, { status: "uploading" });
-    const updateResult = this.database
-      ? await this.database.withResultTransaction(update)
-      : await update();
+    const update = () => this.filesRepo.markUploadReady(file.id, metadata.value ?? {});
+    const updated = this.database ? await this.database.runTransaction(update) : await update();
 
-    if (updateResult.isErr() || !updateResult.value) {
-      return err({
-        type: "UPLOAD_FAILED",
-        message: "api.error.uploadFailed",
-      });
+    if (!updated) {
+      const current = await this.filesRepo.findByKey(fileKey);
+      if (current && ["uploading", "scanning", "uploaded"].includes(current.status)) {
+        return ok(current);
+      }
+      return err({ type: "UPLOAD_FAILED", message: "api.error.uploadFailed" });
     }
 
-    if (this.scanWorker) {
-      await this.scanWorker.scanOne(file);
-      const promoted = await this.filesRepo.findByKey(fileKey);
-      if (promoted && promoted.status === "uploaded") return ok(promoted);
-    }
-
-    return ok(updateResult.value);
+    return ok(updated);
   }
 
   private matches(file: FileEntity, metadata: { size: number; contentType?: string } | null) {

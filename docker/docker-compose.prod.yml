@@ -45,11 +45,14 @@ services:
       PORT: 3000
       HOST: 0.0.0.0
       VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL}
+      VITE_APP_NAME: ${VITE_APP_NAME:-Workspace}
+      VITE_EXAMPLE_FEATURES_ENABLED: ${EXAMPLE_FEATURES_ENABLED:-false}
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      test:
+        ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/auth || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -97,6 +100,7 @@ services:
       WORKER_METRICS_PORT: ${WORKER_METRICS_PORT:-9464}
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       CDN_BASE_URL: ${CDN_BASE_URL:-}
       AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-90}
       INVITATION_RETENTION_DAYS: ${INVITATION_RETENTION_DAYS:-90}
@@ -132,7 +136,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health/ready || exit 1",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/v1/health/ready || exit 1",
         ]
       interval: 10s
       timeout: 5s
@@ -173,6 +177,7 @@ services:
       WORKER_METRICS_PORT: ${WORKER_METRICS_PORT:-9464}
       CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL}
       API_URL: ${API_URL:?set API_URL}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       CDN_BASE_URL: ${CDN_BASE_URL:-}
       AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-90}
       INVITATION_RETENTION_DAYS: ${INVITATION_RETENTION_DAYS:-90}
@@ -204,7 +209,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://localhost:9464/health/ready || exit 1",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:9464/health/ready || exit 1",
         ]
       interval: 30s
       timeout: 5s
@@ -235,8 +240,15 @@ services:
       PGBOUNCER_POOL_SIZE: ${PGBOUNCER_POOL_SIZE:-25}
       PGBOUNCER_MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-200}
       PGBOUNCER_MAX_PREPARED_STATEMENTS: ${PGBOUNCER_MAX_PREPARED_STATEMENTS:-100}
+      PGBOUNCER_CLIENT_TLS_MODE: ${PGBOUNCER_CLIENT_TLS_MODE:-require}
+      PGBOUNCER_CLIENT_TLS_CERT_FILE: /etc/pgbouncer/tls/client/tls.crt
+      PGBOUNCER_CLIENT_TLS_KEY_FILE: /etc/pgbouncer/tls/client/tls.key
+      PGBOUNCER_CLIENT_TLS_CA_FILE: ${PGBOUNCER_CLIENT_TLS_CA_FILE:-}
+      PGBOUNCER_SERVER_TLS_MODE: ${PGBOUNCER_SERVER_TLS_MODE:-verify-full}
+      PGBOUNCER_SERVER_TLS_CA_FILE: /etc/pgbouncer/tls/server/ca.crt
     volumes:
       - ./pgbouncer-entrypoint.sh:/entrypoint.sh:ro
+      - ${PGBOUNCER_TLS_DIR:-./ssl/pgbouncer}:/etc/pgbouncer/tls:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     expose:
       - "6432"

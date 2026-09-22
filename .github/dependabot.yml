@@ -28,15 +28,6 @@ updates:
     open-pull-requests-limit: 3
 
   - package-ecosystem: docker
-    directory: /apps/api
-    schedule:
-      interval: weekly
-    groups:
-      docker-base-images:
-        patterns: ["*"]
-    open-pull-requests-limit: 3
-
-  - package-ecosystem: docker
     directory: /apps/web
     schedule:
       interval: weekly

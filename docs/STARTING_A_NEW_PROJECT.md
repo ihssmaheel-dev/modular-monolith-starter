@@ -40,10 +40,14 @@ or cleanly disable example features across all local environment files, use:
 pnpm prune:examples --status
 pnpm prune:examples --disable --dry-run
 pnpm prune:examples --disable --yes
+pnpm prune:examples --removal-plan
 ```
 
-A product can delete the slice in its initial fork before production data exists; after a release, remove tables
-only through an appended migration.
+A product can delete the slice in its initial fork before production data exists. Use the version-controlled
+removal checklist because the reference crosses API composition, routes/navigation, dashboard widgets, the API
+client, contracts/exports, permissions, file-parent lifecycle registration, locales, fixtures, tests, and generator
+smoke assumptions. After a release, remove tables or enum values only through an appended migration; frozen
+migrations remain immutable.
 
 ## Choose the deployment tenancy model first
 

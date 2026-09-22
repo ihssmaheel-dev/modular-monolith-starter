@@ -31,8 +31,22 @@ const ENV_TARGETS = [
 
 const EXAMPLE_MODULE_PATHS = [
   "apps/api/src/modules/notes",
-  "apps/web/src/routes/_authenticated/notes",
-  "apps/mobile/app/(app)/notes",
+  "apps/web/src/routes/_app/notes",
+  "apps/web/src/features/notes",
+  "apps/mobile/app/(tabs)/notes.tsx",
+  "apps/mobile/app/notes",
+  "apps/mobile/src/features/notes",
+];
+
+const REMOVAL_CHECKLIST = [
+  "Remove NotesModule from REFERENCE_FEATURE_MODULES in apps/api/src/app.module.ts.",
+  "Remove API, web, and mobile Notes routes, features, tests, navigation, command-menu entries, and dashboard widgets.",
+  "Remove the Notes API client subclient and its factory/export wiring.",
+  "Remove notes contracts, schemas, routes, permissions, event validators, and public exports from @repo/contracts.",
+  "Remove Notes query-key branches, translations, fixtures, generator assumptions, and E2E coverage.",
+  "Remove note file-parent lifecycle registration; append a migration before changing file_parent_type in an existing database.",
+  "Keep frozen migrations immutable; use an appended migration for table or enum removal.",
+  "Run rules, typecheck, unit/integration/E2E, migration lineage, transport parity, and a neutral generated-feature smoke test.",
 ];
 
 function printHelp() {
@@ -45,6 +59,7 @@ Usage:
 Commands:
   --status   Inspect current status of example features across apps
   --disable  Set EXAMPLE_FEATURES_ENABLED=false across all local .env files
+  --removal-plan  Print the version-controlled safe-removal checklist
 
 Options:
   --dry-run  Preview actions without modifying files (default unless --yes is passed)
@@ -57,6 +72,14 @@ Notes:
   disables the API module registration, routes, and navigation without losing
   the pattern reference for building production features.
 `);
+}
+
+function printRemovalPlan() {
+  process.stdout.write("\nNotes reference-slice removal checklist:\n\n");
+  REMOVAL_CHECKLIST.forEach((item, index) => process.stdout.write(`  ${index + 1}. ${item}\n`));
+  process.stdout.write(
+    "\nRun this only in a disposable branch/copy and review every diff before commit.\n",
+  );
 }
 
 function checkStatus() {
@@ -135,6 +158,11 @@ function main() {
   if (isDisable) {
     const dryRun = !isYes || isDryRun;
     disableExamples(dryRun);
+    return;
+  }
+
+  if (args.includes("--removal-plan")) {
+    printRemovalPlan();
     return;
   }
 

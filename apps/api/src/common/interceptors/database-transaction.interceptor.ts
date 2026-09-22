@@ -9,16 +9,16 @@ import { Reflector } from "@nestjs/core";
 import { from, lastValueFrom, type Observable } from "rxjs";
 import { DatabaseService } from "../../infrastructure/database";
 import { PinoLoggerService } from "../../infrastructure/logger/logger.service";
-import { NO_DATABASE_TRANSACTION_KEY } from "../decorators/database-transaction.decorator";
+import {
+  DATABASE_TRANSACTION_KEY,
+  NO_DATABASE_TRANSACTION_KEY,
+} from "../decorators/database-transaction.decorator";
 
 const LONG_TRANSACTION_WARNING_MS = 100;
 
 /**
- * Optional request-level database transaction interceptor.
- * Note: By default, the architecture avoids global request transaction wrapping to prevent
- * connection pool starvation during external I/O (S3, SMTP, Argon2 hashing). Instead,
- * short explicit transactions are used in commands/repositories. This interceptor is available
- * for selective controller-level binding when request-scoped transactions are specifically required.
+ * Opt-in request transaction boundary. Ordinary requests run without a
+ * request-wide transaction; commands and repositories own short SQL units of work.
  */
 @Injectable()
 export class DatabaseTransactionInterceptor implements NestInterceptor {
@@ -54,8 +54,6 @@ export class DatabaseTransactionInterceptor implements NestInterceptor {
     if (this.reflector.getAllAndOverride<boolean>(NO_DATABASE_TRANSACTION_KEY, targets)) {
       return true;
     }
-    // Database transactions are the default for HTTP handlers so PostgreSQL RLS
-    // context is always configured. External-I/O handlers explicitly opt out.
-    return false;
+    return !this.reflector.getAllAndOverride<boolean>(DATABASE_TRANSACTION_KEY, targets);
   }
 }

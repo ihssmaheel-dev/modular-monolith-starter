@@ -1,9 +1,9 @@
-import { Injectable, MessageEvent as NestMessageEvent } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
 import { PinoLoggerService } from "../logger/logger.service";
 import { RealtimeConnectionRegistry } from "./connections/realtime-connection.registry";
 import { WebSocket } from "ws";
-import { Subject } from "rxjs";
+import type { SseClient, SseCloseReason } from "./transports/sse-connection";
 
 const STREAM_KEY = "realtime:events";
 const MAX_STREAM_LENGTH = 10000;
@@ -37,23 +37,21 @@ export class RealtimeService {
     if (tenantId !== undefined) this.registry.removeWsAlias(userId, socket);
   }
 
-  addSseClient(
-    userId: string,
-    tenantId: string | undefined,
-    subject: Subject<NestMessageEvent>,
-  ): boolean {
-    const admitted = this.registry.addSseClient(userId, tenantId, subject);
-    if (admitted !== false && tenantId !== undefined) this.registry.addSseAlias(userId, subject);
+  addSseClient(userId: string, tenantId: string | undefined, client: SseClient): boolean {
+    const admitted = this.registry.addSseClient(userId, tenantId, client);
+    if (admitted !== false && tenantId !== undefined) this.registry.addSseAlias(userId, client);
     return admitted !== false;
   }
 
   removeSseClient(
     userId: string,
     tenantId: string | undefined,
-    subject: Subject<NestMessageEvent>,
+    client: SseClient,
+    reason?: SseCloseReason,
+    queuedBytes?: number,
   ): void {
-    this.registry.removeSseClient(userId, tenantId, subject);
-    if (tenantId !== undefined) this.registry.removeSseAlias(userId, subject);
+    this.registry.removeSseClient(userId, tenantId, client, reason, queuedBytes);
+    if (tenantId !== undefined) this.registry.removeSseAlias(userId, client);
   }
 
   broadcast(event: string, payload: unknown): void {

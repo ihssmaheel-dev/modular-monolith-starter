@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { OnEvent } from "@nestjs/event-emitter";
+import type { OutboxEventMetadata } from "@repo/contracts";
 import { ok, err, type Result } from "neverthrow";
 import { PinoLoggerService } from "../../../../infrastructure/logger/logger.service";
 import { GetUserByEmailQuery } from "../../../users/application/queries/get-user-by-email.query";
@@ -22,14 +22,19 @@ export class DomainEventFanoutListener {
     this.logger = logger.child({ module: "DomainEventFanout" });
   }
 
-  @OnEvent("user.created")
-  async onUserCreated(event: { userId: string; name: string }): Promise<Result<void, unknown>> {
+  async onUserCreated(
+    event: { userId: string; name: string },
+    meta?: OutboxEventMetadata,
+  ): Promise<Result<void, unknown>> {
     try {
       const result = await this.notify.execute({
         userId: event.userId,
         type: "user.welcome",
         titleKey: "notifications.types.userWelcome",
         titleParams: { name: event.name },
+        sourceEvent: meta
+          ? { id: meta.eventId, consumer: "notifications.user-welcome.v1" }
+          : undefined,
       });
       if (result.isErr()) {
         this.logger.warn({ error: result.error }, "Welcome notification failed");
@@ -42,13 +47,15 @@ export class DomainEventFanoutListener {
     }
   }
 
-  @OnEvent("tenancy.invitation.created")
-  async onInvitationCreated(event: {
-    tenantId: string;
-    organizationName: string;
-    email: string;
-    token: string;
-  }): Promise<Result<void, unknown>> {
+  async onInvitationCreated(
+    event: {
+      tenantId: string;
+      organizationName: string;
+      email: string;
+      token: string;
+    },
+    meta?: OutboxEventMetadata,
+  ): Promise<Result<void, unknown>> {
     try {
       const user = await this.getUserByEmail.execute(event.email);
       if (user.isErr() || !user.value) return ok(undefined);
@@ -62,6 +69,9 @@ export class DomainEventFanoutListener {
         // path, the inbox row links the tenant for context.
         data: { tenantId: event.tenantId },
         channels: ["inApp", "push"],
+        sourceEvent: meta
+          ? { id: meta.eventId, consumer: "notifications.invitation-received.v1" }
+          : undefined,
       });
       if (result.isErr()) {
         this.logger.warn({ error: result.error }, "Invitation notification failed");
@@ -74,17 +84,22 @@ export class DomainEventFanoutListener {
     }
   }
 
-  @OnEvent("privacy.export.ready")
-  async onExportReady(event: {
-    requestId: string;
-    userId: string;
-  }): Promise<Result<void, unknown>> {
+  async onExportReady(
+    event: {
+      requestId: string;
+      userId: string;
+    },
+    meta?: OutboxEventMetadata,
+  ): Promise<Result<void, unknown>> {
     try {
       const result = await this.notify.execute({
         userId: event.userId,
         type: "privacy.export.ready",
         titleKey: "notifications.types.exportReady",
         data: { requestId: event.requestId },
+        sourceEvent: meta
+          ? { id: meta.eventId, consumer: "notifications.export-ready.v1" }
+          : undefined,
       });
       if (result.isErr()) {
         this.logger.warn({ error: result.error }, "Export-ready notification failed");

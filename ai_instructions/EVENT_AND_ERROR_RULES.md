@@ -141,7 +141,9 @@ Two clear levels. No fuzzy hand-waving.
 - Use the `OutboxService` combined with `DatabaseService` transactions.
 - **NEVER** emit events directly in-memory if the event dropping would cause data inconsistency.
 - Example: `UserCreated` → saving the user and dispatching the event to the outbox atomically.
-- The outbox processor will reliably deliver the event to the queue or in-memory listeners safely.
+- The outbox processor delivers through the explicit `OutboxConsumerRegistry`. Required consumers
+  are awaited and must succeed before the event is acknowledged; observer-only topics are declared
+  explicitly and may also publish local hints through EventEmitter2.
 
 ```typescript
 // modules/users/application/commands/create-user.command.ts
@@ -198,7 +200,8 @@ async createUser(data: CreateUserInput): Promise<Result<User, UserError>> {
 
 ### Promotion Rule
 
-**Prefer in-process events.** Promote to BullMQ only when reliability requirements demand it:
+Use in-process events only for reconstructable local hints. Use the transactional outbox plus
+required registry consumers when dropping an event would lose a business effect. Use BullMQ for:
 - Need retries with backoff
 - Need persistence across restarts
 - Need multi-instance safety
@@ -221,4 +224,5 @@ async createUser(data: CreateUserInput): Promise<Result<User, UserError>> {
 - Listeners live in `application/` (not in a separate `listeners/` folder at the module root).
 - **Error handling depends on listener type:**
   - **Ephemeral observers** (in-memory fire-and-forget events): Must never throw or bubble errors. Catch, log, and return `ok(undefined)`.
-  - **Durable consumers** (outbox listeners dispatched by `OutboxEventWorker`): Must never throw exceptions in the application layer, but **MUST return `Result<void, E>`** (`err(...)` on failure). The infrastructure worker inspects the `Result` and throws if any consumer returns `err()`, allowing BullMQ to execute exponential backoff retry and eventual dead-lettering.
+  - **Durable consumers** (registered with `OutboxConsumerRegistry`): Must never throw exceptions in the application layer, but **MUST return `Result<void, E>`** (`err(...)` on failure). The infrastructure registry adapts an unexpected throw into a retryable queue failure. Give every consumer a stable versioned ID and place idempotency beside each database/provider effect; the event-level receipt alone does not deduplicate partial success.
+  - A durable topic with no required consumer must be declared observer-only. Unclassified topics fail instead of being silently acknowledged.

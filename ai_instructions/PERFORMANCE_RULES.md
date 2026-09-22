@@ -89,8 +89,10 @@ async getUser(id: string): Promise<User | null> {
 ### Transaction Occupancy
 - Never hold a database transaction while hashing passwords, calling Redis or external services,
   streaming a response, or performing other slow non-SQL work.
-- HTTP handlers doing such work use `@NoDatabaseTransaction()`; commands open short explicit
-  transactions around only the related SQL changes and transactional outbox writes.
+- HTTP handlers have no request-wide transaction by default. Commands open short explicit
+  transactions around only related SQL changes and transactional outbox writes. Use
+  `@DatabaseTransaction()` only for an intentionally short SQL-only handler; never use it around
+  external I/O or CPU work.
 - Size pools from measured concurrency and alert on waiting clients. Increasing pool size does not
   repair an unnecessarily long transaction boundary.
 

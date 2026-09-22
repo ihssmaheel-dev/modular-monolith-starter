@@ -11,7 +11,7 @@ Live updates need server→client push (feed-style) and occasional bidirectional
 
 ## Decision
 
-SSE for one-way event feeds (auto-reconnect, plain HTTP, proxy-friendly); the WebSocket gateway for interactive traffic. Both register into one connection registry with per-user caps, symmetric add/remove, empty-set cleanup, and session-invalidation disconnects — so neither transport can leak connections. Cross-instance delivery fans out per-replica stream groups (see the realtime scale notes in `PRODUCTION_ARCHITECTURE.md`).
+SSE for one-way event feeds (auto-reconnect, plain HTTP, proxy-friendly); the WebSocket gateway for interactive traffic. Both register into one connection registry with per-user caps, symmetric add/remove, empty-set cleanup, and session-invalidation disconnects. SSE writes use an explicit bounded writer: maximum event size, queued events/bytes, response-buffer bytes, and drain deadline are enforced, and an overflow disconnect tells the client to resynchronize from durable state. Cross-instance delivery fans out per-replica stream groups (see the realtime scale notes in `PRODUCTION_ARCHITECTURE.md`).
 
 ## Consequences
 

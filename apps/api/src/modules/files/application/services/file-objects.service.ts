@@ -1,7 +1,8 @@
-import type { Result } from "neverthrow";
+import { ok, type Result } from "neverthrow";
 import type { StorageService } from "../../../../infrastructure/storage/storage.service";
 import type { StorageError } from "../../../../infrastructure/storage/storage.types";
 import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
+import type { FileEntity } from "../../domain/entities/file.entity";
 
 /**
  * Removes every object a file record may own. Bytes live at the quarantine
@@ -11,8 +12,22 @@ import { quarantineKeyFor } from "../../domain/value-objects/file-keys.vo";
  */
 export async function deleteFileObjects(
   storage: StorageService,
-  finalKey: string,
+  file: Pick<FileEntity, "key" | "activeKey" | "scanCandidateKeys">,
 ): Promise<Result<void, StorageError>> {
-  await storage.delete(quarantineKeyFor(finalKey));
-  return storage.delete(finalKey);
+  const keys = new Set([
+    quarantineKeyFor(file.key),
+    file.key,
+    ...(file.activeKey ? [file.activeKey] : []),
+    ...(file.scanCandidateKeys ?? []),
+  ]);
+  let finalResult: Result<void, StorageError> | undefined;
+  for (const key of keys) {
+    const deleted = await storage.delete(key);
+    if (deleted.isErr()) finalResult = deleted;
+  }
+  return finalResult ?? ok(undefined);
+}
+
+export function activeObjectKey(file: Pick<FileEntity, "key" | "activeKey">): string {
+  return file.activeKey ?? file.key;
 }

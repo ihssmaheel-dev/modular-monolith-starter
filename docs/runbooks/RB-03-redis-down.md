@@ -19,7 +19,7 @@ This runbook also covers `RedisMemoryPressure` and `RedisEvictionsDetected`.
 - **Rate limiting behavior:**
   - **Authentication & sensitive routes** (`/auth/`, `auth:`, `failClosed: true`): **Fail closed** (`allowed: false`). Login and token endpoints reject requests to protect against brute-force attacks during an outage.
   - **General API routes:** **Fail open** (`allowed: true`) to preserve availability. There is no local in-memory sliding-window fallback across replicas.
-- **Other degraded subsystems:** Realtime WebSocket cross-replica fan-out stops (isolated to local process); refresh-token reuse detection in Redis falls back to account `authVersion` checks; distributed worker locking falls back to PostgreSQL advisory locks (requiring direct connections); unread count cache bypasses to database queries.
+- **Other degraded subsystems:** Realtime WebSocket cross-replica fan-out stops (isolated to local process); refresh-token reuse detection in Redis falls back to account `authVersion` checks; distributed scheduled work fails closed rather than switching lock authorities; unread count cache bypasses to database queries. BullMQ delivery and Redis-locked jobs resume after Redis recovers.
 
 ## Triage in 5 minutes
 

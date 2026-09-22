@@ -3,33 +3,25 @@ import {
   Outlet,
   HeadContent,
   Scripts,
-  Link,
   useNavigate,
+  useRouter,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { THEME_BOOTSTRAP_SCRIPT, ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@repo/ui/components/ui/toast";
-import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
 import { QueryProvider } from "@/lib/query-client";
 import { I18nProvider } from "@/lib/i18n";
-import { useTranslation } from "react-i18next";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 import { getWebEnv, isDev } from "@/lib/env";
-import { RouteErrorFallback } from "@/components/error-boundary";
+import { RootError, RootNotFound, RootPending } from "@/components/root-route-states";
 import { initAuthSync } from "@/lib/cross-tab/auth-sync";
 import { QueryBroadcaster } from "@/lib/cross-tab/query-sync";
 import { ThemeSync } from "@/lib/cross-tab/theme-sync";
 import { LocaleSync } from "@/lib/cross-tab/locale-sync";
 import { TenantSync } from "@/lib/cross-tab/tenant-sync";
 import { initGlobalErrorListeners } from "@/lib/client-beacon";
+import { buildDocumentCsp } from "@/lib/security/csp";
 import { useEffect } from "react";
 import "@repo/ui/globals.css";
 
@@ -38,6 +30,12 @@ export interface RouterContext {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
+  headers: ({ ssr }) => {
+    if (!ssr?.nonce) return undefined;
+    return {
+      "Content-Security-Policy": buildDocumentCsp(ssr.nonce, getWebEnv().VITE_API_URL),
+    };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -47,61 +45,15 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     links: [{ rel: "icon", href: "/favicon.ico" }],
   }),
   component: RootComponent,
-  notFoundComponent: NotFound,
+  notFoundComponent: RootNotFound,
   errorComponent: RootError,
   pendingComponent: RootPending,
 });
 
-function NotFound() {
-  const { t } = useTranslation();
-  return (
-    <div className="flex min-h-svh items-center justify-center p-6 bg-muted/20">
-      <Card className="max-w-md w-full">
-        <CardHeader>
-          <CardTitle>{t("errors.notFound")}</CardTitle>
-          <CardDescription>{t("errors.notFound")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button render={<Link to={FRONTEND_ROUTES.home} />} className="w-full">
-            {t("common.back")}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function RootError({ error, reset }: { error?: unknown; reset?: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex min-h-svh items-center justify-center p-6 bg-muted/20">
-      <div className="max-w-md w-full space-y-3">
-        <RouteErrorFallback
-          error={error}
-          reset={() => {
-            if (reset) reset();
-            else window.location.reload();
-          }}
-        />
-        <Button variant="outline" className="w-full" render={<Link to={FRONTEND_ROUTES.home} />}>
-          {t("common.back")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function RootPending() {
-  const { t } = useTranslation();
-  return (
-    <div className="flex min-h-svh items-center justify-center p-6">
-      <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
-    </div>
-  );
-}
-
 function RootComponent() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const nonce = router.options.ssr?.nonce;
   useEffect(() => initGlobalErrorListeners(), []);
   useEffect(
     () =>
@@ -124,7 +76,11 @@ function RootComponent() {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
+        />
       </head>
       <body className="min-h-svh bg-background font-sans antialiased isolation-auto">
         <QueryProvider>

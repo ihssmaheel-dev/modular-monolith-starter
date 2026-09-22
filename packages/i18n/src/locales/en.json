@@ -375,6 +375,7 @@
     "noAttachments": "No attachments yet.",
     "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
     "attachments": "Attachments",
+    "processingTimeout": "The upload is still being checked. Retry the same file shortly.",
     "status": {
       "pending": "Pending",
       "uploading": "Uploading",

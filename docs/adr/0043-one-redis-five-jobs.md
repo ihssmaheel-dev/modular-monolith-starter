@@ -5,6 +5,10 @@
 - **Scope:** backend
 - **Backfilled:** yes — reconstructed from `DistributedCacheService`, session store, stream consumer, BullMQ, rate limiting, and the `auth:revocations` channel.
 
+> **Superseded in part (2026-09-22):** optional cache and realtime hints may degrade, but
+> correctness-critical distributed locks and sensitive-route rate limits fail closed. BullMQ work
+> pauses while Redis is unavailable. See `docs/runbooks/RB-03-redis-down.md`.
+
 ## Context
 
 Cache, sessions, realtime streams, job queues, rate limiting, and cross-instance pub/sub each suggest "their own" infrastructure. Five systems means five things to run, back up, and secure — fatal for on-prem simplicity.

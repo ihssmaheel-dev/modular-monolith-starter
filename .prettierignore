@@ -3,6 +3,8 @@ dist/
 build/
 .turbo/
 coverage/
+playwright-report/
+test-results/
 pnpm-lock.yaml
 *.min.js
 *.min.css

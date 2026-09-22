@@ -5,6 +5,9 @@
 - **Scope:** backend | quality | ops
 - **Backfilled:** no
 
+> **Runtime update (2026-09-22):** the repository now qualifies Node 24.21.0 across CI, Docker,
+> `.node-version`, `.nvmrc`, and package engines. The ESM decision remains unchanged.
+
 ## Context
 
 Upgrading `apps/api` to NestJS 12 introduced several new framework capabilities alongside major ecosystem shifts (native ESM packaging, standard schema validation, route diagnostics, and structured error codes). We needed to determine which features genuinely strengthen the modular monolith without violating architecture rules or causing churn.
@@ -19,7 +22,7 @@ We adopt three high-leverage features, enhance shutdown lifecycle safety, and de
 4. **Shutdown Teardown Hardening (`main.ts`)**: Enable `return503OnClosing: true` in `NestApplicationOptions`, ensuring new HTTP connections receive 503 while in-flight requests and `BeforeApplicationShutdown` drains complete.
 5. **Retain Custom Response Interceptor & Pipe**: Keep our 41-line `ResponseValidationInterceptor` and `ZodValidationPipe` instead of `StandardSchemaSerializerInterceptor`. Nest's native interceptor throws untyped errors concatenating validation messages (risking internal schema leaks) and lacks structured Pino/Loki logging.
 6. **Skip In-Source ESM Migration**: Compile TypeScript with `"module": "nodenext"` on the pinned,
-   CI-tested Node 22.12 runtime, allowing Node to consume ESM packages without churn across internal
+   CI-tested Node 24.21 runtime, allowing Node to consume ESM packages without churn across internal
    imports. A Node major upgrade is a coordinated toolchain change, not an assumption in this ADR.
 
 ## Consequences

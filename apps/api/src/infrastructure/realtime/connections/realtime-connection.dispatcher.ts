@@ -1,17 +1,13 @@
-import { type MessageEvent as NestMessageEvent } from "@nestjs/common";
-import { type Subject } from "rxjs";
 import { type WebSocket } from "ws";
 
+import type { SseClient } from "../transports/sse-connection";
+
 const WS_READY_STATE_OPEN = 1;
-/**
- * Per-socket outbound ceiling: a client that cannot keep up stops receiving
- * (it refetches durable state on reconnect) instead of growing server memory
- * without bound. Realtime is a hint channel, never the source of truth.
- */
 const WS_SEND_HIGH_WATERMARK_BYTES = 1_048_576;
 
 type WebSocketClients = Map<string, Set<WebSocket>>;
-type SseClients = Map<string, Set<Subject<NestMessageEvent>>>;
+type SseClients = Map<string, Set<SseClient>>;
+type RealtimeClient = WebSocket | SseClient;
 
 export function dispatchToConnection(
   wsClients: WebSocketClients,
@@ -30,45 +26,10 @@ export function dispatchToConnection(
     }
     socket.send(message);
   }
-  for (const subject of sseClients.get(key) ?? []) {
-    if (!dispatchToSseSubject(subject, event, payload)) {
-      droppedSlowClients += 1;
-    }
+  for (const client of sseClients.get(key) ?? []) {
+    if (!client.send(event, payload)) droppedSlowClients += 1;
   }
   return { droppedSlowClients };
-}
-
-const MAX_SSE_BACKLOG = 50;
-const sseBacklogs = new WeakMap<Subject<NestMessageEvent>, number>();
-
-function dispatchToSseSubject(
-  subject: Subject<NestMessageEvent>,
-  event: string,
-  payload: unknown,
-): boolean {
-  if (subject.closed) return false;
-  const currentBacklog = sseBacklogs.get(subject) ?? 0;
-  if (currentBacklog >= MAX_SSE_BACKLOG) {
-    try {
-      subject.next({
-        type: "sync_required",
-        data: { reason: "slow_consumer_backlog" },
-      } as NestMessageEvent);
-      subject.complete();
-    } catch {
-      // Ignore completed errors
-    }
-    return false;
-  }
-  sseBacklogs.set(subject, currentBacklog + 1);
-  subject.next({ type: event, data: payload } as NestMessageEvent);
-  queueMicrotask(() => {
-    const count = sseBacklogs.get(subject);
-    if (count !== undefined && count > 0) {
-      sseBacklogs.set(subject, count - 1);
-    }
-  });
-  return true;
 }
 
 export function dispatchToEveryConnection(
@@ -91,12 +52,12 @@ export function dispatchToEveryConnection(
       }
     }
   }
-  const sentSubjects = new Set<Subject<NestMessageEvent>>();
-  for (const subjects of sseClients.values()) {
-    for (const subject of subjects) {
-      if (!sentSubjects.has(subject)) {
-        dispatchToSseSubject(subject, event, payload);
-        sentSubjects.add(subject);
+  const sentSse = new Set<SseClient>();
+  for (const clients of sseClients.values()) {
+    for (const client of clients) {
+      if (!sentSse.has(client)) {
+        client.send(event, payload);
+        sentSse.add(client);
       }
     }
   }
@@ -108,30 +69,30 @@ export function closeKeyConnections(
   key: string,
   code = 4001,
   reason = "Closed",
-  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => boolean | void,
+  onClosed?: (item: RealtimeClient) => boolean | void,
 ): { ws: number; sse: number } {
   let wsCount = 0;
   let sseCount = 0;
   const ws = wsClients.get(key);
   if (ws) {
-    for (const s of ws) {
+    for (const socket of ws) {
       try {
-        s.close(code, reason);
-        if (onClosed?.(s) !== false) wsCount += 1;
+        socket.close(code, reason);
+        if (onClosed?.(socket) !== false) wsCount += 1;
       } catch {
-        /* ignore */
+        /* transport already closed */
       }
     }
     wsClients.delete(key);
   }
   const sse = sseClients.get(key);
   if (sse) {
-    for (const sub of sse) {
+    for (const client of sse) {
       try {
-        sub.complete();
-        if (onClosed?.(sub) !== false) sseCount += 1;
+        if (onClosed?.(client) !== false) sseCount += 1;
+        client.close("server_closed");
       } catch {
-        /* ignore */
+        /* transport already closed */
       }
     }
     sseClients.delete(key);
@@ -145,43 +106,41 @@ export function closeMatchingConnections(
   predicate: (key: string) => boolean,
   code = 4001,
   reason = "Closed",
-  onClosed?: (item: WebSocket | Subject<NestMessageEvent>) => boolean | void,
+  onClosed?: (item: RealtimeClient) => boolean | void,
 ): { ws: number; sse: number } {
   const closedWs = new Set<WebSocket>();
-  const closedSse = new Set<Subject<NestMessageEvent>>();
+  const closedSse = new Set<SseClient>();
   let wsCount = 0;
   let sseCount = 0;
   for (const [key, sockets] of wsClients.entries()) {
-    if (predicate(key)) {
-      for (const s of sockets) {
-        try {
-          if (!closedWs.has(s)) {
-            s.close(code, reason);
-            closedWs.add(s);
-            if (onClosed?.(s) !== false) wsCount += 1;
-          }
-        } catch {
-          /* ignore */
+    if (!predicate(key)) continue;
+    for (const socket of sockets) {
+      try {
+        if (!closedWs.has(socket)) {
+          socket.close(code, reason);
+          closedWs.add(socket);
+          if (onClosed?.(socket) !== false) wsCount += 1;
         }
+      } catch {
+        /* transport already closed */
       }
-      wsClients.delete(key);
     }
+    wsClients.delete(key);
   }
-  for (const [key, subjects] of sseClients.entries()) {
-    if (predicate(key)) {
-      for (const sub of subjects) {
-        try {
-          if (!closedSse.has(sub)) {
-            sub.complete();
-            closedSse.add(sub);
-            if (onClosed?.(sub) !== false) sseCount += 1;
-          }
-        } catch {
-          /* ignore */
+  for (const [key, clients] of sseClients.entries()) {
+    if (!predicate(key)) continue;
+    for (const client of clients) {
+      try {
+        if (!closedSse.has(client)) {
+          closedSse.add(client);
+          if (onClosed?.(client) !== false) sseCount += 1;
+          client.close("server_closed");
         }
+      } catch {
+        /* transport already closed */
       }
-      sseClients.delete(key);
     }
+    sseClients.delete(key);
   }
   return { ws: wsCount, sse: sseCount };
 }

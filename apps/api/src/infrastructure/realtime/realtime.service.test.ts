@@ -76,7 +76,7 @@ describe("RealtimeService", () => {
 
   it("subscribes tenant connections to the user-global key as well (H16)", () => {
     const socket = { readyState: 1 } as never;
-    const subject = { next: vi.fn() } as never;
+    const subject = { kind: "sse", send: vi.fn(), close: vi.fn() } as never;
     const scoped = {
       addWsClient: vi.fn(),
       addWsAlias: vi.fn(),
@@ -111,7 +111,7 @@ describe("RealtimeService", () => {
 
   it("does not register aliases when client admission is rejected", () => {
     const socket = { readyState: 1 } as never;
-    const subject = { next: vi.fn() } as never;
+    const subject = { kind: "sse", send: vi.fn(), close: vi.fn() } as never;
     const scoped = {
       addWsClient: vi.fn().mockReturnValue(false),
       addWsAlias: vi.fn(),

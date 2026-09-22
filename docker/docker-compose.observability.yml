@@ -79,7 +79,7 @@ services:
     logging: *observability-logging
 
   grafana:
-    image: grafana/grafana:11.5.2
+    image: grafana/grafana:13.2.0
     container_name: monorepo-grafana
     ports:
       - "127.0.0.1:3001:3000"

@@ -28,6 +28,8 @@ import { AUTH_USER_VERIFIER_PORT } from "../../common/ports/auth-user-verifier.p
 import { UsersAuthVerifierAdapter } from "./application/adapters/users-auth-verifier.adapter";
 import { FileAccessRegistry } from "../../common/file-access/file-access.registry";
 import { AVATAR_SLOT } from "@repo/contracts";
+import { OutboxConsumerRegistry } from "../../infrastructure/outbox";
+import type { UserCreatedEvent } from "./domain/events/user.events";
 
 @Global()
 @Module({
@@ -83,9 +85,17 @@ export class UsersModule implements OnModuleInit {
   constructor(
     private readonly fileAccess: FileAccessRegistry,
     private readonly getUserById: GetUserByIdQuery,
+    private readonly outboxConsumers: OutboxConsumerRegistry,
+    private readonly welcomeEmail: WelcomeEmailListener,
   ) {}
 
   onModuleInit(): void {
+    this.outboxConsumers.register({
+      id: "users.welcome-email.v1",
+      topics: ["user.created"],
+      handle: (payload, metadata) =>
+        this.welcomeEmail.handle(payload as UserCreatedEvent, metadata),
+    });
     this.fileAccess.registerParentAccess("user", async (file, actor) => {
       if (!file.parentId) return false;
       if (file.parentId === actor.sub || actor.role === "admin") return true;

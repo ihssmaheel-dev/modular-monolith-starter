@@ -221,7 +221,7 @@ groups:
           description: "Container working set memory exceeded 85% of its configured limit for over 5 minutes."
 
       - alert: ContainerHighCpuUsage
-        expr: (sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~".+"}[5m])) / on (container_label_com_docker_compose_service) sum by (container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_service=~".+"} / container_spec_cpu_period{container_label_com_docker_compose_service=~".+"})) > 0.85
+        expr: ((sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=~".+",container_label_com_docker_compose_service=~".+"}[5m]))) / on (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_project=~".+",container_label_com_docker_compose_service=~".+"} / container_spec_cpu_period{container_label_com_docker_compose_project=~".+",container_label_com_docker_compose_service=~".+"}))) > 0.85 and on (container_label_com_docker_compose_project, container_label_com_docker_compose_service) sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_spec_cpu_quota{container_label_com_docker_compose_project=~".+",container_label_com_docker_compose_service=~".+"}) > 0
         for: 5m
         labels:
           severity: warning
@@ -256,6 +256,31 @@ groups:
         annotations:
           summary: Realtime events were dead-lettered
           description: "One or more realtime events could not be delivered within their retry budget."
+
+      - alert: RealtimeSseBackpressureDisconnects
+        expr: increase(realtime_sse_disconnects_total{reason=~"backlog_bytes|backlog_events|drain_timeout|event_too_large"}[10m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: SSE clients are being disconnected by backpressure limits
+          description: "At least one realtime client exceeded the bounded SSE transport budget."
+
+      - alert: FileScanAttemptsExhausted
+        expr: increase(file_scan_outcomes_total{outcome="attempts_exhausted"}[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: File scans exhausted their retry budget
+          description: "One or more quarantined files require operator review."
+
+      - alert: RequiredOutboxConsumerFailures
+        expr: increase(outbox_required_consumer_outcomes_total{outcome=~"failed|unclassified"}[10m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: A required durable event consumer failed
+          description: "Required outbox side effects are retrying or a durable topic is unclassified."
 
       - alert: EmailCircuitBreakerOpen
         expr: circuit_breaker_state{name="email"} == 2

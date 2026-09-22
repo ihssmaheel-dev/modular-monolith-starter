@@ -79,7 +79,7 @@ module.exports = {
       to: { path: `${MODULE_PATH}/[^/]+/infrastructure/` },
     },
     {
-      name: "application-not-to-mongoose-schemas",
+      name: "application-not-to-persistence-schemas",
       comment:
         "Application use cases must access persistence through repositories, never schemas or models.",
       severity: "error",

@@ -7,6 +7,8 @@ import {
 } from "../../../../common/file-access/file-access.registry";
 import type { GetUserByIdQuery } from "../queries/get-user-by-id.query";
 import { AVATAR_SLOT, type AuthenticatedUser } from "@repo/contracts";
+import { OutboxConsumerRegistry } from "../../../../infrastructure/outbox";
+import type { WelcomeEmailListener } from "../listeners/welcome-email.listener";
 
 const ACTOR: AuthenticatedUser = { sub: "user-1", email: "user@example.com", role: "user" };
 const OTHER_ACTOR: AuthenticatedUser = { sub: "user-2", email: "other@example.com", role: "user" };
@@ -30,7 +32,13 @@ describe("UsersModule file access registration", () => {
   function setup() {
     const registry = new FileAccessRegistry();
     const getUserById = { execute: vi.fn() } as unknown as GetUserByIdQuery;
-    const module = new UsersModule(registry, getUserById);
+    const welcomeEmail = { handle: vi.fn() } as unknown as WelcomeEmailListener;
+    const module = new UsersModule(
+      registry,
+      getUserById,
+      new OutboxConsumerRegistry(),
+      welcomeEmail,
+    );
     module.onModuleInit();
     return { registry, getUserById };
   }

@@ -144,9 +144,14 @@ same idea as Supabase `foldername[1] = uid` RLS).
 
 ## States
 
-`pending → uploading → scanning → uploaded | failed`. The UI polls
-`listByParent` until `uploaded`/`failed`. Retries re-request a presigned URL;
-never reuse a URL past its 15-minute expiry.
+`pending → uploading → scanning → uploaded | failed`. Confirmation only verifies the uploaded
+quarantine object and makes the row eligible; the worker is the sole scan/promotion owner. Claims
+use a token and expiring lease, and terminal updates compare that token so a stale worker cannot
+overwrite a winner. Candidate active keys keep promotion safe across lease expiry.
+
+The shared API-client upload helper polls the same file ID until `uploaded` or `failed`, with a
+bounded deadline. Parent attachment happens only after `uploaded`. A new upload attempt requests a
+new URL and file record; never reuse a URL past its 15-minute expiry.
 
 ## Required bucket controls
 

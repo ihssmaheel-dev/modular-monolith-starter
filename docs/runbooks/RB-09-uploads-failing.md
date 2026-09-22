@@ -11,6 +11,7 @@
   - `StorageHighErrorRate`: object storage operation errors > 2% over 5m.
   - `StorageHighLatencyP95`: storage operation p95 latency > 2s over 5m.
   - `StorageCircuitBreakerOpen`: `circuit_breaker_state{name="storage"} == 2` (breaker tripped open).
+  - `FileScanAttemptsExhausted`: files reached the bounded scan-attempt limit.
 - Users report failed uploads/avatars while everything else works; frontend shows
   `metadataMismatch`, quota, or generic upload-failure strings.
 - Distinguish the three failure points first: URL minting (API), byte PUT (storage),
