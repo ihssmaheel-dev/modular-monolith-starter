@@ -61,7 +61,7 @@ services:
         condition: service_healthy
 
   mailpit:
-    image: axllent/mailpit:v1.30.0
+    image: axllent/mailpit:v1.31.1
     container_name: monorepo-mailpit
     ports:
       - "127.0.0.1:1025:1025"
@@ -73,7 +73,7 @@ services:
       retries: 5
 
   pgadmin:
-    image: dpage/pgadmin4:9.13
+    image: dpage/pgadmin4:9.18
     container_name: monorepo-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com

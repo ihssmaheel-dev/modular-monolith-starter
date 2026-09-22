@@ -2,7 +2,7 @@
 # Use docker/docker-compose.yml for local plaintext development dependencies.
 services:
   nginx:
-    image: nginx:1.27.4-alpine
+    image: nginx:1.31.0-alpine
     container_name: monorepo-nginx
     labels:
       observability.logs: "true"
@@ -228,7 +228,7 @@ services:
   # app/worker DATABASE_URL at the pooler; keep migrate/seed on DB_DIRECT_URL
   # (advisory locks need direct connections). See docs/DATABASE.md.
   pgbouncer:
-    image: pgbouncer/pgbouncer:1.25.2
+    image: pgbouncer/pgbouncer:1.25.2-20260911.206
     container_name: monorepo-pgbouncer
     profiles: [pooling]
     environment:
