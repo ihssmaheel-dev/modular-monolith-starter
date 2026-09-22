@@ -11,7 +11,7 @@ Test contract for the codebase. Quality without ceremony.
 | `domain/` | Unit | Vitest | Entities, value objects, business rules. Pure logic. |
 | `application/` | Unit | Vitest | Use cases, service logic. Mock repository. |
 | `infrastructure/` | Integration | Vitest + real Postgres/Redis (testcontainers or local docker) | Repositories, adapters. Real Postgres/Redis. |
-| `presentation/` + full flows | E2E | Supertest (API), Playwright (web) | API endpoints, user journeys. |
+| `presentation/` + full flows | E2E | Fastify inject (API), Playwright (web) | API endpoints, user journeys. |
 | `apps/web/src/**` | Unit | Vitest + Testing Library (jsdom) | Query/mutation option builders, lib, stores, hooks, components. Mock `getApiClient()`. |
 | `apps/mobile/src/**` (logic) | Unit | Vitest (node) | Query/mutation option builders, lib, stores. Mock `getApiClient()` + native modules. |
 
@@ -51,7 +51,7 @@ Test contract for the codebase. Quality without ceremony.
 
 ### E2E Tests (presentation + flows)
 - Test complete user journeys through the API.
-- Use Supertest for API tests.
+- Use Fastify's native in-memory `inject()` (`app.getHttpAdapter().getInstance().inject()`) for API tests.
 - Use Playwright for web browser tests.
 - Cover critical paths only: registration, login, core CRUD, payments.
 
@@ -125,7 +125,7 @@ const mockRepository = {
 | Unit testing domain logic | No mocks needed (pure functions) |
 | Integration testing a repository | Real database (testcontainers) |
 | Testing REST/oRPC route parity | `describeRouteParity` in `presentation/controllers/` |
-| E2E testing an API | Real everything (Supertest + Docker) |
+| E2E testing an API | Real everything (Fastify inject + Docker) |
 
 ### Test Data Factories
 

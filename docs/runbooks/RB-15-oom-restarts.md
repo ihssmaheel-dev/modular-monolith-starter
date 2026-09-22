@@ -10,8 +10,7 @@
 - Containers restarting on a loop (`docker compose ps` shows recent uptimes / high restart
   counts), host OOM-killer lines (`dmesg | grep -i "out of memory"`), or Node heap errors
   (`JavaScript heap out of memory`) in logs.
-- Honest baseline first: **no memory limits are configured on these services today** —
-  a runaway process grows until the host kills something, possibly the wrong something.
+- Production baseline: **All services have explicit cgroup memory limits configured** in `docker/docker-compose.prod.yml` (`nginx: 256m`, `web: 512m`, `api: 1024m`, `worker: 1024m`). When memory exceeds the limit, the Linux kernel terminates the container process with an OOM kill (SIGKILL), triggering an alert and restart.
 
 ## Blast radius
 

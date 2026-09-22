@@ -233,11 +233,11 @@ If you are asked to build a new feature (like "Invoices"), use this simple check
 - [ ] **Presentation:** Did I create an `InvoicesController` that validates via `ZodValidationPipe` (schemas from `@repo/contracts`), calls the command, maps the `Result` via `handleResult` + `I18nService`, and is protected by `@RequirePermission` + `@Idempotent`?
 - [ ] **AuthZ:** Did I add the action to `packages/authorization/src/permissions.ts` and policies in `application/invoices.policies.ts` (`OnModuleInit` register)?
 - [ ] **Text:** Did I put all the English text inside `packages/i18n/src/locales/en.json` (and `es.json`/`fr.json`)? Then use `I18nService.t()` (api) and `useTranslation().t()` (web).
-- [ ] **API Client:** Did I verify the generated `createInvoicesClient` registration and oRPC contract entry? Tip: `pnpm generate:feature invoices invoice` wires the slice.
+- [ ] **API Client:** Did I verify the generated `createInvoicesClient` registration and oRPC contract entry? Tip: `pnpm generate:feature invoices invoice --access=tenant-shared` wires the slice.
 - [ ] **Web:** Did I add `apps/web/src/routes/_app.invoices.index.tsx` (+ `.new.tsx` for create) + `apps/web/src/features/invoices/invoices.queries.ts` (queryOptions) + form with `zodResolver` + `@repo/ui` + `getApiClient()` + invalidate?
 - [ ] **Mobile:** Did I add the expo-router screen + `apps/mobile/src/features/invoices/` queries/mutations mirroring web, using `src/components/ui/` mirrors (never `@repo/ui`)?
 - [ ] **Notify:** If the feature has meaningful state changes, did I emit a domain event and add the fan-out handler + `NOTIFICATION_TYPES` entry + i18n titles (never send from the module)?
-- [ ] **Migrations:** Did schema changes ship a Drizzle migration (pre-production folded into `migrations/pg/0000_initial.sql`, `db:migrate:check` green)?
+- [ ] **Migrations:** Did schema changes ship a Drizzle migration (append-only new numbered file, `db:migrate:check` and `verify-migration-lineage` green, never editing frozen baselines)?
 - [ ] **UI:** If a new primitive was needed, did I add via `pnpm dlx shadcn@latest add <component> -c apps/web`?
 
 If you checked all those boxes, you have written **perfect, clean, enterprise-grade code**. Welcome to the team!

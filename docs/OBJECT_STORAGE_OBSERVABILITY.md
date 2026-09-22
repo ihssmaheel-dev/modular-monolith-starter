@@ -31,9 +31,9 @@ To solve this dilemma, the starter employs a **Dual-Layer Observability Model**:
 │                      (Grafana: Object Storage (Universal))                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  • Emitted directly by StorageService in apps/api                           │
-│  • Covers ~95% of operational needs out of the box                          │
+│  • Standard Golden Signals for all API-mediated storage calls & presigns    │
 │  • Works identically across MinIO, Cloudflare R2, Wasabi, and AWS S3        │
-│  • Golden Signals: ops/sec, p50/p95/p99 latency, error codes, transfer bytes│
+│  • Signals: ops/sec, p50/p95/p99 latency, error codes, server transfer bytes│
 │  • Resiliency: circuit breaker state (0/1/2) and bulkhead in-flight tracking│
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
@@ -71,6 +71,16 @@ Every storage operation initiated by the application flows through `StorageServi
 | `circuit_breaker_state`              | Gauge     | `name="storage"`                      | Circuit breaker state (`0=CLOSED`, `1=HALF_OPEN`, `2=OPEN`)             |
 | `circuit_breaker_trips_total`        | Counter   | `name="storage"`                      | Total times the storage circuit breaker has tripped                     |
 | `bulkhead_inflight`                  | Gauge     | `name="storage"`                      | Current concurrent requests active in the storage bulkhead              |
+
+### Direct Browser Transfers vs. API-Mediated Telemetry
+
+Because the architecture utilizes direct-to-S3 presigned URLs for client uploads and downloads, operators should understand what Layer 1 measures and what requires external telemetry:
+
+| Domain                   | Measured by Application (Layer 1)                               | Unmeasured by Application (Requires Layer 2/3)                                       |
+| ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Presigned Operations** | API presign generation duration, rate, and SDK errors           | Direct browser PUT/GET byte transfer speed, client latency, client connection resets |
+| **Data Plane Bytes**     | Server-side streams (`download_stream`, server uploads)         | Direct browser-to-S3 uploaded bytes, direct presigned download bytes                 |
+| **Transfer Failures**    | API presign validation errors, confirmation metadata mismatches | S3 signature expiration during slow browser uploads, client network aborts           |
 
 ### Strict Cardinality Protection
 

@@ -8,7 +8,7 @@
 | ------ | --------------------------------- | --------------------------------- |
 | `s3`   | Short-lived, direct presigned URL | Short-lived, direct presigned URL |
 
-File API returns `uploadMode: "direct"` with a presigned upload URL. Web clients upload directly to S3 via `PUT` using `application/octet-stream`, then call the confirmation endpoint. Download URLs are short-lived S3 presigned URLs.
+File API returns `uploadMode: "direct"` with a presigned upload URL. Web clients upload directly to S3 via `PUT` passing the exact matching `Content-Type` header requested during presign generation (e.g. `image/png`, `application/pdf`; S3 rejects mismatched `Content-Type` headers with `403 SignatureDoesNotMatch`), then call the confirmation endpoint. Download URLs are short-lived S3 presigned URLs.
 
 Routes stay behind global authentication, tenant context, permission, idempotency, rate-limit, origin-validation, tracing, and error layers.
 

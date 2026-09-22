@@ -17,7 +17,7 @@ File/function size limits live in exactly one place: `ai_instructions/CODE_QUALI
 - Controllers must map the `Result` to the appropriate HTTP response via `handleResult` + `I18nService`.
 
 ## 3. Contracts & Schemas
-- All Zod schemas, types, DTOs, and contracts MUST live in `packages/contracts` (`@repo/contracts`).
+- Every public transport Zod schema, DTO, and contract lives in `packages/contracts` (`@repo/contracts`). Runtime-private implementation types stay with their owning capability.
 - Translations MUST live in `packages/i18n` (`@repo/i18n`).
 - Permissions MUST live in `packages/authorization` (`@repo/authorization`).
 - **NEVER** define a public Zod schema in `apps/api`. Always import it from `@repo/contracts`.

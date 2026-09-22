@@ -17,8 +17,8 @@ const accessModel = accessArgument?.split("=")[1];
 
 if (!rawModule) {
   console.error("Error: Module name is required.");
-  console.error("Usage: pnpm generate:feature <module> [feature]");
-  console.error("Example: pnpm generate:feature tasks task");
+  console.error("Usage: pnpm generate:feature <module> [feature] --access=tenant-shared|owner");
+  console.error("Example: pnpm generate:feature tasks task --access=tenant-shared");
   process.exit(1);
 }
 

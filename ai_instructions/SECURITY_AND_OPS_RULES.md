@@ -202,8 +202,7 @@ chore: update dependencies
 ### Rules
 - One logical change per commit.
 - No WIP commits to main.
-- Reference issue numbers when applicable: `fix(auth): handle expired token (#42)`.
-- No generated files, build artifacts, or `.env` in commits.
+- No build artifacts (`dist/`), temporary caches, or local `.env` files in commits. Deterministic generated outputs required by runtime (`routeTree.gen.ts`, design tokens, migration journal) are committed and verified by CI.
 
 ### Branches
 - `main` — production-ready, always deployable.

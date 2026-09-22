@@ -11,11 +11,13 @@ Keep files small, clean, and maintainable. Every file should be easy to understa
 | App code: `apps/*`, `packages/contracts`, `packages/authorization`, `packages/i18n`, `packages/api-client`, `packages/ui` lib/hooks | **400** | Split by responsibility if file does 2 jobs or is hard to scan in 3 minutes |
 | Backend Command / Query / Controller / Service | **400** | Extract helper; keep one use-case per file |
 | Frontend Route / Page `apps/web/src/routes/*` | **150** | Split into `features/*` components if route mixes data + UI + form logic |
-| Feature Component / Hook / Utility `apps/web/src/features/*`, `apps/web/src/lib/*`, `apps/web/src/hooks/*` | **400** | Extract sub-component/hook |
+| Feature Component / Hook `apps/web/src/features/*`, `apps/web/src/hooks/*`, `apps/web/src/components/*` | **400** | Extract sub-component/hook |
 | Web lib `apps/web/src/lib/*` | **250** | Extract helper module |
-| Store `apps/web/src/stores/*`, `packages/*` stores | **200** | Split slices |
+| Store `apps/web/src/stores/*`, `apps/mobile/src/stores/*`, `packages/*` stores | **200** | Split slices |
 | UI Primitive `packages/ui/src/components/ui/*` | **800** | One shadcn family per file; large families like `sidebar` are fine. Split only if mixing 2 families |
 | Composed Component `packages/ui/src/components/composed/*` (DataTable, PageHeader, etc) | **400** | One reusable composed component per file (composes 3-6 primitives) |
+| Mobile App Code `apps/mobile/` (screens, features, lib) | **250** | Split screens and feature helpers |
+| Mobile UI Primitive & Theme `apps/mobile/src/components/ui/*`, `apps/mobile/src/theme/*` | **400** | Mirror web primitive variant/size API |
 | Email Template `packages/email/src/*` | **400** | One template per file |
 | Test file `*.test.ts`, `*.spec.ts`, `*.e2e.ts` | **800** | Split by describe block or scenario |
 

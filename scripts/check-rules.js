@@ -48,7 +48,9 @@ function isTest(file) {
 function getLineLimit(name, isTestFile) {
   if (isTestFile) return 800;
   if (name.startsWith("packages/email/")) return 400;
-  if (name.startsWith("packages/ui/src/components/")) return 800;
+  if (name.startsWith("packages/ui/src/components/composed/")) return 400;
+  if (name.startsWith("packages/ui/src/components/ui/")) return 800;
+  if (name.startsWith("packages/ui/src/components/")) return 400;
   if (name.startsWith("packages/ui/")) return 400;
   if (name.startsWith("packages/design-tokens/")) return 400;
   if (name.startsWith("packages/authorization/")) return 400;
@@ -59,7 +61,7 @@ function getLineLimit(name, isTestFile) {
   if (name.startsWith("apps/web/src/routes/")) return 150;
   if (name.startsWith("apps/web/src/features/")) return 400;
   if (name.startsWith("apps/web/src/components/")) return 400;
-  if (name.startsWith("apps/web/src/lib/")) return 300;
+  if (name.startsWith("apps/web/src/lib/")) return 250;
   if (name.startsWith("apps/web/src/stores/")) return 200;
   return 400;
 }

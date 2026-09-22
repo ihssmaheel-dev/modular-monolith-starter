@@ -163,7 +163,7 @@ existing administrator. Remove the credentials from `.env` after use.
 pnpm build              # required first: tests resolve workspace packages via built dist
 pnpm test:unit          # fast unit tests across the workspace
 pnpm test:integration   # real infrastructure tests
-pnpm test:e2e           # API/application flows (Supertest)
+pnpm test:e2e           # API/application flows (Fastify inject)
 pnpm lint               # eslint across api + web + shared packages
 pnpm format:check
 pnpm rules:check        # dependency-cruiser + conventions (api domain isolation + no fetch in routes + no hardcoded i18n)

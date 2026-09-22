@@ -71,11 +71,13 @@ state changes. Login and registration follow this pattern so Argon2 work never o
 database connection.
 
 Scheduled background worker tasks execute exclusively across clustered worker instances via
-`DatabaseService.withExclusiveExecution(key, fn)`. When Redis is available, it transparently
-delegates to `RedisLockService` (using atomic `SET NX PX` with a Lua token release script) to ensure
-full compatibility with PgBouncer transaction pooling without tying up database client connections
-or interfering with PostgreSQL autovacuum. If Redis is unconfigured or unavailable, it cleanly
-falls back to a dedicated connection session-level advisory lock (`pg_try_advisory_lock`).
+`DatabaseService.withExclusiveExecution(key, fn)`. Clustered environments MUST configure Redis:
+`withExclusiveExecution` delegates to `RedisLockService` (using atomic `SET NX PX` with a Lua token
+release script), ensuring lock safety that does not interfere with connection pooling or autovacuum.
+If Redis is unconfigured or unavailable, the fallback uses PostgreSQL session-level advisory locks
+(`pg_try_advisory_lock`) on a checked-out pool connection. Note: because transaction-mode PgBouncer
+pooling does not guarantee session-level lock persistence across transactions, clustered production
+deployments utilizing transaction-mode poolers must treat Redis as mandatory for worker task exclusivity.
 
 ## Connection pooling (PgBouncer)
 

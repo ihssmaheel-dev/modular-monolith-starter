@@ -267,18 +267,21 @@ users/
 ```
 migrations/
 └── pg/
-    ├── 0000_initial.sql       ← single pre-production baseline (schema DDL + RLS + functions + trigger)
+    ├── 0000_initial.sql       ← baseline migration (schema DDL + RLS + functions + trigger)
+    ├── 0001_... to 0006_...   ← sequential append-only migrations
+    ├── checksums.json         ← frozen SHA-256 hashes verified by verify-migration-lineage.js
     ├── README.md
-    └── meta/                  ← _journal.json (single entry) + 0000_snapshot.json
+    └── meta/                  ← _journal.json + snapshots
 ```
 
 ### Rules
 - Managed via `drizzle-kit` from `drizzle.config.ts`.
 - Generate: `pnpm --filter api db:generate`.
 - Apply: `pnpm --filter api db:migrate`.
-- Check status: `pnpm --filter api db:migrate:status`.
+- Check status: `pnpm --filter api db:migrate:status` (local schema vs snapshot diff).
 - Verify fresh + upgrade paths: `pnpm --filter api db:migrate:check`.
-- `0000_initial.sql` is the baseline schema migration. In production, migrations are strictly append-only: create new numbered migrations (e.g. `0001_...`, `0002_...`), and never edit existing applied migrations or modify `0000_initial.sql`.
+- Verify lineage & checksums: `node scripts/verify-migration-lineage.js`.
+- Migrations are strictly append-only: create new numbered migrations (e.g. `0007_...`), and never edit existing applied migrations or modify `0000_initial.sql`. All migration checksums are frozen in `checksums.json`.
 
 ---
 
@@ -343,7 +346,7 @@ apps/web/
   REST subclients remain compatibility fallbacks while both transports share contracts and parity
   tests.
 - Forms: `react-hook-form` + `@hookform/resolvers/zod` + `@repo/contracts` schemas (LoginSchema, RegisterSchema, CreateNoteSchema).
-- Auth: Zustand in-memory stores `accessToken/refreshToken`; user profile persists to localStorage via partialize. Refresh credential survives via httpOnly cookie. Never persist tokens to localStorage. `getApiClient` wires refresh via `requestRefresh` + `onAuthFailure` -> redirect `/auth`.
+- Auth: Zustand memory-only store for sensitive credentials (`accessToken`/`refreshToken` never touch disk); only non-sensitive user profile metadata persists to localStorage via partialize. Refresh credential survives via httpOnly cookie. Never persist tokens to localStorage. `getApiClient` wires refresh via `requestRefresh` + `onAuthFailure` -> redirect `/auth`.
 - Tenant: `useTenantStore.tenantId` automatically sent as `x-tenant-id` via api-client.
 - i18n: `useTranslation()` via `react-i18next`; keys from `@repo/i18n` (`common.*`, `auth.*`, `dashboard.*`, `notes.*`). See `I18N_RULES.md`.
 - Styling: Use `@repo/ui` components (`Button`, `Card`, `Input`, `Tabs`, `Badge`, etc) + `cn()` + Tailwind 4. No custom CSS libraries beyond Tailwind.

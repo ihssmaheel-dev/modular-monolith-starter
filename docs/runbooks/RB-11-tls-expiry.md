@@ -21,8 +21,10 @@ diagnostic paths open.
 
 1. `echo | openssl s_client -connect <host>:443 -servername <host> 2>/dev/null | openssl x509 -noout -dates` — read `notAfter`. Expired, expiring, or valid?
 2. Are cert files present where nginx expects them (`docker/ssl/` mounted to
-   `/etc/nginx/ssl/`)? The entrypoint degrades to plain HTTP without them — check whether
-   you're looking at a missing-cert fallback or an expired-cert failure; the fixes differ.
+   `/etc/nginx/ssl/`)? The entrypoint refuses to start and exits 1 if certs are missing
+   unless `ALLOW_INSECURE_HTTP=true` is explicitly configured behind an upstream TLS
+   terminator — check whether nginx is failing startup due to missing files or serving an
+   expired certificate. Fixes differ.
 3. ACME challenge path reachable? `/.well-known/acme-challenge/` must serve through nginx
    for renewal — a routing change that broke it silently is the usual renewal killer.
 
@@ -38,9 +40,7 @@ diagnostic paths open.
 
 ## Verify
 
-- `openssl` shows fresh `notAfter`; browsers load with no warnings in a clean profile
-  (cached HSTS/validity can lie — always verify incognito).
-- `nginx -t` passes; entrypoint logs show the HTTPS branch, not the plain-HTTP fallback.
+- `nginx -t` passes; entrypoint logs show the HTTPS branch (`TLS certs found - enabling HTTPS`).
 
 ## Escalate when
 

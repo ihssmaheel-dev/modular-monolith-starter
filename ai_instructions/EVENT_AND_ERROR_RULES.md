@@ -56,26 +56,30 @@ export class CreateUserCommand {
 
 ```typescript
 // modules/users/presentation/controllers/users.controller.ts
-// constructor(private readonly createUserCommand: CreateUserCommand) {}
+@Controller("users")
+export class UsersController {
+  constructor(
+    private readonly createUserCommand: CreateUserCommand,
+    private readonly i18n: I18nService,
+  ) {}
 
-  // Nest handler — uses @Post(), @Body() validated via Zod / oRPC
-  async create(body: any) {
-    const result = await this.createUserCommand.execute(body);
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @Idempotent()
+  @RequirePermission("users:write")
+  @ResponseSchema(UserResponseSchema)
+  async create(
+    @Body(new ZodValidationPipe(CreateUserSchema)) body: CreateUserInput,
+    @Req() req: FastifyRequest,
+  ): Promise<UserResponse> {
+    const locale = this.i18n.getLocale(req.headers["accept-language"]);
+    const result = await this.createUserCommand.execute(body, locale);
 
-    if (result.isErr()) {
-      // TypeScript knows result.error is UserError
-      switch (result.error.type) {
-        case "EMAIL_TAKEN":
-          return { status: 409, body: { message: "Email is already taken" } };
-        case "INVALID_USER_DATA":
-          return { status: 400, body: { message: result.error.reason } };
-        default:
-          return { status: 500, body: { message: "Internal error" } };
-      }
-    }
-
-    return { status: 201, body: result.value };
+    // handleResult throws typed Nest HTTP exceptions translated via I18nService
+    const user = handleResult(result, CREATE_USER_ERROR_MAP, this.i18n, locale);
+    return toUserResponse(user);
   }
+}
 ```
 
 ### Error Mapping
@@ -141,16 +145,18 @@ Two clear levels. No fuzzy hand-waving.
 
 ```typescript
 // modules/users/application/commands/create-user.command.ts
-async createUser(data: CreateUserInput): Promise<Result<User, UserError>> {
+async createUser(data: CreateUserInput, locale: Locale): Promise<Result<User, UserError | TransactionError>> {
   return await this.databaseService.withResultTransaction(async () => {
     // 1. Create user in the database
-    const user = await this.userRepository.save(data);
+    const created = await this.userRepository.create(data);
+    if (created.isErr()) return err(this.transactionError());
+    const user = created.value;
     
     // 2. Dispatch the global event (saved atomically in the current transaction)
-    await this.outboxService.dispatchGlobal("user.created", {
-      userId: user.id,
-      email: user.email,
-    });
+    // ALWAYS check the returned Result! A failed outbox insert must abort the transaction.
+    const event = new UserCreatedEvent(user.id, user.email, user.name, locale);
+    const dispatched = await this.outboxService.dispatchGlobal("user.created", event);
+    if (dispatched.isErr()) return err(this.transactionError());
     
     return ok(user);
   });

@@ -21,8 +21,10 @@ against a half-migrated schema are the actual danger, not the failed deploy itse
 
 1. `docker compose logs migrate` (environment's compose file) — the failing statement
    and journal position are in the first error, not the last retry.
-2. `pnpm --filter api db:migrate:status` (or `db:migrate:check`) against the target
-   database — which migrations applied, which is pending, is the journal ahead or behind?
+2. Query the target database migration tracking table directly (via psql or direct connection):
+   `SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC;`
+   (e.g., `docker compose exec postgres psql -U postgres -d postgres -c "SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC;"`).
+   Compare the latest applied `id` with entries in `migrations/pg/meta/_journal.json` — which migration failed, which is pending, and did the failed migration record an entry?
 3. Was it a timeout/lock (`DB_LOCK_TIMEOUT_MS`, concurrent deploy racing the journal
    lock) or a real SQL error (bad DDL, violated constraint)? Locks retry safely; SQL
    errors do not.
@@ -41,7 +43,7 @@ against a half-migrated schema are the actual danger, not the failed deploy itse
 
 ## Verify
 
-- `db:migrate:status` shows the journal fully applied; `migrate` service exits 0;
+- `__drizzle_migrations` in the target database shows the latest migration entry matching `_journal.json`; `migrate` service exits 0;
   api/worker pass health checks; one smoke login + write.
 - The exact failing statement from triage now succeeds — not "a deploy went green".
 

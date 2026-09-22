@@ -17,25 +17,25 @@ apps/api/src/modules/orders/
 ├── orders.module.ts
 ├── presentation/
 │   ├── controllers/orders.controller.ts
-│   ├── orpc/orders.orpc.controller.ts
-│   ├── mappers/orders.mapper.ts
-│   └── error-maps/orders.error-maps.ts
+│   ├── orpc/                 ← directory for oRPC controllers
+│   ├── mappers/              ← directory for DTO mappers
+│   └── error-maps/           ← directory for HTTP error maps
 ├── application/
 │   ├── commands/create-orders.command.ts
 │   ├── queries/get-orders.query.ts
-│   ├── listeners/
-│   ├── policies/
-│   └── services/
-├── domain/{entities,value-objects,events,errors}/
+│   └── listeners/            ← directory for event listeners
+├── domain/
+│   ├── entities/orders.entity.ts
+│   └── {value-objects,events,errors}/ ← directories for domain logic
 └── infrastructure/
-    ├── schemas/orders.schema.ts
-    └── repositories/orders.repository.ts
+    ├── repositories/orders.repository.ts
+    └── schemas/              ← directory for Drizzle table schemas
 ```
 
-The generator cannot infer business rules, public contracts, persistence fields, or indexes. The
-module is not complete until the following steps are implemented. Running
-`pnpm generate:feature orders order --access=tenant-shared` later replaces the scaffold with a
-complete vertical slice. Use `--access=owner` when only the creating user may read or mutate a row;
+The module skeleton is compilable but minimal. Running
+`pnpm generate:feature orders order --access=tenant-shared` (or `--access=owner`)
+populates the full vertical slice across API, contracts, authorization, API client, web, and mobile.
+Use `--access=owner` when only the creating user may read or mutate a row;
 the generator requires this decision so a private resource cannot accidentally use tenant-wide access.
 
 ## 2. Define the public API first

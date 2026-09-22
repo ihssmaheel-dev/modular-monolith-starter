@@ -9,18 +9,17 @@ This runbook also covers `RedisMemoryPressure` and `RedisEvictionsDetected`.
 ## How you notice
 
 - Alert `RedisKeyspaceHitRatioLow` firing (cache hit ratio < 40% over 15m).
-- Logs show `Redis client error` / `Failed to connect to Redis`; `ready` probe may stay
-  green because the API boots and serves without Redis by design.
-- Symptoms are partial: refresh-token reuse detection weakened, realtime fan-out stops
-  crossing replicas, rate limiting and notification unread-count cache fall back.
+- Logs show `Redis client error` / `Failed to connect to Redis`.
+- In **production** (`NODE_ENV=production`), `/health/ready` probe **fails (503 Service Unavailable)** because `RedisHealthIndicator` reports `session.down()`. In local/test environments, readiness reports `up` (unconfigured).
+- Liveness `/health/live` stays 200 (it intentionally runs without database/Redis dependencies).
 
 ## Blast radius
 
-Read this twice: **the API stays up**. Per ADR 0043 every Redis consumer null-guards a
-missing client and degrades toward expiry/JWT semantics. What actually breaks: cross-replica
-realtime delivery, refresh reuse rejection, distributed rate limiting (each replica limits
-locally), cached unread counts. Single-replica deployments barely notice; multi-replica
-ones lose coordination first.
+- **Readiness probe in production:** Pods/containers fail readiness and ingress load balancers will stop routing traffic or mark replicas degraded.
+- **Rate limiting behavior:**
+  - **Authentication & sensitive routes** (`/auth/`, `auth:`, `failClosed: true`): **Fail closed** (`allowed: false`). Login and token endpoints reject requests to protect against brute-force attacks during an outage.
+  - **General API routes:** **Fail open** (`allowed: true`) to preserve availability. There is no local in-memory sliding-window fallback across replicas.
+- **Other degraded subsystems:** Realtime WebSocket cross-replica fan-out stops (isolated to local process); refresh-token reuse detection in Redis falls back to account `authVersion` checks; distributed worker locking falls back to PostgreSQL advisory locks (requiring direct connections); unread count cache bypasses to database queries.
 
 ## Triage in 5 minutes
 
@@ -29,7 +28,7 @@ ones lose coordination first.
 2. `docker compose ps redis` — `healthy` vs `restarting`/`exited`.
 3. `docker compose logs --tail=30 redis` — OOM killer lines mean memory, not network (→ RB-04
    if the volume/host is full, else check `maxmemory` policy for the environment).
-4. Confirm degradation, not outage: `curl /health/live` (or `/api/v1/health/live`) should still be 200.
+4. Confirm health status: `/health/live` should be 200; `/health/ready` will be 503 in production until Redis responds.
 
 ## Fix paths
 
