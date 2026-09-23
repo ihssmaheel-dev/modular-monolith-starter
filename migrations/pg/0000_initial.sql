@@ -13,13 +13,15 @@
 -- 1. ENUMS & TYPES
 -- ----------------------------------------------------------------------------
 CREATE TYPE "public"."audit_action" AS ENUM('CREATE', 'UPDATE', 'DELETE');--> statement-breakpoint
+CREATE TYPE "public"."operation_receipt_status" AS ENUM('PROCESSING', 'COMPLETED');--> statement-breakpoint
 CREATE TYPE "public"."outbox_status" AS ENUM('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED', 'DEAD_LETTER');--> statement-breakpoint
 CREATE TYPE "public"."file_parent_type" AS ENUM('note', 'user', 'general');--> statement-breakpoint
 CREATE TYPE "public"."file_status" AS ENUM('pending', 'uploading', 'scanning', 'uploaded', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."notification_batch_status" AS ENUM('open', 'delivered');--> statement-breakpoint
+CREATE TYPE "public"."notification_delivery_status" AS ENUM('pending', 'processing', 'delivered', 'dead');--> statement-breakpoint
 CREATE TYPE "public"."digest_cadence" AS ENUM('realtime', 'hourly', 'daily');--> statement-breakpoint
 CREATE TYPE "public"."notification_channel" AS ENUM('inApp', 'email', 'push');--> statement-breakpoint
-CREATE TYPE "public"."dsr_status" AS ENUM('REQUESTED', 'READY', 'FULFILLED', 'EXPIRED', 'FAILED');--> statement-breakpoint
+CREATE TYPE "public"."dsr_status" AS ENUM('REQUESTED', 'PROCESSING', 'READY', 'PARTIAL', 'FULFILLED', 'EXPIRED', 'FAILED');--> statement-breakpoint
 CREATE TYPE "public"."dsr_type" AS ENUM('EXPORT', 'ACCOUNT_ERASURE', 'ORGANIZATION_ERASURE');--> statement-breakpoint
 CREATE TYPE "public"."invitation_role" AS ENUM('admin', 'member');--> statement-breakpoint
 CREATE TYPE "public"."invitation_status" AS ENUM('pending', 'accepted', 'revoked');--> statement-breakpoint
@@ -39,6 +41,22 @@ CREATE TABLE "audit_logs" (
 	"before" jsonb,
 	"after" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);--> statement-breakpoint
+
+CREATE TABLE "operation_receipts" (
+	"id" text PRIMARY KEY NOT NULL,
+	"operation_id" text NOT NULL,
+	"operation_type" text NOT NULL,
+	"scope_id" text NOT NULL,
+	"actor_id" text,
+	"tenant_id" text,
+	"request_hash" text NOT NULL,
+	"status" "operation_receipt_status" DEFAULT 'PROCESSING' NOT NULL,
+	"result" jsonb,
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"completed_at" timestamp with time zone,
+	CONSTRAINT "operation_receipt_identity_unique" UNIQUE("operation_type","scope_id","operation_id")
 );--> statement-breakpoint
 
 CREATE TABLE "outbox_events" (
@@ -68,6 +86,15 @@ CREATE TABLE "files" (
 	"slot" text,
 	"uploaded_by" text NOT NULL,
 	"status" "file_status" DEFAULT 'pending' NOT NULL,
+	"active_key" text,
+	"scan_claim_token" text,
+	"scan_lease_expires_at" timestamp with time zone,
+	"scan_attempts" integer DEFAULT 0 NOT NULL,
+	"scan_next_attempt_at" timestamp with time zone,
+	"scan_failure_code" text,
+	"scan_source_etag" text,
+	"scan_source_version_id" text,
+	"scan_candidate_keys" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone
@@ -110,6 +137,22 @@ CREATE TABLE "notification_batches" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );--> statement-breakpoint
 
+CREATE TABLE "notification_delivery_intents" (
+	"id" text PRIMARY KEY NOT NULL,
+	"notification_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"tenant_id" text,
+	"channel" "notification_channel" NOT NULL,
+	"status" "notification_delivery_status" DEFAULT 'pending' NOT NULL,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"next_attempt_at" timestamp with time zone,
+	"locked_at" timestamp with time zone,
+	"last_error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "notification_delivery_channel_unique" UNIQUE("notification_id","channel")
+);--> statement-breakpoint
+
 CREATE TABLE "notification_preferences" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -146,6 +189,8 @@ CREATE TABLE "dsr_requests" (
 	"subject_user_id" text NOT NULL,
 	"tenant_id" text,
 	"payload" jsonb,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"locked_at" timestamp with time zone,
 	"expires_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -209,50 +254,83 @@ CREATE TABLE "users" (
 );--> statement-breakpoint
 
 -- ----------------------------------------------------------------------------
--- 3. INDEXES & CONSTRAINTS
+-- 3. FOREIGN KEYS & CONSTRAINTS & INDEXES
 -- ----------------------------------------------------------------------------
+ALTER TABLE "notification_delivery_intents" ADD CONSTRAINT "notification_delivery_intents_notification_id_notifications_id_fk" FOREIGN KEY ("notification_id") REFERENCES "public"."notifications"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "invitations" ADD CONSTRAINT "invitations_tenant_id_organizations_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_tenant_id_organizations_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_email_normalized" CHECK ("users"."email" = lower(btrim("users"."email")));--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_pending_email_normalized" CHECK ("users"."pending_email" IS NULL OR "users"."pending_email" = lower(btrim("users"."pending_email")));--> statement-breakpoint
+
 CREATE INDEX "audit_tenant_created_idx" ON "audit_logs" USING btree ("tenant_id","created_at");--> statement-breakpoint
 CREATE INDEX "audit_collection_created_idx" ON "audit_logs" USING btree ("collection_name","created_at");--> statement-breakpoint
 CREATE INDEX "audit_document_id_idx" ON "audit_logs" USING btree ("document_id");--> statement-breakpoint
+CREATE INDEX "audit_created_at_idx" ON "audit_logs" USING btree ("created_at");--> statement-breakpoint
+
+CREATE INDEX "operation_receipt_expiry_idx" ON "operation_receipts" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "operation_receipt_actor_idx" ON "operation_receipts" USING btree ("actor_id","created_at");--> statement-breakpoint
+CREATE INDEX "operation_receipt_tenant_idx" ON "operation_receipts" USING btree ("tenant_id","created_at");--> statement-breakpoint
+
 CREATE INDEX "outbox_status_next_attempt_idx" ON "outbox_events" USING btree ("status","next_attempt_at");--> statement-breakpoint
 CREATE INDEX "outbox_status_locked_idx" ON "outbox_events" USING btree ("status","locked_at");--> statement-breakpoint
 CREATE INDEX "outbox_status_updated_idx" ON "outbox_events" USING btree ("status","updated_at");--> statement-breakpoint
 CREATE INDEX "outbox_tenant_id_idx" ON "outbox_events" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "outbox_topic_idx" ON "outbox_events" USING btree ("topic");--> statement-breakpoint
+
 CREATE INDEX "files_tenant_parent_idx" ON "files" USING btree ("tenant_id","parent_type","parent_id");--> statement-breakpoint
 CREATE INDEX "files_parent_slot_idx" ON "files" USING btree ("parent_type","parent_id","slot");--> statement-breakpoint
 CREATE INDEX "files_uploaded_by_idx" ON "files" USING btree ("uploaded_by");--> statement-breakpoint
 CREATE INDEX "files_status_created_idx" ON "files" USING btree ("status","created_at");--> statement-breakpoint
+CREATE INDEX "files_scan_due_idx" ON "files" USING btree ("status","scan_next_attempt_at","scan_lease_expires_at");--> statement-breakpoint
 CREATE INDEX "files_uploader_active_idx" ON "files" USING btree ("uploaded_by") WHERE "deleted_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "files_tenant_active_idx" ON "files" USING btree ("tenant_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
 CREATE INDEX "files_key_idx" ON "files" USING btree ("key");--> statement-breakpoint
 CREATE INDEX "files_deleted_at_idx" ON "files" USING btree ("deleted_at");--> statement-breakpoint
+
 CREATE INDEX "notes_tenant_id_idx" ON "notes" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "notes_created_by_idx" ON "notes" USING btree ("created_by");--> statement-breakpoint
 CREATE INDEX "notes_deleted_at_idx" ON "notes" USING btree ("deleted_at");--> statement-breakpoint
 CREATE INDEX "notes_tenant_deleted_idx" ON "notes" USING btree ("tenant_id","deleted_at");--> statement-breakpoint
+
 CREATE INDEX "device_tokens_user_idx" ON "device_tokens" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "device_tokens_token_idx" ON "device_tokens" USING btree ("token");--> statement-breakpoint
+
 CREATE INDEX "notification_batches_open_idx" ON "notification_batches" USING btree ("status","window_ends_at");--> statement-breakpoint
 CREATE INDEX "notification_batches_user_idx" ON "notification_batches" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "notification_batches_user_grouping_status_idx" ON "notification_batches" USING btree ("user_id","grouping_key","status");--> statement-breakpoint
 CREATE UNIQUE INDEX "notification_batches_open_grouping_unique" ON "notification_batches" USING btree ("user_id","grouping_key") WHERE "status" = 'open';--> statement-breakpoint
+
+CREATE INDEX "notification_delivery_pending_idx" ON "notification_delivery_intents" USING btree ("status","next_attempt_at","created_at");--> statement-breakpoint
+CREATE INDEX "notification_delivery_retention_idx" ON "notification_delivery_intents" USING btree ("status","updated_at");--> statement-breakpoint
+CREATE INDEX "notification_delivery_user_idx" ON "notification_delivery_intents" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "notification_delivery_tenant_idx" ON "notification_delivery_intents" USING btree ("tenant_id");--> statement-breakpoint
+
 CREATE INDEX "notification_preferences_user_idx" ON "notification_preferences" USING btree ("user_id");--> statement-breakpoint
+
 CREATE INDEX "notifications_user_read_idx" ON "notifications" USING btree ("user_id","read_at");--> statement-breakpoint
 CREATE INDEX "notifications_user_created_idx" ON "notifications" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "notifications_digest_batch_idx" ON "notifications" USING btree ((("data" ->> 'batchId'))) WHERE (("data" ->> 'batchId')) IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "notifications_tenant_idx" ON "notifications" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "notifications_type_idx" ON "notifications" USING btree ("type");--> statement-breakpoint
+
 CREATE INDEX "dsr_subject_idx" ON "dsr_requests" USING btree ("subject_user_id");--> statement-breakpoint
 CREATE INDEX "dsr_status_expires_idx" ON "dsr_requests" USING btree ("status","expires_at");--> statement-breakpoint
+CREATE INDEX "dsr_export_work_idx" ON "dsr_requests" USING btree ("type","status","locked_at","created_at");--> statement-breakpoint
 CREATE INDEX "dsr_tenant_idx" ON "dsr_requests" USING btree ("tenant_id");--> statement-breakpoint
+
 CREATE INDEX "invitations_tenant_email_status_idx" ON "invitations" USING btree ("tenant_id","email","status");--> statement-breakpoint
 CREATE INDEX "invitations_token_hash_idx" ON "invitations" USING btree ("token_hash");--> statement-breakpoint
 CREATE INDEX "invitations_expires_at_idx" ON "invitations" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "invitations_retention_idx" ON "invitations" USING btree ("updated_at","status","expires_at");--> statement-breakpoint
+
 CREATE UNIQUE INDEX "memberships_tenant_user_unique" ON "memberships" USING btree ("tenant_id","user_id");--> statement-breakpoint
 CREATE INDEX "memberships_tenant_id_idx" ON "memberships" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "memberships_user_id_idx" ON "memberships" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "organizations_slug_unique" ON "organizations" USING btree ("slug");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email");--> statement-breakpoint
+
+CREATE UNIQUE INDEX "organizations_slug_unique" ON "organizations" USING btree ("slug") WHERE "organizations"."deleted_at" IS NULL;--> statement-breakpoint
+
+CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree (lower("email")) WHERE "users"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "users_pending_email_unique" ON "users" USING btree (lower("pending_email")) WHERE "users"."pending_email" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "users_avatar_file_id_idx" ON "users" USING btree ("avatar_file_id");--> statement-breakpoint
 CREATE INDEX "users_deleted_at_idx" ON "users" USING btree ("deleted_at");--> statement-breakpoint
 
@@ -283,7 +361,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  deleted_count INT;
+  total_deleted INT := 0;
+  batch_deleted INT := 0;
+  batch_limit INT := 1000;
+  max_batches INT := 10;
+  i INT := 0;
 BEGIN
   IF days_to_keep < 30 THEN
     RAISE EXCEPTION 'Retention period cannot be less than 30 days';
@@ -291,10 +373,24 @@ BEGIN
 
   PERFORM set_config('app.system_scope', 'true', true);
   PERFORM set_config('app.audit_retention_purge', 'true', true);
-  DELETE FROM public.audit_logs
-  WHERE created_at < NOW() - make_interval(days => days_to_keep);
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
-  RETURN deleted_count;
+
+  WHILE i < max_batches LOOP
+    DELETE FROM public.audit_logs
+    WHERE id IN (
+      SELECT id FROM public.audit_logs
+      WHERE created_at < NOW() - make_interval(days => days_to_keep)
+      ORDER BY created_at ASC
+      LIMIT batch_limit
+    );
+    GET DIAGNOSTICS batch_deleted = ROW_COUNT;
+    total_deleted := total_deleted + batch_deleted;
+    IF batch_deleted < batch_limit THEN
+      EXIT;
+    END IF;
+    i := i + 1;
+  END LOOP;
+
+  RETURN total_deleted;
 END;
 $$;--> statement-breakpoint
 
@@ -307,6 +403,8 @@ GRANT EXECUTE ON FUNCTION public.purge_audit_logs_older_than(INT) TO CURRENT_USE
 -- Enable and force RLS on all tenant-owned and subject-isolated tables
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE operation_receipts ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE operation_receipts FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE outbox_events ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE outbox_events FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -323,6 +421,8 @@ ALTER TABLE dsr_requests ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE dsr_requests FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE notifications FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notification_delivery_intents ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE notification_delivery_intents FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -343,6 +443,30 @@ CREATE POLICY audit_system_scope ON audit_logs
     current_setting('app.system_scope', true) = 'true'
     OR (current_setting('app.tenancy_mode', true) = 'single' AND tenant_id IS NULL)
     OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
+  );--> statement-breakpoint
+
+DROP POLICY IF EXISTS operation_receipt_scope ON operation_receipts;--> statement-breakpoint
+CREATE POLICY operation_receipt_scope ON operation_receipts
+  FOR ALL
+  USING (
+    current_setting('app.system_scope', true) = 'true'
+    OR (
+      actor_id = NULLIF(current_setting('app.current_user', true), '')
+      AND (
+        (current_setting('app.tenancy_mode', true) = 'single' AND tenant_id IS NULL)
+        OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
+      )
+    )
+  )
+  WITH CHECK (
+    current_setting('app.system_scope', true) = 'true'
+    OR (
+      actor_id = NULLIF(current_setting('app.current_user', true), '')
+      AND (
+        (current_setting('app.tenancy_mode', true) = 'single' AND tenant_id IS NULL)
+        OR tenant_id = NULLIF(current_setting('app.current_tenant', true), '')
+      )
+    )
   );--> statement-breakpoint
 
 DROP POLICY IF EXISTS outbox_system_scope ON outbox_events;--> statement-breakpoint
@@ -444,6 +568,18 @@ CREATE POLICY subject_isolation_dsr_requests ON dsr_requests
 
 DROP POLICY IF EXISTS subject_isolation_notifications ON notifications;--> statement-breakpoint
 CREATE POLICY subject_isolation_notifications ON notifications
+  FOR ALL
+  USING (
+    current_setting('app.system_scope', true) = 'true'
+    OR user_id = NULLIF(current_setting('app.current_user', true), '')
+  )
+  WITH CHECK (
+    current_setting('app.system_scope', true) = 'true'
+    OR user_id = NULLIF(current_setting('app.current_user', true), '')
+  );--> statement-breakpoint
+
+DROP POLICY IF EXISTS subject_isolation_notification_delivery ON notification_delivery_intents;--> statement-breakpoint
+CREATE POLICY subject_isolation_notification_delivery ON notification_delivery_intents
   FOR ALL
   USING (
     current_setting('app.system_scope', true) = 'true'

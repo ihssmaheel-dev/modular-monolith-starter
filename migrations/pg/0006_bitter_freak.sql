@@ -1,2 +1,0 @@
-CREATE INDEX IF NOT EXISTS "notification_delivery_retention_idx" ON "notification_delivery_intents" USING btree ("status","updated_at");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "invitations_retention_idx" ON "invitations" USING btree ("updated_at","status","expires_at");
