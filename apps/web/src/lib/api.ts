@@ -36,10 +36,10 @@ export function getApiClient(): ApiClient {
             ? currentUrl.searchParams.get("token")
             : null;
         window.location.href = token
-          ? buildFrontendUrl(window.location.origin, FRONTEND_ROUTES.auth, {
+          ? buildFrontendUrl(window.location.origin, FRONTEND_ROUTES.login, {
               inviteToken: token,
             })
-          : FRONTEND_ROUTES.auth;
+          : FRONTEND_ROUTES.login;
       }
     },
   });

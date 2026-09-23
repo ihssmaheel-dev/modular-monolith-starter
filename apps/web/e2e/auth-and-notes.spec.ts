@@ -4,8 +4,8 @@ import { registerAndVerify } from "./helpers";
 test("signed-out visitors are sent to authentication", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page).toHaveURL(/\/auth$/);
-  await expect(page.getByRole("tab", { name: /sign up|register/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("button", { name: /sign in|log in/i })).toBeVisible();
 });
 
 test("a new user can register, create a note, and sign out", async ({ page }) => {
@@ -25,7 +25,7 @@ test("a new user can register, create a note, and sign out", async ({ page }) =>
   await expect(page.getByText(/attachments/i)).toBeVisible();
   await page.getByRole("button", { name: /profile/i }).click();
   await page.getByRole("menuitem", { name: /sign out|logout/i }).click();
-  await expect(page).toHaveURL(/\/auth$/);
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test("a note attachment can be uploaded and listed", async ({ page }) => {
@@ -53,9 +53,9 @@ test("a note attachment can be uploaded and listed", async ({ page }) => {
 });
 
 test("forgot-password does not reveal account existence", async ({ page }) => {
-  await page.goto("/auth");
+  await page.goto("/login");
   await page.getByRole("link", { name: /forgot password/i }).click();
-  await expect(page).toHaveURL(/\/auth\/forgot-password$/);
+  await expect(page).toHaveURL(/\/forgot-password$/);
   await page.locator("#forgot-email").fill("unknown@example.test");
   await page.getByRole("button", { name: /send reset link/i }).click();
   await expect(page.getByText(/check|sent|email/i)).toBeVisible();

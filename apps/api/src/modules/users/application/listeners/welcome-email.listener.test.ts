@@ -34,7 +34,7 @@ describe("WelcomeEmailListener", () => {
       {
         to: event.email,
         subject: "email.welcome.subject",
-        html: expect.stringContaining("https://app.example.com/auth"),
+        html: expect.stringContaining("https://app.example.com/login"),
         operationId: "welcome-email-user-123",
       },
       {

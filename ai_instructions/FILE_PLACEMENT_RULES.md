@@ -305,9 +305,11 @@ apps/web/
 │   │   ├── _app.tsx            ← session bootstrap (auth.me) + guards + AppShell layout
 │   │   ├── _app/               ← protected domain routes (pathless underscore prefix avoids adding /_app to URL)
 │   │   │   ├── dashboard.tsx / notifications.tsx / settings.tsx / users.tsx
-│   │   │   └── notes/          ← index.tsx (/notes) / new.tsx (/notes/new) / $noteId.tsx (/notes/:noteId)
-│   │   ├── auth.tsx            ← unauthenticated auth layout wrapper
-│   │   └── auth/               ← index.tsx (/auth) / forgot-password.tsx / reset-password.tsx
+│   │   ├── _auth-layout.tsx    ← unauthenticated auth layout wrapper (pathless)
+│   │   ├── _auth-layout/       ← login.tsx (/login) / register.tsx (/register) / forgot-password.tsx / reset-password.tsx
+│   │   └── auth.tsx            ← backward compatibility redirect to /login
+│   ├── config/
+│   │   └── navigation.config.ts ← central navigation registry for sidebar and command palette
 │   ├── components/
 │   │   ├── theme-provider.tsx  ← Light/dark/system via localStorage + matchMedia (d press toggles)
 │   │   ├── app-shell.tsx / app-header.tsx (notification bell) / app-sidebar.tsx
@@ -348,7 +350,7 @@ apps/web/
   REST subclients remain compatibility fallbacks while both transports share contracts and parity
   tests.
 - Forms: `react-hook-form` + `@hookform/resolvers/zod` + `@repo/contracts` schemas (LoginSchema, RegisterSchema, CreateNoteSchema).
-- Auth: Zustand memory-only store for sensitive credentials (`accessToken`/`refreshToken` never touch disk); only non-sensitive user profile metadata persists to localStorage via partialize. Refresh credential survives via httpOnly cookie. Never persist tokens to localStorage. `getApiClient` wires refresh via `requestRefresh` + `onAuthFailure` -> redirect `/auth`.
+- Auth: Zustand memory-only store for sensitive credentials (`accessToken`/`refreshToken` never touch disk); only non-sensitive user profile metadata persists to localStorage via partialize. Refresh credential survives via httpOnly cookie. Never persist tokens to localStorage. `getApiClient` wires refresh via `requestRefresh` + `onAuthFailure` -> redirect `/login`.
 - Tenant: `useTenantStore.tenantId` automatically sent as `x-tenant-id` via api-client.
 - i18n: `useTranslation()` via `react-i18next`; keys from `@repo/i18n` (`common.*`, `auth.*`, `dashboard.*`, `notes.*`). See `I18N_RULES.md`.
 - Styling: Use `@repo/ui` components (`Button`, `Card`, `Input`, `Tabs`, `Badge`, etc) + `cn()` + Tailwind 4. No custom CSS libraries beyond Tailwind.

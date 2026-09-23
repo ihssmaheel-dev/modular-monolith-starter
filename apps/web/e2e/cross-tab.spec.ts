@@ -8,7 +8,7 @@ async function register(page: Page, email: string, name: string) {
 async function signOut(page: Page) {
   await page.getByRole("button", { name: /profile/i }).click();
   await page.getByRole("menuitem", { name: /sign out|logout/i }).click();
-  await expect(page).toHaveURL(/\/auth$/);
+  await expect(page).toHaveURL(/\/login$/);
 }
 
 test("signing out in one tab signs out the other tab", async ({ context }) => {
@@ -21,7 +21,7 @@ test("signing out in one tab signs out the other tab", async ({ context }) => {
 
   await signOut(first);
 
-  await expect(second).toHaveURL(/\/auth$/, { timeout: 10000 });
+  await expect(second).toHaveURL(/\/login$/, { timeout: 10000 });
   await second.close();
   await first.close();
 });

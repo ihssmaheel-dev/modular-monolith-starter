@@ -38,8 +38,7 @@ export async function verificationTokenFor(email: string): Promise<string> {
 }
 
 export async function registerForm(page: Page, email: string, name: string): Promise<void> {
-  await page.goto("/auth");
-  await page.getByRole("tab", { name: /sign up|register/i }).click();
+  await page.goto("/register");
   await page.locator("#reg-name").fill(name);
   await page.locator("#reg-email").fill(email);
   await page.locator("#reg-password").fill("Password123!");

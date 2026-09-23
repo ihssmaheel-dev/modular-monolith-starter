@@ -11,7 +11,7 @@ test("registration pends, login stays blocked, resend works, link verifies", asy
   await page.getByRole("button", { name: /resend verification/i }).click();
   await expect(page.getByText(/verification email sent/i)).toBeVisible();
 
-  await page.goto("/auth");
+  await page.goto("/login");
   await page.locator("#login-email").fill(email);
   await page.locator("#login-password").fill("Password123!");
   await page.getByRole("button", { name: /log in|sign in/i }).click();

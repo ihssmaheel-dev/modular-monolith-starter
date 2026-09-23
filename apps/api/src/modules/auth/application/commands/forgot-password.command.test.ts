@@ -58,7 +58,7 @@ describe("ForgotPasswordCommand", () => {
     expect(emailService.send).toHaveBeenCalledWith({
       to: USER.email,
       subject: "email.passwordReset.subject",
-      html: expect.stringContaining("https://app.example.com/auth/reset-password?token="),
+      html: expect.stringContaining("https://app.example.com/reset-password?token="),
     });
   });
 

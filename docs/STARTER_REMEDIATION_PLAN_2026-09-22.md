@@ -2,7 +2,7 @@
 
 Status: implementation substantially complete; verification results and open release gates are tracked in [Starter release verification](STARTER_RELEASE_VERIFICATION.md).
 
-Source: [Architecture starter re-audit](ARCHITECTURE_STARTER_REAUDIT_2026-09-22.md), revision `74deb0d`.
+Source: Architecture starter re-audit, revision `74deb0d`.
 
 ## Objective and scope
 

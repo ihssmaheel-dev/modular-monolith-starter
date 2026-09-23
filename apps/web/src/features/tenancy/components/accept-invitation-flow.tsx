@@ -38,7 +38,7 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
           <CardDescription>{t("tenancy.invalidInvitationDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button className="w-full" render={<Link to={FRONTEND_ROUTES.auth} />}>
+          <Button className="w-full" render={<Link to={FRONTEND_ROUTES.login} />}>
             {t("auth.backToLogin")}
           </Button>
         </CardContent>
@@ -56,7 +56,7 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
         <CardContent>
           <Button
             className="w-full"
-            render={<Link to={FRONTEND_ROUTES.auth} search={{ inviteToken: token }} />}
+            render={<Link to={FRONTEND_ROUTES.login} search={{ inviteToken: token }} />}
           >
             {t("auth.signIn")}
           </Button>

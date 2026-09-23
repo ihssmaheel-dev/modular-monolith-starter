@@ -243,17 +243,34 @@ function updateJson(source, update) {
   return `${JSON.stringify(update(JSON.parse(source)), null, 2)}\n`;
 }
 
+function toDatabaseName(slug) {
+  return slug.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+}
+
 function setApiIdentity(source, options) {
-  return setDeploymentIdentity(
+  const dbName = toDatabaseName(options.slug);
+  const testDbName = `${dbName}_test`;
+  const withIdentity = setDeploymentIdentity(
     setEnvValue(setEnvValue(source, "APP_NAME", options.name), "APP_SLUG", options.slug),
     options,
+  );
+  return setEnvValue(
+    setEnvValue(
+      withIdentity,
+      "DATABASE_URL",
+      `postgres://postgres:postgres@127.0.0.1:5432/${dbName}`,
+    ),
+    "TEST_DATABASE_URL",
+    `postgres://postgres:postgres@127.0.0.1:5432/${testDbName}`,
   );
 }
 
 function setDeploymentIdentity(source, options) {
+  const dbName = toDatabaseName(options.slug);
+  const updatedDb = source.replace(/\/app\?sslmode=/g, `/${dbName}?sslmode=`);
   return setEnvValue(
     setEnvValue(
-      setEnvValue(setEnvValue(source, "APP_NAME", options.name), "APP_SLUG", options.slug),
+      setEnvValue(setEnvValue(updatedDb, "APP_NAME", options.name), "APP_SLUG", options.slug),
       "JWT_ISSUER",
       `${options.slug}-api`,
     ),
@@ -300,19 +317,30 @@ function replaceContainerPrefix(source, current, next) {
 }
 
 function replaceComposeIdentity(source, options) {
+  const dbName = toDatabaseName(options.slug);
   return source
     .replace(/\$\{APP_NAME:-[^}]+\}/g, `\${APP_NAME:-${options.name}}`)
     .replace(/\$\{VITE_APP_NAME:-[^}]+\}/g, `\${VITE_APP_NAME:-${options.name}}`)
     .replace(/\$\{APP_SLUG:-[^}]+\}/g, `\${APP_SLUG:-${options.slug}}`)
     .replace(/\$\{JWT_ISSUER:-[^}]+\}/g, `\${JWT_ISSUER:-${options.slug}-api}`)
-    .replace(/\$\{JWT_AUDIENCE:-[^}]+\}/g, `\${JWT_AUDIENCE:-${options.slug}-client}`);
+    .replace(/\$\{JWT_AUDIENCE:-[^}]+\}/g, `\${JWT_AUDIENCE:-${options.slug}-client}`)
+    .replace(/POSTGRES_DB:\s*app/g, `POSTGRES_DB: ${dbName}`)
+    .replace(/\$\{POSTGRES_DB:-app\}/g, `\${POSTGRES_DB:-${dbName}}`);
 }
 
 function assertBrandOutput(sources, options) {
+  const dbName = toDatabaseName(options.slug);
+  const testDbName = `${dbName}_test`;
   const required = [
     ["README.md", `# ${options.name}`],
     ["apps/api/.env.example", `APP_NAME=${options.name}`],
     ["apps/api/.env.example", `APP_SLUG=${options.slug}`],
+    ["apps/api/.env.example", `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/${dbName}`],
+    [
+      "apps/api/.env.example",
+      `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/${testDbName}`,
+    ],
+    ["docker/docker-compose.yml", `POSTGRES_DB: ${dbName}`],
     ["apps/web/.env.example", `VITE_APP_NAME=${options.name}`],
     ["apps/mobile/.env.example", `EXPO_PUBLIC_APP_NAME=${options.name}`],
     ["apps/web/Dockerfile", `ARG VITE_APP_NAME=${options.name}`],

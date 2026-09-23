@@ -5,9 +5,11 @@
  */
 export const FRONTEND_ROUTES = {
   home: "/",
-  auth: "/auth",
-  forgotPassword: "/auth/forgot-password",
-  resetPassword: "/auth/reset-password",
+  login: "/login",
+  register: "/register",
+  auth: "/login",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
   verifyEmail: "/verify-email",
   confirmEmailChange: "/confirm-email-change",
   dashboard: "/dashboard",

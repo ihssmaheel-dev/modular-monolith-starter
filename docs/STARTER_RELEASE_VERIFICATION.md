@@ -8,7 +8,7 @@ The high-risk implementation work in the remediation plan is substantially compl
 
 Source plan: [Starter remediation plan](STARTER_REMEDIATION_PLAN_2026-09-22.md)
 
-Source audit: [Architecture starter re-audit](ARCHITECTURE_STARTER_REAUDIT_2026-09-22.md)
+Source audit: Architecture starter re-audit (revision `74deb0d`)
 
 ## Tested baseline
 

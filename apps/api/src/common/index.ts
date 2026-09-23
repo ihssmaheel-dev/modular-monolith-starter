@@ -26,3 +26,4 @@ export * from "./utils/duration.utils";
 export * from "./file-access/file-access.registry";
 export * from "./ports/auth-user-verifier.port";
 export * from "./ports/tenant-access-resolver.port";
+export * from "./pipes/validation.pipe";

@@ -109,7 +109,19 @@ export function ${FeaturePlural}List({ page, limit, onPageChange }: {
   const { t } = useTranslation();
   const query = useQuery(${featurePlural}ListQuery(page, limit));
   const columns: DataTableColumn<${Feature}Row>[] = [
-    { key: "name", header: t("common.name"), cell: (row) => row.name },
+    {
+      key: "name",
+      header: t("common.name"),
+      cell: (row) => (
+        <Link
+          to="/${featurePlural}/$${feature}Id"
+          params={{ ${feature}Id: row.id }}
+          className="font-medium hover:underline"
+        >
+          {row.name}
+        </Link>
+      ),
+    },
     { key: "description", header: t("common.description"), cell: (row) => row.description ?? "—" },
     { key: "createdAt", header: t("common.created"), cell: (row) => formatDate(row.createdAt) },
   ];
@@ -153,6 +165,63 @@ export function ${Feature}CreateForm() {
 }
 `;
 
+  const detail = `import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import { formatDate } from "@/lib/format";
+import { ${feature}ByIdQuery } from "@/features/${featurePlural}/${feature}.queries";
+
+export function ${Feature}Detail({ id }: { id: string }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const goBack = () => navigate({ to: "/${featurePlural}" });
+  const query = useQuery(${feature}ByIdQuery(id));
+
+  if (query.isLoading) {
+    return <div className="h-40 animate-pulse rounded-lg bg-muted" />;
+  }
+
+  if (query.isError || !query.data) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={goBack}>
+          <ArrowLeft className="size-4" />
+          {t("common.back")}
+        </Button>
+        <p className="text-sm text-destructive">{t("errors.notFound")}</p>
+      </div>
+    );
+  }
+
+  const item = query.data;
+
+  return (
+    <div className="w-full space-y-6">
+      <div>
+        <Button variant="ghost" size="sm" onClick={goBack} className="h-7 gap-1.5 px-2 text-xs">
+          <ArrowLeft className="size-3.5" />
+          {t("common.back")}
+        </Button>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{item.name}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {item.description ? <p className="text-sm text-muted-foreground">{item.description}</p> : null}
+          <p className="text-xs text-muted-foreground font-mono">
+            {t("common.created")}: {formatDate(item.createdAt)}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+`;
+
   const indexRoute = `import { createFileRoute } from "@tanstack/react-router";
 import { PaginationQuerySchema } from "@repo/contracts";
 import { RouteErrorFallback } from "@/components/error-boundary";
@@ -173,6 +242,7 @@ function ${FeaturePlural}Page() {
   return <${FeaturePlural}List page={search.page ?? 1} limit={search.limit ?? 20} onPageChange={(page) => navigate({ search: (current) => ({ ...current, page }) })} />;
 }
 `;
+
   const newRoute = `import { createFileRoute } from "@tanstack/react-router";
 import { ${Feature}CreateForm } from "@/features/${featurePlural}/components/${feature}-create-form";
 
@@ -180,18 +250,29 @@ export const Route = createFileRoute("/_app/${featurePlural}/new")({ component: 
 function ${Feature}CreatePage() { return <${Feature}CreateForm />; }
 `;
 
+  const detailRoute = `import { createFileRoute } from "@tanstack/react-router";
+import { ${Feature}Detail } from "@/features/${featurePlural}/components/${feature}-detail";
+
+export const Route = createFileRoute("/_app/${featurePlural}/$${feature}Id")({
+  component: ${Feature}DetailPage,
+});
+
+function ${Feature}DetailPage() {
+  const { ${feature}Id } = Route.useParams();
+  return <${Feature}Detail id={${feature}Id} />;
+}
+`;
+
+  const webRoutesDir = path.join(rootPath, "apps", "web", "src", "routes", "_app", featurePlural);
+
   writeFileIfMissing(path.join(featurePath, `${feature}.queries.ts`), queries);
   writeFileIfMissing(path.join(featurePath, `${feature}.mutations.ts`), mutations);
   writeFileIfMissing(path.join(featurePath, "components", `${featurePlural}-list.tsx`), list);
   writeFileIfMissing(path.join(featurePath, "components", `${feature}-create-form.tsx`), create);
-  writeFileIfMissing(
-    path.join(rootPath, "apps", "web", "src", "routes", `_app.${featurePlural}.index.tsx`),
-    indexRoute,
-  );
-  writeFileIfMissing(
-    path.join(rootPath, "apps", "web", "src", "routes", `_app.${featurePlural}.new.tsx`),
-    newRoute,
-  );
+  writeFileIfMissing(path.join(featurePath, "components", `${feature}-detail.tsx`), detail);
+  writeFileIfMissing(path.join(webRoutesDir, "index.tsx"), indexRoute);
+  writeFileIfMissing(path.join(webRoutesDir, "new.tsx"), newRoute);
+  writeFileIfMissing(path.join(webRoutesDir, `$${feature}Id.tsx`), detailRoute);
 }
 
 module.exports = { generateWeb };

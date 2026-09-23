@@ -53,7 +53,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         </Card>
         <div className="text-center">
           <Link
-            to={FRONTEND_ROUTES.auth}
+            to={FRONTEND_ROUTES.login}
             className="inline-flex items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
@@ -76,14 +76,14 @@ export function ResetPasswordForm({ token }: { token: string }) {
         </div>
         <Card>
           <CardContent className="pt-6">
-            <Button className="w-full" onClick={() => navigate({ to: FRONTEND_ROUTES.auth })}>
+            <Button className="w-full" onClick={() => navigate({ to: FRONTEND_ROUTES.login })}>
               {t("auth.backToLogin")}
             </Button>
           </CardContent>
         </Card>
         <div className="text-center">
           <Link
-            to={FRONTEND_ROUTES.auth}
+            to={FRONTEND_ROUTES.login}
             className="inline-flex items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
@@ -145,7 +145,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
       <div className="text-center">
         <Link
-          to={FRONTEND_ROUTES.auth}
+          to={FRONTEND_ROUTES.login}
           className="inline-flex items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />

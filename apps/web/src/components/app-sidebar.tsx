@@ -1,7 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { FRONTEND_ROUTES } from "@repo/contracts";
-import { Bell, FileText, LayoutDashboard, Layers3, Settings, Users } from "lucide-react";
+import { Layers3 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +14,7 @@ import {
 } from "@repo/ui/components/ui/sidebar";
 import { useAuthStore } from "@/stores/auth.store";
 import { getWebEnv } from "@/lib/env";
+import { NAVIGATION_CONFIG, filterNavItems } from "@/config/navigation.config";
 
 export function AppSidebar() {
   const { t } = useTranslation();
@@ -22,7 +22,6 @@ export function AppSidebar() {
   const user = useAuthStore((state) => state.user);
   const { VITE_APP_NAME: appName, VITE_EXAMPLE_FEATURES_ENABLED: examplesEnabled } = getWebEnv();
 
-  const isNotesActive = location.pathname.startsWith("/notes");
   const isAdmin = user?.role === "admin";
 
   return (
@@ -43,73 +42,39 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t("navigation.workspace")}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {examplesEnabled && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link to={FRONTEND_ROUTES.dashboard} />}
-                    isActive={location.pathname === "/dashboard"}
-                    tooltip={t("dashboard.title")}
-                  >
-                    <LayoutDashboard />
-                    <span>{t("dashboard.title")}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+        {NAVIGATION_CONFIG.map((section) => {
+          const visibleItems = filterNavItems(section.items, { isAdmin, examplesEnabled });
+          if (visibleItems.length === 0) return null;
 
-              {examplesEnabled && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link to={FRONTEND_ROUTES.notes} />}
-                    isActive={isNotesActive}
-                    tooltip={t("notes.title")}
-                  >
-                    <FileText />
-                    <span>{t("notes.title")}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+          return (
+            <SidebarGroup key={section.id}>
+              <SidebarGroupLabel>{t(section.titleKey)}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {visibleItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.exact
+                      ? location.pathname === item.to
+                      : location.pathname.startsWith(item.to);
 
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link to={FRONTEND_ROUTES.users} />}
-                    isActive={location.pathname.startsWith("/users")}
-                    tooltip={t("users.title")}
-                  >
-                    <Users />
-                    <span>{t("users.title")}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to={FRONTEND_ROUTES.notifications} />}
-                  isActive={location.pathname.startsWith("/notifications")}
-                  tooltip={t("notifications.title")}
-                >
-                  <Bell />
-                  <span>{t("notifications.title")}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to={FRONTEND_ROUTES.settings} />}
-                  isActive={location.pathname.startsWith("/settings")}
-                  tooltip={t("settings.title")}
-                >
-                  <Settings />
-                  <span>{t("settings.title")}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                    return (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          render={<Link to={item.to} />}
+                          isActive={isActive}
+                          tooltip={t(item.titleKey)}
+                        >
+                          <Icon />
+                          <span>{t(item.titleKey)}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
     </Sidebar>
   );

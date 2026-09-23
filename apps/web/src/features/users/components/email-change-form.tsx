@@ -37,7 +37,7 @@ export function EmailChangeForm({ token }: { token: string }) {
           <CardDescription>{t("users.changeEmailFailed")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" className="w-full" render={<Link to={FRONTEND_ROUTES.auth} />}>
+          <Button variant="outline" className="w-full" render={<Link to={FRONTEND_ROUTES.login} />}>
             {t("auth.backToLogin")}
           </Button>
         </CardContent>
@@ -53,7 +53,7 @@ export function EmailChangeForm({ token }: { token: string }) {
         </CardHeader>
         <CardContent className="flex items-center gap-2 text-sm">
           <CheckCircle2 className="size-4 text-emerald-600" />
-          <Link to={FRONTEND_ROUTES.auth} className="underline">
+          <Link to={FRONTEND_ROUTES.login} className="underline">
             {t("auth.backToLogin")}
           </Link>
         </CardContent>

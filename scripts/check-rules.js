@@ -168,12 +168,16 @@ function checkTranslationUsage() {
       pattern: /\bthrow\s+new\s+Error\(\s*["'`]([^"'`]+)["'`]/g,
       keyPattern: /^[A-Za-z0-9_.{}-]+$/,
     },
+    {
+      pattern: /\btitleKey:\s*["'`]([^"'`]+)["'`]/g,
+      keyPattern: null,
+    },
   ];
 
   const allowedDynamicTranslations = [
     /^(?:CATEGORY|CHANNEL|CADENCE|STATUS)_LABELS\[/,
     /^mutation\.error\.message$/,
-    /^item\.(?:titleKey|errorKey)/,
+    /^(?:item|section|action)\.(?:titleKey|errorKey)/,
     /^toErrorKey\(/,
   ];
 

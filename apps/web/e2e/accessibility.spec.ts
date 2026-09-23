@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 test("authentication shell has named controls and valid document structure", async ({ page }) => {
-  await page.goto("/auth");
+  await page.goto("/login");
 
   await expect(page.locator("html")).toHaveAttribute("lang", /^(en|es|fr)$/);
-  await expect(page.getByRole("tab", { name: /log in|sign in/i })).toBeVisible();
-  await expect(page.getByRole("tab", { name: /sign up|register/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /sign in|log in/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /sign up|register/i })).toBeVisible();
   expect(await page.locator("input:not([type=hidden])").count()).toBeGreaterThan(0);
   expect(await page.locator("input:not([type=hidden])").evaluateAll(unnamedControls)).toEqual([]);
   expect(await page.locator("[id]").evaluateAll(duplicateIds)).toEqual([]);

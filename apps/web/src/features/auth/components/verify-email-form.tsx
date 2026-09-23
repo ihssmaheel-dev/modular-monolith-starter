@@ -66,7 +66,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
           <CardDescription>{t("auth.checkInboxDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button className="w-full" render={<Link to={FRONTEND_ROUTES.auth} />}>
+          <Button className="w-full" render={<Link to={FRONTEND_ROUTES.login} />}>
             {t("auth.backToLogin")}
           </Button>
         </CardContent>

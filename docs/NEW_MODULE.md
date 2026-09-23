@@ -38,6 +38,21 @@ populates the full vertical slice across API, contracts, authorization, API clie
 Use `--access=owner` when only the creating user may read or mutate a row;
 the generator requires this decision so a private resource cannot accidentally use tenant-wide access.
 
+To focus strictly on backend and web while deferring mobile implementation, pass `--skip-mobile`:
+
+```sh
+pnpm generate:feature orders order --access=tenant-shared --skip-mobile
+```
+
+The web generator produces nested TanStack Router files matching the reference `notes` module:
+
+- `apps/web/src/routes/_app/orders/index.tsx` (list page with pagination)
+- `apps/web/src/routes/_app/orders/new.tsx` (creation form page)
+- `apps/web/src/routes/_app/orders/$orderId.tsx` (detail view page)
+- `apps/web/src/features/orders/components/order-detail.tsx` (detail card component)
+
+To expose your new feature in the web application sidebar and command palette, register it in `apps/web/src/config/navigation.config.ts`.
+
 ## 2. Define the public API first
 
 In workspace packages add:

@@ -67,7 +67,7 @@ export function RegisterForm({
               {t("auth.resendVerification")}
             </Button>
           )}
-          <Button variant="ghost" className="w-full" render={<Link to={FRONTEND_ROUTES.auth} />}>
+          <Button variant="ghost" className="w-full" render={<Link to={FRONTEND_ROUTES.login} />}>
             {t("auth.backToLogin")}
           </Button>
         </CardContent>

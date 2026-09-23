@@ -45,7 +45,7 @@ export function AppHeader() {
     } finally {
       signOutLocally();
       publishSignedOut(signedOutUserId);
-      navigate({ to: FRONTEND_ROUTES.auth });
+      navigate({ to: FRONTEND_ROUTES.login });
       setSigningOut(false);
     }
   };

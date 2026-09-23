@@ -11,13 +11,17 @@ const { generateWeb } = require("./generators/web.generator");
 const { generateMobile } = require("./generators/mobile.generator");
 
 const rawModule = process.argv[2];
-const rawFeature = process.argv[3] || rawModule;
+const rawFeature =
+  process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : rawModule;
 const accessArgument = process.argv.find((value) => value.startsWith("--access="));
 const accessModel = accessArgument?.split("=")[1];
+const skipMobile = process.argv.includes("--skip-mobile") || process.argv.includes("--no-mobile");
 
 if (!rawModule) {
   console.error("Error: Module name is required.");
-  console.error("Usage: pnpm generate:feature <module> [feature] --access=tenant-shared|owner");
+  console.error(
+    "Usage: pnpm generate:feature <module> [feature] --access=tenant-shared|owner [--skip-mobile]",
+  );
   console.error("Example: pnpm generate:feature tasks task --access=tenant-shared");
   process.exit(1);
 }
@@ -87,8 +91,12 @@ registerModuleInAppModule(rootPath, moduleName, ModuleName);
 console.log("\n7. Generating Web Layer (TanStack Start route + queries + mutations)...");
 generateWeb(context);
 
-console.log("\n8. Generating Mobile Layer (Expo route + queries + mutations)...");
-generateMobile(context);
+if (!skipMobile) {
+  console.log("\n8. Generating Mobile Layer (Expo route + queries + mutations)...");
+  generateMobile(context);
+} else {
+  console.log("\n8. Skipping Mobile Layer (--skip-mobile flag provided)...");
+}
 
 console.log("\n=======================================================");
 console.log(`  Successfully generated vertical slice for '${feature}'!`);
@@ -99,10 +107,15 @@ console.log(` 2. Add module-specific permissions and localized copy before expos
 console.log(` 3. Run 'pnpm test:unit' to run the new Vitest unit test suite.`);
 console.log(" 4. Run 'pnpm build' to verify end-to-end type safety.");
 console.log(
-  ` 5. Web route: apps/web/src/routes/${featurePlural}.tsx + features/${featurePlural}/*`,
+  ` 5. Web routes: apps/web/src/routes/_app/${featurePlural}/* + features/${featurePlural}/*`,
 );
+if (!skipMobile) {
+  console.log(
+    ` 6. Mobile route: apps/mobile/app/${featurePlural}.tsx + src/features/${featurePlural}/*`,
+  );
+}
 console.log(
-  ` 6. Mobile route: apps/mobile/app/${featurePlural}.tsx + src/features/${featurePlural}/*`,
+  ` 7. Navigation: Add ${featurePlural} to apps/web/src/config/navigation.config.ts to expose it in sidebar and command menu.`,
 );
 
 function registerModuleInAppModule(root, name, pascalName) {

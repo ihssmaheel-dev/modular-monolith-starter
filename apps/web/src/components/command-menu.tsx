@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { FRONTEND_ROUTES } from "@repo/contracts";
 import {
   CommandDialog,
   CommandEmpty,
@@ -11,20 +10,11 @@ import {
   CommandList,
   CommandSeparator,
 } from "@repo/ui/components/ui/command";
-import {
-  Bell,
-  FilePlus2,
-  FileText,
-  Laptop,
-  LayoutDashboard,
-  Moon,
-  Settings,
-  Sun,
-  Users,
-} from "lucide-react";
+import { Laptop, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useAuthStore } from "@/stores/auth.store";
 import { getWebEnv } from "@/lib/env";
+import { NAVIGATION_CONFIG, filterNavItems } from "@/config/navigation.config";
 
 export interface CommandMenuProps {
   open: boolean;
@@ -67,53 +57,42 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
       <CommandList>
         <CommandEmpty>{t("common.noResults")}</CommandEmpty>
 
-        <CommandGroup heading={t("navigation.workspace")}>
-          {examplesEnabled && (
-            <CommandItem
-              onSelect={() => runCommand(() => navigate({ to: FRONTEND_ROUTES.dashboard }))}
-            >
-              <LayoutDashboard className="mr-2 size-4" />
-              <span>{t("dashboard.title")}</span>
-            </CommandItem>
-          )}
+        {NAVIGATION_CONFIG.map((section) => {
+          const visibleItems = filterNavItems(section.items, { isAdmin, examplesEnabled });
+          if (visibleItems.length === 0) return null;
 
-          {examplesEnabled && (
-            <CommandItem onSelect={() => runCommand(() => navigate({ to: FRONTEND_ROUTES.notes }))}>
-              <FileText className="mr-2 size-4" />
-              <span>{t("notes.title")}</span>
-            </CommandItem>
-          )}
-
-          {examplesEnabled && (
-            <CommandItem
-              onSelect={() => runCommand(() => navigate({ to: FRONTEND_ROUTES.newNote }))}
-            >
-              <FilePlus2 className="mr-2 size-4" />
-              <span>{t("notes.newNote")}</span>
-            </CommandItem>
-          )}
-
-          <CommandItem
-            onSelect={() => runCommand(() => navigate({ to: FRONTEND_ROUTES.notifications }))}
-          >
-            <Bell className="mr-2 size-4" />
-            <span>{t("notifications.title")}</span>
-          </CommandItem>
-
-          <CommandItem
-            onSelect={() => runCommand(() => navigate({ to: FRONTEND_ROUTES.settings }))}
-          >
-            <Settings className="mr-2 size-4" />
-            <span>{t("settings.title")}</span>
-          </CommandItem>
-
-          {isAdmin && (
-            <CommandItem onSelect={() => runCommand(() => navigate({ to: FRONTEND_ROUTES.users }))}>
-              <Users className="mr-2 size-4" />
-              <span>{t("users.title")}</span>
-            </CommandItem>
-          )}
-        </CommandGroup>
+          return (
+            <CommandGroup key={section.id} heading={t(section.titleKey)}>
+              {visibleItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <CommandItem
+                    key={item.id}
+                    onSelect={() => runCommand(() => navigate({ to: item.to }))}
+                  >
+                    <Icon className="mr-2 size-4" />
+                    <span>{t(item.titleKey)}</span>
+                  </CommandItem>
+                );
+              })}
+              {visibleItems
+                .filter((item) => item.createAction)
+                .map((item) => {
+                  const action = item.createAction!;
+                  const CreateIcon = action.icon;
+                  return (
+                    <CommandItem
+                      key={`${item.id}-create`}
+                      onSelect={() => runCommand(() => navigate({ to: action.to }))}
+                    >
+                      <CreateIcon className="mr-2 size-4" />
+                      <span>{t(action.titleKey)}</span>
+                    </CommandItem>
+                  );
+                })}
+            </CommandGroup>
+          );
+        })}
 
         <CommandSeparator />
 

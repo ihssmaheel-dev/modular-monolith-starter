@@ -64,12 +64,14 @@ function RootComponent() {
     () =>
       initAuthSync({
         onSignedOut: () => {
-          void navigate({ to: FRONTEND_ROUTES.auth, replace: true });
+          void navigate({ to: FRONTEND_ROUTES.login, replace: true });
         },
         onSignedIn: () => {
           if (
             typeof window !== "undefined" &&
-            window.location.pathname.startsWith(FRONTEND_ROUTES.auth)
+            (window.location.pathname === FRONTEND_ROUTES.login ||
+              window.location.pathname === FRONTEND_ROUTES.register ||
+              window.location.pathname.startsWith("/auth"))
           ) {
             void navigate({ to: FRONTEND_ROUTES.dashboard, replace: true });
           }

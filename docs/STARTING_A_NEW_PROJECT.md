@@ -76,7 +76,7 @@ Set `TENANCY_MODE=single` for a product with one logical workspace, or `TENANCY_
     `pnpm build`, bundle budgets, and the full test suite before review.
 
 Use `pnpm generate:feature <module> <resource> --access=owner` for private records or
-`--access=tenant-shared` for deliberately shared tenant records. The generator refuses to guess.
+`--access=tenant-shared` for deliberately shared tenant records (add `--skip-mobile` to focus solely on web and backend). The generator refuses to guess.
 
 ## Product bootstrap checklist
 

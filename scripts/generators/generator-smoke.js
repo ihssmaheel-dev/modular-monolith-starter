@@ -4,7 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const ts = require("typescript");
 
-const generators = [
+const generatorDefinitions = [
   ["domain", "generateDomain"],
   ["infrastructure", "generateInfrastructure"],
   ["application", "generateApplication"],
@@ -13,7 +13,7 @@ const generators = [
   ["presentation", "generatePresentation"],
   ["web", "generateWeb"],
   ["mobile", "generateMobile"],
-].map(([file, name]) => require(`./${file}.generator`)[name]);
+].map(([file, name]) => [file, require(`./${file}.generator`)[name]]);
 
 const repositoryRoot = path.resolve(__dirname, "../..");
 const rootPath = fs.mkdtempSync(path.join(repositoryRoot, ".generator-smoke-"));
@@ -21,7 +21,7 @@ const rootPath = fs.mkdtempSync(path.join(repositoryRoot, ".generator-smoke-"));
 try {
   const context = createContext(rootPath);
   createFixtures(context);
-  for (const generate of generators) generate(context);
+  for (const [, generate] of generatorDefinitions) generate(context);
 
   const files = collectTypeScriptFiles(rootPath);
   for (const file of files) {
@@ -43,7 +43,28 @@ try {
   assert.match(registry, /tasks: tasksContract/);
   assert.match(clientIndex, /createTasksClient,/);
   assert.match(clientIndex, /tasks: createTasksClient\(authenticatedFetch, orpcClient\),/);
+  assert.ok(fs.existsSync(path.join(rootPath, "apps/web/src/routes/_app/tasks/index.tsx")));
+  assert.ok(fs.existsSync(path.join(rootPath, "apps/web/src/routes/_app/tasks/new.tsx")));
+  assert.ok(fs.existsSync(path.join(rootPath, "apps/web/src/routes/_app/tasks/$taskId.tsx")));
+  assert.ok(
+    fs.existsSync(path.join(rootPath, "apps/web/src/features/tasks/components/task-detail.tsx")),
+  );
   console.log(`Generator smoke passed for ${files.length} generated TypeScript files.`);
+
+  // Verify --skip-mobile behavior
+  const skipMobileRoot = fs.mkdtempSync(path.join(repositoryRoot, ".generator-smoke-skip-"));
+  try {
+    const skipContext = createContext(skipMobileRoot);
+    createFixtures(skipContext);
+    for (const [name, generate] of generatorDefinitions) {
+      if (name !== "mobile") generate(skipContext);
+    }
+    assert.ok(!fs.existsSync(path.join(skipMobileRoot, "apps/mobile/app/tasks.tsx")));
+    assert.ok(fs.existsSync(path.join(skipMobileRoot, "apps/web/src/routes/_app/tasks/index.tsx")));
+    console.log("Generator --skip-mobile smoke passed.");
+  } finally {
+    fs.rmSync(skipMobileRoot, { recursive: true, force: true });
+  }
 } finally {
   fs.rmSync(rootPath, { recursive: true, force: true });
 }

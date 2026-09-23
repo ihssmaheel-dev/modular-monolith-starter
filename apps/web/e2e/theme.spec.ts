@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("theme", () => {
   test("d key toggles between light and dark themes", async ({ page }) => {
-    await page.goto("/auth");
+    await page.goto("/login");
     await page.waitForFunction(
       () =>
         document.documentElement.classList.contains("light") ||

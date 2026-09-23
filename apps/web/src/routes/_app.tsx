@@ -37,14 +37,14 @@ export const Route = createFileRoute("/_app")({
 
     const auth = useAuthStore.getState();
     if (auth.status === "unauthenticated" || !auth.user) {
-      throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
+      throw redirect({ to: FRONTEND_ROUTES.login, replace: true });
     }
 
     if (auth.status === "loading") {
       const verified = await verifySession();
       if (!verified) {
         useAuthStore.getState().clearAuth();
-        throw redirect({ to: FRONTEND_ROUTES.auth, replace: true });
+        throw redirect({ to: FRONTEND_ROUTES.login, replace: true });
       }
     }
   },
@@ -58,7 +58,7 @@ function ProtectedApp() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      void navigate({ to: FRONTEND_ROUTES.auth, replace: true });
+      void navigate({ to: FRONTEND_ROUTES.login, replace: true });
     }
   }, [navigate, status]);
 

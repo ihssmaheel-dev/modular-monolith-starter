@@ -57,7 +57,7 @@ export class WelcomeEmailListener {
       this.i18n.t(key, event.locale, params);
     const html = await render(
       React.createElement(WelcomeEmail, {
-        loginUrl: buildFrontendUrl(env.CLIENT_URL, FRONTEND_ROUTES.auth),
+        loginUrl: buildFrontendUrl(env.CLIENT_URL, FRONTEND_ROUTES.login),
         preview: translate("email.welcome.preview", { appName: env.APP_NAME }),
         greeting: translate("email.welcome.greeting", { name: event.name }),
         body: translate("email.welcome.body"),

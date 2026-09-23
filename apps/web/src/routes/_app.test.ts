@@ -88,7 +88,7 @@ describe("_app route & verifySession", () => {
       useAuthStore.setState({ status: "unauthenticated", user: null });
 
       await expect(beforeLoad({} as never)).rejects.toMatchObject({
-        options: { to: FRONTEND_ROUTES.auth },
+        options: { to: FRONTEND_ROUTES.login },
       });
     });
 
@@ -96,7 +96,7 @@ describe("_app route & verifySession", () => {
       useAuthStore.setState({ status: "loading", user: null });
 
       await expect(beforeLoad({} as never)).rejects.toMatchObject({
-        options: { to: FRONTEND_ROUTES.auth },
+        options: { to: FRONTEND_ROUTES.login },
       });
     });
 
@@ -115,7 +115,7 @@ describe("_app route & verifySession", () => {
       vi.mocked(getApiClient).mockReturnValue({ auth: { me: meMock } } as never);
 
       await expect(beforeLoad({} as never)).rejects.toMatchObject({
-        options: { to: FRONTEND_ROUTES.auth },
+        options: { to: FRONTEND_ROUTES.login },
       });
       expect(useAuthStore.getState().status).toBe("unauthenticated");
       expect(useAuthStore.getState().user).toBeNull();

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AuthLayoutRouteImport } from './routes/_auth-layout'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ConfirmEmailChangeRouteImport } from './routes/confirm-email-change'
@@ -19,9 +20,10 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
-import { Route as AuthIndexRouteImport } from './routes/auth/index'
-import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
-import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
+import { Route as AuthLayoutForgotPasswordRouteImport } from './routes/_auth-layout/forgot-password'
+import { Route as AuthLayoutLoginRouteImport } from './routes/_auth-layout/login'
+import { Route as AuthLayoutRegisterRouteImport } from './routes/_auth-layout/register'
+import { Route as AuthLayoutResetPasswordRouteImport } from './routes/_auth-layout/reset-password'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNoteIdRouteImport } from './routes/_app/notes/$noteId'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
@@ -33,6 +35,10 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthLayoutRoute = AuthLayoutRouteImport.update({
+  id: '/_auth-layout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
@@ -75,20 +81,26 @@ const AppUsersRoute = AppUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
-const AuthIndexRoute = AuthIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthRoute,
+const AuthLayoutForgotPasswordRoute =
+  AuthLayoutForgotPasswordRouteImport.update({
+    id: '/forgot-password',
+    path: '/forgot-password',
+    getParentRoute: () => AuthLayoutRoute,
+  } as any)
+const AuthLayoutLoginRoute = AuthLayoutLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthLayoutRoute,
 } as any)
-const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => AuthRoute,
+const AuthLayoutRegisterRoute = AuthLayoutRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => AuthLayoutRoute,
 } as any)
-const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+const AuthLayoutResetPasswordRoute = AuthLayoutResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
-  getParentRoute: () => AuthRoute,
+  getParentRoute: () => AuthLayoutRoute,
 } as any)
 const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
   id: '/notes/',
@@ -109,16 +121,17 @@ const AppNotesNewRoute = AppNotesNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
   '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AppDashboardRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/users': typeof AppUsersRoute
-  '/auth/forgot-password': typeof AuthForgotPasswordRoute
-  '/auth/reset-password': typeof AuthResetPasswordRoute
-  '/auth/': typeof AuthIndexRoute
+  '/forgot-password': typeof AuthLayoutForgotPasswordRoute
+  '/login': typeof AuthLayoutLoginRoute
+  '/register': typeof AuthLayoutRegisterRoute
+  '/reset-password': typeof AuthLayoutResetPasswordRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/notes/': typeof AppNotesIndexRoute
@@ -126,15 +139,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
+  '/auth': typeof AuthRoute
   '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AppDashboardRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
   '/users': typeof AppUsersRoute
-  '/auth/forgot-password': typeof AuthForgotPasswordRoute
-  '/auth/reset-password': typeof AuthResetPasswordRoute
-  '/auth': typeof AuthIndexRoute
+  '/forgot-password': typeof AuthLayoutForgotPasswordRoute
+  '/login': typeof AuthLayoutLoginRoute
+  '/register': typeof AuthLayoutRegisterRoute
+  '/reset-password': typeof AuthLayoutResetPasswordRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/notes': typeof AppNotesIndexRoute
@@ -143,17 +158,19 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/_auth-layout': typeof AuthLayoutRouteWithChildren
   '/accept-invitation': typeof AcceptInvitationRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
   '/confirm-email-change': typeof ConfirmEmailChangeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/users': typeof AppUsersRoute
-  '/auth/forgot-password': typeof AuthForgotPasswordRoute
-  '/auth/reset-password': typeof AuthResetPasswordRoute
-  '/auth/': typeof AuthIndexRoute
+  '/_auth-layout/forgot-password': typeof AuthLayoutForgotPasswordRoute
+  '/_auth-layout/login': typeof AuthLayoutLoginRoute
+  '/_auth-layout/register': typeof AuthLayoutRegisterRoute
+  '/_auth-layout/reset-password': typeof AuthLayoutResetPasswordRoute
   '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/notes/': typeof AppNotesIndexRoute
@@ -170,9 +187,10 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/settings'
     | '/users'
-    | '/auth/forgot-password'
-    | '/auth/reset-password'
-    | '/auth/'
+    | '/forgot-password'
+    | '/login'
+    | '/register'
+    | '/reset-password'
     | '/notes/$noteId'
     | '/notes/new'
     | '/notes/'
@@ -180,15 +198,17 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accept-invitation'
+    | '/auth'
     | '/confirm-email-change'
     | '/verify-email'
     | '/dashboard'
     | '/notifications'
     | '/settings'
     | '/users'
-    | '/auth/forgot-password'
-    | '/auth/reset-password'
-    | '/auth'
+    | '/forgot-password'
+    | '/login'
+    | '/register'
+    | '/reset-password'
     | '/notes/$noteId'
     | '/notes/new'
     | '/notes'
@@ -196,6 +216,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/_auth-layout'
     | '/accept-invitation'
     | '/auth'
     | '/confirm-email-change'
@@ -204,9 +225,10 @@ export interface FileRouteTypes {
     | '/_app/notifications'
     | '/_app/settings'
     | '/_app/users'
-    | '/auth/forgot-password'
-    | '/auth/reset-password'
-    | '/auth/'
+    | '/_auth-layout/forgot-password'
+    | '/_auth-layout/login'
+    | '/_auth-layout/register'
+    | '/_auth-layout/reset-password'
     | '/_app/notes/$noteId'
     | '/_app/notes/new'
     | '/_app/notes/'
@@ -215,8 +237,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  AuthLayoutRoute: typeof AuthLayoutRouteWithChildren
   AcceptInvitationRoute: typeof AcceptInvitationRoute
-  AuthRoute: typeof AuthRouteWithChildren
+  AuthRoute: typeof AuthRoute
   ConfirmEmailChangeRoute: typeof ConfirmEmailChangeRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
 }
@@ -235,6 +258,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth-layout': {
+      id: '/_auth-layout'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthLayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-invitation': {
@@ -293,26 +323,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
-    '/auth/': {
-      id: '/auth/'
-      path: '/'
-      fullPath: '/auth/'
-      preLoaderRoute: typeof AuthIndexRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/auth/forgot-password': {
-      id: '/auth/forgot-password'
+    '/_auth-layout/forgot-password': {
+      id: '/_auth-layout/forgot-password'
       path: '/forgot-password'
-      fullPath: '/auth/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof AuthRoute
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof AuthLayoutForgotPasswordRouteImport
+      parentRoute: typeof AuthLayoutRoute
     }
-    '/auth/reset-password': {
-      id: '/auth/reset-password'
+    '/_auth-layout/login': {
+      id: '/_auth-layout/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof AuthLayoutLoginRouteImport
+      parentRoute: typeof AuthLayoutRoute
+    }
+    '/_auth-layout/register': {
+      id: '/_auth-layout/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof AuthLayoutRegisterRouteImport
+      parentRoute: typeof AuthLayoutRoute
+    }
+    '/_auth-layout/reset-password': {
+      id: '/_auth-layout/reset-password'
       path: '/reset-password'
-      fullPath: '/auth/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof AuthRoute
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof AuthLayoutResetPasswordRouteImport
+      parentRoute: typeof AuthLayoutRoute
     }
     '/_app/notes/': {
       id: '/_app/notes/'
@@ -360,25 +397,30 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
-interface AuthRouteChildren {
-  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
-  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
-  AuthIndexRoute: typeof AuthIndexRoute
+interface AuthLayoutRouteChildren {
+  AuthLayoutForgotPasswordRoute: typeof AuthLayoutForgotPasswordRoute
+  AuthLayoutLoginRoute: typeof AuthLayoutLoginRoute
+  AuthLayoutRegisterRoute: typeof AuthLayoutRegisterRoute
+  AuthLayoutResetPasswordRoute: typeof AuthLayoutResetPasswordRoute
 }
 
-const AuthRouteChildren: AuthRouteChildren = {
-  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
-  AuthResetPasswordRoute: AuthResetPasswordRoute,
-  AuthIndexRoute: AuthIndexRoute,
+const AuthLayoutRouteChildren: AuthLayoutRouteChildren = {
+  AuthLayoutForgotPasswordRoute: AuthLayoutForgotPasswordRoute,
+  AuthLayoutLoginRoute: AuthLayoutLoginRoute,
+  AuthLayoutRegisterRoute: AuthLayoutRegisterRoute,
+  AuthLayoutResetPasswordRoute: AuthLayoutResetPasswordRoute,
 }
 
-const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+const AuthLayoutRouteWithChildren = AuthLayoutRoute._addFileChildren(
+  AuthLayoutRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  AuthLayoutRoute: AuthLayoutRouteWithChildren,
   AcceptInvitationRoute: AcceptInvitationRoute,
-  AuthRoute: AuthRouteWithChildren,
+  AuthRoute: AuthRoute,
   ConfirmEmailChangeRoute: ConfirmEmailChangeRoute,
   VerifyEmailRoute: VerifyEmailRoute,
 }

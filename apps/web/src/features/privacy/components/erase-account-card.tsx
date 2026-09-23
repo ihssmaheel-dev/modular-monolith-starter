@@ -32,7 +32,7 @@ export function EraseAccountCard() {
       queryClient.clear();
       clearTenant(null);
       clearAuth();
-      window.location.href = FRONTEND_ROUTES.auth;
+      window.location.href = FRONTEND_ROUTES.login;
     },
   });
 

@@ -58,7 +58,7 @@ export function ForgotPasswordForm() {
                   <p className="mt-0.5 font-medium text-foreground break-all">{submittedEmail}</p>
                 </div>
               ) : null}
-              <Button className="w-full" render={<Link to={FRONTEND_ROUTES.auth} />}>
+              <Button className="w-full" render={<Link to={FRONTEND_ROUTES.login} />}>
                 {t("auth.backToLogin")}
               </Button>
               <Button type="button" variant="outline" className="w-full" onClick={handleRetry}>
@@ -97,7 +97,7 @@ export function ForgotPasswordForm() {
 
       <div className="text-center">
         <Link
-          to={FRONTEND_ROUTES.auth}
+          to={FRONTEND_ROUTES.login}
           className="inline-flex items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />

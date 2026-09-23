@@ -79,6 +79,15 @@ describe("project branding plan", () => {
       read(root, "packages/contracts/src/schemas/env.schema.ts"),
       /APP_NAME:[\s\S]*default\("Acme Portal"\)/,
     );
+    assert.match(
+      read(root, "apps/api/.env.example"),
+      /DATABASE_URL=postgres:\/\/postgres:postgres@127\.0\.0\.1:5432\/acme_portal/,
+    );
+    assert.match(
+      read(root, "apps/api/.env.example"),
+      /TEST_DATABASE_URL=postgres:\/\/postgres:postgres@127\.0\.0\.1:5432\/acme_portal_test/,
+    );
+    assert.match(read(root, "docker/docker-compose.yml"), /POSTGRES_DB: acme_portal/);
   });
 
   it("recreates local environments with unique non-placeholder secrets", () => {
@@ -87,6 +96,14 @@ describe("project branding plan", () => {
     applyPlan(root, createLocalEnvironmentPlan(root));
     const apiEnvironment = read(root, "apps/api/.env");
     assert.match(apiEnvironment, /^APP_NAME=Acme Portal$/m);
+    assert.match(
+      apiEnvironment,
+      /^DATABASE_URL=postgres:\/\/postgres:postgres@127\.0\.0\.1:5432\/acme_portal$/m,
+    );
+    assert.match(
+      apiEnvironment,
+      /^TEST_DATABASE_URL=postgres:\/\/postgres:postgres@127\.0\.0\.1:5432\/acme_portal_test$/m,
+    );
     assert.doesNotMatch(apiEnvironment, /change-in-prod|optional-development-metrics-token/);
     assert.equal(read(root, "apps/web/.env"), read(root, "apps/web/.env.example"));
   });

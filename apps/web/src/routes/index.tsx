@@ -6,7 +6,7 @@ export const Route = createFileRoute("/")({
   beforeLoad: () => {
     const destination = useAuthStore.getState().user
       ? FRONTEND_ROUTES.dashboard
-      : FRONTEND_ROUTES.auth;
+      : FRONTEND_ROUTES.login;
     throw redirect({ to: destination });
   },
 });

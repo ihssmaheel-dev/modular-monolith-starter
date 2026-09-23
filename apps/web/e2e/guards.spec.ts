@@ -7,6 +7,8 @@ async function registerAs(page: Page, email: string) {
 
 test("authenticated visitors are sent away from authentication", async ({ page }) => {
   await registerAs(page, `guard-auth-${Date.now()}@example.test`);
+  await page.goto("/login");
+  await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto("/auth");
   await expect(page).toHaveURL(/\/dashboard$/);
 });
