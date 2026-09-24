@@ -1,4 +1,4 @@
-FROM node:24.21.0-alpine AS base
+FROM node:26.9.0-alpine AS base
 RUN apk add --no-cache libc6-compat
 ENV COREPACK_HOME=/usr/local/share/corepack
 RUN corepack enable pnpm && \
