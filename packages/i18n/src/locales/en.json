@@ -483,5 +483,17 @@
       "invitationReceived": "{{organization}} invited you to collaborate",
       "exportReady": "Your data export is ready"
     }
+  },
+  "intelligence": {
+    "title": "Intelligence",
+    "errors": {
+      "disabled": "AI intelligence layer is currently disabled in system configuration.",
+      "unavailable": "Intelligence service is currently unavailable or unreachable.",
+      "timeout": "Intelligence service request timed out.",
+      "rateLimited": "Intelligence service rate limit exceeded.",
+      "invalidModel": "The specified AI model is not supported or permitted.",
+      "payloadTooLarge": "Request payload exceeds the maximum allowed size.",
+      "unauthorized": "Unauthorized request to intelligence service."
+    }
   }
 }

@@ -28,6 +28,7 @@ New runbook? Copy `TEMPLATE.md`, fill every section, add the row below.
 | RB-18 | [Notification delivery](RB-18-notification-delivery.md)    | SEV-2→1  | `NotificationDeliveryBacklog/DeadLetters`                                    |
 | RB-19 | [Privacy exports](RB-19-privacy-export.md)                 | SEV-2→1  | `PrivacyExportBacklog/Failures`                                              |
 | RB-20 | [MinIO cluster degraded](RB-20-minio-cluster-degraded.md)  | SEV-1/2  | `MinioNodeDown`, `MinioDiskOffline`, `MinioDiskSpaceCritical`                |
+| RB-21 | [Intelligence service](RB-21-intelligence-service.md)      | SEV-2    | `IntelligenceServiceDegraded`, `IntelligenceCircuitBreakerTripped`           |
 
 ## Planned
 

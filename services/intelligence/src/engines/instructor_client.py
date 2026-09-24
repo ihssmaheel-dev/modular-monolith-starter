@@ -1,0 +1,45 @@
+import logging
+
+import instructor
+import litellm
+from pydantic import BaseModel
+
+from config import settings
+from engines.litellm_client import get_zero_retention_headers
+from security.pii import sanitize_pii
+
+logger = logging.getLogger("intelligence.instructor")
+
+# Create an Instructor client wrapping LiteLLM's asynchronous completion
+instructor_client = instructor.from_litellm(litellm.acompletion)
+
+
+async def extract_structured[T: BaseModel](
+    response_model: type[T],
+    text: str,
+    system_prompt: str = "You are a precise information extraction engine. Return only structured data matching the schema.",
+    model: str | None = None,
+    temperature: float = 0.0,
+) -> T:
+    """
+    Extract structured, validated Pydantic data models from freeform text
+    using Instructor, enforcing PII sanitization and zero-retention flags.
+    """
+    target_model = model or settings.DEFAULT_CHAT_MODEL
+    sanitized_text = sanitize_pii(text) if settings.PII_REDACTION_ENABLED else text
+
+    headers = get_zero_retention_headers() if settings.ZERO_RETENTION_ENABLED else {}
+
+    result: T = await instructor_client.chat.completions.create(
+        model=target_model,
+        response_model=response_model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": sanitized_text},
+        ],
+        temperature=temperature,
+        timeout=settings.EGRESS_TIMEOUT_SECONDS,
+        extra_headers=headers,
+    )
+
+    return result

@@ -157,6 +157,47 @@ describe("production environment validation", () => {
       expect(result.data.S3_FORCE_PATH_STYLE).toBe(false);
     }
   });
+
+  it("defaults INTELLIGENCE_ENABLED to false with zero runtime overhead", () => {
+    const result = envSchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.INTELLIGENCE_ENABLED).toBe(false);
+      expect(result.data.INTELLIGENCE_URL).toBe("http://127.0.0.1:5157");
+      expect(result.data.INTELLIGENCE_TIMEOUT_MS).toBe(5000);
+    }
+  });
+
+  it("rejects placeholder INTELLIGENCE_SHARED_SECRET when INTELLIGENCE_ENABLED is true in production", () => {
+    const result = envSchema.safeParse({
+      ...validProductionEnv(),
+      INTELLIGENCE_ENABLED: "true",
+      INTELLIGENCE_SHARED_SECRET:
+        "your-super-secret-intelligence-shared-key-min-32-chars-change-in-prod",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path.includes("INTELLIGENCE_SHARED_SECRET")),
+      ).toBe(true);
+    }
+  });
+
+  it("accepts valid INTELLIGENCE configuration in production", () => {
+    const result = envSchema.safeParse({
+      ...validProductionEnv(),
+      INTELLIGENCE_ENABLED: "true",
+      INTELLIGENCE_URL: "https://intelligence.internal",
+      INTELLIGENCE_SHARED_SECRET: "s".repeat(32),
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.INTELLIGENCE_ENABLED).toBe(true);
+      expect(result.data.INTELLIGENCE_SHARED_SECRET).toBe("s".repeat(32));
+    }
+  });
 });
 
 function validProductionEnv(): Record<string, string> {

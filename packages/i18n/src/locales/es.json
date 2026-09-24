@@ -483,5 +483,17 @@
       "exportReady": "Tu exportación de datos está lista"
     },
     "unread": "Sin leer"
+  },
+  "intelligence": {
+    "title": "Inteligencia",
+    "errors": {
+      "disabled": "La capa de inteligencia artificial está desactivada actualmente en la configuración del sistema.",
+      "unavailable": "El servicio de inteligencia no está disponible o es inaccesible en este momento.",
+      "timeout": "La solicitud al servicio de inteligencia ha expirado.",
+      "rateLimited": "Se ha superado el límite de solicitudes del servicio de inteligencia.",
+      "invalidModel": "El modelo de IA especificado no es compatible ni está permitido.",
+      "payloadTooLarge": "El tamaño de la solicitud excede el límite máximo permitido.",
+      "unauthorized": "Solicitud no autorizada al servicio de inteligencia."
+    }
   }
 }

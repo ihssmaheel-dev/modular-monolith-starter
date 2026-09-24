@@ -19,6 +19,7 @@ const SECRET_FILE_VARS = [
   "RESEND_API_KEY",
   "EXPO_ACCESS_TOKEN",
   "SEED_ADMIN_PASSWORD",
+  "INTELLIGENCE_SHARED_SECRET",
 ] as const;
 
 function resolveFileSecrets(source: Record<string, string | undefined>): void {

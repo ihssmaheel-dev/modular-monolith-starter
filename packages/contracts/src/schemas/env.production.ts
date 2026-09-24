@@ -98,6 +98,11 @@ function rejectPlaceholders(env: EnvironmentForValidation, context: RefinementCt
     ["S3_ENDPOINT", env.S3_ENDPOINT],
     ["EMAIL_FROM", env.EMAIL_FROM],
     ["SMTP_HOST", env.SMTP_HOST],
+    ...(env.INTELLIGENCE_ENABLED
+      ? ([["INTELLIGENCE_SHARED_SECRET", env.INTELLIGENCE_SHARED_SECRET]] as Array<
+          [keyof EnvironmentForValidation, string | undefined]
+        >)
+      : []),
   ];
   for (const [key, value] of values) {
     if (value && PLACEHOLDER_PATTERN.test(value)) {

@@ -28,6 +28,8 @@ export const Permissions = {
   // Notifications
   NOTIFICATIONS_READ: "notifications:read",
   NOTIFICATIONS_WRITE: "notifications:write",
+  // Intelligence / AI
+  AI_INTERACT: "ai:interact",
 } as const;
 
 export type CorePermission = (typeof Permissions)[keyof typeof Permissions];
@@ -60,6 +62,7 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_REQUESTS_READ,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
+    Permissions.AI_INTERACT,
   ],
   user: [
     Permissions.FILES_READ,
@@ -70,6 +73,7 @@ export const RolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_ERASE_SELF,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
+    Permissions.AI_INTERACT,
   ],
 };
 
@@ -91,6 +95,7 @@ export const TenantAdministrativePermissions: Permission[] = [
   Permissions.PRIVACY_ERASE_TENANT,
   Permissions.NOTIFICATIONS_READ,
   Permissions.NOTIFICATIONS_WRITE,
+  Permissions.AI_INTERACT,
 ];
 
 const PLATFORM_ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -101,8 +106,9 @@ const PLATFORM_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permissions.PRIVACY_EXPORT_SELF,
     Permissions.PRIVACY_ERASE_SELF,
     Permissions.PRIVACY_REQUESTS_READ,
+    Permissions.AI_INTERACT,
   ],
-  user: [Permissions.PRIVACY_EXPORT_SELF, Permissions.PRIVACY_ERASE_SELF],
+  user: [Permissions.PRIVACY_EXPORT_SELF, Permissions.PRIVACY_ERASE_SELF, Permissions.AI_INTERACT],
 };
 
 export const TenantRolePermissions: Record<string, Permission[]> = {
@@ -128,6 +134,7 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_REQUESTS_READ,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
+    Permissions.AI_INTERACT,
   ],
   member: [
     Permissions.ORGANIZATIONS_READ,
@@ -139,6 +146,7 @@ export const TenantRolePermissions: Record<string, Permission[]> = {
     Permissions.PRIVACY_ERASE_SELF,
     Permissions.NOTIFICATIONS_READ,
     Permissions.NOTIFICATIONS_WRITE,
+    Permissions.AI_INTERACT,
   ],
 };
 

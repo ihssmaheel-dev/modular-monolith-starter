@@ -1,0 +1,35 @@
+services:
+  intelligence:
+    build:
+      context: ../services/intelligence
+      dockerfile: Dockerfile
+    container_name: monorepo-intelligence
+    profiles:
+      - intelligence
+    user: "10001:10001"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    ports:
+      - "127.0.0.1:5157:5157"
+    environment:
+      INTELLIGENCE_PORT: "5157"
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/app"
+      REDIS_URL: "redis://redis:6379"
+      INTELLIGENCE_SHARED_SECRET: "your-super-secret-intelligence-shared-key-min-32-chars"
+      DEFAULT_CHAT_MODEL: "gpt-4o-mini"
+      DEFAULT_EMBEDDING_MODEL: "BAAI/bge-small-en-v1.5"
+      PII_REDACTION_ENABLED: "true"
+      ZERO_RETENTION_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5157/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

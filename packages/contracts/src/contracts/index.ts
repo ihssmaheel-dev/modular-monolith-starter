@@ -7,6 +7,7 @@ import { organizationsContract } from "./organizations.contract";
 import { membershipsContract } from "./memberships.contract";
 import { privacyContract } from "./privacy.contract";
 import { notificationsContract } from "./notification.contract";
+import { intelligenceContract } from "./intelligence.contract";
 
 export * from "./users.contract";
 export * from "./notes.contract";
@@ -16,6 +17,7 @@ export * from "./organizations.contract";
 export * from "./memberships.contract";
 export * from "./privacy.contract";
 export * from "./notification.contract";
+export * from "./intelligence.contract";
 
 export const coreApiContracts = {
   auth: authContract,
@@ -30,9 +32,13 @@ export const coreApiContracts = {
 /** Reference slices are composed explicitly so product forks can remove them as one unit. */
 export const exampleApiContracts = { notes: notesContract };
 
+/** Optional intelligence layer contract slice. */
+export const intelligenceApiContracts = { intelligence: intelligenceContract };
+
 export const apiContract = oc.router({
   ...coreApiContracts,
   ...exampleApiContracts,
+  ...intelligenceApiContracts,
 });
 
 export type ApiContract = typeof apiContract;

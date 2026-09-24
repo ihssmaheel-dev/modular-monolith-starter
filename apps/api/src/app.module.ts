@@ -10,6 +10,7 @@ import { FilesModule } from "./modules/files/files.module";
 import { PrivacyModule } from "./modules/privacy/privacy.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { TenancyModule } from "./modules/tenancy/tenancy.module";
+import { IntelligenceModule } from "./modules/intelligence/intelligence.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
 import { QueueModule } from "./infrastructure/queue/queue.module";
 import { LoggerModule } from "./infrastructure/logger/logger.module";
@@ -65,6 +66,7 @@ export function applicationFeatureModules(includeExamples = env.EXAMPLE_FEATURES
     FilesModule,
     PrivacyModule,
     NotificationsModule,
+    IntelligenceModule,
     ...(includeExamples ? REFERENCE_FEATURE_MODULES : []),
   ];
 }

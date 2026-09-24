@@ -3,6 +3,8 @@ import { validateProductionEndpoints } from "./env.production";
 
 export const DEFAULT_JWT_SECRET = "your-super-secret-jwt-key-change-in-prod";
 export const DEFAULT_REFRESH_SECRET = "your-super-secret-refresh-key-change-in-prod";
+export const DEFAULT_INTELLIGENCE_SHARED_SECRET =
+  "your-super-secret-intelligence-shared-key-min-32-chars-change-in-prod";
 
 export type EnvironmentForValidation = {
   JWT_SECRET: string;
@@ -45,6 +47,11 @@ export type EnvironmentForValidation = {
   WORKBENCH_ENABLED?: boolean;
   WORKBENCH_USER?: string;
   WORKBENCH_PASSWORD?: string;
+  INTELLIGENCE_ENABLED: boolean;
+  INTELLIGENCE_URL: string;
+  INTELLIGENCE_SHARED_SECRET: string;
+  INTELLIGENCE_TIMEOUT_MS: number;
+  INTELLIGENCE_ALLOWED_MODELS?: string;
 };
 
 export function validateEnvironment(env: EnvironmentForValidation, context: RefinementCtx): void {
@@ -125,6 +132,17 @@ export function validateEnvironment(env: EnvironmentForValidation, context: Refi
       code: "custom",
       path: ["JWT_REFRESH_SECRET"],
       message: "JWT_REFRESH_SECRET must be unique in production",
+    });
+  }
+  if (
+    env.INTELLIGENCE_ENABLED &&
+    (env.INTELLIGENCE_SHARED_SECRET === DEFAULT_INTELLIGENCE_SHARED_SECRET ||
+      env.INTELLIGENCE_SHARED_SECRET.includes("change-in-prod"))
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["INTELLIGENCE_SHARED_SECRET"],
+      message: "INTELLIGENCE_SHARED_SECRET must not use the default in production",
     });
   }
   if (

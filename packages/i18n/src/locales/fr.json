@@ -483,5 +483,17 @@
       "exportReady": "Votre export de données est prêt"
     },
     "unread": "Non lue"
+  },
+  "intelligence": {
+    "title": "Intelligence",
+    "errors": {
+      "disabled": "La couche d'intelligence artificielle est actuellement désactivée dans la configuration système.",
+      "unavailable": "Le service d'intelligence est actuellement indisponible ou inaccessible.",
+      "timeout": "La requête au service d'intelligence a expiré.",
+      "rateLimited": "La limite de requêtes du service d'intelligence a été dépassée.",
+      "invalidModel": "Le modèle d'IA spécifié n'est pas pris en charge ou autorisé.",
+      "payloadTooLarge": "La charge utile de la requête dépasse la taille maximale autorisée.",
+      "unauthorized": "Requête non autorisée vers le service d'intelligence."
+    }
   }
 }

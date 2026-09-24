@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { DEFAULT_JWT_SECRET, DEFAULT_REFRESH_SECRET, validateEnvironment } from "./env.refinement";
+import {
+  DEFAULT_INTELLIGENCE_SHARED_SECRET,
+  DEFAULT_JWT_SECRET,
+  DEFAULT_REFRESH_SECRET,
+  validateEnvironment,
+} from "./env.refinement";
 
 const MAX_PORT = 65_535;
 const MAX_POOL_SIZE = 200;
@@ -224,6 +229,14 @@ export const envSchema = z
 
     SEED_ADMIN_EMAIL: z.string().email().optional(),
     SEED_ADMIN_PASSWORD: z.string().min(12).optional(),
+
+    INTELLIGENCE_ENABLED: environmentBoolean(false),
+    INTELLIGENCE_URL: z.string().url().default("http://127.0.0.1:5157"),
+    INTELLIGENCE_SHARED_SECRET: z.string().min(32).default(DEFAULT_INTELLIGENCE_SHARED_SECRET),
+    INTELLIGENCE_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+    INTELLIGENCE_ALLOWED_MODELS: z
+      .string()
+      .default("gpt-4o-mini,claude-3-5-sonnet-20240620,text-embedding-3-small,deepseek-chat"),
   })
   .superRefine(validateEnvironment);
 
