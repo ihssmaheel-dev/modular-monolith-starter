@@ -46,6 +46,7 @@ export class IntelligenceHmacService {
     );
 
     const headers: Record<string, string> = {
+      "X-Service-Signature": signature,
       "X-Signature": signature,
       "X-Timestamp": timestamp,
     };

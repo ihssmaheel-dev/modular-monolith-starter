@@ -1,4 +1,5 @@
 import logging
+from enum import StrEnum
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -15,8 +16,19 @@ logger = logging.getLogger("intelligence.unary")
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(verify_gateway_signature)])
 
 
+class ChatRole(StrEnum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class ChatMessage(BaseModel):
+    role: ChatRole
+    content: str = Field(..., min_length=1, max_length=10_000)
+
+
 class UnaryChatRequest(BaseModel):
-    messages: list[dict[str, str]] = Field(..., min_length=1)
+    messages: list[ChatMessage] = Field(..., min_length=1, max_length=100)
     model: str | None = None
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     max_tokens: int = Field(default=1024, ge=1, le=8192)
@@ -48,7 +60,7 @@ async def chat_unary(
 
     try:
         raw_response = await execute_chat_completion(
-            messages=payload.messages,
+            messages=[msg.model_dump() for msg in payload.messages],
             model=target_model,
             temperature=payload.temperature,
             max_tokens=payload.max_tokens,
@@ -75,6 +87,14 @@ async def chat_unary(
     completion_tokens = usage.get("completion_tokens", 0)
     total_tokens = usage.get("total_tokens", prompt_tokens + completion_tokens)
 
+    cost_estimate_usd = 0.0
+    try:
+        import litellm
+
+        cost_estimate_usd = float(litellm.completion_cost(completion_response=raw_response))
+    except Exception:
+        cost_estimate_usd = round(total_tokens * 0.0000002, 6)
+
     # Record usage telemetry in tenant scope
     try:
         effective_tenant = x_tenant_id if x_tenant_id else None
@@ -87,10 +107,10 @@ async def chat_unary(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
+                cost_estimate_usd=cost_estimate_usd,
                 latency_ms=latency_ms,
             )
     except Exception as exc:
-        # Telemetry recording failure should log a warning but not fail the user's inference response
         logger.warning(f"Failed to record usage ledger: {exc}")
 
     return UnaryChatResponse(

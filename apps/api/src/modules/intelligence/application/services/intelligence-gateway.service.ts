@@ -47,6 +47,16 @@ export class IntelligenceGatewayService {
     );
   }
 
+  private getAllowedModels(): Set<string> {
+    const raw = env.INTELLIGENCE_ALLOWED_MODELS || "";
+    return new Set(
+      raw
+        .split(",")
+        .map((m) => m.trim())
+        .filter(Boolean),
+    );
+  }
+
   async executeUnaryChat(
     request: UnaryChatRequest,
     options?: {
@@ -59,7 +69,7 @@ export class IntelligenceGatewayService {
       return err(new IntelligenceDisabledError());
     }
 
-    if (request.model && !env.INTELLIGENCE_ALLOWED_MODELS.includes(request.model)) {
+    if (request.model && !this.getAllowedModels().has(request.model)) {
       return err(new IntelligenceInvalidModelError(request.model));
     }
 
@@ -156,23 +166,31 @@ export class IntelligenceGatewayService {
 
     const message = payload?.message || response.statusText;
 
-    if (payload?.code === "PAYLOAD_TOO_LARGE" || response.status === 413) {
+    if (
+      payload?.code === "AI_PAYLOAD_TOO_LARGE" ||
+      payload?.code === "PAYLOAD_TOO_LARGE" ||
+      response.status === 413
+    ) {
       return err(new IntelligencePayloadTooLargeError(message));
     }
 
-    if (payload?.code === "INVALID_MODEL") {
+    if (payload?.code === "AI_INVALID_MODEL" || payload?.code === "INVALID_MODEL") {
       return err(new IntelligenceInvalidModelError(message));
     }
 
-    if (response.status === 401 || response.status === 403) {
+    if (payload?.code === "AI_UNAUTHORIZED" || response.status === 401 || response.status === 403) {
       return err(new IntelligenceUnauthorizedError(message));
     }
 
-    if (response.status === 429) {
+    if (payload?.code === "AI_RATE_LIMITED" || response.status === 429) {
       return err(new IntelligenceRateLimitError(message));
     }
 
-    if (response.status >= 500) {
+    if (payload?.code === "AI_REQUEST_TIMEOUT" || response.status === 504) {
+      return err(new IntelligenceTimeoutError(message));
+    }
+
+    if (payload?.code === "AI_SERVICE_UNAVAILABLE" || response.status >= 500) {
       return err(new IntelligenceUnavailableError(message));
     }
 

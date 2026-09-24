@@ -14,12 +14,15 @@ litellm.telemetry = False
 litellm.drop_params = True
 
 
-def get_zero_retention_headers() -> dict[str, str]:
+def get_zero_retention_headers(model: str = "") -> dict[str, str]:
     """Headers enforcing zero-data-retention and no-model-training upstream."""
-    return {
+    headers = {
         "X-No-Training": "true",
-        "anthropic-beta": "max-tokens-3-5-sonnet-20240715",
     }
+    # Only send anthropic-beta header to Anthropic models
+    if "claude" in model.lower() or "anthropic" in model.lower():
+        headers["anthropic-beta"] = "max-tokens-3-5-sonnet-20240715"
+    return headers
 
 
 async def execute_chat_completion(
@@ -45,10 +48,11 @@ async def execute_chat_completion(
         sanitized_messages.append({**msg, "content": sanitized_content})
 
     headers = {}
-    if settings.ZERO_RETENTION_ENABLED:
-        headers.update(get_zero_retention_headers())
     if extra_headers:
         headers.update(extra_headers)
+    if settings.ZERO_RETENTION_ENABLED:
+        # Enforce zero retention flags unconditionally (overriding any caller extra_headers)
+        headers.update(get_zero_retention_headers(target_model))
 
     start_time = time.time()
     response = await litellm.acompletion(

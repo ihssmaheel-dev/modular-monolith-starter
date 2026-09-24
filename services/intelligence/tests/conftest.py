@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import os
 import time
+import uuid
 from collections.abc import AsyncIterator
 
 import pytest
@@ -28,14 +29,13 @@ def create_auth_headers(
     timestamp: float | None = None,
     user_id: str = "",
     tenant_id: str = "",
-    request_id: str = "",
+    request_id: str | None = None,
 ) -> dict[str, str]:
     """Helper to generate HMAC authentication headers for test requests."""
+    req_id = request_id if request_id is not None else f"req-test-{uuid.uuid4().hex[:12]}"
     ts = str(timestamp if timestamp is not None else time.time())
     body_hash = hashlib.sha256(body).hexdigest()
-    canonical_payload = (
-        f"{method.upper()}:{path}:{ts}:{user_id}:{tenant_id}:{request_id}:{body_hash}"
-    )
+    canonical_payload = f"{method.upper()}:{path}:{ts}:{user_id}:{tenant_id}:{req_id}:{body_hash}"
     sig = hmac.new(
         secret.encode("utf-8"),
         canonical_payload.encode("utf-8"),
@@ -44,15 +44,22 @@ def create_auth_headers(
     headers = {
         "x-timestamp": ts,
         "x-service-signature": sig,
+        "x-request-id": req_id,
         "content-type": "application/json",
     }
     if user_id:
         headers["x-user-id"] = user_id
     if tenant_id:
         headers["x-tenant-id"] = tenant_id
-    if request_id:
-        headers["x-request-id"] = request_id
     return headers
+
+
+@pytest.fixture(autouse=True)
+def reset_replay_cache():
+    """Ensure in-memory replay cache is clean across test executions."""
+    from security.replay import _local_replay_cache
+
+    _local_replay_cache.clear()
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ export const ChatMessageSchema = z.object({
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 export const UnaryChatRequestSchema = z.object({
-  messages: z.array(ChatMessageSchema).min(1),
+  messages: z.array(ChatMessageSchema).min(1).max(100),
   model: z.string().min(1).max(100).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(1).max(8192).optional(),
@@ -46,7 +46,7 @@ export type CreateEmbeddingsResponse = z.infer<typeof CreateEmbeddingsResponseSc
 export const SearchDocumentsRequestSchema = z.object({
   query: z.string().min(1).max(2000),
   limit: z.number().int().min(1).max(50).default(5),
-  offset: z.number().int().min(0).default(0),
+  offset: z.number().int().min(0).max(10000).default(0),
 });
 export type SearchDocumentsRequest = z.infer<typeof SearchDocumentsRequestSchema>;
 

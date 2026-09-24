@@ -41,10 +41,61 @@ describe("IntelligenceHmacService", () => {
       requestId: "req-789",
     });
 
+    expect(headers["X-Service-Signature"]).toBeDefined();
     expect(headers["X-Signature"]).toBeDefined();
     expect(headers["X-Timestamp"]).toBeDefined();
     expect(headers["X-User-Id"]).toBe("user-123");
     expect(headers["X-Tenant-Id"]).toBe("tenant-456");
     expect(headers["X-Request-Id"]).toBe("req-789");
+  });
+
+  it("matches cross-runtime cryptographic test vector parity with Python", () => {
+    const sig = service.computeSignature(
+      "deterministic-test-secret-key-32charsmin",
+      "POST",
+      "/api/v1/chat/unary",
+      "1710000000.0000",
+      JSON.stringify({ messages: [{ role: "user", content: "test" }] }),
+      "user_cuid_123",
+      "tenant_cuid_456",
+      "req_cuid_789",
+    );
+    expect(sig).toBe("b7583a90fd2f39885baa773ba7ac6f7676a26e2c1ef023da45384354d7ea6a03");
+  });
+
+  it("detects tampered payload, userId, or tenantId", () => {
+    const testSecret = "deterministic-test-secret-key-32charsmin";
+    const baseSig = service.computeSignature(
+      testSecret,
+      "POST",
+      "/api/v1/chat/unary",
+      "1710000000.0000",
+      JSON.stringify({ messages: [{ role: "user", content: "test" }] }),
+      "user_cuid_123",
+      "tenant_cuid_456",
+      "req_cuid_789",
+    );
+    const tamperedPayloadSig = service.computeSignature(
+      testSecret,
+      "POST",
+      "/api/v1/chat/unary",
+      "1710000000.0000",
+      JSON.stringify({ messages: [{ role: "user", content: "tampered" }] }),
+      "user_cuid_123",
+      "tenant_cuid_456",
+      "req_cuid_789",
+    );
+    const tamperedTenantSig = service.computeSignature(
+      testSecret,
+      "POST",
+      "/api/v1/chat/unary",
+      "1710000000.0000",
+      JSON.stringify({ messages: [{ role: "user", content: "test" }] }),
+      "user_cuid_123",
+      "tenant_attacker",
+      "req_cuid_789",
+    );
+    expect(tamperedPayloadSig).not.toBe(baseSig);
+    expect(tamperedTenantSig).not.toBe(baseSig);
   });
 });

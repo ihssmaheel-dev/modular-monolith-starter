@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from collections import OrderedDict
@@ -72,16 +73,19 @@ async def check_and_record_request(request_id: str, ttl_seconds: int = 300) -> b
     Distributed replay guard using Redis SET NX EX 300.
     Returns True if the request is fresh and unique.
     Returns False if the request has already been processed within the TTL window.
-    Falls back to a bounded local TTL cache if Redis is unavailable.
+    Falls back to a bounded local TTL cache if Redis is unavailable or times out.
     """
     if not request_id:
-        return True
+        return False
 
     redis_key = f"intelligence:replay:{request_id}"
     try:
         client = get_redis_client()
-        # SET key 1 EX ttl NX returns True if set, False if already exists
-        was_set = await client.set(redis_key, "1", ex=ttl_seconds, nx=True)
+        # Bound Redis RTT on auth hot path to 500ms before falling back to local LRU cache
+        was_set = await asyncio.wait_for(
+            client.set(redis_key, "1", ex=ttl_seconds, nx=True),
+            timeout=0.5,
+        )
         return bool(was_set)
     except Exception as exc:
         logger.debug(f"Redis unavailable for replay check, falling back to local cache: {exc}")

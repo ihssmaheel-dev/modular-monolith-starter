@@ -82,11 +82,3 @@ async def system_connection() -> AsyncGenerator[asyncpg.Connection, None]:
         async with connection.transaction():
             await connection.execute("SELECT set_config('app.system_scope', 'true', true);")
             yield connection
-
-
-@asynccontextmanager
-async def get_connection() -> AsyncGenerator[asyncpg.Connection, None]:
-    """Acquire a raw connection from the pool without transaction wrapping."""
-    pool = await init_pool()
-    async with pool.acquire() as connection:
-        yield connection

@@ -1,7 +1,7 @@
-import hashlib
-import hmac
-
 from security.hmac import compute_signature
+
+CHECKED_IN_NODE_VECTOR_1 = "b7583a90fd2f39885baa773ba7ac6f7676a26e2c1ef023da45384354d7ea6a03"
+CHECKED_IN_NODE_VECTOR_2 = "62a60fb53fe256d90ce51e65b65e7301050e2bfb3110f2e657a4f7c128b943c0"
 
 
 def test_cross_fixture_node_python_hmac_parity():
@@ -19,19 +19,6 @@ def test_cross_fixture_node_python_hmac_parity():
     body_str = '{"messages":[{"role":"user","content":"test"}]}'
     body_bytes = body_str.encode("utf-8")
 
-    # Manually compute SHA256 body hash matching Node's createHash("sha256").update(body).digest("hex")
-    body_hash = hashlib.sha256(body_bytes).hexdigest()
-
-    # Canonical string matching Node format:
-    # `${method.toUpperCase()}:${path}:${timestamp}:${userId}:${tenantId}:${requestId}:${bodyHash}`
-    expected_canonical = f"POST:/api/v1/chat/unary:1710000000.0000:user_cuid_123:tenant_cuid_456:req_cuid_789:{body_hash}"
-
-    expected_sig = hmac.new(
-        secret.encode("utf-8"),
-        expected_canonical.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
     # Call Python's compute_signature
     py_sig = compute_signature(
         secret=secret,
@@ -44,7 +31,8 @@ def test_cross_fixture_node_python_hmac_parity():
         request_id=request_id,
     )
 
-    assert py_sig == expected_sig
+    # Cryptographically assert against hardcoded vector computed by Node.js crypto
+    assert py_sig == CHECKED_IN_NODE_VECTOR_1
     assert len(py_sig) == 64
 
 
@@ -60,16 +48,6 @@ def test_cross_fixture_single_mode_empty_tenant_parity():
     body_str = '{"query":"search query","limit":5}'
     body_bytes = body_str.encode("utf-8")
 
-    body_hash = hashlib.sha256(body_bytes).hexdigest()
-    expected_canonical = (
-        f"POST:/api/v1/embeddings/search:1710000000.0000:user_cuid_123::req_cuid_789:{body_hash}"
-    )
-    expected_sig = hmac.new(
-        secret.encode("utf-8"),
-        expected_canonical.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
     py_sig = compute_signature(
         secret=secret,
         method=method,
@@ -81,4 +59,5 @@ def test_cross_fixture_single_mode_empty_tenant_parity():
         request_id=request_id,
     )
 
-    assert py_sig == expected_sig
+    # Cryptographically assert against hardcoded single-mode vector computed by Node.js crypto
+    assert py_sig == CHECKED_IN_NODE_VECTOR_2

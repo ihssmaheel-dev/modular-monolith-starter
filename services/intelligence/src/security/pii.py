@@ -2,7 +2,7 @@ import re
 
 # Compiled regex patterns for common sensitive PII types
 EMAIL_PATTERN = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b",
+    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,7}\b",
     re.IGNORECASE,
 )
 PHONE_PATTERN = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")
@@ -28,3 +28,14 @@ def sanitize_pii(text: str) -> str:
     sanitized = API_KEY_PATTERN.sub("[REDACTED_SECRET]", sanitized)
 
     return sanitized
+
+
+def sanitize_metadata(val: object) -> object:
+    """Recursively sanitize sensitive PII values from metadata dictionaries and lists."""
+    if isinstance(val, str):
+        return sanitize_pii(val)
+    if isinstance(val, dict):
+        return {k: sanitize_metadata(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [sanitize_metadata(item) for item in val]
+    return val

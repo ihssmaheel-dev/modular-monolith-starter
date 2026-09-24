@@ -40,6 +40,7 @@ async def verify_gateway_signature(
     request: Request,
     x_timestamp: Annotated[str | None, Header()] = None,
     x_service_signature: Annotated[str | None, Header()] = None,
+    x_signature: Annotated[str | None, Header()] = None,
     x_user_id: Annotated[str | None, Header()] = None,
     x_tenant_id: Annotated[str | None, Header()] = None,
     x_request_id: Annotated[str | None, Header()] = None,
@@ -48,11 +49,19 @@ async def verify_gateway_signature(
     FastAPI security dependency validating that incoming requests originate
     exclusively from the NestJS API Gateway with a valid HMAC-SHA256 signature
     over all identity headers, non-expired timestamp, and replay protection.
+    Signature verification is executed BEFORE touching replay caches.
     """
-    if not x_timestamp or not x_service_signature:
+    provided_signature = x_service_signature or x_signature
+    if not x_timestamp or not provided_signature:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing required authentication headers: X-Timestamp or X-Service-Signature",
+        )
+
+    if not x_request_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing required authentication header: X-Request-Id",
         )
 
     try:
@@ -70,17 +79,6 @@ async def verify_gateway_signature(
             detail="X-Timestamp is expired or outside allowable window",
         )
 
-    # Replay protection check
-    if x_request_id:
-        is_fresh = await check_and_record_request(
-            x_request_id, ttl_seconds=MAX_TIMESTAMP_DRIFT_SECONDS
-        )
-        if not is_fresh:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Replay detected: request ID already processed",
-            )
-
     body = await request.body()
     expected_sig = compute_signature(
         secret=settings.INTELLIGENCE_SHARED_SECRET,
@@ -90,11 +88,19 @@ async def verify_gateway_signature(
         body=body,
         user_id=x_user_id or "",
         tenant_id=x_tenant_id or "",
-        request_id=x_request_id or "",
+        request_id=x_request_id,
     )
 
-    if not hmac.compare_digest(expected_sig, x_service_signature):
+    if not hmac.compare_digest(expected_sig, provided_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid X-Service-Signature",
+        )
+
+    # Replay protection check executed strictly AFTER signature is verified
+    is_fresh = await check_and_record_request(x_request_id, ttl_seconds=MAX_TIMESTAMP_DRIFT_SECONDS)
+    if not is_fresh:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Replay detected: request ID already processed",
         )

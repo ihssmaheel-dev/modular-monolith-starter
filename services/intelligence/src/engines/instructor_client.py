@@ -26,9 +26,12 @@ async def extract_structured[T: BaseModel](
     using Instructor, enforcing PII sanitization and zero-retention flags.
     """
     target_model = model or settings.DEFAULT_CHAT_MODEL
+    if target_model not in settings.allowed_models:
+        raise ValueError(f"Model '{target_model}' is not in allowed models list")
+
     sanitized_text = sanitize_pii(text) if settings.PII_REDACTION_ENABLED else text
 
-    headers = get_zero_retention_headers() if settings.ZERO_RETENTION_ENABLED else {}
+    headers = get_zero_retention_headers(target_model) if settings.ZERO_RETENTION_ENABLED else {}
 
     result: T = await instructor_client.chat.completions.create(
         model=target_model,

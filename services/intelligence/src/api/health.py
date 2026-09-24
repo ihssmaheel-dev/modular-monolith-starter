@@ -4,7 +4,7 @@ from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
 from config import settings
-from database.connection import get_connection
+from database.connection import system_connection
 
 logger = logging.getLogger("intelligence.health")
 
@@ -32,7 +32,7 @@ async def readiness(response: Response) -> ReadinessResponse:
     """Readiness probe: validates database connectivity and model availability without leaking internals."""
     db_status = "ok"
     try:
-        async with get_connection() as conn:
+        async with system_connection() as conn:
             val = await conn.fetchval("SELECT 1")
             if val != 1:
                 db_status = "unresponsive"

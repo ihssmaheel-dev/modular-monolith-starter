@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -6,10 +7,13 @@ from pydantic import BaseModel, Field
 
 from config import settings
 from database.connection import tenant_connection
+from database.usage import record_usage
 from engines.embedding_engine import embed_documents, embed_text
 from engines.rag_engine import SearchResult, hybrid_search
 from security.hmac import verify_gateway_signature
-from security.pii import sanitize_pii
+from security.pii import sanitize_metadata, sanitize_pii
+
+logger = logging.getLogger("intelligence.embeddings")
 
 router = APIRouter(
     prefix="/api/v1/embeddings",
@@ -33,22 +37,59 @@ class IndexDocumentRequest(BaseModel):
     tenant_id: str | None = None
     source_type: str
     source_id: str
-    content: str
+    content: str = Field(..., min_length=1, max_length=50_000)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SearchRequest(BaseModel):
-    query: str = Field(..., min_length=1)
+    query: str = Field(..., min_length=1, max_length=2_000)
     tenant_id: str | None = None
     limit: int = Field(default=5, ge=1, le=50)
-    offset: int = Field(default=0, ge=0)
+    offset: int = Field(default=0, ge=0, le=10_000)
 
 
 @router.post("/create", response_model=CreateEmbeddingsResponse)
-async def create_embeddings(payload: CreateEmbeddingsRequest) -> CreateEmbeddingsResponse:
-    """Generate dense vector embeddings for an array of input texts."""
+async def create_embeddings(
+    payload: CreateEmbeddingsRequest,
+    x_tenant_id: Annotated[str | None, Header()] = None,
+    x_user_id: Annotated[str | None, Header()] = None,
+) -> CreateEmbeddingsResponse:
+    """Generate dense vector embeddings for an array of input texts with dimension validation."""
     vectors = embed_documents(payload.texts)
-    dimension = len(vectors[0]) if vectors else settings.VECTOR_DIMENSION
+    if not vectors:
+        return CreateEmbeddingsResponse(
+            embeddings=[],
+            model_version=settings.EMBEDDING_MODEL_VERSION,
+            dimension=settings.VECTOR_DIMENSION,
+        )
+
+    dimension = len(vectors[0])
+    if dimension != settings.VECTOR_DIMENSION:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Embedding dimension mismatch: expected {settings.VECTOR_DIMENSION}, got {dimension}",
+        )
+
+    # Record embedding operations in usage ledger if tenant context provided
+    if x_tenant_id is not None:
+        try:
+            total_chars = sum(len(t) for t in payload.texts)
+            est_tokens = max(1, total_chars // 4)
+            async with tenant_connection(x_tenant_id) as conn:
+                await record_usage(
+                    conn=conn,
+                    tenant_id=x_tenant_id,
+                    user_id=x_user_id,
+                    model=settings.DEFAULT_EMBEDDING_MODEL,
+                    prompt_tokens=est_tokens,
+                    completion_tokens=0,
+                    total_tokens=est_tokens,
+                    cost_estimate_usd=0.0,
+                    latency_ms=0,
+                )
+        except Exception as exc:
+            logger.warning(f"Failed to record embedding usage ledger: {exc}")
+
     return CreateEmbeddingsResponse(
         embeddings=vectors,
         model_version=settings.EMBEDDING_MODEL_VERSION,
@@ -79,6 +120,9 @@ async def index_document(
 
     # Load-bearing PII redaction before vector generation and storage
     sanitized_content = sanitize_pii(payload.content)
+    sanitized_metadata = (
+        sanitize_metadata(payload.metadata) if settings.PII_REDACTION_ENABLED else payload.metadata
+    )
     vector = embed_text(sanitized_content)
     version = settings.EMBEDDING_MODEL_VERSION
 
@@ -105,7 +149,7 @@ async def index_document(
             version,
             sanitized_content,
             vector,
-            json.dumps(payload.metadata),
+            json.dumps(sanitized_metadata),
         )
 
     return {"status": "indexed", "id": payload.id}

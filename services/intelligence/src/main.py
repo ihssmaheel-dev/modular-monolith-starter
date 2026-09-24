@@ -1,4 +1,5 @@
 import logging
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -33,10 +34,44 @@ def _map_status_to_code(status_code: int, detail: str) -> tuple[str, str]:
     if status_code == status.HTTP_400_BAD_REQUEST:
         if "model" in detail.lower():
             return "AI_INVALID_MODEL", "intelligence.errors.invalidModel"
-        return "VALIDATION_ERROR", "intelligence.errors.invalidModel"
+        return "VALIDATION_ERROR", "common.validation.invalidInput"
     if status_code == status.HTTP_504_GATEWAY_TIMEOUT:
         return "AI_REQUEST_TIMEOUT", "intelligence.errors.timeout"
     return "AI_SERVICE_UNAVAILABLE", "intelligence.errors.unavailable"
+
+
+def _format_error_response(
+    status_code: int,
+    code: str,
+    i18n_key: str,
+    message: str,
+    request: Request,
+    field_errors: dict[str, list[str]] | None = None,
+) -> JSONResponse:
+    """Format canonical error response strictly matching Node's ApiErrorEnvelopeSchema."""
+    request_id = request.headers.get("x-request-id")
+    if not request_id or not request_id.strip():
+        request_id = f"req-{uuid.uuid4().hex[:12]}"
+
+    clean_ref = "".join(c for c in request_id if c.isalnum()).lower()
+    error_ref = clean_ref[:8] if len(clean_ref) >= 8 else clean_ref.ljust(8, "0")
+
+    field_errors_map = field_errors or {}
+
+    content = {
+        "code": code,
+        "i18nKey": i18n_key,
+        "message": message,
+        "status": status_code,
+        "requestId": request_id,
+        "errorRef": error_ref,
+        "fieldErrors": field_errors_map,
+        # Backward-compatible snake_case fields
+        "i18n_key": i18n_key,
+        "request_id": request_id,
+        "detail": message,
+    }
+    return JSONResponse(status_code=status_code, content=content)
 
 
 @asynccontextmanager
@@ -80,38 +115,37 @@ app = FastAPI(
 @app.middleware("http")
 async def payload_size_limit_middleware(request: Request, call_next):
     """Enforces request payload size limits: 1MB for embeddings, 64KB for unary chat."""
-    content_length = request.headers.get("content-length")
-    if content_length:
-        try:
-            length = int(content_length)
-            path = request.url.path
-            if (
-                path.startswith("/api/v1/embeddings")
-                and length > settings.MAX_EMBEDDING_PAYLOAD_BYTES
-            ):
-                return JSONResponse(
-                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                    content={
-                        "code": "AI_PAYLOAD_TOO_LARGE",
-                        "i18n_key": "intelligence.errors.payloadTooLarge",
-                        "message": "Embedding payload exceeds 1MB limit",
-                        "status": 413,
-                        "request_id": request.headers.get("x-request-id"),
-                    },
-                )
-            if path.startswith("/api/v1/chat") and length > settings.MAX_UNARY_PAYLOAD_BYTES:
-                return JSONResponse(
-                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                    content={
-                        "code": "AI_PAYLOAD_TOO_LARGE",
-                        "i18n_key": "intelligence.errors.payloadTooLarge",
-                        "message": "Chat payload exceeds 64KB limit",
-                        "status": 413,
-                        "request_id": request.headers.get("x-request-id"),
-                    },
-                )
-        except ValueError:
-            pass
+    path = request.url.path
+    if path.startswith("/api/v1/embeddings") or path.startswith("/api/v1/chat"):
+        max_bytes = (
+            settings.MAX_EMBEDDING_PAYLOAD_BYTES
+            if path.startswith("/api/v1/embeddings")
+            else settings.MAX_UNARY_PAYLOAD_BYTES
+        )
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > max_bytes:
+                    return _format_error_response(
+                        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                        code="AI_PAYLOAD_TOO_LARGE",
+                        i18n_key="intelligence.errors.payloadTooLarge",
+                        message=f"Request payload exceeds {max_bytes} byte limit",
+                        request=request,
+                    )
+            except ValueError:
+                pass
+
+        body = await request.body()
+        if len(body) > max_bytes:
+            return _format_error_response(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                code="AI_PAYLOAD_TOO_LARGE",
+                i18n_key="intelligence.errors.payloadTooLarge",
+                message=f"Request payload exceeds {max_bytes} byte limit",
+                request=request,
+            )
+
     return await call_next(request)
 
 
@@ -119,32 +153,38 @@ async def payload_size_limit_middleware(request: Request, call_next):
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Global handler formatting HTTPExceptions into standard error envelopes."""
     code, i18n_key = _map_status_to_code(exc.status_code, str(exc.detail))
-    return JSONResponse(
+    return _format_error_response(
         status_code=exc.status_code,
-        content={
-            "code": code,
-            "i18n_key": i18n_key,
-            "message": str(exc.detail),
-            "detail": str(exc.detail),
-            "status": exc.status_code,
-            "request_id": request.headers.get("x-request-id"),
-        },
+        code=code,
+        i18n_key=i18n_key,
+        message=str(exc.detail),
+        request=request,
     )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Global handler formatting validation errors into standard error envelopes."""
-    return JSONResponse(
+    field_errors: dict[str, list[str]] = {}
+    for err in exc.errors():
+        loc = ".".join(str(x) for x in err.get("loc", []) if x != "body") or "general"
+        msg = err.get("msg", "Validation error")
+        field_errors.setdefault(loc, []).append(msg)
+
+    detail_str = str(exc.errors())
+    is_model_err = "model" in detail_str.lower()
+    code = "AI_INVALID_MODEL" if is_model_err else "VALIDATION_ERROR"
+    i18n_key = (
+        "intelligence.errors.invalidModel" if is_model_err else "common.validation.invalidInput"
+    )
+
+    return _format_error_response(
         status_code=status.HTTP_400_BAD_REQUEST,
-        content={
-            "code": "VALIDATION_ERROR",
-            "i18n_key": "intelligence.errors.invalidModel",
-            "message": "Request validation failed",
-            "status": 400,
-            "request_id": request.headers.get("x-request-id"),
-            "details": exc.errors(),
-        },
+        code=code,
+        i18n_key=i18n_key,
+        message="Request validation failed",
+        request=request,
+        field_errors=field_errors,
     )
 
 
@@ -152,15 +192,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def generic_exception_handler(request: Request, exc: Exception):
     """Global fallback handler preventing raw stack trace or server information leaks."""
     logger.exception(f"Unhandled error processing request {request.url.path}: {exc}")
-    return JSONResponse(
+    return _format_error_response(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "code": "INTERNAL_SERVER_ERROR",
-            "i18n_key": "intelligence.errors.unavailable",
-            "message": "An unexpected error occurred in the intelligence service",
-            "status": 500,
-            "request_id": request.headers.get("x-request-id"),
-        },
+        code="AI_SERVICE_UNAVAILABLE",
+        i18n_key="intelligence.errors.unavailable",
+        message="An unexpected error occurred in the intelligence service",
+        request=request,
     )
 
 
