@@ -1,6 +1,6 @@
 services:
   gateway:
-    image: nginx:1.27.4-alpine
+    image: nginx:1.31.0-alpine
     ports:
       - "127.0.0.1::80"
     volumes:
@@ -122,7 +122,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -164,7 +164,7 @@ services:
         condition: service_healthy
 
   mailpit:
-    image: axllent/mailpit:v1.30.0
+    image: axllent/mailpit:v1.31.2
     healthcheck:
       test: ["CMD", "/mailpit", "readyz"]
       interval: 5s
