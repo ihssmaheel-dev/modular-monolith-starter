@@ -6,7 +6,7 @@ x-observability-logging: &observability-logging
 
 services:
   prometheus:
-    image: prom/prometheus:v2.55.1
+    image: prom/prometheus:v3.14.0
     container_name: monorepo-prometheus
     ports:
       - "127.0.0.1:9090:9090"
@@ -28,7 +28,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   loki:
-    image: grafana/loki:3.3.2
+    image: grafana/loki:3.7.8
     container_name: monorepo-loki
     ports:
       - "127.0.0.1:3100:3100"
@@ -42,7 +42,7 @@ services:
     logging: *observability-logging
 
   alloy:
-    image: grafana/alloy:v1.7.1
+    image: grafana/alloy:v1.19.2
     container_name: monorepo-alloy
     ports:
       - "127.0.0.1:12345:12345"
@@ -63,7 +63,7 @@ services:
     logging: *observability-logging
 
   tempo:
-    image: grafana/tempo:2.7.1
+    image: grafana/tempo:3.0.3
     container_name: monorepo-tempo
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
@@ -79,7 +79,7 @@ services:
     logging: *observability-logging
 
   grafana:
-    image: grafana/grafana:13.2.0
+    image: grafana/grafana:13.2.2
     container_name: monorepo-grafana
     ports:
       - "127.0.0.1:3001:3000"
@@ -102,7 +102,7 @@ services:
     logging: *observability-logging
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.16.0
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     container_name: monorepo-postgres-exporter
     ports:
       - "127.0.0.1:9187:9187"
@@ -114,7 +114,7 @@ services:
     logging: *observability-logging
 
   redis-exporter:
-    image: oliver006/redis_exporter:v1.67.0
+    image: oliver006/redis_exporter:v1.91.1
     container_name: monorepo-redis-exporter
     ports:
       - "127.0.0.1:9121:9121"
@@ -126,7 +126,7 @@ services:
     logging: *observability-logging
 
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.34.1
     container_name: monorepo-alertmanager
     ports:
       - "127.0.0.1:9093:9093"

@@ -15,7 +15,7 @@
 # bypass the pooler via DB_DIRECT_URL (advisory locks need direct connections).
 services:
   nginx:
-    image: nginx:1.27.4-alpine
+    image: nginx:1.31.0-alpine
     container_name: monorepo-staging-nginx
     ports:
       - "127.0.0.1:8080:80"
@@ -232,7 +232,7 @@ services:
       - app-network
 
   pgbouncer:
-    image: pgbouncer/pgbouncer:1.25.2
+    image: pgbouncer/pgbouncer:1.25.2-20260911.206
     container_name: monorepo-staging-pgbouncer
     environment:
       PGBOUNCER_DB_HOST: postgres
@@ -255,7 +255,7 @@ services:
       - app-network
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: monorepo-staging-postgres
     ports:
       - "127.0.0.1:5433:5432"
@@ -323,7 +323,7 @@ services:
       - app-network
 
   mailpit:
-    image: axllent/mailpit:v1.30.0
+    image: axllent/mailpit:v1.31.2
     container_name: monorepo-staging-mailpit
     ports:
       - "127.0.0.1:1026:1025"
