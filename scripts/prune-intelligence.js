@@ -14,7 +14,10 @@ const isYes = args.includes("--yes");
 const INTELLIGENCE_PATHS = [
   "services/intelligence",
   "docker/docker-compose.intelligence.yml",
+  ".github/workflows/intelligence.yml",
   "apps/api/src/modules/intelligence",
+  "packages/contracts/src/schemas/intelligence.schema.ts",
+  "packages/contracts/src/contracts/intelligence.contract.ts",
 ];
 
 function printHelp() {
@@ -63,6 +66,21 @@ function disableIntelligence() {
   process.stdout.write("Updated apps/api/.env -> INTELLIGENCE_ENABLED=false\n");
 }
 
+function unwireFile(relPath, replacer, description) {
+  const fullPath = path.join(rootDir, relPath);
+  if (!fs.existsSync(fullPath)) return;
+  const original = fs.readFileSync(fullPath, "utf8");
+  const updated = replacer(original);
+  if (updated !== original) {
+    if (isDryRun) {
+      process.stdout.write(`  [Dry Run] Would ${description} in ${relPath}\n`);
+    } else {
+      fs.writeFileSync(fullPath, updated, "utf8");
+      process.stdout.write(`  Updated ${relPath} (${description})\n`);
+    }
+  }
+}
+
 function pruneIntelligence() {
   process.stdout.write("\nPruning Optional Intelligence Layer...\n");
 
@@ -81,24 +99,35 @@ function pruneIntelligence() {
     }
   }
 
-  // Unwire from app.module.ts
-  const appModulePath = path.join(rootDir, "apps/api/src/app.module.ts");
-  if (fs.existsSync(appModulePath)) {
-    let content = fs.readFileSync(appModulePath, "utf8");
-    if (content.includes("IntelligenceModule")) {
-      if (isDryRun) {
-        process.stdout.write("  [Dry Run] Would remove IntelligenceModule from app.module.ts\n");
-      } else {
-        content = content.replace(
-          /import\s*\{\s*IntelligenceModule\s*\}\s*from\s*"\.\/modules\/intelligence\/intelligence\.module";\n?/g,
+  unwireFile(
+    "apps/api/src/app.module.ts",
+    (c) =>
+      c
+        .replace(
+          /import\s*\{\s*IntelligenceModule\s*\}\s*from\s*"\.\/modules\/intelligence\/intelligence\.module";\r?\n?/g,
           "",
-        );
-        content = content.replace(/\s*IntelligenceModule,?\n?/g, "\n");
-        fs.writeFileSync(appModulePath, content, "utf8");
-        process.stdout.write("  Unwired IntelligenceModule from app.module.ts\n");
-      }
-    }
-  }
+        )
+        .replace(/\s*IntelligenceModule,?\r?\n?/g, "\n"),
+    "remove IntelligenceModule",
+  );
+
+  unwireFile(
+    "packages/contracts/src/schemas/index.ts",
+    (c) => c.replace(/export \* from "\.\/intelligence\.schema";\r?\n?/g, ""),
+    "remove intelligence.schema export",
+  );
+
+  unwireFile(
+    "packages/contracts/src/contracts/index.ts",
+    (c) => c.replace(/export \* from "\.\/intelligence\.contract";\r?\n?/g, ""),
+    "remove intelligence.contract export",
+  );
+
+  unwireFile(
+    "packages/contracts/src/schemas/env.schema.ts",
+    (c) => c.replace(/\s*INTELLIGENCE_[A-Z_]+:[^\n]+\n/g, "\n"),
+    "remove INTELLIGENCE_* env keys",
+  );
 
   process.stdout.write("\nDone. The modular monolith is now clean and purely TypeScript.\n");
 }

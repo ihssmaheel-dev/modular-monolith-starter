@@ -6,6 +6,8 @@ import { env } from "../../../../config/env";
 describe("IntelligenceGatewayService", () => {
   let service: IntelligenceGatewayService;
   let hmacService: IntelligenceHmacService;
+  const savedEnabled = env.INTELLIGENCE_ENABLED;
+  const savedModels = env.INTELLIGENCE_ALLOWED_MODELS;
 
   beforeEach(() => {
     hmacService = new IntelligenceHmacService();
@@ -13,13 +15,14 @@ describe("IntelligenceGatewayService", () => {
   });
 
   afterEach(() => {
+    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
+    (env as { INTELLIGENCE_ALLOWED_MODELS: string }).INTELLIGENCE_ALLOWED_MODELS = savedModels;
     vi.restoreAllMocks();
   });
 
   it("returns IntelligenceDisabledError when INTELLIGENCE_ENABLED is false", async () => {
-    const original = env.INTELLIGENCE_ENABLED;
-    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = false;
     try {
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = false;
       const result = await service.executeUnaryChat({
         messages: [{ role: "user", content: "hello" }],
       });
@@ -29,14 +32,13 @@ describe("IntelligenceGatewayService", () => {
         expect(result.error.type).toBe("AI_DISABLED");
       }
     } finally {
-      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = original;
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
     }
   });
 
   it("rejects models not present in INTELLIGENCE_ALLOWED_MODELS", async () => {
-    const original = env.INTELLIGENCE_ENABLED;
-    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
     try {
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
       const result = await service.executeUnaryChat({
         messages: [{ role: "user", content: "hello" }],
         model: "unauthorized-malicious-model",
@@ -47,17 +49,15 @@ describe("IntelligenceGatewayService", () => {
         expect(result.error.type).toBe("AI_INVALID_MODEL");
       }
     } finally {
-      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = original;
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
     }
   });
 
   it("prevents substring bypass on model allowlist", async () => {
-    const origEnabled = env.INTELLIGENCE_ENABLED;
-    const origModels = env.INTELLIGENCE_ALLOWED_MODELS;
-    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
-    (env as { INTELLIGENCE_ALLOWED_MODELS: string }).INTELLIGENCE_ALLOWED_MODELS =
-      "gpt-4o,gpt-4o-mini";
     try {
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
+      (env as { INTELLIGENCE_ALLOWED_MODELS: string }).INTELLIGENCE_ALLOWED_MODELS =
+        "gpt-4o,gpt-4o-mini";
       // "gpt" is a substring of "gpt-4o" but not an exact model match
       const result = await service.executeUnaryChat({
         messages: [{ role: "user", content: "hello" }],
@@ -69,45 +69,56 @@ describe("IntelligenceGatewayService", () => {
         expect(result.error.type).toBe("AI_INVALID_MODEL");
       }
     } finally {
-      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = origEnabled;
-      (env as { INTELLIGENCE_ALLOWED_MODELS: string }).INTELLIGENCE_ALLOWED_MODELS = origModels;
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
+      (env as { INTELLIGENCE_ALLOWED_MODELS: string }).INTELLIGENCE_ALLOWED_MODELS = savedModels;
     }
   });
 
-  it("opens circuit breaker after repeated failures", async () => {
-    const original = env.INTELLIGENCE_ENABLED;
-    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
+  it("isolates circuit breakers per tenant so tenant A failures do not block tenant B", async () => {
     try {
-      vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Connection refused"));
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockRejectedValue(new Error("Connection refused"));
 
-      // Trigger 3 failures to reach failureThreshold
+      // Trigger 3 failures for tenant-a to open tenant-a's breaker
       for (let i = 0; i < 3; i++) {
-        const res = await service.executeUnaryChat({
-          messages: [{ role: "user", content: "hello" }],
-        });
+        const res = await service.executeUnaryChat(
+          { messages: [{ role: "user", content: "hello" }] },
+          { tenantId: "tenant-a" },
+        );
         expect(res.isErr()).toBe(true);
-        if (res.isErr()) {
-          expect(res.error.type).toBe("AI_SERVICE_UNAVAILABLE");
-        }
       }
 
-      // 4th call should fail immediately via OPEN circuit breaker
-      const fourth = await service.executeUnaryChat({
-        messages: [{ role: "user", content: "hello" }],
-      });
-      expect(fourth.isErr()).toBe(true);
-      if (fourth.isErr()) {
-        expect(fourth.error.type).toBe("AI_SERVICE_UNAVAILABLE");
-      }
+      // 4th call for tenant-a fails immediately via OPEN breaker without calling fetch
+      fetchSpy.mockClear();
+      const fourthA = await service.executeUnaryChat(
+        { messages: [{ role: "user", content: "hello" }] },
+        { tenantId: "tenant-a" },
+      );
+      expect(fourthA.isErr()).toBe(true);
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // Tenant B's circuit breaker remains CLOSED and succeeds when upstream recovers
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ content: "Tenant B OK", model: "gpt-4o-mini" }),
+      } as unknown as Response);
+
+      const resB = await service.executeUnaryChat(
+        { messages: [{ role: "user", content: "hello" }] },
+        { tenantId: "tenant-b" },
+      );
+      expect(resB.isOk()).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledOnce();
     } finally {
-      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = original;
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
     }
   });
 
   it("proxies searchDocuments with proper headers and payload", async () => {
-    const original = env.INTELLIGENCE_ENABLED;
-    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
     try {
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
       const mockResults = [
         {
           id: "doc-1",
@@ -133,7 +144,7 @@ describe("IntelligenceGatewayService", () => {
         expect(res.value).toEqual(mockResults);
       }
     } finally {
-      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = original;
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
     }
   });
 });

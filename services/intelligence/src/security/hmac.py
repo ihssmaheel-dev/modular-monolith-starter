@@ -55,7 +55,7 @@ async def verify_gateway_signature(
     if not x_timestamp or not provided_signature:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing required authentication headers: X-Timestamp or X-Service-Signature",
+            detail="Missing required authentication headers: X-Timestamp and X-Service-Signature (or X-Signature)",
         )
 
     if not x_request_id:

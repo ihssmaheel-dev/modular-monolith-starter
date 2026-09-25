@@ -36,8 +36,8 @@ async def hybrid_search(
     Guarantees strict tenant isolation by executing inside tenant_connection(tenant_id)
     with active PostgreSQL Row-Level Security (RLS) and sanitized FTS queries.
     """
-    sanitized_query = sanitize_pii(query)
-    query_vector = embed_text(sanitized_query)
+    sanitized_query = sanitize_pii(query) if settings.PII_REDACTION_ENABLED else query
+    query_vector = embed_text(sanitized_query, already_sanitized=True)
     version = model_version or settings.EMBEDDING_MODEL_VERSION
 
     # Reciprocal Rank Fusion (RRF) algorithm constants from config

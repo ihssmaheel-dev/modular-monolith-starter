@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ok } from "neverthrow";
 import { ExecuteUnaryChatCommand } from "./execute-unary-chat.command";
 import { IntelligenceGatewayService } from "../services/intelligence-gateway.service";
@@ -8,6 +8,7 @@ import { env } from "../../../../config/env";
 describe("ExecuteUnaryChatCommand", () => {
   let command: ExecuteUnaryChatCommand;
   let gateway: IntelligenceGatewayService;
+  const savedEnabled = env.INTELLIGENCE_ENABLED;
 
   beforeEach(() => {
     gateway = {
@@ -17,10 +18,13 @@ describe("ExecuteUnaryChatCommand", () => {
     command = new ExecuteUnaryChatCommand(gateway);
   });
 
+  afterEach(() => {
+    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
+  });
+
   it("returns IntelligenceDisabledError when service is disabled", async () => {
-    const original = env.INTELLIGENCE_ENABLED;
-    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = false;
     try {
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = false;
       const result = await command.execute({
         messages: [{ role: "user", content: "hello" }],
       });
@@ -31,14 +35,13 @@ describe("ExecuteUnaryChatCommand", () => {
       }
       expect(gateway.executeUnaryChat).not.toHaveBeenCalled();
     } finally {
-      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = original;
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
     }
   });
 
   it("delegates to gateway when service is enabled", async () => {
-    const original = env.INTELLIGENCE_ENABLED;
-    (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
     try {
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = true;
       const mockResponse = {
         content: "Generated content",
         model: "gpt-4o-mini",
@@ -55,7 +58,7 @@ describe("ExecuteUnaryChatCommand", () => {
       }
       expect(gateway.executeUnaryChat).toHaveBeenCalledOnce();
     } finally {
-      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = original;
+      (env as { INTELLIGENCE_ENABLED: boolean }).INTELLIGENCE_ENABLED = savedEnabled;
     }
   });
 });

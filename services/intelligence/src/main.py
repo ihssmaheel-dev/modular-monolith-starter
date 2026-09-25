@@ -1,7 +1,9 @@
 import logging
+import re
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -40,6 +42,43 @@ def _map_status_to_code(status_code: int, detail: str) -> tuple[str, str]:
     return "AI_SERVICE_UNAVAILABLE", "intelligence.errors.unavailable"
 
 
+def format_error_ref(trace_id: str | None = None, request_id: str | None = None) -> str:
+    """
+    Derives an 8-character error reference ID matching @repo/contracts formatErrorRef:
+    1. First 8 hex chars of traceId if available.
+    2. First 8 alphanumeric chars of requestId's first hyphenated group if >= 8 chars.
+    3. First 8 alphanumeric chars of full requestId (or right-padded with '0' if < 8).
+    4. Fallback '00000000'.
+    """
+    if isinstance(trace_id, str) and trace_id.strip():
+        clean_trace = re.sub(r"[^a-fA-F0-9]", "", trace_id).lower()
+        if len(clean_trace) >= 8:
+            return clean_trace[:8]
+    if isinstance(request_id, str) and request_id.strip():
+        first_group = re.sub(r"[^a-zA-Z0-9]", "", request_id.split("-")[0]).lower()
+        if len(first_group) >= 8:
+            return first_group[:8]
+        clean_req = re.sub(r"[^a-zA-Z0-9]", "", request_id).lower()
+        if len(clean_req) >= 8:
+            return clean_req[:8]
+        if len(clean_req) > 0:
+            return clean_req.ljust(8, "0")
+    return "00000000"
+
+
+def _extract_trace_id(request: Request) -> str | None:
+    """Extract OpenTelemetry trace ID from x-trace-id or W3C traceparent header."""
+    direct = request.headers.get("x-trace-id")
+    if direct and direct.strip():
+        return direct.strip()
+    traceparent = request.headers.get("traceparent")
+    if traceparent:
+        parts = traceparent.strip().split("-")
+        if len(parts) >= 2 and len(parts[1]) == 32:
+            return parts[1]
+    return None
+
+
 def _format_error_response(
     status_code: int,
     code: str,
@@ -48,17 +87,26 @@ def _format_error_response(
     request: Request,
     field_errors: dict[str, list[str]] | None = None,
 ) -> JSONResponse:
-    """Format canonical error response strictly matching Node's ApiErrorEnvelopeSchema."""
+    """Format canonical error response strictly matching @repo/contracts ApiErrorEnvelopeSchema."""
     request_id = request.headers.get("x-request-id")
     if not request_id or not request_id.strip():
         request_id = f"req-{uuid.uuid4().hex[:12]}"
 
-    clean_ref = "".join(c for c in request_id if c.isalnum()).lower()
-    error_ref = clean_ref[:8] if len(clean_ref) >= 8 else clean_ref.ljust(8, "0")
+    trace_id = _extract_trace_id(request)
+    error_ref = format_error_ref(trace_id=trace_id, request_id=request_id)
+    field_errors_map = field_errors if field_errors is not None else {}
 
-    field_errors_map = field_errors or {}
+    is_retryable = status_code in (
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        status.HTTP_502_BAD_GATEWAY,
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        status.HTTP_504_GATEWAY_TIMEOUT,
+    ) or code in ("AI_RATE_LIMITED", "AI_SERVICE_UNAVAILABLE", "AI_REQUEST_TIMEOUT")
+    retry_meta: dict[str, Any] = {"retryable": is_retryable}
+    if is_retryable:
+        retry_meta["retryAfterMs"] = 1000
 
-    content = {
+    content: dict[str, Any] = {
         "code": code,
         "i18nKey": i18n_key,
         "message": message,
@@ -66,11 +114,11 @@ def _format_error_response(
         "requestId": request_id,
         "errorRef": error_ref,
         "fieldErrors": field_errors_map,
-        # Backward-compatible snake_case fields
-        "i18n_key": i18n_key,
-        "request_id": request_id,
-        "detail": message,
+        "retry": retry_meta,
     }
+    if trace_id:
+        content["traceId"] = trace_id
+
     return JSONResponse(status_code=status_code, content=content)
 
 
@@ -114,7 +162,11 @@ app = FastAPI(
 
 @app.middleware("http")
 async def payload_size_limit_middleware(request: Request, call_next):
-    """Enforces request payload size limits: 1MB for embeddings, 64KB for unary chat."""
+    """
+    Enforces request and response payload size limits:
+    1MB for embeddings, 64KB for unary chat, and MAX_RESPONSE_BYTES for responses.
+    Streams request chunks incrementally to defeat missing/chunked Content-Length bypasses.
+    """
     path = request.url.path
     if path.startswith("/api/v1/embeddings") or path.startswith("/api/v1/chat"):
         max_bytes = (
@@ -136,17 +188,36 @@ async def payload_size_limit_middleware(request: Request, call_next):
             except ValueError:
                 pass
 
-        body = await request.body()
-        if len(body) > max_bytes:
-            return _format_error_response(
-                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                code="AI_PAYLOAD_TOO_LARGE",
-                i18n_key="intelligence.errors.payloadTooLarge",
-                message=f"Request payload exceeds {max_bytes} byte limit",
-                request=request,
-            )
+        chunks: list[bytes] = []
+        total_bytes = 0
+        async for chunk in request.stream():
+            total_bytes += len(chunk)
+            if total_bytes > max_bytes:
+                return _format_error_response(
+                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                    code="AI_PAYLOAD_TOO_LARGE",
+                    i18n_key="intelligence.errors.payloadTooLarge",
+                    message=f"Request payload exceeds {max_bytes} byte limit",
+                    request=request,
+                )
+            chunks.append(chunk)
+        request._body = b"".join(chunks)
 
-    return await call_next(request)
+    response = await call_next(request)
+    res_content_length = response.headers.get("content-length")
+    if res_content_length:
+        try:
+            if int(res_content_length) > settings.MAX_RESPONSE_BYTES:
+                return _format_error_response(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    code="AI_SERVICE_UNAVAILABLE",
+                    i18n_key="intelligence.errors.unavailable",
+                    message=f"Response payload exceeds {settings.MAX_RESPONSE_BYTES} byte limit",
+                    request=request,
+                )
+        except ValueError:
+            pass
+    return response
 
 
 @app.exception_handler(HTTPException)

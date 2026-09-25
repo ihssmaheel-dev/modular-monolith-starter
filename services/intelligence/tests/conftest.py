@@ -62,6 +62,54 @@ def reset_replay_cache():
     _local_replay_cache.clear()
 
 
+class _FakeEmbeddingVector(list[float]):
+    """List subclass providing .tolist() parity with numpy ndarray for FastEmbed mock."""
+
+    def tolist(self) -> list[float]:
+        return list(self)
+
+
+class _HermeticEmbeddingModel:
+    """Deterministic, zero-network 384-dimensional L2-normalized embedding model for tests."""
+
+    def embed(self, texts: list[str]) -> list[_FakeEmbeddingVector]:
+        results: list[_FakeEmbeddingVector] = []
+        dim = 384
+        val = 1.0 / (dim**0.5)
+        for _ in texts:
+            results.append(_FakeEmbeddingVector([val] * dim))
+        return results
+
+
+@pytest.fixture(autouse=True)
+def hermetic_environment(monkeypatch: pytest.MonkeyPatch):
+    """
+    Ensure unit tests never download models from HuggingFace or open live TCP connections
+    to localhost Postgres/Redis unless explicitly overridden by a test.
+    """
+    from unittest.mock import AsyncMock
+
+    import api.embeddings
+    import api.unary
+    import engines.embedding_engine
+
+    monkeypatch.setattr(
+        engines.embedding_engine,
+        "get_embedding_model",
+        lambda: _HermeticEmbeddingModel(),
+    )
+
+    mock_conn = AsyncMock()
+    mock_conn.execute.return_value = None
+    mock_conn.fetch.return_value = []
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__.return_value = mock_conn
+    mock_cm.__aexit__.return_value = None
+
+    monkeypatch.setattr(api.unary, "tenant_connection", lambda _tid=None: mock_cm)
+    monkeypatch.setattr(api.embeddings, "tenant_connection", lambda _tid=None: mock_cm)
+
+
 @pytest.fixture
 async def async_client() -> AsyncIterator[AsyncClient]:
     """Yield an async test client configured with ASGI transport."""

@@ -93,7 +93,15 @@ async def chat_unary(
 
         cost_estimate_usd = float(litellm.completion_cost(completion_response=raw_response))
     except Exception:
-        cost_estimate_usd = round(total_tokens * 0.0000002, 6)
+        cost_estimate_usd = 0.0
+
+    if cost_estimate_usd <= 0.0 and total_tokens > 0:
+        if prompt_tokens or completion_tokens:
+            cost_estimate_usd = round(
+                (prompt_tokens * 0.00000015) + (completion_tokens * 0.00000060), 8
+            )
+        else:
+            cost_estimate_usd = round(total_tokens * 0.0000002, 8)
 
     # Record usage telemetry in tenant scope
     try:

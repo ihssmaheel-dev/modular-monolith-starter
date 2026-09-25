@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { err, ok, Result } from "neverthrow";
-import type {
-  AuthenticatedUser,
-  SearchDocumentResult,
-  SearchDocumentsRequest,
-  UnaryChatRequest,
-  UnaryChatResponse,
+import {
+  ApiErrorEnvelopeSchema,
+  type AuthenticatedUser,
+  type SearchDocumentResult,
+  type SearchDocumentsRequest,
+  type UnaryChatRequest,
+  type UnaryChatResponse,
 } from "@repo/contracts";
 import { env } from "../../../../config/env";
 import { CircuitBreaker } from "../../../../common/utils/circuit-breaker";
@@ -21,30 +22,48 @@ import {
 } from "../../domain/errors/intelligence.errors";
 import { IntelligenceHmacService } from "./intelligence-hmac.service";
 
+const MAX_TENANT_BREAKERS = 500;
+
 interface PythonErrorPayload {
   code?: string;
-  i18n_key?: string;
+  i18nKey?: string;
   message?: string;
   status?: number;
-  request_id?: string;
+  requestId?: string;
 }
 
 @Injectable()
 export class IntelligenceGatewayService {
   private readonly logger = new Logger(IntelligenceGatewayService.name);
-  private readonly circuitBreaker: CircuitBreaker<IntelligenceError>;
+  private readonly breakers = new Map<string, CircuitBreaker<IntelligenceError>>();
 
-  constructor(private readonly hmacService: IntelligenceHmacService) {
-    this.circuitBreaker = new CircuitBreaker(
-      {
-        failureThreshold: 3,
-        resetTimeoutMs: 30_000,
-        onStateChange: (state) => {
-          this.logger.warn(`Intelligence circuit breaker transitioned to state: ${state}`);
+  constructor(private readonly hmacService: IntelligenceHmacService) {}
+
+  private getBreaker(tenantId?: string): CircuitBreaker<IntelligenceError> {
+    const key = tenantId && tenantId.trim() ? tenantId.trim() : "__global__";
+    let breaker = this.breakers.get(key);
+    if (!breaker) {
+      if (this.breakers.size >= MAX_TENANT_BREAKERS) {
+        const oldestKey = this.breakers.keys().next().value;
+        if (oldestKey) {
+          this.breakers.delete(oldestKey);
+        }
+      }
+      breaker = new CircuitBreaker(
+        {
+          failureThreshold: 3,
+          resetTimeoutMs: 30_000,
+          onStateChange: (state) => {
+            this.logger.warn(
+              `Intelligence circuit breaker (${key}) transitioned to state: ${state}`,
+            );
+          },
         },
-      },
-      new IntelligenceUnavailableError("Intelligence circuit breaker is open"),
-    );
+        new IntelligenceUnavailableError("Intelligence circuit breaker is open"),
+      );
+      this.breakers.set(key, breaker);
+    }
+    return breaker;
   }
 
   private getAllowedModels(): Set<string> {
@@ -73,7 +92,8 @@ export class IntelligenceGatewayService {
       return err(new IntelligenceInvalidModelError(request.model));
     }
 
-    return this.circuitBreaker.execute(async () => {
+    const breaker = this.getBreaker(options?.tenantId);
+    return breaker.execute(async () => {
       return this.sendRequest<UnaryChatResponse>(
         "/api/v1/chat/unary",
         "POST",
@@ -93,7 +113,8 @@ export class IntelligenceGatewayService {
       return err(new IntelligenceDisabledError());
     }
 
-    return this.circuitBreaker.execute(async () => {
+    const breaker = this.getBreaker(tenantId);
+    return breaker.execute(async () => {
       return this.sendRequest<SearchDocumentResult[]>(
         "/api/v1/embeddings/search",
         "POST",
@@ -159,38 +180,41 @@ export class IntelligenceGatewayService {
   private async mapHttpError(response: Response): Promise<Result<never, IntelligenceError>> {
     let payload: PythonErrorPayload | undefined;
     try {
-      payload = (await response.json()) as PythonErrorPayload;
+      const raw = await response.json();
+      const parsed = ApiErrorEnvelopeSchema.safeParse(raw);
+      payload = parsed.success ? parsed.data : (raw as PythonErrorPayload);
     } catch {
       // Body not JSON or empty
     }
 
     const message = payload?.message || response.statusText;
+    const code = payload?.code;
 
     if (
-      payload?.code === "AI_PAYLOAD_TOO_LARGE" ||
-      payload?.code === "PAYLOAD_TOO_LARGE" ||
+      code === "AI_PAYLOAD_TOO_LARGE" ||
+      code === "PAYLOAD_TOO_LARGE" ||
       response.status === 413
     ) {
       return err(new IntelligencePayloadTooLargeError(message));
     }
 
-    if (payload?.code === "AI_INVALID_MODEL" || payload?.code === "INVALID_MODEL") {
+    if (code === "AI_INVALID_MODEL" || code === "INVALID_MODEL") {
       return err(new IntelligenceInvalidModelError(message));
     }
 
-    if (payload?.code === "AI_UNAUTHORIZED" || response.status === 401 || response.status === 403) {
+    if (code === "AI_UNAUTHORIZED" || response.status === 401 || response.status === 403) {
       return err(new IntelligenceUnauthorizedError(message));
     }
 
-    if (payload?.code === "AI_RATE_LIMITED" || response.status === 429) {
+    if (code === "AI_RATE_LIMITED" || response.status === 429) {
       return err(new IntelligenceRateLimitError(message));
     }
 
-    if (payload?.code === "AI_REQUEST_TIMEOUT" || response.status === 504) {
+    if (code === "AI_REQUEST_TIMEOUT" || response.status === 504) {
       return err(new IntelligenceTimeoutError(message));
     }
 
-    if (payload?.code === "AI_SERVICE_UNAVAILABLE" || response.status >= 500) {
+    if (code === "AI_SERVICE_UNAVAILABLE" || response.status >= 500) {
       return err(new IntelligenceUnavailableError(message));
     }
 
