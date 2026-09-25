@@ -4,16 +4,10 @@ import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
-import {
-  deviceTokens,
-  notificationBatches,
-  notificationPreferences,
-  notifications,
-  type DeviceTokenRow,
-  type NotificationBatchRow,
-  type NotificationRow,
-  type PreferenceRow,
-} from "../schemas/notification.schema";
+import { notifications, type NotificationRow } from "../schemas/notifications.schema";
+import { notificationPreferences, type PreferenceRow } from "../schemas/preferences.schema";
+import { deviceTokens, type DeviceTokenRow } from "../schemas/device-tokens.schema";
+import { notificationBatches, type NotificationBatchRow } from "../schemas/batches.schema";
 import { Notification } from "../../domain/entities/notification.entity";
 import type { NotificationChannel } from "@repo/contracts";
 

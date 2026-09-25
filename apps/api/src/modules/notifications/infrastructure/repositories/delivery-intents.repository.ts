@@ -5,9 +5,9 @@ import type { NotificationChannel } from "@repo/contracts";
 import { DatabaseService } from "../../../../infrastructure/database";
 import {
   notificationDeliveryIntents,
-  notifications,
   type NotificationDeliveryIntentRow,
-} from "../schemas/notification.schema";
+} from "../schemas/delivery-intents.schema";
+import { notifications } from "../schemas/notifications.schema";
 
 export interface NotificationDeliveryIntent {
   id: string;

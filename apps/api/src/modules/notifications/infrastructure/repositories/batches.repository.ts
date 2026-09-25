@@ -4,7 +4,7 @@ import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
-import { notificationBatches, type NotificationBatchRow } from "../schemas/notification.schema";
+import { notificationBatches, type NotificationBatchRow } from "../schemas/batches.schema";
 
 export interface NotificationBatchItem {
   titleKey: string;

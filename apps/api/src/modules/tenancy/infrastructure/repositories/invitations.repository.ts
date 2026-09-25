@@ -4,7 +4,7 @@ import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
-import { invitations, type InvitationRow } from "../schemas/tenancy.schema";
+import { invitations, type InvitationRow } from "../schemas/invitations.schema";
 import { Invitation } from "../../domain/entities/tenancy.entity";
 import type { PaginatedResult, PaginationOptions } from "../../../../infrastructure/database";
 

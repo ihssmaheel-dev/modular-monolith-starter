@@ -5,7 +5,7 @@ import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
-import { deviceTokens, type DeviceTokenRow } from "../schemas/notification.schema";
+import { deviceTokens, type DeviceTokenRow } from "../schemas/device-tokens.schema";
 import type { DevicePlatform, DeviceProvider } from "@repo/contracts";
 
 export interface DeviceToken {

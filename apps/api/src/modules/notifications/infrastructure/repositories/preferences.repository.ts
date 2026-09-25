@@ -4,7 +4,7 @@ import { type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
-import { notificationPreferences, type PreferenceRow } from "../schemas/notification.schema";
+import { notificationPreferences, type PreferenceRow } from "../schemas/preferences.schema";
 import {
   NotificationPreference,
   type NotificationPreferenceData,
