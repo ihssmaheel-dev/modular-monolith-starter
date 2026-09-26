@@ -51,11 +51,19 @@ class Settings(BaseSettings):
 
     # Search & RRF scoring configuration
     RRF_K: int = Field(default=60, description="RRF smoothing constant")
+    RRF_CANDIDATE_LIMIT: int = Field(
+        default=50, ge=1, le=500, description="Max candidates per dense/sparse RRF leg"
+    )
     DENSE_WEIGHT: float = Field(default=0.5, description="Dense vector search score weight")
     SPARSE_WEIGHT: float = Field(default=0.5, description="Sparse keyword search score weight")
 
-    # Guardrails & Defense settings
+    # Guardrails, Timeouts & Defense settings
     EGRESS_TIMEOUT_SECONDS: float = Field(default=10.0, ge=1.0, le=60.0)
+    DB_COMMAND_TIMEOUT_SECONDS: float = Field(default=10.0, ge=1.0, le=60.0)
+    REDIS_SOCKET_TIMEOUT_SECONDS: float = Field(default=2.0, ge=0.1, le=30.0)
+    REDIS_AUTH_HOTPATH_TIMEOUT_SECONDS: float = Field(default=0.5, ge=0.05, le=5.0)
+    MAX_TIMESTAMP_DRIFT_SECONDS: int = Field(default=300, ge=10, le=3600)
+    DEFAULT_RETRY_AFTER_MS: int = Field(default=1000, ge=100)
     MAX_RESPONSE_BYTES: int = Field(
         default=1_048_576, description="1MB maximum response payload cap"
     )
@@ -71,6 +79,12 @@ class Settings(BaseSettings):
     PII_REDACTION_ENABLED: bool = Field(
         default=True, description="Sanitize PII patterns before embedding/LLM"
     )
+
+    # Token estimation & fallback cost rates (USD per token)
+    CHARS_PER_TOKEN_ESTIMATE: int = Field(default=4, ge=1)
+    EMBEDDING_COST_PER_TOKEN_USD: float = Field(default=0.00000002)
+    CHAT_PROMPT_COST_PER_TOKEN_USD: float = Field(default=0.00000015)
+    CHAT_COMPLETION_COST_PER_TOKEN_USD: float = Field(default=0.00000060)
 
     # Allowed egress provider hostnames
     EGRESS_ALLOWLIST: list[str] = Field(

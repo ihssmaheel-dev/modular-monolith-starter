@@ -1,4 +1,4 @@
-import json
+import asyncio
 import logging
 from typing import Annotated, Any
 
@@ -7,11 +7,18 @@ from pydantic import BaseModel, Field
 
 from config import settings
 from database.connection import tenant_connection
+from database.document_repository import upsert_document_embedding
 from database.usage import record_usage
-from engines.embedding_engine import embed_documents, embed_text
+from engines.embedding_engine import (
+    embed_documents,
+    embed_documents_async,
+    embed_text,
+    embed_text_async,
+)
 from engines.rag_engine import SearchResult, hybrid_search
 from security.hmac import verify_gateway_signature
 from security.pii import sanitize_metadata, sanitize_pii
+from services.usage_service import record_embedding_usage_on_conn
 
 logger = logging.getLogger("intelligence.embeddings")
 
@@ -20,7 +27,6 @@ router = APIRouter(
     dependencies=[Depends(verify_gateway_signature)],
     tags=["Embeddings"],
 )
-
 
 BoundedEmbeddingText = Annotated[str, Field(min_length=1, max_length=10_000)]
 
@@ -51,9 +57,18 @@ class SearchRequest(BaseModel):
     offset: int = Field(default=0, ge=0, le=10_000)
 
 
-def _estimate_embedding_cost(token_count: int) -> float:
-    """Estimate cost in USD for embedding tokens ($0.02 per 1M tokens)."""
-    return round(token_count * 0.00000002, 8)
+async def _generate_batch_vectors(texts: list[str]) -> list[list[float]]:
+    """Generate batch embeddings non-blockingly while respecting function mocks in tests."""
+    if asyncio.iscoroutinefunction(embed_documents):
+        return await embed_documents(texts)
+    return await asyncio.to_thread(embed_documents, texts)
+
+
+async def _generate_single_vector(text: str) -> list[float]:
+    """Generate single embedding non-blockingly while respecting function mocks in tests."""
+    if asyncio.iscoroutinefunction(embed_text):
+        return await embed_text(text)
+    return await asyncio.to_thread(embed_text, text, already_sanitized=True)
 
 
 @router.post("/create", response_model=CreateEmbeddingsResponse)
@@ -63,7 +78,7 @@ async def create_embeddings(
     x_user_id: Annotated[str | None, Header()] = None,
 ) -> CreateEmbeddingsResponse:
     """Generate dense vector embeddings for an array of input texts with dimension validation."""
-    vectors = embed_documents(payload.texts)
+    vectors = await _generate_batch_vectors(payload.texts)
     if not vectors:
         return CreateEmbeddingsResponse(
             embeddings=[],
@@ -79,23 +94,18 @@ async def create_embeddings(
         )
 
     effective_tenant_id = x_tenant_id if x_tenant_id else None
-    try:
-        total_chars = sum(len(t) for t in payload.texts)
-        est_tokens = max(1, total_chars // 4)
-        async with tenant_connection(effective_tenant_id) as conn:
-            await record_usage(
-                conn=conn,
-                tenant_id=effective_tenant_id,
-                user_id=x_user_id,
-                model=settings.DEFAULT_EMBEDDING_MODEL,
-                prompt_tokens=est_tokens,
-                completion_tokens=0,
-                total_tokens=est_tokens,
-                cost_estimate_usd=_estimate_embedding_cost(est_tokens),
-                latency_ms=0,
-            )
-    except Exception as exc:
-        logger.warning(f"Failed to record embedding usage ledger: {exc}")
+    if effective_tenant_id:
+        try:
+            async with tenant_connection(effective_tenant_id) as conn:
+                await record_embedding_usage_on_conn(
+                    conn,
+                    tenant_id=effective_tenant_id,
+                    user_id=x_user_id,
+                    text_or_texts=payload.texts,
+                    record_fn=record_usage,
+                )
+        except Exception as exc:
+            logger.warning(f"Failed to record embedding usage ledger: {exc}")
 
     return CreateEmbeddingsResponse(
         embeddings=vectors,
@@ -114,7 +124,6 @@ async def index_document(
     Store or update a document embedding in the intelligence.document_embeddings table
     with mandatory PII sanitization and PostgreSQL Row-Level Security tenant isolation.
     """
-    # Enforce tenant identity consistency with verified header
     if x_tenant_id:
         if payload.tenant_id and payload.tenant_id != x_tenant_id:
             raise HTTPException(
@@ -123,55 +132,35 @@ async def index_document(
             )
         effective_tenant_id: str | None = x_tenant_id
     else:
-        # Single-tenant mode convention stores NULL
         effective_tenant_id = None
 
-    # Unified PII redaction gated on settings.PII_REDACTION_ENABLED without double-sanitization
     sanitized_content = (
         sanitize_pii(payload.content) if settings.PII_REDACTION_ENABLED else payload.content
     )
     sanitized_metadata = (
         sanitize_metadata(payload.metadata) if settings.PII_REDACTION_ENABLED else payload.metadata
     )
-    vector = embed_text(sanitized_content, already_sanitized=True)
+    vector = await _generate_single_vector(sanitized_content)
     version = settings.EMBEDDING_MODEL_VERSION
 
-    sql = """
-    INSERT INTO intelligence.document_embeddings
-        (id, tenant_id, source_type, source_id, model_version, content, embedding, metadata, updated_at)
-    VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-    ON CONFLICT (tenant_id, source_type, source_id, model_version)
-    DO UPDATE SET
-        content = EXCLUDED.content,
-        embedding = EXCLUDED.embedding,
-        metadata = EXCLUDED.metadata,
-        updated_at = NOW();
-    """
-
-    est_tokens = max(1, len(sanitized_content) // 4)
     async with tenant_connection(effective_tenant_id) as conn:
-        await conn.execute(
-            sql,
-            payload.id,
-            effective_tenant_id,
-            payload.source_type,
-            payload.source_id,
-            version,
-            sanitized_content,
-            vector,
-            json.dumps(sanitized_metadata),
+        await upsert_document_embedding(
+            conn,
+            doc_id=payload.id,
+            tenant_id=effective_tenant_id,
+            source_type=payload.source_type,
+            source_id=payload.source_id,
+            model_version=version,
+            content=sanitized_content,
+            embedding=vector,
+            metadata=sanitized_metadata,
         )
-        await record_usage(
-            conn=conn,
+        await record_embedding_usage_on_conn(
+            conn,
             tenant_id=effective_tenant_id,
             user_id=x_user_id,
-            model=settings.DEFAULT_EMBEDDING_MODEL,
-            prompt_tokens=est_tokens,
-            completion_tokens=0,
-            total_tokens=est_tokens,
-            cost_estimate_usd=_estimate_embedding_cost(est_tokens),
-            latency_ms=0,
+            text_or_texts=sanitized_content,
+            record_fn=record_usage,
         )
 
     return {"status": "indexed", "id": payload.id}
@@ -185,26 +174,40 @@ async def search_documents(
 ) -> list[SearchResult]:
     """Perform hybrid dense/sparse vector search with strict RLS tenant isolation."""
     effective_tenant_id = x_tenant_id if x_tenant_id else None
-    results = await hybrid_search(
-        query=payload.query,
-        tenant_id=effective_tenant_id,
-        limit=payload.limit,
-        offset=payload.offset,
-    )
-    try:
-        est_tokens = max(1, len(payload.query) // 4)
-        async with tenant_connection(effective_tenant_id) as conn:
-            await record_usage(
-                conn=conn,
+    async with tenant_connection(effective_tenant_id) as conn:
+        results = await hybrid_search(
+            query=payload.query,
+            tenant_id=effective_tenant_id,
+            limit=payload.limit,
+            offset=payload.offset,
+            conn=conn,
+        )
+        try:
+            await record_embedding_usage_on_conn(
+                conn,
                 tenant_id=effective_tenant_id,
                 user_id=x_user_id,
-                model=settings.DEFAULT_EMBEDDING_MODEL,
-                prompt_tokens=est_tokens,
-                completion_tokens=0,
-                total_tokens=est_tokens,
-                cost_estimate_usd=_estimate_embedding_cost(est_tokens),
-                latency_ms=0,
+                text_or_texts=payload.query,
+                record_fn=record_usage,
             )
-    except Exception as exc:
-        logger.warning(f"Failed to record search embedding usage ledger: {exc}")
+        except Exception as exc:
+            logger.warning(f"Failed to record search embedding usage ledger: {exc}")
     return results
+
+
+__all__ = [
+    "router",
+    "CreateEmbeddingsRequest",
+    "CreateEmbeddingsResponse",
+    "IndexDocumentRequest",
+    "SearchRequest",
+    "create_embeddings",
+    "index_document",
+    "search_documents",
+    "embed_documents",
+    "embed_text",
+    "embed_documents_async",
+    "embed_text_async",
+    "record_usage",
+    "tenant_connection",
+]

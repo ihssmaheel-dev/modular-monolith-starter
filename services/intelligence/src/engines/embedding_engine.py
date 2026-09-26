@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastembed import TextEmbedding
@@ -31,6 +32,11 @@ def embed_text(text: str, *, already_sanitized: bool = False) -> list[float]:
     return embeddings[0].tolist()
 
 
+async def embed_text_async(text: str, *, already_sanitized: bool = False) -> list[float]:
+    """Non-blocking async wrapper offloading ONNX embedding generation to a worker thread."""
+    return await asyncio.to_thread(embed_text, text, already_sanitized=already_sanitized)
+
+
 def embed_documents(texts: list[str], *, already_sanitized: bool = False) -> list[list[float]]:
     """
     Generate dense embeddings for a batch of text documents.
@@ -41,3 +47,10 @@ def embed_documents(texts: list[str], *, already_sanitized: bool = False) -> lis
     model = get_embedding_model()
     embeddings = list(model.embed(processed))
     return [e.tolist() for e in embeddings]
+
+
+async def embed_documents_async(
+    texts: list[str], *, already_sanitized: bool = False
+) -> list[list[float]]:
+    """Non-blocking async wrapper offloading batch ONNX embedding generation to a worker thread."""
+    return await asyncio.to_thread(embed_documents, texts, already_sanitized=already_sanitized)

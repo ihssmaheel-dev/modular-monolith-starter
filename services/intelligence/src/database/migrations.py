@@ -1,10 +1,15 @@
 import logging
 
+from config import settings
 from database.connection import system_connection
 
 logger = logging.getLogger("intelligence.migrations")
 
-MIGRATIONS_DDL = """
+
+def build_migrations_ddl(vector_dimension: int | None = None) -> str:
+    """Build idempotent intelligence schema DDL parameterized by vector_dimension."""
+    dim = vector_dimension or settings.VECTOR_DIMENSION
+    return f"""
 -- 1. Ensure pgvector extension exists
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -19,8 +24,8 @@ CREATE TABLE IF NOT EXISTS intelligence.document_embeddings (
     source_id text NOT NULL,
     model_version text NOT NULL,
     content text NOT NULL,
-    embedding vector(384) NOT NULL,
-    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    embedding vector({dim}) NOT NULL,
+    metadata jsonb DEFAULT '{{}}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT document_embeddings_source_unique UNIQUE NULLS NOT DISTINCT (tenant_id, source_type, source_id, model_version)
@@ -28,6 +33,8 @@ CREATE TABLE IF NOT EXISTS intelligence.document_embeddings (
 
 CREATE INDEX IF NOT EXISTS doc_embed_tenant_idx ON intelligence.document_embeddings (tenant_id);
 CREATE INDEX IF NOT EXISTS doc_embed_model_idx ON intelligence.document_embeddings (model_version);
+CREATE INDEX IF NOT EXISTS doc_embed_tenant_model_idx ON intelligence.document_embeddings (tenant_id, model_version);
+CREATE INDEX IF NOT EXISTS doc_embed_fts_gin_idx ON intelligence.document_embeddings USING gin (to_tsvector('english', content));
 CREATE INDEX IF NOT EXISTS doc_embed_hnsw_idx ON intelligence.document_embeddings USING hnsw (embedding vector_cosine_ops);
 
 -- Row-Level Security for embeddings
@@ -90,9 +97,12 @@ END $$;
 """
 
 
+MIGRATIONS_DDL = build_migrations_ddl()
+
+
 async def run_migrations() -> None:
     """Execute the intelligence schema DDL migrations idempotently within system scope."""
     logger.info("Executing intelligence schema DDL migrations...")
     async with system_connection() as conn:
-        await conn.execute(MIGRATIONS_DDL)
+        await conn.execute(build_migrations_ddl())
     logger.info("Intelligence schema migrations applied successfully.")

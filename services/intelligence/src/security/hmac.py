@@ -1,4 +1,3 @@
-import hashlib
 import hmac
 import time
 from typing import Annotated
@@ -6,34 +5,10 @@ from typing import Annotated
 from fastapi import Header, HTTPException, Request, status
 
 from config import settings
+from security.crypto import compute_signature
 from security.replay import check_and_record_request
 
-MAX_TIMESTAMP_DRIFT_SECONDS = 300  # 5 minutes
-
-
-def compute_signature(
-    secret: str,
-    method: str,
-    path: str,
-    timestamp: str,
-    body: bytes,
-    user_id: str = "",
-    tenant_id: str = "",
-    request_id: str = "",
-) -> str:
-    """
-    Computes canonical HMAC-SHA256 digest of request components including
-    user, tenant, and request identity headers.
-    """
-    body_hash = hashlib.sha256(body).hexdigest()
-    canonical_payload = (
-        f"{method.upper()}:{path}:{timestamp}:{user_id}:{tenant_id}:{request_id}:{body_hash}"
-    )
-    return hmac.new(
-        secret.encode("utf-8"),
-        canonical_payload.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
+MAX_TIMESTAMP_DRIFT_SECONDS = settings.MAX_TIMESTAMP_DRIFT_SECONDS
 
 
 async def verify_gateway_signature(

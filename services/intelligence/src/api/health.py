@@ -8,7 +8,7 @@ from database.connection import system_connection
 
 logger = logging.getLogger("intelligence.health")
 
-router = APIRouter(prefix="/health", tags=["Health"])
+router = APIRouter(tags=["Health"])
 
 
 class LivenessResponse(BaseModel):
@@ -21,13 +21,19 @@ class ReadinessResponse(BaseModel):
     embedding_model: str
 
 
-@router.get("/live", response_model=LivenessResponse)
+@router.get("/")
+async def root() -> dict[str, str]:
+    """Root endpoint returning service identity."""
+    return {"service": "intelligence", "status": "running"}
+
+
+@router.get("/health/live", response_model=LivenessResponse)
 async def liveness() -> LivenessResponse:
     """Kubernetes / Docker liveness probe: returns 200 if process is running."""
     return LivenessResponse(status="ok")
 
 
-@router.get("/ready", response_model=ReadinessResponse)
+@router.get("/health/ready", response_model=ReadinessResponse)
 async def readiness(response: Response) -> ReadinessResponse:
     """Readiness probe: validates database connectivity and model availability without leaking internals."""
     db_status = "ok"
