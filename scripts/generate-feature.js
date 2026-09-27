@@ -4,6 +4,8 @@ const { toPascalCase, toKebabCase, toPlural, ensureDir } = require("./generators
 const { generateDomain } = require("./generators/domain.generator");
 const { generateInfrastructure } = require("./generators/infrastructure.generator");
 const { generateApplication } = require("./generators/application.generator");
+const { generatePolicies } = require("./generators/policies.generator");
+const { generateI18nStubs } = require("./generators/i18n.generator");
 const { generateContracts } = require("./generators/contracts.generator");
 const { generateClient } = require("./generators/client.generator");
 const { generatePresentation } = require("./generators/presentation.generator");
@@ -15,14 +17,18 @@ const rawFeature =
   process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : rawModule;
 const accessArgument = process.argv.find((value) => value.startsWith("--access="));
 const accessModel = accessArgument?.split("=")[1];
-const skipMobile = process.argv.includes("--skip-mobile") || process.argv.includes("--no-mobile");
+const isMinimal = process.argv.includes("--minimal");
+const skipWeb =
+  isMinimal || process.argv.includes("--skip-web") || process.argv.includes("--no-web");
+const skipMobile =
+  isMinimal || process.argv.includes("--skip-mobile") || process.argv.includes("--no-mobile");
 
 if (!rawModule) {
   console.error("Error: Module name is required.");
   console.error(
-    "Usage: pnpm generate:feature <module> [feature] --access=tenant-shared|owner [--skip-mobile]",
+    "Usage: pnpm generate:feature <module> [feature] --access=tenant-shared|owner [--minimal] [--skip-mobile] [--skip-web]",
   );
-  console.error("Example: pnpm generate:feature tasks task --access=tenant-shared");
+  console.error("Example: pnpm generate:feature tasks task --access=tenant-shared --minimal");
   process.exit(1);
 }
 
@@ -44,6 +50,8 @@ console.log("\n=======================================================");
 console.log("  Full-Stack Vertical Slice Generator");
 console.log(`  Module:  ${moduleName} (${ModuleName}Module)`);
 console.log(`  Feature: ${feature} (${Feature} / ${FeaturePlural})`);
+if (isMinimal)
+  console.log("  Mode:    MINIMAL (Backend slice: Contracts + CQRS + Infra + REST/oRPC)");
 console.log("=======================================================\n");
 
 const rootPath = path.resolve(__dirname, "..");
@@ -67,7 +75,7 @@ const context = {
   mobilePath,
 };
 
-console.log("1. Generating Domain Layer...");
+console.log("1. Generating Domain Layer (Entity, Events, Typed Errors)...");
 generateDomain(context);
 
 console.log("\n2. Generating Infrastructure Layer...");
@@ -75,6 +83,7 @@ generateInfrastructure(context);
 
 console.log("\n3. Generating Application Layer (Commands, Queries, Listeners, Vitest Tests)...");
 generateApplication(context);
+generatePolicies(context);
 
 console.log("\n4. Generating Contracts & Schemas (@repo/contracts)...");
 generateContracts(context);
@@ -83,19 +92,26 @@ console.log("\n5. Generating API Client SDK (@repo/api-client)...");
 generateClient(context);
 
 console.log(
-  "\n6. Generating Presentation Layer (oRPC, REST compatibility, Mapper, NestJS Module)...",
+  "\n6. Generating Presentation Layer (oRPC, REST compatibility, Error Maps, Mapper, NestJS Module)...",
 );
 generatePresentation(context);
 registerModuleInAppModule(rootPath, moduleName, ModuleName);
 
-console.log("\n7. Generating Web Layer (TanStack Start route + queries + mutations)...");
-generateWeb(context);
+console.log("\n7. Generating i18n Locales (3-locale sync in @repo/i18n)...");
+generateI18nStubs(context);
+
+if (!skipWeb) {
+  console.log("\n8. Generating Web Layer (TanStack Start route + queries + mutations)...");
+  generateWeb(context);
+} else {
+  console.log("\n8. Skipping Web Layer (--minimal or --skip-web provided)...");
+}
 
 if (!skipMobile) {
-  console.log("\n8. Generating Mobile Layer (Expo route + queries + mutations)...");
+  console.log("\n9. Generating Mobile Layer (Expo route + queries + mutations)...");
   generateMobile(context);
 } else {
-  console.log("\n8. Skipping Mobile Layer (--skip-mobile flag provided)...");
+  console.log("\n9. Skipping Mobile Layer (--minimal or --skip-mobile provided)...");
 }
 
 console.log("\n=======================================================");
@@ -103,20 +119,21 @@ console.log(`  Successfully generated vertical slice for '${feature}'!`);
 console.log("=======================================================");
 console.log("\nNext Steps:");
 console.log(` 1. Review the generated schema and run 'pnpm db:generate && pnpm db:migrate'.`);
-console.log(` 2. Add module-specific permissions and localized copy before exposing the feature.`);
-console.log(` 3. Run 'pnpm test:unit' to run the new Vitest unit test suite.`);
-console.log(" 4. Run 'pnpm build' to verify end-to-end type safety.");
 console.log(
-  ` 5. Web routes: apps/web/src/routes/_app/${featurePlural}/* + features/${featurePlural}/*`,
+  ` 2. Configure FGA permissions in application/policies/${feature}.policies.ts (default: deny).`,
 );
-if (!skipMobile) {
+console.log(` 3. Run 'pnpm check:fast' to verify architectural compliance in <200ms.`);
+console.log(
+  ` 4. Run 'pnpm --filter api test:unit src/modules/${moduleName}' to verify the test suite.`,
+);
+if (!skipWeb) {
   console.log(
-    ` 6. Mobile route: apps/mobile/app/${featurePlural}.tsx + src/features/${featurePlural}/*`,
+    ` 5. Web routes: apps/web/src/routes/_app/${featurePlural}/* + features/${featurePlural}/*`,
+  );
+  console.log(
+    ` 6. Navigation: Add ${featurePlural} to apps/web/src/config/navigation.config.ts to expose it in sidebar.`,
   );
 }
-console.log(
-  ` 7. Navigation: Add ${featurePlural} to apps/web/src/config/navigation.config.ts to expose it in sidebar and command menu.`,
-);
 
 function registerModuleInAppModule(root, name, pascalName) {
   const appModulePath = path.join(root, "apps", "api", "src", "app.module.ts");

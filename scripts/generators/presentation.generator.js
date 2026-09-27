@@ -75,16 +75,7 @@ import { Get${Feature}ByIdQuery } from "../../application/queries/get-${feature}
 import { Get${FeaturePlural}Query } from "../../application/queries/get-${featurePlural}.query";
 import { to${Feature}Response } from "../mappers/${featurePlural}.mapper";
 
-const ERROR_CONFIG = {
-  ${Feature.toUpperCase()}_NOT_FOUND: {
-    status: HttpStatus.NOT_FOUND,
-    i18nKey: "api.error.notFound",
-  },
-  EVENT_DISPATCH_FAILED: {
-    status: HttpStatus.SERVICE_UNAVAILABLE,
-    i18nKey: "api.error.eventDispatchFailed",
-  },
-};
+import { ${feature}ErrorMap } from "../error-maps/${featurePlural}.error-maps";
 
 @Controller("${featurePlural}")
 export class ${FeaturePlural}Controller {
@@ -121,7 +112,7 @@ export class ${FeaturePlural}Controller {
     const actor = requireAuthenticatedUser(req);
     const lang = req?.headers["accept-language"];
     const result = await this.getByIdQuery.execute(id, actor);
-    const entity = handleResult(result, ERROR_CONFIG, this.i18n, lang);
+    const entity = handleResult(result, ${feature}ErrorMap, this.i18n, lang);
     return to${Feature}Response(entity);
   }
 
@@ -134,7 +125,7 @@ export class ${FeaturePlural}Controller {
     const actor = requireAuthenticatedUser(req);
     const lang = req?.headers["accept-language"];
     const result = await this.createCmd.execute(body, actor);
-    const entity = handleResult(result, ERROR_CONFIG, this.i18n, lang);
+    const entity = handleResult(result, ${feature}ErrorMap, this.i18n, lang);
     return to${Feature}Response(entity);
   }
 
@@ -150,7 +141,7 @@ export class ${FeaturePlural}Controller {
     const actor = requireAuthenticatedUser(req);
     const lang = req?.headers["accept-language"];
     const result = await this.updateCmd.execute(id, body, actor);
-    const entity = handleResult(result, ERROR_CONFIG, this.i18n, lang);
+    const entity = handleResult(result, ${feature}ErrorMap, this.i18n, lang);
     return to${Feature}Response(entity);
   }
 
@@ -163,7 +154,7 @@ export class ${FeaturePlural}Controller {
     const actor = requireAuthenticatedUser(req);
     const lang = req?.headers["accept-language"];
     const result = await this.deleteCmd.execute(id, actor);
-    handleResult(result, ERROR_CONFIG, this.i18n, lang);
+    handleResult(result, ${feature}ErrorMap, this.i18n, lang);
   }
 }
 `;
@@ -318,6 +309,24 @@ describeRouteParity({
   contract: ${featurePlural}Contract as unknown as Record<string, AnyContractProcedure>,
 });
 `;
+  const errorMapContent = `import { HttpStatus } from "@nestjs/common";
+
+export const ${feature}ErrorMap = {
+  ${Feature.toUpperCase()}_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    i18nKey: "api.error.notFound",
+  },
+  EVENT_DISPATCH_FAILED: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    i18nKey: "api.error.eventDispatchFailed",
+  },
+} as const;
+`;
+
+  writeFileIfMissing(
+    path.join(modulePath, "presentation", "error-maps", `${featurePlural}.error-maps.ts`),
+    errorMapContent,
+  );
   writeFileIfMissing(
     path.join(modulePath, "presentation", "controllers", `${featurePlural}.parity.test.ts`),
     parityTestContent,

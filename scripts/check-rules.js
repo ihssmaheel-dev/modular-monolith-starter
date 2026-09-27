@@ -1,9 +1,34 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const { execSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
 const failures = [];
+
+const isChangedMode = process.argv.includes("--changed");
+const isStagedMode = process.argv.includes("--staged");
+
+function getChangedFiles(stagedOnly = false) {
+  try {
+    const diffCmd = stagedOnly ? "git diff --name-only --cached" : "git diff --name-only HEAD";
+    const untrackedCmd = "git ls-files --others --exclude-standard";
+    const diffOutput = execSync(diffCmd, { encoding: "utf8", cwd: ROOT });
+    const untrackedOutput = stagedOnly
+      ? ""
+      : execSync(untrackedCmd, { encoding: "utf8", cwd: ROOT });
+    const files = new Set(
+      `${diffOutput}\n${untrackedOutput}`
+        .split(/\r?\n/)
+        .map((f) => f.trim())
+        .filter(Boolean)
+        .map((f) => path.resolve(ROOT, f)),
+    );
+    return [...files].filter((f) => fs.existsSync(f));
+  } catch {
+    return [];
+  }
+}
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -146,6 +171,7 @@ function leafKeys(value, prefix = "") {
 
 function checkLocaleParity() {
   const localeDirectory = path.join(ROOT, "packages/i18n/src/locales");
+  if (!fs.existsSync(localeDirectory)) return;
   const locales = ["en", "es", "fr"].map((locale) => {
     const file = path.join(localeDirectory, `${locale}.json`);
     return { locale, file, keys: new Set(leafKeys(JSON.parse(fs.readFileSync(file, "utf8")))) };
@@ -159,8 +185,9 @@ function checkLocaleParity() {
   }
 }
 
-function checkTranslationUsage() {
+function checkTranslationUsage(filesToCheck) {
   const englishFile = path.join(ROOT, "packages/i18n/src/locales/en.json");
+  if (!fs.existsSync(englishFile)) return;
   const englishKeys = new Set(leafKeys(JSON.parse(fs.readFileSync(englishFile, "utf8"))));
   const patterns = [
     { pattern: /\b(?:t|translate)\(\s*["'`]([^"'`]+)["'`]/g, keyPattern: null },
@@ -181,40 +208,72 @@ function checkTranslationUsage() {
     /^toErrorKey\(/,
   ];
 
-  for (const directory of ["apps", "packages"]) {
-    for (const file of walk(path.join(ROOT, directory))) {
-      if (!CODE_EXTENSIONS.has(path.extname(file)) || isTest(file)) continue;
-      const source = fs.readFileSync(file, "utf8");
-      for (const { pattern: translationPattern, keyPattern } of patterns) {
-        for (const match of source.matchAll(translationPattern)) {
-          const key = match[1];
-          if (!key) continue;
-          if (keyPattern && !keyPattern.test(key)) continue;
-          if (!englishKeys.has(key)) report(file, `unknown translation key: ${key}`);
-        }
+  const targetFiles = filesToCheck
+    ? filesToCheck.filter((f) => CODE_EXTENSIONS.has(path.extname(f)) && !isTest(f))
+    : ["apps", "packages"].flatMap((dir) =>
+        fs.existsSync(path.join(ROOT, dir))
+          ? walk(path.join(ROOT, dir)).filter(
+              (f) => CODE_EXTENSIONS.has(path.extname(f)) && !isTest(f),
+            )
+          : [],
+      );
+
+  for (const file of targetFiles) {
+    const source = fs.readFileSync(file, "utf8");
+    for (const { pattern: translationPattern, keyPattern } of patterns) {
+      for (const match of source.matchAll(translationPattern)) {
+        const key = match[1];
+        if (!key) continue;
+        if (keyPattern && !keyPattern.test(key)) continue;
+        if (!englishKeys.has(key)) report(file, `unknown translation key: ${key}`);
       }
-      const rel = relative(file);
-      if (rel.startsWith("apps/web/") || rel.startsWith("apps/mobile/")) {
-        const dynamicPattern = /\bt\(\s*([^)"'`,\s][^),]*)/g;
-        for (const match of source.matchAll(dynamicPattern)) {
-          const expr = match[1].trim();
-          if (!allowedDynamicTranslations.some((pattern) => pattern.test(expr))) {
-            report(
-              file,
-              `unvalidated dynamic translation call: t(${expr}) — use string literals or allowlisted lookup maps`,
-            );
-          }
+    }
+    const rel = relative(file);
+    if (rel.startsWith("apps/web/") || rel.startsWith("apps/mobile/")) {
+      const dynamicPattern = /\bt\(\s*([^)"'`,\s][^),]*)/g;
+      for (const match of source.matchAll(dynamicPattern)) {
+        const expr = match[1].trim();
+        if (!allowedDynamicTranslations.some((pattern) => pattern.test(expr))) {
+          report(
+            file,
+            `unvalidated dynamic translation call: t(${expr}) — use string literals or allowlisted lookup maps`,
+          );
         }
       }
     }
   }
 }
 
-function checkTenantRepositories() {
+function checkTenantRepositories(filesToCheck) {
   const modulesDirectory = path.join(ROOT, "apps/api/src/modules");
+  if (!fs.existsSync(modulesDirectory)) return;
+
+  if (filesToCheck) {
+    const repoFiles = filesToCheck.filter(
+      (f) =>
+        f.endsWith(".repository.ts") &&
+        relative(f).startsWith("apps/api/src/modules/") &&
+        !relative(f).startsWith("apps/api/src/modules/tenancy/") &&
+        !relative(f).startsWith("apps/api/src/modules/privacy/"),
+    );
+    for (const file of repoFiles) {
+      const source = fs.readFileSync(file, "utf8");
+      const isTenantScoped =
+        /extends\s+TenantScopedRepository/.test(source) ||
+        (/extends\s+(DrizzleBaseRepository|BaseRepository)/.test(source) &&
+          /super\([^)]*,\s*true/.test(source));
+      const isSubjectScoped = source.includes("subject-scoped:");
+      if (!isTenantScoped && !isSubjectScoped) {
+        report(
+          file,
+          "tenant-owned repositories must extend TenantScopedRepository or BaseRepository with tenantScoped=true (or document subject-scoped: isolation)",
+        );
+      }
+    }
+    return;
+  }
+
   for (const entry of fs.readdirSync(modulesDirectory, { withFileTypes: true })) {
-    // tenancy owns the tenant model; privacy DSRs are intentionally subject-scoped
-    // globals (they must outlive the tenants they reference for the Art. 12 audit trail).
     if (!entry.isDirectory() || ["tenancy", "privacy"].includes(entry.name)) {
       continue;
     }
@@ -232,9 +291,6 @@ function checkTenantRepositories() {
         /extends\s+TenantScopedRepository/.test(source) ||
         (/extends\s+(DrizzleBaseRepository|BaseRepository)/.test(source) &&
           /super\([^)]*,\s*true/.test(source));
-      // subject-scoped: rows are filtered by userId in every query and backed by
-      // subject-isolation RLS at the database layer (see migrations). The marker
-      // documents the deliberate exception; tenantId stays display/audit context.
       const isSubjectScoped = source.includes("subject-scoped:");
       if (!isTenantScoped && !isSubjectScoped) {
         report(
@@ -282,7 +338,6 @@ function checkDocumentationDrift() {
 }
 
 function checkGeneratedTokensFresh() {
-  // Theme tokens must be generated — check via git diff would be done by theme:check, but also ensure files exist
   const generated = [
     "packages/ui/src/styles/tokens.generated.css",
     "packages/email/src/styles/tokens.ts",
@@ -298,10 +353,19 @@ function checkGeneratedTokensFresh() {
   }
 }
 
-function checkRoutePermissions() {
+function checkRoutePermissions(filesToCheck) {
   const routePattern = /@(Get|Post|Put|Patch|Delete|Implement)\(/;
-  for (const file of walk(path.join(ROOT, "apps/api/src"))) {
-    if (!file.endsWith(".controller.ts") || isTest(file)) continue;
+  const targets = filesToCheck
+    ? filesToCheck.filter(
+        (f) => relative(f).startsWith("apps/api/src") && f.endsWith(".controller.ts") && !isTest(f),
+      )
+    : fs.existsSync(path.join(ROOT, "apps/api/src"))
+      ? walk(path.join(ROOT, "apps/api/src")).filter(
+          (f) => f.endsWith(".controller.ts") && !isTest(f),
+        )
+      : [];
+
+  for (const file of targets) {
     const source = fs.readFileSync(file, "utf8");
     if (!routePattern.test(source)) continue;
     if (source.includes("@RequirePermission") || source.includes("@Public")) continue;
@@ -313,7 +377,30 @@ function checkRoutePermissions() {
   }
 }
 
-function checkWebTestCoverage() {
+function checkWebTestCoverage(filesToCheck) {
+  if (filesToCheck) {
+    const targets = filesToCheck.filter(
+      (f) =>
+        !isTest(f) &&
+        (relative(f).startsWith("apps/web/src/features") ||
+          relative(f).startsWith("apps/mobile/src/features")) &&
+        /([^/]+)\.(queries|mutations)\.tsx?$/.test(relative(f)),
+    );
+    for (const file of targets) {
+      const match = /([^/]+)\.(queries|mutations)\.tsx?$/.exec(relative(file));
+      if (!match) continue;
+      const [, base, kind] = match;
+      const siblings = new Set(fs.readdirSync(path.dirname(file)));
+      if (!siblings.has(`${base}.${kind}.test.ts`) && !siblings.has(`${base}.${kind}.test.tsx`)) {
+        report(
+          file,
+          `feature ${kind} module must have a co-located test file (${base}.${kind}.test.ts[x])`,
+        );
+      }
+    }
+    return;
+  }
+
   for (const app of ["apps/web", "apps/mobile"]) {
     const featuresDirectory = path.join(ROOT, `${app}/src/features`);
     if (!fs.existsSync(featuresDirectory)) continue;
@@ -333,37 +420,55 @@ function checkWebTestCoverage() {
   }
 }
 
-function checkWebFetchUsage() {
-  // Presigned uploads PUT bytes directly; the only sanctioned raw-fetch site.
+function checkWebFetchUsage(filesToCheck) {
   const fetchAllowlist = new Set([
     "apps/web/src/lib/api.ts",
     "apps/mobile/src/lib/api.ts",
     "apps/mobile/src/features/files/files.mutations.ts",
   ]);
-  for (const app of ["apps/web", "apps/mobile"]) {
-    const srcDirectory = path.join(ROOT, `${app}/src`);
-    if (!fs.existsSync(srcDirectory)) continue;
-    for (const file of walk(srcDirectory)) {
-      if (!CODE_EXTENSIONS.has(path.extname(file))) continue;
-      if (fetchAllowlist.has(relative(file))) continue;
-      const source = fs.readFileSync(file, "utf8");
-      if (/\bfetch\s*\(/.test(source)) {
-        report(
-          file,
-          "frontend code must call getApiClient() instead of fetch() (allowlisted transports only)",
-        );
-      }
+  const targets = filesToCheck
+    ? filesToCheck.filter(
+        (f) =>
+          (relative(f).startsWith("apps/web/src") || relative(f).startsWith("apps/mobile/src")) &&
+          CODE_EXTENSIONS.has(path.extname(f)),
+      )
+    : ["apps/web", "apps/mobile"].flatMap((app) => {
+        const srcDirectory = path.join(ROOT, `${app}/src`);
+        return fs.existsSync(srcDirectory)
+          ? walk(srcDirectory).filter((f) => CODE_EXTENSIONS.has(path.extname(f)))
+          : [];
+      });
+
+  for (const file of targets) {
+    if (fetchAllowlist.has(relative(file))) continue;
+    const source = fs.readFileSync(file, "utf8");
+    if (/\bfetch\s*\(/.test(source)) {
+      report(
+        file,
+        "frontend code must call getApiClient() instead of fetch() (allowlisted transports only)",
+      );
     }
   }
 }
 
-function checkUiStories() {
+function checkUiStories(filesToCheck) {
   const componentsDirectory = path.join(ROOT, "packages/ui/src/components");
   if (!fs.existsSync(componentsDirectory)) return;
-  // Non-visual modules: a story cannot render them.
   const exempt = new Set(["packages/ui/src/components/ui/direction.tsx"]);
-  for (const file of walk(componentsDirectory)) {
-    if (!file.endsWith(".tsx") || file.endsWith(".stories.tsx") || isTest(file)) continue;
+
+  const targets = filesToCheck
+    ? filesToCheck.filter(
+        (f) =>
+          relative(f).startsWith("packages/ui/src/components") &&
+          f.endsWith(".tsx") &&
+          !f.endsWith(".stories.tsx") &&
+          !isTest(f),
+      )
+    : walk(componentsDirectory).filter(
+        (f) => f.endsWith(".tsx") && !f.endsWith(".stories.tsx") && !isTest(f),
+      );
+
+  for (const file of targets) {
     if (exempt.has(relative(file))) continue;
     const directory = path.dirname(file);
     const base = path.basename(file, ".tsx");
@@ -374,13 +479,25 @@ function checkUiStories() {
   }
 }
 
-function checkCrossTabBoundaries() {
+function checkCrossTabBoundaries(filesToCheck) {
   const channelOwner = "apps/web/src/lib/cross-tab/channel.ts";
   const querySyncOwner = "apps/web/src/lib/cross-tab/query-sync.tsx";
-  for (const file of walk(path.join(ROOT, "apps/web/src"))) {
-    if (!CODE_EXTENSIONS.has(path.extname(file))) continue;
+  const targets = filesToCheck
+    ? filesToCheck.filter(
+        (f) =>
+          relative(f).startsWith("apps/web/src") &&
+          CODE_EXTENSIONS.has(path.extname(f)) &&
+          !isTest(f),
+      )
+    : fs.existsSync(path.join(ROOT, "apps/web/src"))
+      ? walk(path.join(ROOT, "apps/web/src")).filter(
+          (f) => CODE_EXTENSIONS.has(path.extname(f)) && !isTest(f),
+        )
+      : [];
+
+  for (const file of targets) {
     const name = relative(file);
-    if (name === channelOwner || name === querySyncOwner || isTest(file)) continue;
+    if (name === channelOwner || name === querySyncOwner) continue;
     const source = fs.readFileSync(file, "utf8");
     if (/\bnew\s+BroadcastChannel\s*\(/.test(source)) {
       report(file, "BroadcastChannel must only be constructed in lib/cross-tab/channel.ts");
@@ -390,6 +507,22 @@ function checkCrossTabBoundaries() {
       name !== querySyncOwner
     ) {
       report(file, "the query broadcast client must only be wired in lib/cross-tab/query-sync.tsx");
+    }
+  }
+}
+
+function checkAdrIndex() {
+  const adrDirectory = path.join(ROOT, "docs/adr");
+  const indexFile = path.join(adrDirectory, "README.md");
+  if (!fs.existsSync(adrDirectory) || !fs.existsSync(indexFile)) return;
+  const index = fs.readFileSync(indexFile, "utf8");
+  for (const file of walk(adrDirectory)) {
+    if (!/^\d{4}-.+\.md$/.test(path.basename(file)) || path.basename(file) === "0000-template.md") {
+      continue;
+    }
+    const number = path.basename(file).slice(0, 4);
+    if (!index.includes(`| ${number} `)) {
+      report(file, `ADR ${number} must be listed in the docs/adr/README.md index table`);
     }
   }
 }
@@ -411,37 +544,24 @@ function checkAlertRunbookMapping() {
   }
 }
 
-for (const directory of ["apps", "packages"]) {
-  for (const file of walk(path.join(ROOT, directory))) {
-    if (CODE_EXTENSIONS.has(path.extname(file))) checkFile(file);
-  }
-}
-function checkAdrIndex() {
-  const adrDirectory = path.join(ROOT, "docs/adr");
-  const indexFile = path.join(adrDirectory, "README.md");
-  if (!fs.existsSync(adrDirectory) || !fs.existsSync(indexFile)) return;
-  const index = fs.readFileSync(indexFile, "utf8");
-  for (const file of walk(adrDirectory)) {
-    if (!/^\d{4}-.+\.md$/.test(path.basename(file)) || path.basename(file) === "0000-template.md") {
-      continue;
-    }
-    const number = path.basename(file).slice(0, 4);
-    if (!index.includes(`| ${number} `)) {
-      report(file, `ADR ${number} must be listed in the docs/adr/README.md index table`);
-    }
-  }
-}
-
-function checkRoutePurity() {
-  const routesDir = path.join(ROOT, "apps/web/src/routes");
-  if (!fs.existsSync(routesDir)) return;
+function checkRoutePurity(filesToCheck) {
   const allowlist = new Set([
     "apps/web/src/routes/_app.tsx",
     "apps/web/src/routes/_app.test.ts",
     "apps/web/src/routes/__root.tsx",
   ]);
-  for (const file of walk(routesDir)) {
-    if (!CODE_EXTENSIONS.has(path.extname(file))) continue;
+  const targets = filesToCheck
+    ? filesToCheck.filter(
+        (f) =>
+          relative(f).startsWith("apps/web/src/routes") && CODE_EXTENSIONS.has(path.extname(f)),
+      )
+    : fs.existsSync(path.join(ROOT, "apps/web/src/routes"))
+      ? walk(path.join(ROOT, "apps/web/src/routes")).filter((f) =>
+          CODE_EXTENSIONS.has(path.extname(f)),
+        )
+      : [];
+
+  for (const file of targets) {
     const rel = relative(file);
     if (allowlist.has(rel)) continue;
     const source = fs.readFileSync(file, "utf8");
@@ -454,32 +574,51 @@ function checkRoutePurity() {
   }
 }
 
-function checkTransportGuards() {
+function checkTransportGuards(filesToCheck) {
   const xhrAllowlist = new Set(["apps/web/src/features/files/files.mutations.ts"]);
   const sseAllowlist = new Set(["apps/web/src/hooks/use-realtime-notifications.ts"]);
-  for (const app of ["apps/web", "apps/mobile"]) {
-    const srcDirectory = path.join(ROOT, `${app}/src`);
-    if (!fs.existsSync(srcDirectory)) continue;
-    for (const file of walk(srcDirectory)) {
-      if (!CODE_EXTENSIONS.has(path.extname(file)) || isTest(file)) continue;
-      const rel = relative(file);
-      const source = fs.readFileSync(file, "utf8");
-      if (/\bnew\s+XMLHttpRequest\b/.test(source) && !xhrAllowlist.has(rel)) {
-        report(file, "XMLHttpRequest is forbidden outside allowlisted file uploaders");
-      }
-      if (/\bnew\s+EventSource\b/.test(source) && !sseAllowlist.has(rel)) {
-        report(file, "EventSource is forbidden outside allowlisted realtime hooks");
-      }
+  const targets = filesToCheck
+    ? filesToCheck.filter(
+        (f) =>
+          (relative(f).startsWith("apps/web/src") || relative(f).startsWith("apps/mobile/src")) &&
+          CODE_EXTENSIONS.has(path.extname(f)) &&
+          !isTest(f),
+      )
+    : ["apps/web", "apps/mobile"].flatMap((app) => {
+        const srcDirectory = path.join(ROOT, `${app}/src`);
+        return fs.existsSync(srcDirectory)
+          ? walk(srcDirectory).filter((f) => CODE_EXTENSIONS.has(path.extname(f)) && !isTest(f))
+          : [];
+      });
+
+  for (const file of targets) {
+    const rel = relative(file);
+    const source = fs.readFileSync(file, "utf8");
+    if (/\bnew\s+XMLHttpRequest\b/.test(source) && !xhrAllowlist.has(rel)) {
+      report(file, "XMLHttpRequest is forbidden outside allowlisted file uploaders");
+    }
+    if (/\bnew\s+EventSource\b/.test(source) && !sseAllowlist.has(rel)) {
+      report(file, "EventSource is forbidden outside allowlisted realtime hooks");
     }
   }
 }
 
-function checkEnvUsage() {
+function checkEnvUsage(filesToCheck) {
   const envAllowlist = new Set(["apps/web/src/lib/env.ts"]);
-  const srcDirectory = path.join(ROOT, "apps/web/src");
-  if (!fs.existsSync(srcDirectory)) return;
-  for (const file of walk(srcDirectory)) {
-    if (!CODE_EXTENSIONS.has(path.extname(file)) || isTest(file)) continue;
+  const targets = filesToCheck
+    ? filesToCheck.filter(
+        (f) =>
+          relative(f).startsWith("apps/web/src") &&
+          CODE_EXTENSIONS.has(path.extname(f)) &&
+          !isTest(f),
+      )
+    : fs.existsSync(path.join(ROOT, "apps/web/src"))
+      ? walk(path.join(ROOT, "apps/web/src")).filter(
+          (f) => CODE_EXTENSIONS.has(path.extname(f)) && !isTest(f),
+        )
+      : [];
+
+  for (const file of targets) {
     const rel = relative(file);
     if (envAllowlist.has(rel)) continue;
     const source = fs.readFileSync(file, "utf8");
@@ -488,6 +627,53 @@ function checkEnvUsage() {
         file,
         "import.meta.env is forbidden outside apps/web/src/lib/env.ts — use getWebEnv()",
       );
+    }
+  }
+}
+
+// Fast mode execution (diff-scoped)
+if (isChangedMode || isStagedMode) {
+  const changedFiles = getChangedFiles(isStagedMode);
+  const codeFiles = changedFiles.filter(
+    (f) =>
+      CODE_EXTENSIONS.has(path.extname(f)) &&
+      (relative(f).startsWith("apps/") || relative(f).startsWith("packages/")),
+  );
+
+  for (const file of codeFiles) {
+    checkFile(file);
+  }
+
+  checkTranslationUsage(codeFiles);
+  checkTenantRepositories(codeFiles);
+  checkRoutePermissions(codeFiles);
+  checkWebTestCoverage(codeFiles);
+  checkWebFetchUsage(codeFiles);
+  checkUiStories(codeFiles);
+  checkCrossTabBoundaries(codeFiles);
+  checkRoutePurity(codeFiles);
+  checkTransportGuards(codeFiles);
+  checkEnvUsage(codeFiles);
+
+  if (failures.length) {
+    process.stderr.write(
+      `[check:fast] Architecture rule violations (${failures.length}):\n${failures.join("\n")}\n`,
+    );
+    process.exitCode = 1;
+  } else {
+    process.stdout.write(
+      `[check:fast] Checked ${codeFiles.length} modified files (file-scoped rules passed).\n` +
+        `[check:fast] NOTE: Global checks (depcruise module boundaries, full 3-locale parity, migration lineage) are deferred to test:release / CI.\n`,
+    );
+  }
+  process.exit();
+}
+
+// Full global check (Default for CI and rules:check)
+for (const directory of ["apps", "packages"]) {
+  if (fs.existsSync(path.join(ROOT, directory))) {
+    for (const file of walk(path.join(ROOT, directory))) {
+      if (CODE_EXTENSIONS.has(path.extname(file))) checkFile(file);
     }
   }
 }

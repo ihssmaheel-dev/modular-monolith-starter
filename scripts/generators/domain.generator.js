@@ -104,6 +104,16 @@ export class ${Feature}DeletedEvent {
 }
 `;
 
+  const errorContent = `import { BaseDomainError } from "../../../../common";
+
+export class ${Feature}NotFoundError extends BaseDomainError {
+  readonly type = "${Feature.toUpperCase()}_NOT_FOUND";
+  constructor(public readonly id: string) {
+    super(\`${Feature} not found: \${id}\`);
+  }
+}
+`;
+
   writeFileIfMissing(
     path.join(modulePath, "domain", "entities", `${feature}.entity.ts`),
     entityContent,
@@ -115,6 +125,10 @@ export class ${Feature}DeletedEvent {
   writeFileIfMissing(
     path.join(modulePath, "domain", "events", `${feature}.events.ts`),
     eventContent,
+  );
+  writeFileIfMissing(
+    path.join(modulePath, "domain", "errors", `${feature}.errors.ts`),
+    errorContent,
   );
 }
 

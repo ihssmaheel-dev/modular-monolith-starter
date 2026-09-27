@@ -53,6 +53,8 @@ The web generator produces nested TanStack Router files matching the reference `
 
 To expose your new feature in the web application sidebar and command palette, register it in `apps/web/src/config/navigation.config.ts`.
 
+For the ultra-fast inner feedback loop (`pnpm check:fast`, targeted module testing), see the [Fast Development Guide](./FAST_DEVELOPMENT_GUIDE.md).
+
 ## 2. Define the public API first
 
 In workspace packages add:

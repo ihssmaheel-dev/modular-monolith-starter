@@ -116,9 +116,10 @@ export class Update${Feature}Command {
     actor: AuthenticatedUser,
   ): Promise<Result<${Feature}, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | { type: "CONFLICT" } | { type: "EVENT_DISPATCH_FAILED" } | { type: "TRANSACTION_FAILED" } | Error>> {
     return this.database.withResultTransaction(async () => {
-      const existing = await this.repository.findOne({ id${ownedFilter} });
+      const existing = await this.repository.findById(id);
       if (existing.isErr()) return err(existing.error);
       if (!existing.value) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });
+      ${accessModel === "owner" ? `if (existing.value.createdBy !== actor.sub) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });` : ""}
 
       const updated = await this.repository.updateById(id, {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -209,9 +210,10 @@ export class Delete${Feature}Command {
     actor: AuthenticatedUser,
   ): Promise<Result<void, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | { type: "EVENT_DISPATCH_FAILED" } | { type: "TRANSACTION_FAILED" } | Error>> {
     return this.database.withResultTransaction(async () => {
-      const existing = await this.repository.findOne({ id${ownedFilter} });
+      const existing = await this.repository.findById(id);
       if (existing.isErr()) return err(existing.error);
       if (!existing.value) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });
+      ${accessModel === "owner" ? `if (existing.value.createdBy !== actor.sub) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });` : ""}
 
       const deleted = await this.repository.softDeleteById(id);
       if (deleted.isErr()) return err(deleted.error);
@@ -283,9 +285,10 @@ export class Get${Feature}ByIdQuery {
     id: string,
     ${accessModel === "owner" ? "actor" : "_actor"}: AuthenticatedUser,
   ): Promise<Result<${Feature}, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | Error>> {
-    const result = await this.repository.findOne({ id${ownedFilter} });
+    const result = await this.repository.findById(id);
     if (result.isErr()) return err(result.error);
     if (!result.value) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });
+    ${accessModel === "owner" ? `if (result.value.createdBy !== actor.sub) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });` : ""}
     return ok(result.value);
   }
 }

@@ -1,5 +1,6 @@
-import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
+import { defineConfig } from "vitest/config";
 
 /**
  * Tests that use module-level mocks (`vi.mock` on libraries or modules)
@@ -41,15 +42,14 @@ const isolatedTestPatterns = [
   "**/src/modules/users/application/queries/verify-user-credentials.query.test.ts",
 ];
 
+const cpuCount = os.cpus().length;
+const unitWorkerCount = process.env.CI ? 2 : Math.max(2, Math.min(4, Math.floor(cpuCount / 2)));
+
 export default defineConfig({
   test: {
     globals: true,
     environment: "node",
     pool: "threads",
-    // API tests load the Nest dependency graph and compiler state. Keep the
-    // worker count bounded so high-core developer and CI hosts do not multiply
-    // that memory footprint until the operating system starts killing workers.
-    maxWorkers: 1,
     testTimeout: 15_000,
     fsModuleCache: true,
     coverage: {
@@ -80,6 +80,7 @@ export default defineConfig({
           include: isolatedTestPatterns,
           globals: true,
           environment: "node",
+          maxWorkers: 1,
         },
       },
       {
@@ -94,6 +95,7 @@ export default defineConfig({
           ],
           globals: true,
           environment: "node",
+          maxWorkers: unitWorkerCount,
         },
       },
     ],
@@ -101,6 +103,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@repo/contracts": fileURLToPath(new URL("../../packages/contracts/src/index.ts", import.meta.url)),
+      "@repo/authorization": fileURLToPath(new URL("../../packages/authorization/src/index.ts", import.meta.url)),
+      "@repo/i18n": fileURLToPath(new URL("../../packages/i18n/src/index.ts", import.meta.url)),
     },
   },
 });

@@ -44,6 +44,8 @@ Start all applications after setup:
 pnpm dev                      # api (5156) + web (5155) via Turborepo
 ```
 
+For high-velocity feature scaffolding, sub-second rule checking (`pnpm check:fast`), and targeted testing (<2s), see the [Fast Development Guide](./FAST_DEVELOPMENT_GUIDE.md).
+
 Useful filtered runs:
 
 ```sh
