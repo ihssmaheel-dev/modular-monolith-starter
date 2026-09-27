@@ -4,6 +4,7 @@ node_modules/
 .mimocode/
 .pkg-audit/
 .prettiercache
+.eslintcache
 .cache/
 apps/api/1/
 

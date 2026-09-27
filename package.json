@@ -94,8 +94,8 @@
     "node": ">=24.21.0 <25"
   },
   "lint-staged": {
-    "apps/api/src/**/*.ts": [
-      "pnpm --filter api lint"
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --cache --cache-location .cache/eslint/ --fix"
     ],
     "*.{ts,tsx,js,jsx,json,md}": [
       "prettier --write"
