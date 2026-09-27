@@ -19,6 +19,10 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"],
+      "@repo/contracts": ["../../packages/contracts/src/index.ts"],
+      "@repo/i18n": ["../../packages/i18n/src/index.ts"],
+      "@repo/authorization": ["../../packages/authorization/src/index.ts"],
+      "@repo/api-client": ["../../packages/api-client/src/index.ts"],
       "@repo/ui/*": ["../../packages/ui/src/*"]
     }
   },
