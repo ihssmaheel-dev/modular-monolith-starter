@@ -35,6 +35,7 @@ Same order as `ai_instructions/README.md` (the table there is the single source 
 - Function and file limits have one source: `ai_instructions/CODE_QUALITY_RULES.md`. No deep nesting.
 - No magic numbers, no copy-paste, no `any`, no `console.log`.
 - **Every new file must land in the correct location on first creation.** See `FILE_PLACEMENT_RULES.md`.
+- **Fast inner loop**: Validate changes in development with `pnpm check:fast` (< 200ms) and targeted module tests (`pnpm --filter api test:unit src/modules/<name>`). Full CI gates (`pnpm rules:check`, `pnpm test:release`) run before commit / push.
 
 ## Violation Enforcement
 

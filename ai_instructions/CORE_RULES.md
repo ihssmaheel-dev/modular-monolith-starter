@@ -77,5 +77,6 @@ Supreme laws of this codebase. These are never negotiable.
 ---
 
 ## Enforcement
-
-Run `pnpm rules:check` to verify compliance before committing.
+ 
+- **Inner development loop**: Run `pnpm check:fast` to verify file-scoped compliance on modified files in `<200ms`.
+- **Pre-commit / CI gate**: Run `pnpm rules:check` to verify the full 15-pass global scan (depcruise module boundaries, 3-locale parity, Drizzle migration lineage).

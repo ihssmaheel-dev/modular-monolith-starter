@@ -39,6 +39,19 @@ Optional subdirectories (`helpers/`, `policies/`, `workers/`, `services/`, `valu
 Zero loose files directly inside `presentation/`, `infrastructure/`, `application/`, or `domain/` — all source files must reside in their respective categorized subfolders.
 Module root contains only `[domain].module.ts` (never create barrel `index.ts` files at module root).
 
+### Feature Scaffolding Generator
+
+To generate a fully compliant vertical slice without manual ceremony overhead:
+
+```sh
+# Generate backend slice only (Contracts + CQRS + Infra + REST/oRPC + Error Maps + Policies + i18n):
+pnpm generate:feature <module> <feature> --access=tenant-shared --minimal
+
+# Full-stack slice with web frontend:
+pnpm generate:feature <module> <feature> --access=tenant-shared --skip-mobile
+```
+
+The generator automatically emits typed domain errors, HTTP error maps, `findById`/`updateById`/`paginate` repository wiring, deny-by-default FGA policy stubs, and synchronized 3-locale i18n keys.
 
 ---
 

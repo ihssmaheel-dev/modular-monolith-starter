@@ -233,3 +233,4 @@ chore: update dependencies
 - [ ] Commit message follows `type(scope): description`
 - [ ] File respects `CODE_QUALITY_RULES.md` limits (one job per file)
 - [ ] No `any`, no magic numbers, no console.log
+- [ ] Validated with `pnpm check:fast` (or `pnpm rules:check` for full CI scan)

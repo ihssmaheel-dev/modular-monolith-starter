@@ -57,6 +57,25 @@ Test contract for the codebase. Quality without ceremony.
 
 ---
 
+## Fast Inner Loop Test Commands
+
+Never run the full suite when developing or editing a single file or module. Use targeted commands:
+
+| Command | Scope | Typical Runtime | When to Use |
+| :--- | :--- | :--- | :--- |
+| `pnpm --filter api test:unit src/modules/<name>` | Single module | **< 2s** | Active feature development / debugging |
+| `pnpm --filter api test:changed` | Modified git files | **< 3s** | Quick validation before git staging |
+| `pnpm --filter api test:fast` | Pure CQRS unit tests | **~14s** | Validating application logic across all modules |
+| `pnpm --filter api test:unit` | Full unit suite (180 files) | **~32s** | Pre-commit / full local verification |
+
+### Monorepo Resolution & Concurrency Architecture
+- **In-memory source resolution**: Vitest aliases `@repo/contracts`, `@repo/authorization`, and `@repo/i18n` directly to their TypeScript `src/index.ts`. No package build or `tsup` compilation is required during development.
+- **Worker pool split**: Vitest splits execution into two projects:
+  - `unit` project: pure CQRS commands, queries, and domain entities execute concurrently in parallel threads.
+  - `isolated` project: state-mutating / global mock tests run sequentially (`maxWorkers: 1`) to eliminate interference.
+
+---
+
 ## Vitest Configuration
 
 Create `vitest.config.mts` in `apps/api/`:

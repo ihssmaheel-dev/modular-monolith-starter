@@ -30,11 +30,13 @@ Before any code change, read these files in order:
 
 1. Read the rules above.
 2. Follow them exactly.
-3. Run `pnpm rules:check` before committing.
-4. If uncertain, ask before proceeding.
+3. During active development, validate changed files instantly with `pnpm check:fast` (< 200ms).
+4. Run `pnpm rules:check` before committing (full 15-pass global scan).
+5. For high-velocity workflows (targeted test runs, `--minimal` feature scaffolding), consult [`docs/FAST_DEVELOPMENT_GUIDE.md`](../docs/FAST_DEVELOPMENT_GUIDE.md).
+6. If uncertain, ask before proceeding.
 
 ## Violation Policy
 
 - All rules are **mandatory** and **non-negotiable**.
 - Code that violates rules will be **rejected**.
-- Automated checks run via `pnpm rules:check`.
+- Automated checks run via `pnpm check:fast` (inner loop) and `pnpm rules:check` (pre-commit / CI).
