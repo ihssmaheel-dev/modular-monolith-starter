@@ -62,6 +62,8 @@
     "prepare": "husky",
     "generate:module": "node scripts/generate-module.js",
     "generate:feature": "node scripts/generate-feature.js",
+    "generate:command": "node scripts/generate-command.js",
+    "generate:query": "node scripts/generate-query.js",
     "test:generator": "node scripts/generators/generator-smoke.js && node --test scripts/project-init/*.test.js",
     "theme:generate": "pnpm --filter @repo/design-tokens generate",
     "theme:check": "pnpm --filter @repo/design-tokens check",

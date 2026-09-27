@@ -39,7 +39,7 @@ Optional subdirectories (`helpers/`, `policies/`, `workers/`, `services/`, `valu
 Zero loose files directly inside `presentation/`, `infrastructure/`, `application/`, or `domain/` — all source files must reside in their respective categorized subfolders.
 Module root contains only `[domain].module.ts` (never create barrel `index.ts` files at module root).
 
-### Feature Scaffolding Generator
+### Feature & Action Scaffolding Generators
 
 To generate a fully compliant vertical slice without manual ceremony overhead:
 
@@ -51,7 +51,19 @@ pnpm generate:feature <module> <feature> --access=tenant-shared --minimal
 pnpm generate:feature <module> <feature> --access=tenant-shared --skip-mobile
 ```
 
-The generator automatically emits typed domain errors, HTTP error maps, `findById`/`updateById`/`paginate` repository wiring, deny-by-default FGA policy stubs, and synchronized 3-locale i18n keys.
+The feature generator automatically emits typed domain errors, HTTP error maps, `findById`/`updateById`/`paginate` repository wiring, deny-by-default FGA policy stubs, and synchronized 3-locale i18n keys.
+
+To add a single command or query to an existing module without manual 7-file plumbing:
+
+```sh
+# Add a single command (Application + Module + Contracts + API Client SDK + REST + oRPC + Parity test):
+pnpm generate:command <module> <command-name> [--collection]
+# Example: pnpm generate:command notes publish-note
+
+# Add a single query:
+pnpm generate:query <module> <query-name> [--collection]
+# Example: pnpm generate:query notes get-note-history
+```
 
 ---
 
