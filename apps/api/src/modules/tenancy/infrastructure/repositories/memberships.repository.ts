@@ -4,7 +4,7 @@ import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
-import { memberships, type MembershipRow } from "../schemas/tenancy.schema";
+import { memberships, type MembershipRow } from "../schemas/memberships.schema";
 import { Membership } from "../../domain/entities/tenancy.entity";
 import type { TenantRole } from "@repo/contracts";
 import type { PaginatedResult, PaginationOptions } from "../../../../infrastructure/database";

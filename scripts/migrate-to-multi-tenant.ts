@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { eq, isNull } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import {
-  organizations,
-  memberships,
-} from "../apps/api/src/modules/tenancy/infrastructure/schemas/tenancy.schema";
+import { organizations } from "../apps/api/src/modules/tenancy/infrastructure/schemas/organizations.schema";
+import { memberships } from "../apps/api/src/modules/tenancy/infrastructure/schemas/memberships.schema";
 import { users } from "../apps/api/src/modules/users/infrastructure/schemas/user.schema";
 import { notes } from "../apps/api/src/modules/notes/infrastructure/schemas/note.schema";
 import { files } from "../apps/api/src/modules/files/infrastructure/schemas/file.schema";

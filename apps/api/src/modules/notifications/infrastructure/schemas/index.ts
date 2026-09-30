@@ -1,4 +1,3 @@
-// Forwarding re-export — schema split into notifications.schema.ts, delivery-intents.schema.ts, preferences.schema.ts, device-tokens.schema.ts, batches.schema.ts.
 export * from "./notifications.schema";
 export * from "./delivery-intents.schema";
 export * from "./preferences.schema";
