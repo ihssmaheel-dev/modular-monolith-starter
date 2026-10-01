@@ -29,7 +29,8 @@
       "dependsOn": ["^format"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      "outputs": [".cache/**", "**/*.tsbuildinfo", "node_modules/.tmp/**"]
     },
     "test": {
       "dependsOn": ["build"]

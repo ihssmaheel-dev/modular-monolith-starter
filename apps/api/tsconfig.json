@@ -10,6 +10,8 @@
     "outDir": "./dist",
     "rootDir": "../../",
     "jsx": "react-jsx",
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
     "paths": {
       "@/*": ["./src/*"]
     }
