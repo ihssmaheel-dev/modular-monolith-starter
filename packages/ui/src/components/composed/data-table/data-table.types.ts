@@ -1,24 +1,42 @@
 import type * as React from "react";
+import type {
+  ColumnDef,
+  ColumnVisibilityState,
+  RowData,
+  RowSelectionState,
+  SortingState,
+} from "@tanstack/react-table";
 
-export type DataTableColumn<T> = {
-  key: string;
-  header: string;
-  cell: (row: T) => React.ReactNode;
-  className?: string;
-};
+import type { DataTableFeatures } from "./data-table-features";
 
-export type DataTableProps<T> = {
-  data: T[];
-  columns: DataTableColumn<T>[];
+export type DataTableColumn<TData extends RowData> = ColumnDef<DataTableFeatures, TData>;
+
+export type DataTableProps<TData extends RowData> = {
+  data: TData[];
+  columns: DataTableColumn<TData>[];
+  getRowId?: (row: TData) => string;
   isLoading?: boolean;
   searchPlaceholder?: string;
-  onSearch?: (value: string) => void;
   searchValue?: string;
+  onSearch?: (value: string) => void;
   toolbarActions?: React.ReactNode;
+  showViewOptions?: boolean;
+  viewOptionsLabel?: string;
+  viewOptionsTitle?: string;
+  enableRowSelection?: boolean;
+  onRowSelectionChange?: (rows: TData[]) => void;
+  selectAllLabel?: string;
+  selectRowLabel?: string;
+  selectedCountText?: (selected: number, total: number) => string;
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
+  columnVisibility?: ColumnVisibilityState;
+  onColumnVisibilityChange?: (visibility: ColumnVisibilityState) => void;
   emptyText: string;
   className?: string;
-  getRowKey: (row: T) => string;
 };
+
+export type { ColumnVisibilityState, RowData, RowSelectionState, SortingState };
 
 export type DataTablePaginationProps = {
   page: number;

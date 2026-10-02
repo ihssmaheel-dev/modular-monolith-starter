@@ -54,7 +54,7 @@ export function UsersList({
           <DataTable
             data={usersQuery.data?.users ?? []}
             columns={columns}
-            getRowKey={(row) => row.id}
+            getRowId={(row) => row.id}
             isLoading={usersQuery.isFetching}
             emptyText={t("common.noResults")}
           />

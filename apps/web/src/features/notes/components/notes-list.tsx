@@ -75,7 +75,7 @@ export function NotesList({
           <DataTable
             data={notesQuery.data?.items ?? []}
             columns={columns}
-            getRowKey={(row) => row.id}
+            getRowId={(row) => row.id}
             isLoading={notesQuery.isFetching}
             emptyText={t("common.noResults")}
           />
