@@ -63,7 +63,7 @@
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/ui/*.tsx",
     "./components/ui/*": "./src/components/ui/*.tsx",
-    "./components/composed/*": "./src/components/composed/*.tsx",
+    "./components/composed/*": "./src/components/composed/*/index.ts",
     "./hooks/*": "./src/hooks/*.ts"
   }
 }

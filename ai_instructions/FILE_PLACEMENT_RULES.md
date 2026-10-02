@@ -66,7 +66,7 @@ Focused capability packages: `@repo/contracts`, `@repo/authorization`, `@repo/i1
 
 ### 5. `@repo/ui` (`packages/ui/src/`)
 - Primitives (`components/ui/*.tsx`): Base UI + shadcn primitives (button, dialog, card, etc), one family per file (limits in `CODE_QUALITY_RULES.md`). Categorized barrels live under `components/primitives/` (`forms.ts`, `overlays.ts`, `feedback.ts`, `layout.ts`, `navigation.ts`, `data-display.ts`).
-- Composed (`components/composed/<name>/`): reusable multi-primitive components (DataTable, PageHeader, EmptyState, ConfirmDialog, ImageCropperDialog), structured as folder-per-component with `<name>.tsx`, `<name>.types.ts`, `<name>.stories.tsx`, `index.ts`, and split sub-components. 1-line compatibility bridges at `components/composed/<name>.tsx` preserve legacy imports. Scaffold new composed components with `pnpm generate:ui <name>`.
+- Composed (`components/composed/<name>/`): reusable multi-primitive components (DataTable, PageHeader, EmptyState, ConfirmDialog, ImageCropperDialog), structured as folder-per-component with `<name>.tsx`, `<name>.types.ts`, `<name>.stories.tsx`, `index.ts`, and split sub-components. Import via `@repo/ui/components/composed/<name>` (resolves to the folder `index.ts`). Scaffold new composed components with `pnpm generate:ui <name>`.
 - Styles (`styles/globals.css`): Single Tailwind 4 entry with `@import "tailwindcss"` + design tokens + `@source` for `apps/web` + `packages/ui`
 - Hooks (`hooks/*.ts`): Headless helpers (use-mobile)
 - Lib (`lib/utils.ts`): `cn()` via `clsx` + `tailwind-merge`
@@ -463,7 +463,7 @@ Root:
 | Email template | `packages/email/src/emails/[Name]Email.tsx` |
 | Design tokens | `packages/design-tokens/src/presets/active.json` (only hand-edited file; run `pnpm theme:generate`) |
 | UI primitive | `packages/ui/src/components/ui/[name].tsx` |
-| Composed component | `packages/ui/src/components/composed/[name].tsx` |
+| Composed component | `packages/ui/src/components/composed/[name]/` (folder with `[name].tsx`, `[name].types.ts`, `[name].stories.tsx`, `index.ts`) |
 | UI style | `packages/ui/src/styles/globals.css` |
 | UI hook | `packages/ui/src/hooks/[name].ts` |
 | UI lib | `packages/ui/src/lib/[name].ts` |

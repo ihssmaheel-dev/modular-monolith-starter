@@ -73,7 +73,7 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 ## UI Architecture & Storybook (`packages/ui`)
 
 - Visual catalog under `packages/ui/.storybook`; co-located `*.stories.tsx` next to every component in `src/components/**` (enforced by `pnpm rules:check`).
-- Composed components live in dedicated directories under `src/components/composed/<name>/` with cleanly separated `<name>.tsx`, `<name>.types.ts`, `<name>.stories.tsx`, and `index.ts`. Backward-compatibility bridge files at `src/components/composed/<name>.tsx` preserve legacy import paths.
+- Composed components live in dedicated directories under `src/components/composed/<name>/` with cleanly separated `<name>.tsx`, `<name>.types.ts`, `<name>.stories.tsx`, and `index.ts`. Import via `@repo/ui/components/composed/<name>` (resolves to the folder `index.ts`).
 - Scaffold new composed components instantly with `pnpm generate:ui <name>` (generates folder structure, TypeScript interface, compliant Storybook stories, and auto-registers barrels).
 - Stories use plain English strings, never `t("…")` keys; no `any`, no `console.*`.
 - Run the workshop with `pnpm --filter @repo/ui storybook`; verify with `pnpm --filter @repo/ui build-storybook`.
