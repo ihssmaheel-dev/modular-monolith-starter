@@ -44,7 +44,7 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 - `src/features/[domain]/components/*.tsx` own all forms, tables, dialogs, and widgets; `src/features/[domain]/hooks/*.ts` own shared feature logic (e.g. post-auth redirect). Routes never import UI primitives for business UI directly.
 - Locale-aware formatting lives in `src/lib/format.ts`; columns and widgets use it instead of raw `toLocaleDateString`.
 - Forms use `zodResolver` with schemas imported from `@repo/contracts`.
-- Import primitives from `@repo/ui/components/ui/*` and composed components from `@repo/ui/components/composed/*`.
+- Import primitives from `@repo/ui/components/ui/*`, primitive categories from `@repo/ui/primitives/*`, or composed components from `@repo/ui/composed/*` (or `@repo/ui`).
 - Use `cn()` from `@repo/ui/lib/utils` for conditional classes and keep design tokens in `packages/ui/src/styles/globals.css`.
 - All user-facing text uses `useTranslation().t()` and keys from `@repo/i18n`; raw API errors are never displayed.
 
@@ -70,9 +70,11 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 - New adapters reuse `createBroadcastChannel()` plus `scopedChannel()` and `isSyncMessage()` from `src/lib/cross-tab/`; every adapter ships co-located tests proving delivery, isolation, and cleanup.
 - This is not leader election: simultaneous mounts may still fetch twice. That is documented in code, not a bug.
 
-## Storybook (`packages/ui`)
+## UI Architecture & Storybook (`packages/ui`)
 
 - Visual catalog under `packages/ui/.storybook`; co-located `*.stories.tsx` next to every component in `src/components/**` (enforced by `pnpm rules:check`).
+- Composed components live in dedicated directories under `src/components/composed/<name>/` with cleanly separated `<name>.tsx`, `<name>.types.ts`, `<name>.stories.tsx`, and `index.ts`. Backward-compatibility bridge files at `src/components/composed/<name>.tsx` preserve legacy import paths.
+- Scaffold new composed components instantly with `pnpm generate:ui <name>` (generates folder structure, TypeScript interface, compliant Storybook stories, and auto-registers barrels).
 - Stories use plain English strings, never `t("…")` keys; no `any`, no `console.*`.
 - Run the workshop with `pnpm --filter @repo/ui storybook`; verify with `pnpm --filter @repo/ui build-storybook`.
 - Every `shadcn add` ships with its story in the same slice.

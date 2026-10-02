@@ -65,8 +65,8 @@ Focused capability packages: `@repo/contracts`, `@repo/authorization`, `@repo/i1
 - Styles (`styles/tokens.ts`): Generated email tokens — never hand-edit (see `@repo/design-tokens`)
 
 ### 5. `@repo/ui` (`packages/ui/src/`)
-- Primitives (`components/ui/*.tsx`): Base UI + shadcn primitives (button, dialog, card, etc), one family per file (limits in `CODE_QUALITY_RULES.md`)
-- Composed (`components/composed/*.tsx`): reusable multi-primitive components (DataTable, PageHeader, EmptyState, ConfirmDialog), one per file
+- Primitives (`components/ui/*.tsx`): Base UI + shadcn primitives (button, dialog, card, etc), one family per file (limits in `CODE_QUALITY_RULES.md`). Categorized barrels live under `components/primitives/` (`forms.ts`, `overlays.ts`, `feedback.ts`, `layout.ts`, `navigation.ts`, `data-display.ts`).
+- Composed (`components/composed/<name>/`): reusable multi-primitive components (DataTable, PageHeader, EmptyState, ConfirmDialog, ImageCropperDialog), structured as folder-per-component with `<name>.tsx`, `<name>.types.ts`, `<name>.stories.tsx`, `index.ts`, and split sub-components. 1-line compatibility bridges at `components/composed/<name>.tsx` preserve legacy imports. Scaffold new composed components with `pnpm generate:ui <name>`.
 - Styles (`styles/globals.css`): Single Tailwind 4 entry with `@import "tailwindcss"` + design tokens + `@source` for `apps/web` + `packages/ui`
 - Hooks (`hooks/*.ts`): Headless helpers (use-mobile)
 - Lib (`lib/utils.ts`): `cn()` via `clsx` + `tailwind-merge`
@@ -75,6 +75,7 @@ Focused capability packages: `@repo/contracts`, `@repo/authorization`, `@repo/i1
 
 ### Rules
 - UI primitives are unstyled Base UI (`@base-ui/react`) wrapped with CVA + Tailwind. shadcn CLI adds via `pnpm dlx shadcn@latest add <component> -c apps/web` (lands in `components/ui/`).
+- Import UI components via `@repo/ui` root, `@repo/ui/composed`, `@repo/ui/composed/<name>`, or `@repo/ui/primitives/<category>`.
 - `globals.css` is consumed by web via `import '@repo/ui/globals.css'` in `apps/web/src/routes/__root.tsx` (also imported once per app).
 
 ---
