@@ -14,14 +14,14 @@
     "test:unit": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@orpc/client": "^1.15.2",
-    "@orpc/contract": "^1.15.2",
-    "@orpc/openapi-client": "^1.15.2",
-    "@orpc/tanstack-query": "^1.15.2",
+    "@orpc/client": "^1.15.4",
+    "@orpc/contract": "^1.15.4",
+    "@orpc/openapi-client": "^1.15.4",
+    "@orpc/tanstack-query": "^1.15.4",
     "@repo/contracts": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "~6.0.3",
-    "vitest": "^5.0.1"
+    "typescript": "~7.0.2",
+    "vitest": "^5.0.2"
   }
 }
