@@ -5,6 +5,4 @@ useDefault = true
 
 [[allowlists]]
 description = "Generated and dependency output is not source-controlled input"
-paths = [
-  '''(^|/)(node_modules|dist|coverage|\.turbo)(/|$)''',
-]
+paths = ['''(^|/)(node_modules|dist|coverage|\.turbo)(/|$)''']

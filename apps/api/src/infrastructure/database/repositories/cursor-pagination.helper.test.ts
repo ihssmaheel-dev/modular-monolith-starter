@@ -27,7 +27,8 @@ describe("cursor-pagination.helper", () => {
       const encoded = Buffer.from(JSON.stringify({ v: iso, id: "item-456" })).toString("base64url");
       const decoded = decodeCursor(encoded);
       expect(decoded?.val).toBeInstanceOf(Date);
-      expect((decoded?.val as Date).toISOString()).toBe(iso);
+      const val = decoded?.val;
+      expect((val as Date).toISOString()).toBe(iso);
       expect(decoded?.id).toBe("item-456");
     });
 

@@ -97,7 +97,9 @@ function buildDevTargets(): pino.TransportTargetOptions[] {
 }
 
 function buildLoggerTransport():
-  pino.TransportMultiOptions | pino.TransportSingleOptions | undefined {
+  | pino.TransportMultiOptions
+  | pino.TransportSingleOptions
+  | undefined {
   if (env.NODE_ENV !== "production") {
     return { targets: buildDevTargets() };
   }

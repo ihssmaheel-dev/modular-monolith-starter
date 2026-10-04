@@ -199,7 +199,8 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       const hasNextPage = rows.length > limit;
       const itemsToReturn = hasNextPage ? rows.slice(0, limit) : rows;
       const lastItem = itemsToReturn[itemsToReturn.length - 1] as
-        Record<string, unknown> | undefined;
+        | Record<string, unknown>
+        | undefined;
 
       const nextCursor = hasNextPage && lastItem ? encodeCursor(cursorField, lastItem) : null;
 
@@ -239,13 +240,15 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
     if (typeof expectedVersion === "number") {
       const versionCol = ((this.table as unknown as Record<string, unknown>)["version"] ??
         (this.table as unknown as Record<string, unknown>)["authVersion"]) as
-        Parameters<typeof eq>[0] | undefined;
+        | Parameters<typeof eq>[0]
+        | undefined;
       if (!versionCol) return err({ type: "CONFLICT" });
       versionClause = eq(versionCol, expectedVersion);
       nextVersionPayload = { version: expectedVersion + 1 };
     } else if (expectedVersion instanceof Date) {
       const updatedAtColumn = (this.table as unknown as Record<string, unknown>)["updatedAt"] as
-        Parameters<typeof eq>[0] | undefined;
+        | Parameters<typeof eq>[0]
+        | undefined;
       if (!updatedAtColumn) return err({ type: "CONFLICT" });
       versionClause = sql`date_trunc('milliseconds', ${updatedAtColumn}) = date_trunc('milliseconds', ${expectedVersion}::timestamptz)`;
     }

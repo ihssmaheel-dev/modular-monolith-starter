@@ -10,6 +10,7 @@ import { QueueService, DEFAULT_WORKBENCH_PATH } from "../../infrastructure/queue
 const BOX_WIDTH = 74;
 
 function stripAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex -- intentional ANSI escape matcher
   return text.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, "");
 }
 

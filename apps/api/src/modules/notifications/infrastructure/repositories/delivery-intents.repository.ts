@@ -96,7 +96,8 @@ export class DeliveryIntentsRepository {
       MIN(created_at) FILTER (WHERE status IN ('pending', 'processing')) AS oldest_pending_at
       FROM notification_delivery_intents`);
     const row = result.rows[0] as
-      { pending?: number; dead?: number; oldest_pending_at?: Date | string | null } | undefined;
+      | { pending?: number; dead?: number; oldest_pending_at?: Date | string | null }
+      | undefined;
     return {
       pending: Number(row?.pending ?? 0),
       dead: Number(row?.dead ?? 0),

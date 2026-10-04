@@ -123,7 +123,10 @@ function parseArgs(argv) {
       opts.json = true;
       opts.jsonFile = arg.split("=")[1];
     } else if (arg.startsWith("--ignore-dir=")) {
-      arg.split("=")[1].split(",").forEach((d) => d && opts.ignoreDirs.add(d));
+      arg
+        .split("=")[1]
+        .split(",")
+        .forEach((d) => d && opts.ignoreDirs.add(d));
     } else if (!arg.startsWith("-")) {
       opts.target = arg;
     }
@@ -360,7 +363,11 @@ function loadWorkspace(filePath, rootDir, stats) {
 // ---------------------------------------------------------------------------
 
 function isLinkedProtocol(version) {
-  return version.startsWith("workspace:") || version.startsWith("catalog:") || version.startsWith("link:");
+  return (
+    version.startsWith("workspace:") ||
+    version.startsWith("catalog:") ||
+    version.startsWith("link:")
+  );
 }
 
 function parseMajor(version) {
@@ -437,7 +444,10 @@ function findHygieneIssues(workspaces) {
   }
   for (const [name, paths] of byName.entries()) {
     if (paths.length > 1) {
-      issues.push({ kind: "duplicate-name", message: `"${name}" is used by ${paths.length} manifests: ${paths.join(", ")}` });
+      issues.push({
+        kind: "duplicate-name",
+        message: `"${name}" is used by ${paths.length} manifests: ${paths.join(", ")}`,
+      });
     }
   }
 
@@ -450,8 +460,13 @@ function findHygieneIssues(workspaces) {
     pmValues.get(w.packageManager).push(w.relPath);
   }
   if (pmValues.size > 1) {
-    const detail = [...pmValues.entries()].map(([v, paths]) => `${v} (${paths.join(", ")})`).join("; ");
-    issues.push({ kind: "packageManager", message: `"packageManager" differs across manifests: ${detail}` });
+    const detail = [...pmValues.entries()]
+      .map(([v, paths]) => `${v} (${paths.join(", ")})`)
+      .join("; ");
+    issues.push({
+      kind: "packageManager",
+      message: `"packageManager" differs across manifests: ${detail}`,
+    });
   }
 
   // engines.node inconsistency.
@@ -462,7 +477,9 @@ function findHygieneIssues(workspaces) {
     engineValues.get(w.enginesNode).push(w.relPath);
   }
   if (engineValues.size > 1) {
-    const detail = [...engineValues.entries()].map(([v, paths]) => `${v} (${paths.join(", ")})`).join("; ");
+    const detail = [...engineValues.entries()]
+      .map(([v, paths]) => `${v} (${paths.join(", ")})`)
+      .join("; ");
     issues.push({ kind: "engines", message: `"engines.node" differs across manifests: ${detail}` });
   }
 
@@ -491,7 +508,9 @@ async function fetchLatestVersion(name, timeoutMs = 8000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`https://registry.npmjs.org/${name}/latest`, { signal: controller.signal });
+    const res = await fetch(`https://registry.npmjs.org/${name}/latest`, {
+      signal: controller.signal,
+    });
     if (!res.ok) return { name, status: res.status === 404 ? "not-published" : "error" };
     const data = await res.json();
     return { name, status: "ok", latest: data.version };
@@ -539,7 +558,13 @@ async function checkOutdated(depMap, concurrency) {
       continue;
     }
     if (result.status !== "ok") {
-      all.push({ name, current: null, latest: null, status: "error", error: result.error || "check failed" });
+      all.push({
+        name,
+        current: null,
+        latest: null,
+        status: "error",
+        error: result.error || "check failed",
+      });
       continue;
     }
 
@@ -553,7 +578,12 @@ async function checkOutdated(depMap, concurrency) {
     const latestTuple = parseVersionTuple(result.latest);
 
     if (!current || !latestTuple) {
-      all.push({ name, current: current ? current.raw : null, latest: result.latest, status: "unknown" });
+      all.push({
+        name,
+        current: current ? current.raw : null,
+        latest: result.latest,
+        status: "unknown",
+      });
       continue;
     }
 
@@ -563,18 +593,37 @@ async function checkOutdated(depMap, concurrency) {
       continue;
     }
 
-    const status = latestTuple[0] > current.tuple[0] ? "major" : latestTuple[1] > current.tuple[1] ? "minor" : "patch";
+    const status =
+      latestTuple[0] > current.tuple[0]
+        ? "major"
+        : latestTuple[1] > current.tuple[1]
+          ? "minor"
+          : "patch";
     all.push({ name, current: current.raw, latest: result.latest, status });
   }
 
-  const severityOrder = { major: 0, minor: 1, patch: 2, unknown: 3, "not-published": 4, error: 5, "up-to-date": 6 };
-  const sortedAll = [...all].sort((a, b) => severityOrder[a.status] - severityOrder[b.status] || a.name.localeCompare(b.name));
+  const severityOrder = {
+    major: 0,
+    minor: 1,
+    patch: 2,
+    unknown: 3,
+    "not-published": 4,
+    error: 5,
+    "up-to-date": 6,
+  };
+  const sortedAll = [...all].sort(
+    (a, b) => severityOrder[a.status] - severityOrder[b.status] || a.name.localeCompare(b.name),
+  );
 
   return {
     all: sortedAll,
-    outdated: sortedAll.filter((r) => r.status === "major" || r.status === "minor" || r.status === "patch"),
+    outdated: sortedAll.filter(
+      (r) => r.status === "major" || r.status === "minor" || r.status === "patch",
+    ),
     unpublished: sortedAll.filter((r) => r.status === "not-published").map((r) => r.name),
-    networkErrors: sortedAll.filter((r) => r.status === "error").map((r) => ({ name: r.name, error: r.error })),
+    networkErrors: sortedAll
+      .filter((r) => r.status === "error")
+      .map((r) => ({ name: r.name, error: r.error })),
     upToDate: sortedAll.filter((r) => r.status === "up-to-date"),
   };
 }
@@ -641,7 +690,9 @@ async function fetchReleaseNotesForPackage(name, latestVersion, concurrencyGuard
 
     // 2. Try to find a GitHub Release matching one of the likely tag names.
     for (const tag of candidateTags(name, latestVersion)) {
-      const res = await fetchJson(`https://api.github.com/repos/${repo.owner}/${repo.repo}/releases/tags/${encodeURIComponent(tag)}`);
+      const res = await fetchJson(
+        `https://api.github.com/repos/${repo.owner}/${repo.repo}/releases/tags/${encodeURIComponent(tag)}`,
+      );
       if (res.ok) {
         return {
           name,
@@ -663,7 +714,9 @@ async function fetchReleaseNotesForPackage(name, latestVersion, concurrencyGuard
     //    listed for the repo, noting it may not exactly match this version
     //    (common for packages that only tag some releases, or where the repo
     //    hosts several packages).
-    const listRes = await fetchJson(`https://api.github.com/repos/${repo.owner}/${repo.repo}/releases?per_page=1`);
+    const listRes = await fetchJson(
+      `https://api.github.com/repos/${repo.owner}/${repo.repo}/releases?per_page=1`,
+    );
     if (listRes.ok && Array.isArray(listRes.data) && listRes.data.length) {
       const r = listRes.data[0];
       return {
@@ -692,11 +745,15 @@ async function fetchNpmFullMetadata(name, timeoutMs = 8000) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     // Scoped names need encoding of the leading @ segment's slash.
-    const res = await fetch(`https://registry.npmjs.org/${name.replace("/", "%2F")}`, { signal: controller.signal });
+    const res = await fetch(`https://registry.npmjs.org/${name.replace("/", "%2F")}`, {
+      signal: controller.signal,
+    });
     if (!res.ok) return { ok: false };
     const data = await res.json();
     const latest = data["dist-tags"] && data["dist-tags"].latest;
-    const repository = (latest && data.versions && data.versions[latest] && data.versions[latest].repository) || data.repository;
+    const repository =
+      (latest && data.versions && data.versions[latest] && data.versions[latest].repository) ||
+      data.repository;
     return { ok: true, repository };
   } catch {
     return { ok: false };
@@ -744,12 +801,12 @@ async function fetchChangelogs(outdatedList, changelogLines) {
   // registry, which is far more permissive).
   const guard = makeSemaphore(4);
   const results = await Promise.all(
-    outdatedList.map((pkg) => fetchReleaseNotesForPackage(pkg.name, pkg.latest, guard))
+    outdatedList.map((pkg) => fetchReleaseNotesForPackage(pkg.name, pkg.latest, guard)),
   );
   const byName = new Map(results.map((r) => [r.name, r]));
   for (const pkg of outdatedList) {
     const r = byName.get(pkg.name);
-    if (r && r.status === "ok" || (r && r.status === "approx")) {
+    if ((r && r.status === "ok") || (r && r.status === "approx")) {
       pkg.changelog = { ...r, bodyLines: cleanReleaseBody(r.body, changelogLines) };
     } else if (r) {
       pkg.changelog = r;
@@ -769,7 +826,7 @@ function renderWorkspaceList(workspaces, c, out) {
     const tag = ws.isRoot ? c.dim(" (root)") : ws.private ? c.dim(" (private)") : "";
     out.push(
       `  ${ws.relPath.padEnd(nameW)}  ${c.cyan(ws.name)}${ws.name.length < 28 ? " ".repeat(28 - ws.name.length) : " "}` +
-        `v${ws.version}  ${String(ws.depCount - ws.devCount).padStart(3)} deps / ${String(ws.devCount).padStart(3)} dev${tag}`
+        `v${ws.version}  ${String(ws.depCount - ws.devCount).padStart(3)} deps / ${String(ws.devCount).padStart(3)} dev${tag}`,
     );
   }
   out.push("");
@@ -785,9 +842,12 @@ function renderConflicts(conflicts, c, out) {
   out.push(c.bold(`Version conflicts (${conflicts.length}):`));
   for (const conflict of conflicts) {
     const marker = conflict.severity === "major" ? c.red("✗") : c.yellow("⚠");
-    const tag = conflict.severity === "major" ? c.red("major version differs") : c.yellow("range differs");
+    const tag =
+      conflict.severity === "major" ? c.red("major version differs") : c.yellow("range differs");
     out.push(`  ${marker} ${c.bold(conflict.name)}  ${c.dim(`(${tag})`)}`);
-    const wsW = Math.max(...conflict.versions.flatMap((v) => v.occurrences.map((o) => o.workspace.length)));
+    const wsW = Math.max(
+      ...conflict.versions.flatMap((v) => v.occurrences.map((o) => o.workspace.length)),
+    );
     for (const { version, occurrences } of conflict.versions) {
       for (const occ of occurrences) {
         out.push(`      ${occ.workspace.padEnd(wsW)}  ${version}  ${c.dim(`(${occ.type})`)}`);
@@ -833,7 +893,9 @@ function renderHygiene(issues, c, out) {
 
 function renderOutdated({ outdated, unpublished, networkErrors }, c, out, showChangelog) {
   if (networkErrors.length) {
-    out.push(c.dim(`(${networkErrors.length} package(s) could not be checked — network/registry issue)`));
+    out.push(
+      c.dim(`(${networkErrors.length} package(s) could not be checked — network/registry issue)`),
+    );
   }
   if (!outdated.length) {
     out.push(c.green("Everything is up to date with the npm registry. ✓"));
@@ -844,8 +906,11 @@ function renderOutdated({ outdated, unpublished, networkErrors }, c, out, showCh
   out.push(c.bold(`Outdated (${outdated.length}):`));
   const nameW = Math.max(...outdated.map((o) => o.name.length));
   for (const o of outdated) {
-    const marker = o.status === "major" ? c.red("✗") : o.status === "minor" ? c.yellow("⚠") : c.dim("·");
-    out.push(`  ${marker} ${o.name.padEnd(nameW)}  ${o.current.padEnd(14)} → ${c.bold(o.latest)}  ${c.dim(`(${o.status})`)}`);
+    const marker =
+      o.status === "major" ? c.red("✗") : o.status === "minor" ? c.yellow("⚠") : c.dim("·");
+    out.push(
+      `  ${marker} ${o.name.padEnd(nameW)}  ${o.current.padEnd(14)} → ${c.bold(o.latest)}  ${c.dim(`(${o.status})`)}`,
+    );
     if (showChangelog) renderChangelogBlock(o.changelog, c, out);
   }
   out.push("");
@@ -860,7 +925,10 @@ function renderChangelogBlock(changelog, c, out) {
   switch (changelog.status) {
     case "ok":
     case "approx": {
-      const approxNote = changelog.status === "approx" ? c.dim(" (closest release found, tag didn't match exactly)") : "";
+      const approxNote =
+        changelog.status === "approx"
+          ? c.dim(" (closest release found, tag didn't match exactly)")
+          : "";
       out.push(`${indent}${c.cyan(changelog.title)}${approxNote}  ${c.dim(`— ${changelog.repo}`)}`);
       if (changelog.publishedAt) {
         out.push(`${indent}${c.dim(new Date(changelog.publishedAt).toISOString().slice(0, 10))}`);
@@ -882,7 +950,9 @@ function renderChangelogBlock(changelog, c, out) {
       out.push(`${indent}${c.dim(`no changelog available — ${changelog.reason}`)}`);
       break;
     case "rate-limited":
-      out.push(`${indent}${c.yellow("GitHub API rate limit hit — try again later or reduce --changelog scope")}`);
+      out.push(
+        `${indent}${c.yellow("GitHub API rate limit hit — try again later or reduce --changelog scope")}`,
+      );
       break;
     default:
       out.push(`${indent}${c.dim("(could not fetch release notes)")}`);
@@ -947,12 +1017,16 @@ function renderVersionsTable(result, c, out) {
         statusLabel = c.dim("could not determine");
     }
 
-    out.push(`  ${marker} ${r.name.padEnd(nameW)}  ${current.padEnd(curW)} → ${latestCol.toString().padEnd(14)} ${statusLabel}`);
+    out.push(
+      `  ${marker} ${r.name.padEnd(nameW)}  ${current.padEnd(curW)} → ${latestCol.toString().padEnd(14)} ${statusLabel}`,
+    );
   }
 
   if (networkErrors.length) {
     out.push("");
-    out.push(c.dim(`${networkErrors.length} package(s) failed to check due to network/registry issues.`));
+    out.push(
+      c.dim(`${networkErrors.length} package(s) failed to check due to network/registry issues.`),
+    );
   }
   out.push("");
 }
@@ -1008,7 +1082,9 @@ async function main() {
   const workspaces = files
     .map((f) => loadWorkspace(f, target, stats))
     .filter(Boolean)
-    .sort((a, b) => (a.isRoot === b.isRoot ? a.relPath.localeCompare(b.relPath) : a.isRoot ? -1 : 1));
+    .sort((a, b) =>
+      a.isRoot === b.isRoot ? a.relPath.localeCompare(b.relPath) : a.isRoot ? -1 : 1,
+    );
 
   if (!workspaces.length) {
     console.log(`No package.json files found under ${target}`);
@@ -1044,7 +1120,7 @@ async function main() {
         errors: stats.errors,
       },
       null,
-      2
+      2,
     );
     if (opts.jsonFile) {
       fs.writeFileSync(opts.jsonFile, json, "utf8");
@@ -1057,7 +1133,9 @@ async function main() {
 
   const out = [];
   out.push(c.bold(`📦 Monorepo Package Audit`) + c.dim(`  —  ${target}`));
-  out.push(c.dim(`Found ${workspaces.length} package.json file${workspaces.length === 1 ? "" : "s"}`));
+  out.push(
+    c.dim(`Found ${workspaces.length} package.json file${workspaces.length === 1 ? "" : "s"}`),
+  );
   if (stats.skippedGitignored) {
     out.push(c.dim(`(${stats.skippedGitignored} additional path(s) skipped via .gitignore)`));
   }
@@ -1065,7 +1143,10 @@ async function main() {
 
   if (opts.workspace) {
     const match = workspaces.find(
-      (w) => w.name === opts.workspace || w.relPath === opts.workspace || w.relPath === path.normalize(opts.workspace)
+      (w) =>
+        w.name === opts.workspace ||
+        w.relPath === opts.workspace ||
+        w.relPath === path.normalize(opts.workspace),
     );
     if (!match) {
       console.log(`No workspace matching "${opts.workspace}" found.`);
@@ -1102,20 +1183,26 @@ async function main() {
   out.push(c.bold("Summary:"));
   out.push(
     `  ${workspaces.length} package.json file${workspaces.length === 1 ? "" : "s"} scanned` +
-      ` (${workspaces.filter((w) => !w.isRoot).length} workspaces${workspaces.some((w) => w.isRoot) ? ", 1 root manifest" : ""})`
+      ` (${workspaces.filter((w) => !w.isRoot).length} workspaces${workspaces.some((w) => w.isRoot) ? ", 1 root manifest" : ""})`,
   );
-  out.push(`  ${totalDepDeclarations.toLocaleString()} total dependency declarations, ${totalUniquePackages.toLocaleString()} unique packages`);
+  out.push(
+    `  ${totalDepDeclarations.toLocaleString()} total dependency declarations, ${totalUniquePackages.toLocaleString()} unique packages`,
+  );
   if (conflicts.length) {
-    out.push(`  ${conflicts.length} version conflict${conflicts.length === 1 ? "" : "s"} ${c.dim(`(${majorCount} major, ${rangeCount} range)`)}`);
+    out.push(
+      `  ${conflicts.length} version conflict${conflicts.length === 1 ? "" : "s"} ${c.dim(`(${majorCount} major, ${rangeCount} range)`)}`,
+    );
   } else {
     out.push(`  ${c.green("0 version conflicts")}`);
   }
-  out.push(`  ${hygieneIssues.length ? hygieneIssues.length + " hygiene issue" + (hygieneIssues.length === 1 ? "" : "s") : c.green("0 hygiene issues")}`);
+  out.push(
+    `  ${hygieneIssues.length ? hygieneIssues.length + " hygiene issue" + (hygieneIssues.length === 1 ? "" : "s") : c.green("0 hygiene issues")}`,
+  );
   if (outdatedResult) {
     const majorOutdated = outdatedResult.outdated.filter((o) => o.status === "major").length;
     out.push(
       `  ${outdatedResult.outdated.length} outdated ${c.dim(`(${majorOutdated} major)`)}, ` +
-        `${outdatedResult.unpublished.length} not on public npm, ${outdatedResult.networkErrors.length} check failures`
+        `${outdatedResult.unpublished.length} not on public npm, ${outdatedResult.networkErrors.length} check failures`,
     );
   }
   if (stats.errors.length) {

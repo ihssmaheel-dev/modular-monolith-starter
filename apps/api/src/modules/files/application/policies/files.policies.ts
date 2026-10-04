@@ -28,7 +28,8 @@ export const filePolicies: Policy[] = [
       if (!resource) return false;
       const data = resource.data as { slot?: string | null; parentType?: string } | undefined;
       const attrs = resource.attributes as
-        { slot?: string | null; parentType?: string } | undefined;
+        | { slot?: string | null; parentType?: string }
+        | undefined;
       return (
         data?.slot === "avatar" ||
         data?.parentType === "user" ||

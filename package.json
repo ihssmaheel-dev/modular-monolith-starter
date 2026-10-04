@@ -20,8 +20,8 @@
     "build-storybook": "pnpm --filter @repo/ui build-storybook",
     "bundle:check": "node scripts/check-web-bundle-budgets.js",
     "lint": "turbo lint",
-    "format": "prettier --cache --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --cache --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "test:unit": "turbo test:unit --concurrency=2",
@@ -84,6 +84,8 @@
     "dependency-cruiser": "17.4.3",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
     "prettier": "^3.9.8",
     "taze": "^21.1.0",
     "tsx": "^4.23.15",
@@ -108,7 +110,7 @@
       "pnpm --filter @repo/ui lint"
     ],
     "*.{ts,tsx,js,jsx,json,md}": [
-      "prettier --write"
+      "oxfmt"
     ]
   }
 }

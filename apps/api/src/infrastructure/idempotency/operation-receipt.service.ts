@@ -19,7 +19,8 @@ export interface OperationIdentity {
 }
 
 export type OperationClaim =
-  { state: "CLAIMED"; receiptId: string } | { state: "COMPLETED"; result: unknown };
+  | { state: "CLAIMED"; receiptId: string }
+  | { state: "COMPLETED"; result: unknown };
 
 export type OperationReceiptError = {
   type:

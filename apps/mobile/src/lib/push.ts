@@ -19,7 +19,9 @@ Notifications.setNotificationHandler({
 
 function resolvePlatform(): "ios" | "android" | "web" {
   return Platform.select({ ios: "ios", android: "android", web: "web", default: "android" }) as
-    "ios" | "android" | "web";
+    | "ios"
+    | "android"
+    | "web";
 }
 
 async function resolveExpoToken(): Promise<string | null> {

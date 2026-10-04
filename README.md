@@ -213,8 +213,8 @@ pnpm generate:feature <module> <feature> --access=tenant-shared
 
 ```bash
 pnpm build            # Build all packages & apps with Turborepo (API + web SSR)
-pnpm lint             # Lint all workspaces (eslint)
-pnpm format           # Format code with Prettier
+pnpm lint             # Lint all workspaces (oxlint)
+pnpm format           # Format code with oxfmt
 pnpm format:check     # Check formatting
 pnpm typecheck        # Run TypeScript type check across all workspaces (api, web, ui, contracts ...)
 pnpm rules:check      # Enforce strict architectural boundaries and dependency rules

@@ -103,8 +103,12 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@repo/contracts": fileURLToPath(new URL("../../packages/contracts/src/index.ts", import.meta.url)),
-      "@repo/authorization": fileURLToPath(new URL("../../packages/authorization/src/index.ts", import.meta.url)),
+      "@repo/contracts": fileURLToPath(
+        new URL("../../packages/contracts/src/index.ts", import.meta.url),
+      ),
+      "@repo/authorization": fileURLToPath(
+        new URL("../../packages/authorization/src/index.ts", import.meta.url),
+      ),
       "@repo/i18n": fileURLToPath(new URL("../../packages/i18n/src/index.ts", import.meta.url)),
     },
   },

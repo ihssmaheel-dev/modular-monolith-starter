@@ -3,8 +3,6 @@ node_modules/
 .pnpm-store/
 .mimocode/
 .pkg-audit/
-.prettiercache
-.eslintcache
 .cache/
 apps/api/1/
 

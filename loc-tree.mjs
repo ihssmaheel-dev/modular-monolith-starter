@@ -43,12 +43,37 @@ const DEFAULT_IGNORE_DIRS = new Set([
 ]);
 
 const DEFAULT_IGNORE_EXTENSIONS = new Set([
-  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".svg",
-  ".pdf", ".zip", ".gz", ".tar", ".7z", ".rar",
-  ".mp4", ".mp3", ".mov", ".wav", ".avi",
-  ".woff", ".woff2", ".ttf", ".eot", ".otf",
-  ".lock", ".exe", ".dll", ".so", ".dylib",
-  ".sqlite", ".db",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".ico",
+  ".bmp",
+  ".svg",
+  ".pdf",
+  ".zip",
+  ".gz",
+  ".tar",
+  ".7z",
+  ".rar",
+  ".mp4",
+  ".mp3",
+  ".mov",
+  ".wav",
+  ".avi",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".eot",
+  ".otf",
+  ".lock",
+  ".exe",
+  ".dll",
+  ".so",
+  ".dylib",
+  ".sqlite",
+  ".db",
 ]);
 
 const DEFAULT_IGNORE_FILENAMES = new Set([
@@ -102,9 +127,15 @@ function parseArgs(argv) {
       opts.json = true;
       opts.jsonFile = arg.split("=")[1];
     } else if (arg.startsWith("--ignore-dir=")) {
-      arg.split("=")[1].split(",").forEach((d) => d && opts.ignoreDirs.add(d));
+      arg
+        .split("=")[1]
+        .split(",")
+        .forEach((d) => d && opts.ignoreDirs.add(d));
     } else if (arg.startsWith("--ignore-ext=")) {
-      arg.split("=")[1].split(",").forEach((e) => e && opts.ignoreExts.add(e.startsWith(".") ? e : `.${e}`));
+      arg
+        .split("=")[1]
+        .split(",")
+        .forEach((e) => e && opts.ignoreExts.add(e.startsWith(".") ? e : `.${e}`));
     } else if (!arg.startsWith("-")) {
       opts.target = arg;
     }
@@ -202,7 +233,13 @@ function buildTree(dir, opts, stats, visitedRealPaths = new Set()) {
     entries = fs.readdirSync(dir, { withFileTypes: true });
   } catch (err) {
     stats.errors.push({ path: dir, error: err.code || err.message });
-    return { name: path.basename(dir), type: "directory", lines: 0, children: [], unreadable: true };
+    return {
+      name: path.basename(dir),
+      type: "directory",
+      lines: 0,
+      children: [],
+      unreadable: true,
+    };
   }
 
   const children = [];
@@ -410,19 +447,24 @@ function main() {
 
   // --- Summary ---
   const skippedTotal =
-    stats.skipped.dirs + stats.skipped.files + stats.skipped.binary +
-    stats.skipped.symlinks + stats.skipped.symlinkCycles;
+    stats.skipped.dirs +
+    stats.skipped.files +
+    stats.skipped.binary +
+    stats.skipped.symlinks +
+    stats.skipped.symlinkCycles;
 
   console.log(c.bold("Summary:"));
   console.log(`  ${c.green(tree.lines.toLocaleString())} total lines`);
-  console.log(`  ${stats.fileCount.toLocaleString()} files, ${stats.dirCount.toLocaleString()} directories scanned`);
+  console.log(
+    `  ${stats.fileCount.toLocaleString()} files, ${stats.dirCount.toLocaleString()} directories scanned`,
+  );
   if (skippedTotal) {
     console.log(
       `  ${skippedTotal.toLocaleString()} skipped ` +
         c.dim(
           `(${stats.skipped.dirs} ignored dirs, ${stats.skipped.files} ignored files, ` +
-            `${stats.skipped.binary} binary, ${stats.skipped.symlinks} symlinks, ${stats.skipped.symlinkCycles} symlink cycles)`
-        )
+            `${stats.skipped.binary} binary, ${stats.skipped.symlinks} symlinks, ${stats.skipped.symlinkCycles} symlink cycles)`,
+        ),
     );
   }
   if (stats.errors.length) {

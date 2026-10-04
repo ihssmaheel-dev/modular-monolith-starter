@@ -9,12 +9,13 @@
     "ios": "expo run:ios",
     "build": "expo export --platform ios --platform android --no-bytecode",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint",
-    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "lint": "oxlint",
+    "format": "oxfmt \"**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:unit": "vitest run --config vitest.config.mts",
     "test:watch": "vitest --config vitest.config.mts",
-    "test:coverage": "vitest run --config vitest.config.mts --coverage"
+    "test:coverage": "vitest run --config vitest.config.mts --coverage",
+    "lint:fix": "oxlint --fix"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

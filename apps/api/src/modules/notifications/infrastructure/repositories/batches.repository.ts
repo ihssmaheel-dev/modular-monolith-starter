@@ -113,7 +113,8 @@ export class BatchesRepository extends BaseRepository<NotificationBatch, Notific
     WHERE id = ${id} AND status = 'open' AND window_ends_at <= NOW()
     FOR UPDATE SKIP LOCKED`);
     const row = result.rows[0] as
-      (Omit<NotificationBatchRow, "windowEndsAt"> & { windowEndsAt: Date | string }) | undefined;
+      | (Omit<NotificationBatchRow, "windowEndsAt"> & { windowEndsAt: Date | string })
+      | undefined;
     if (!row) return null;
     const windowEndsAt =
       row.windowEndsAt instanceof Date ? row.windowEndsAt : new Date(row.windowEndsAt);

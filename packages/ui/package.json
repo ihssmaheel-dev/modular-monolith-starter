@@ -4,12 +4,13 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "lint": "eslint",
-    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "lint": "oxlint",
+    "format": "oxfmt \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "lint:fix": "oxlint --fix"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

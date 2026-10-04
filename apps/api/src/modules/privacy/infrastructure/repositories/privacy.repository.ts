@@ -97,7 +97,8 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
     FROM dsr_requests
     WHERE type = 'EXPORT'`);
     const row = result.rows[0] as
-      { pending?: number; failed?: number; oldest_pending_at?: Date | string | null } | undefined;
+      | { pending?: number; failed?: number; oldest_pending_at?: Date | string | null }
+      | undefined;
     const oldest = row?.oldest_pending_at;
     return {
       pending: Number(row?.pending ?? 0),

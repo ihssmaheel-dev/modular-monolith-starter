@@ -44,7 +44,8 @@ describe("InvitationEmailListener", () => {
       }),
     );
     const element = vi.mocked(render).mock.calls[0]?.[0] as
-      ReactElement<{ acceptUrl?: string }> | undefined;
+      | ReactElement<{ acceptUrl?: string }>
+      | undefined;
     expect(element?.props.acceptUrl).toBe(
       "https://app.example.com/accept-invitation?token=token%2Bwith+spaces",
     );

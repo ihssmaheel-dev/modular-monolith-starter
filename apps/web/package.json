@@ -15,9 +15,10 @@
     "test:coverage": "vitest run --config vitest.config.ts --coverage",
     "test:e2e": "playwright test",
     "test:e2e:production": "playwright test --config playwright.production.config.ts",
-    "lint": "eslint",
-    "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
+    "lint": "oxlint",
+    "format": "oxfmt \"**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
+    "lint:fix": "oxlint --fix"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
