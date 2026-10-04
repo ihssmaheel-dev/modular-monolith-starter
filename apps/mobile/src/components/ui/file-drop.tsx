@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useThrottledCallback } from "@tanstack/react-pacer";
 import * as DocumentPicker from "expo-document-picker";
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } from "@repo/contracts";
 import { Button } from "./button";
@@ -24,6 +25,8 @@ interface FileDropProps {
   ) => Promise<unknown>;
   onUploaded?: (count: number) => void;
 }
+
+export const UPLOAD_PROGRESS_THROTTLE_MS = 100;
 
 function validatePicked(
   asset: { name?: string | null; mimeType?: string | null; size?: number | null },
@@ -66,6 +69,11 @@ export function FileDrop({
     );
   }, []);
 
+  const reportProgress = useThrottledCallback(
+    (key: string, ratio: number) => patch(key, { progress: ratio }),
+    { wait: UPLOAD_PROGRESS_THROTTLE_MS, leading: true, trailing: true },
+  );
+
   const pick = React.useCallback(async () => {
     setPicking(true);
     try {
@@ -107,7 +115,7 @@ export function FileDrop({
               contentType: asset.mimeType,
               fileSize: asset.size,
             },
-            (ratio) => patch(row.key, { progress: ratio }),
+            (ratio) => reportProgress(row.key, ratio),
           );
           patch(row.key, { status: "done", progress: 1 });
           done += 1;
@@ -119,7 +127,7 @@ export function FileDrop({
     } finally {
       setPicking(false);
     }
-  }, [accept, maxSizeBytes, upload, onUploaded, patch]);
+  }, [accept, maxSizeBytes, upload, onUploaded, patch, reportProgress]);
 
   const retry = React.useCallback(
     async (key: string) => {
@@ -127,14 +135,14 @@ export function FileDrop({
       if (!row?.input) return;
       patch(key, { status: "uploading", progress: 0, errorKey: undefined });
       try {
-        await upload(row.input, (ratio) => patch(key, { progress: ratio }));
+        await upload(row.input, (ratio) => reportProgress(key, ratio));
         patch(key, { status: "done", progress: 1 });
         onUploaded?.(1);
       } catch (error) {
         patch(key, { status: "error", errorKey: toUploadErrorKey(error) });
       }
     },
-    [queue, upload, onUploaded, patch],
+    [queue, upload, onUploaded, patch, reportProgress],
   );
 
   return (

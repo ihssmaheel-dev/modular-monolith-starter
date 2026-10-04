@@ -89,15 +89,43 @@ describe("useRealtimeNotifications", () => {
   });
 
   it("resynchronizes durable state after reconnect and explicit sync requests", () => {
-    const { queryClient } = renderHookWithProviders(() => useRealtimeNotifications());
-    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-    const source = MockEventSource.instances[0]!;
+    vi.useFakeTimers();
+    try {
+      const { queryClient } = renderHookWithProviders(() => useRealtimeNotifications());
+      const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+      const source = MockEventSource.instances[0]!;
 
-    source.emit("open", undefined);
-    source.emit("sync_required", { reason: "slow_consumer" });
+      source.emit("open", undefined);
+      expect(invalidate).toHaveBeenCalledTimes(1);
 
-    expect(invalidate).toHaveBeenCalledTimes(2);
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications.all() });
+      source.emit("sync_required", { reason: "slow_consumer" });
+      expect(invalidate).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(1000);
+      expect(invalidate).toHaveBeenCalledTimes(2);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications.all() });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("collapses event bursts into leading + trailing invalidations", () => {
+    vi.useFakeTimers();
+    try {
+      const { queryClient } = renderHookWithProviders(() => useRealtimeNotifications());
+      const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+      const source = MockEventSource.instances[0]!;
+
+      for (let i = 0; i < 5; i += 1) {
+        source.emit(SSE_EVENT, { id: `n-${i}` });
+      }
+      expect(invalidate).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(1000);
+      expect(invalidate).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("never closes on its own but cleans up on unmount", () => {

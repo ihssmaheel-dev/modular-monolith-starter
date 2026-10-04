@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useThrottledCallback } from "@tanstack/react-pacer";
 import { CloudUpload, FileWarning } from "lucide-react";
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } from "@repo/contracts";
 import { Button } from "@repo/ui/components/ui/button";
@@ -23,6 +24,8 @@ interface FileDropProps {
   upload: (file: File, onProgress: (ratio: number) => void) => Promise<unknown>;
   onUploaded?: (count: number) => void;
 }
+
+export const UPLOAD_PROGRESS_THROTTLE_MS = 100;
 
 function validateFile(file: File, accept: readonly string[], maxSizeBytes: number): string | null {
   if (!(accept as readonly string[]).includes(file.type)) return "api.error.invalidRequest";
@@ -61,6 +64,11 @@ export function FileDrop({
     );
   }, []);
 
+  const reportProgress = useThrottledCallback(
+    (key: string, ratio: number) => patch(key, { progress: ratio }),
+    { wait: UPLOAD_PROGRESS_THROTTLE_MS, leading: true, trailing: true },
+  );
+
   const enqueue = useCallback(
     async (files: File[]) => {
       const fresh: QueuedUpload[] = files.map((file, index) => ({
@@ -83,7 +91,7 @@ export function FileDrop({
         }
         patch(row.key, { status: "uploading" });
         try {
-          await upload(file, (ratio) => patch(row.key, { progress: ratio }));
+          await upload(file, (ratio) => reportProgress(row.key, ratio));
           patch(row.key, { status: "done", progress: 1 });
           done += 1;
         } catch (error) {
@@ -92,7 +100,7 @@ export function FileDrop({
       }
       if (done > 0) onUploaded?.(done);
     },
-    [accept, maxSizeBytes, upload, onUploaded, patch],
+    [accept, maxSizeBytes, upload, onUploaded, patch, reportProgress],
   );
 
   const retry = useCallback(
@@ -101,14 +109,14 @@ export function FileDrop({
       if (!row?.file) return;
       patch(key, { status: "uploading", progress: 0, errorKey: undefined });
       try {
-        await upload(row.file, (ratio) => patch(key, { progress: ratio }));
+        await upload(row.file, (ratio) => reportProgress(key, ratio));
         patch(key, { status: "done", progress: 1 });
         onUploaded?.(1);
       } catch (error) {
         patch(key, { status: "error", errorKey: toUploadErrorKey(error) });
       }
     },
-    [queue, upload, onUploaded, patch],
+    [queue, upload, onUploaded, patch, reportProgress],
   );
 
   const hasFinished = queue.some((item) => item.status === "done" || item.status === "error");
