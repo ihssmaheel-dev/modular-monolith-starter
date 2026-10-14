@@ -1,4 +1,10 @@
-import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useHydrated,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useEffect } from "react";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 import { useAuthStore } from "@/stores/auth.store";
@@ -19,6 +25,7 @@ export const Route = createFileRoute("/_auth-layout")({
 });
 
 function AuthLayout() {
+  const hydrated = useHydrated();
   const navigate = useNavigate();
   const status = useAuthStore((state) => state.status);
   const user = useAuthStore((state) => state.user);
@@ -31,7 +38,10 @@ function AuthLayout() {
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-muted/20 p-4">
-      <Outlet />
+      {/* Prevent pre-hydration input from being overwritten by form initialization. */}
+      <fieldset disabled={!hydrated} className="contents">
+        <Outlet />
+      </fieldset>
     </div>
   );
 }

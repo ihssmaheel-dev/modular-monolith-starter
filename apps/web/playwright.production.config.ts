@@ -5,6 +5,7 @@ if (!baseURL) throw new Error("PRODUCTION_BASE_URL is required");
 
 export default defineConfig({
   testDir: "./e2e-production",
+  outputDir: "./test-results-production",
   fullyParallel: false,
   forbidOnly: true,
   retries: 1,

@@ -1,4 +1,6 @@
 import { expect, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import type { AuthResponse, OrganizationResponse } from "@repo/contracts";
 
 const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://127.0.0.1:8025";
 
@@ -50,7 +52,38 @@ export async function registerAndVerify(page: Page, email: string, name: string)
   await registerForm(page, email, name);
   await expect(page.getByText(/check your inbox/i)).toBeVisible();
   const token = await verificationTokenFor(email);
+  await verifyAndEnterWorkspace(page, token);
+}
+
+export async function verifyAndEnterWorkspace(page: Page, token: string): Promise<void> {
   await page.goto(`/verify-email?token=${token}`);
+  const verified = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.endsWith("/rpc/auth/verify-email"),
+  );
   await page.getByRole("button", { name: /verify email/i }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  const response = await verified;
+  expect(response.ok()).toBe(true);
+  const auth = (await response.json()) as AuthResponse;
+  const apiOrigin = new URL(response.url()).origin;
+  const cookies = await page.context().cookies(apiOrigin);
+  const xsrf = cookies.find((cookie) => cookie.name === "XSRF-TOKEN")?.value ?? "";
+  const organization = await page.request.post(`${apiOrigin}/api/v1/rpc/tenancy/organizations`, {
+    data: { name: `E2E ${randomUUID()}` },
+    headers: {
+      authorization: `Bearer ${auth.accessToken}`,
+      "idempotency-key": randomUUID(),
+      "x-xsrf-token": xsrf,
+    },
+  });
+  expect(organization.status()).toBe(201);
+  const tenant = (await organization.json()) as OrganizationResponse;
+  // Verification now shows a success screen; it no longer redirects automatically.
+  await expect(page.getByRole("button", { name: /^log in$/i })).toBeVisible();
+  await page.evaluate((tenantId) => {
+    localStorage.setItem("tenant-storage", JSON.stringify({ state: { tenantId }, version: 0 }));
+  }, tenant.id);
+  await page.getByRole("button", { name: /^log in$/i }).click();
+  // Reload the authenticated document so the fixture tenant is rehydrated.
+  await page.goto("/dashboard");
+  await expect(page.getByRole("button", { name: /switch organization/i })).toBeVisible();
 }

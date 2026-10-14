@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { registerAndVerify } from "./helpers";
 
 test("signed-out visitors are sent to authentication", async ({ page }) => {
@@ -15,6 +15,7 @@ test("a new user can register, create a note, and sign out", async ({ page }) =>
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.reload();
   await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("button", { name: /switch organization/i })).toBeVisible();
   await page.goto("/notes/new");
   await page.getByLabel(/title/i).fill("E2E note");
   await page.getByLabel(/content/i).fill("Created through the browser flow.");
@@ -22,9 +23,9 @@ test("a new user can register, create a note, and sign out", async ({ page }) =>
 
   await expect(page).toHaveURL(/\/notes\/.+/);
   await expect(page.getByText("E2E note")).toBeVisible();
-  await expect(page.getByText(/attachments/i)).toBeVisible();
-  await page.getByRole("button", { name: /profile/i }).click();
-  await page.getByRole("menuitem", { name: /sign out|logout/i }).click();
+  await expect(page.getByText(/^attachments$/i)).toBeVisible();
+  await page.getByLabel(/^profile settings$/i).click();
+  await page.getByRole("menuitem", { name: /sign out|log out/i }).click();
   await expect(page).toHaveURL(/\/login$/);
 });
 
@@ -49,7 +50,8 @@ test("a note attachment can be uploaded and listed", async ({ page }) => {
     mimeType: "text/plain",
     buffer: Buffer.from("hello attachments"),
   });
-  await expect(page.getByText("hello.txt")).toBeVisible();
+  // Wait for scan, promotion, and attachment, not just the optimistic upload row.
+  await expect(page.getByRole("button", { name: /^download$/i })).toBeVisible({ timeout: 15_000 });
 });
 
 test("forgot-password does not reveal account existence", async ({ page }) => {
@@ -58,5 +60,5 @@ test("forgot-password does not reveal account existence", async ({ page }) => {
   await expect(page).toHaveURL(/\/forgot-password$/);
   await page.locator("#forgot-email").fill("unknown@example.test");
   await page.getByRole("button", { name: /send reset link/i }).click();
-  await expect(page.getByText(/check|sent|email/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^check your email$/i })).toBeVisible();
 });

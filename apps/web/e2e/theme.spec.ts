@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("theme", () => {
   test("d key toggles between light and dark themes", async ({ page }) => {

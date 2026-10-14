@@ -10,6 +10,9 @@ if (process.env.E2E_USE_CONTAINERS !== "true") {
 process.env.PROCESS_ROLE = "api";
 process.env.TENANCY_MODE = "multi";
 process.env.EXAMPLE_FEATURES_ENABLED = "true";
+// Tests must never inherit ignored developer credentials or telemetry providers.
+process.env.DOTENV_CONFIG_PATH = ".env.e2e";
+process.env.OTEL_SDK_DISABLED = "true";
 
 const postgresContainer: StartedTestContainer = await new GenericContainer("postgres:16-alpine")
   .withEnvironment({

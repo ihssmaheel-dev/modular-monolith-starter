@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { registerAndVerify } from "./helpers";
 
 async function register(page: Page, email: string, name: string) {
@@ -6,8 +7,8 @@ async function register(page: Page, email: string, name: string) {
 }
 
 async function signOut(page: Page) {
-  await page.getByRole("button", { name: /profile/i }).click();
-  await page.getByRole("menuitem", { name: /sign out|logout/i }).click();
+  await page.getByLabel(/^profile settings$/i).click();
+  await page.getByRole("menuitem", { name: /sign out|log out/i }).click();
   await expect(page).toHaveURL(/\/login$/);
 }
 

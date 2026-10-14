@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { registerForm, verificationTokenFor } from "./helpers";
+import { expect, test } from "./fixtures";
+import { registerForm, verificationTokenFor, verifyAndEnterWorkspace } from "./helpers";
 
 test("registration pends, login stays blocked, resend works, link verifies", async ({ page }) => {
   const email = `e2e-verify-${Date.now()}@example.test`;
@@ -14,16 +14,16 @@ test("registration pends, login stays blocked, resend works, link verifies", asy
   await page.goto("/login");
   await page.locator("#login-email").fill(email);
   await page.locator("#login-password").fill("Password123!");
+  const deniedLogin = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.endsWith("/rpc/auth/login"),
+  );
   await page.getByRole("button", { name: /log in|sign in/i }).click();
-  await expect(
-    page.getByText(/invalid email or password|verify your email/i).first(),
-  ).toBeVisible();
+  expect((await deniedLogin).status()).toBe(401);
+  await expect(page.getByText(/^login failed$/i)).toBeVisible();
   await expect(page).not.toHaveURL(/\/dashboard$/);
 
   const token = await verificationTokenFor(email);
-  await page.goto(`/verify-email?token=${token}`);
-  await page.getByRole("button", { name: /verify email/i }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await verifyAndEnterWorkspace(page, token);
 
   await page.reload();
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -34,9 +34,7 @@ test("a consumed token cannot verify twice", async ({ page }) => {
   await registerForm(page, email, "Reuse User");
 
   const token = await verificationTokenFor(email);
-  await page.goto(`/verify-email?token=${token}`);
-  await page.getByRole("button", { name: /verify email/i }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await verifyAndEnterWorkspace(page, token);
 
   await page.goto(`/verify-email?token=${token}`);
   await page.getByRole("button", { name: /verify email/i }).click();
