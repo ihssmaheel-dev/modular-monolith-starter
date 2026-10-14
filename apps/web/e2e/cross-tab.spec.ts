@@ -19,6 +19,7 @@ test("signing out in one tab signs out the other tab", async ({ context }) => {
 
   await second.goto("/dashboard");
   await expect(second).toHaveURL(/\/dashboard$/);
+  await expect(second.getByRole("button", { name: /switch organization/i })).toBeVisible();
 
   await signOut(first);
 

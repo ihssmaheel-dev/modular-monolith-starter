@@ -82,8 +82,13 @@ export async function verifyAndEnterWorkspace(page: Page, token: string): Promis
   await page.evaluate((tenantId) => {
     localStorage.setItem("tenant-storage", JSON.stringify({ state: { tenantId }, version: 0 }));
   }, tenant.id);
-  await page.getByRole("button", { name: /^log in$/i }).click();
-  // Reload the authenticated document so the fixture tenant is rehydrated.
+  // Enter once with the persisted tenant rehydrated. Clicking the continuation
+  // first races its client navigation against this full document navigation.
+  const session = page.waitForResponse((result) =>
+    new URL(result.url()).pathname.endsWith("/rpc/auth/me"),
+  );
   await page.goto("/dashboard");
-  await expect(page.getByRole("button", { name: /switch organization/i })).toBeVisible();
+  expect((await session).status()).toBe(200);
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("button", { name: /switch organization/i })).toHaveText(tenant.name);
 }

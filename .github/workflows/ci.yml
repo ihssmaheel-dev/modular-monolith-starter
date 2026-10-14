@@ -150,8 +150,8 @@ jobs:
         run: pnpm test:e2e
       - name: Web bundle budget
         run: pnpm bundle:check
-      - name: Upload browser failure evidence
-        if: failure()
+      - name: Upload browser failure and retry evidence
+        if: ${{ !cancelled() && (failure() || hashFiles('apps/web/test-results/**/trace.zip') != '') }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: browser-failure-${{ github.run_id }}

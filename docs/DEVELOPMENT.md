@@ -203,8 +203,18 @@ limits. CI starts the built SSR web output; local runs bind Vite to `127.0.0.1` 
 Authentication controls remain disabled in server-rendered HTML until React hydrates them, preventing
 early typing from being lost when the form initializes. Guard scenarios wait for the authenticated
 screen to finish loading before starting another navigation.
+The workspace fixture restores its selected tenant through one document navigation and verifies
+the session plus the organization name before returning. It must not start a client navigation
+and immediately replace it with a document reload.
 The regular and production suites have separate result directories so concurrent runs cannot erase
 each other's screenshots or traces.
+CI retains browser traces and screenshots for seven days when a test fails, including an attempt
+that succeeds on retry. Passing runs without a failed attempt do not upload browser artifacts.
+
+The dependency audit blocks CI on high or critical advisories across all workspaces, including
+development tooling. An advisory with no published patch remains a failing gate; a passing browser
+or container job does not override it. Do not lower the audit threshold or exclude a workspace to
+make the aggregate check pass.
 
 CI also generates a disposable owner-scoped feature, builds its shared package exports, regenerates
 TanStack route types through Vite, and checks all workspace types plus the generated backend tests.
