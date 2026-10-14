@@ -5,30 +5,40 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@grpc/grpc-js@^1.14.0': 1.14.5
+  '@modelcontextprotocol/sdk@^1.26.0': 1.31.0
   '@types/react': 19.2.18
   '@types/react-dom': 19.2.7
+  brace-expansion@>=2.0.0 <2.1.7: '>=2.1.7'
+  brace-expansion@>=4.0.0 <5.0.12: '>=5.0.12'
+  brace-expansion@>=4.0.0 <6.0.0: 5.0.11
+  brace-expansion@^2.0.1: 2.1.6
+  compression: 1.8.2
   decode-uri-component: 0.5.0
+  engine.io@^6.6.0: 6.6.10
   esbuild: 0.28.1
+  fast-copy@>=4.0.0 <4.1.0: '>=4.1.0'
+  fast-uri@>=3.0.0 <3.1.8: '>=3.1.8'
+  fast-uri@>=4.0.0 <4.1.5: '>=4.1.5'
+  fast-uri@>=4.1.3 <4.1.5: '>=4.1.5'
   fast-uri@^3.0.1: 3.1.7
   fast-uri@^4.0.0: 4.1.4
   fastify: 5.12.4
-  qs: 6.16.0
-  uuid: 11.1.1
-  next: 16.3.8
-  js-yaml: '>=5.4.2'
-  undici: ^7.29.1
-  '@grpc/grpc-js@^1.14.0': 1.14.5
-  '@modelcontextprotocol/sdk@^1.26.0': 1.31.0
-  brace-expansion@^2.0.1: 2.1.6
-  brace-expansion@>=4.0.0 <6.0.0: 5.0.11
-  compression: 1.8.2
-  engine.io@^6.6.0: 6.6.10
+  fastify@<5.12.5: '>=5.12.5'
+  hono@<4.13.7: '>=4.13.7'
   http-cache-semantics: 4.3.0
+  ip-address@<=10.7.0: '>=10.7.1'
+  js-yaml: '>=5.4.2'
+  next: 16.3.8
   piscina@^4.9.0: 4.9.4
+  postcss-selector-parser@<7.1.6: '>=7.1.6'
   proxy-addr: 2.0.8
+  qs: 6.16.0
   sharp: 0.35.5
   shell-quote@^1.8.3: 1.11.0
   source-map-js: 1.2.2
+  undici: ^7.29.1
+  uuid: 11.1.1
 
 importers:
 
@@ -102,7 +112,7 @@ importers:
         version: 9.2.0
       '@getworkbench/fastify':
         specifier: ^0.9.1
-        version: 0.9.1(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(bullmq@6.3.8(ioredis@6.0.0)(pg@8.23.0))(fastify@5.12.4)(immer@11.1.18)(ioredis@6.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.9.1(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(bullmq@6.3.8(ioredis@6.0.0)(pg@8.23.0))(fastify@5.12.7)(immer@11.1.18)(ioredis@6.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@nestjs/common':
         specifier: ^12.0.3
         version: 12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -150,13 +160,13 @@ importers:
         version: 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/nest':
         specifier: ^1.15.2
-        version: 1.15.2(@nestjs/common@12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.3)(@opentelemetry/api@1.9.1)(express@5.2.1)(fastify@5.12.4)(rxjs@7.8.2)(ws@8.21.3)
+        version: 1.15.2(@nestjs/common@12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.3)(@opentelemetry/api@1.9.1)(express@5.2.1)(fastify@5.12.7)(rxjs@7.8.2)(ws@8.21.3)
       '@orpc/openapi':
         specifier: ^1.15.2
-        version: 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
+        version: 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
       '@orpc/server':
         specifier: ^1.15.2
-        version: 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
+        version: 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
       '@repo/authorization':
         specifier: workspace:*
         version: link:../../packages/authorization
@@ -191,8 +201,8 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0
       fastify:
-        specifier: 5.12.4
-        version: 5.12.4
+        specifier: '>=5.12.5'
+        version: 5.12.7
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0
@@ -628,7 +638,7 @@ importers:
         version: 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/zod':
         specifier: ^1.15.2
-        version: 1.15.2(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.2(@opentelemetry/api@1.9.1))(@orpc/server@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3))(fastify@5.12.4)(ws@8.21.3)(zod@4.6.5)
+        version: 1.15.2(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.2(@opentelemetry/api@1.9.1))(@orpc/server@1.15.2(@opentelemetry/api@1.9.1)(ws@8.21.3))(ws@8.21.3)(zod@4.6.5)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -2097,7 +2107,7 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       bullmq: '>=5.0.0'
-      fastify: 5.12.4
+      fastify: '>=5.12.5'
 
   '@grpc/grpc-js@1.14.5':
     resolution: {integrity: sha512-7VZM+SVdEcUUqSQeNI3zM8Qs/BhQKZndPo2h5VkYkAM8Iz0wJIa8mKV5ekQGqG8UUsnkQ0NMxIxwkIHYvj0qOw==}
@@ -2120,7 +2130,7 @@ packages:
     resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: ^4
+      hono: '>=4.13.7'
 
   '@hookform/resolvers@5.9.1':
     resolution: {integrity: sha512-7b7vsbraJxKgjVSA1Nur9tLwj539WGJUBLA7QNvXnFoT2pM5Z7G+6rlukk4B2/QrTZy6huRtH6wKeESPKuIr6w==}
@@ -3757,7 +3767,7 @@ packages:
       '@nestjs/common': '>=11.0.0'
       '@nestjs/core': '>=11.0.0'
       express: '>=5.0.0'
-      fastify: 5.12.4
+      fastify: '>=5.12.5'
       rxjs: '>=7.0.0'
     peerDependenciesMeta:
       express:
@@ -7731,8 +7741,8 @@ packages:
     resolution: {integrity: sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==}
     engines: {node: '>=12.17.0'}
 
-  fast-copy@4.0.4:
-    resolution: {integrity: sha512-eVAiWVNPSEGIzDl5yPuLrx8fNMogScXvD9xp1Kzd41FjRIz2I3sSIcxsFeM5EzFfHAfobdvs8ZySffUopljvIA==}
+  fast-copy@4.2.0:
+    resolution: {integrity: sha512-WSlnvPXaMdUjFdgxPkovE4e5aslybVod4TNKrEKKyoA8GoHZzbDLlhDXZOvqjtFgjtOHd9TYCstkUcGXy1+SEA==}
 
   fast-decode-uri-component@1.0.1:
     resolution: {integrity: sha512-WKgKWg5eUxvRZGwW8FvfbaH7AXSh2cL+3j5fMGzUMCxWBJ3dV3a7Wz8y2f/uQ0e3B6WmodD3oS54jTQ9HVTIIg==}
@@ -7786,8 +7796,8 @@ packages:
   fastify-plugin@6.0.0:
     resolution: {integrity: sha512-fZOty7z3O7vOliF6d8bHE3wiEh1KcNnKEQensSgTk9C1DvN6nRLS++XVd86v33Hw/8u9Un8A1zDrQ8ujcQDHEg==}
 
-  fastify@5.12.4:
-    resolution: {integrity: sha512-zATD676fP6tBMsn+jQ7Q5/cO/Qo+149TXH0dUqUKel+1/hcZxwIbnflqtPa9EjlrvpY8eCZcL3M1UYrMc31Y7g==}
+  fastify@5.12.7:
+    resolution: {integrity: sha512-v4pEPsTRPuqlDIYiQFB+BHjVN4SdHX9u0ABk0ZDUKbbdY1vsNryUd1j4Z+jQEZajvYIVk047Kimva9/AJ79GYw==}
 
   fastq@1.20.1:
     resolution: {integrity: sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw==}
@@ -7857,10 +7867,6 @@ packages:
   finalhandler@2.1.1:
     resolution: {integrity: sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA==}
     engines: {node: '>= 18.0.0'}
-
-  find-my-way@9.8.0:
-    resolution: {integrity: sha512-JtyUgATO7qxRp2zKhrmWof74Mqxc1ikbwpwMY97p8ipuTj2QtreA4gK2JNAF6SOqqHnYYkwMUvsgQVi2AJxIyw==}
-    engines: {node: '>=20'}
 
   find-my-way@9.9.0:
     resolution: {integrity: sha512-sJsgZ1sQH2UDuowPuMKg8az7Qc8F0jnj+SKkFWU/+T0xcFlgV5skgXOGUqmQzOdmW6ALA7AhJINWx3qFBkbLHA==}
@@ -8140,8 +8146,8 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
-  hono@4.13.5:
-    resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
+  hono@4.13.13:
+    resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
     engines: {node: '>=16.9.0'}
 
   hookified@1.15.1:
@@ -8294,8 +8300,8 @@ packages:
     resolution: {integrity: sha512-f+Dtubxfpf6KYFq7WVXJoOLn0bk4TJrMrN9SzeE+jrWrCWj7XX3fA6vkryafhADX+GMymRxgDJDOI33COkJc0w==}
     engines: {node: '>=20.0.0'}
 
-  ip-address@10.7.0:
-    resolution: {integrity: sha512-BGFsyJd5mpXp3rK6jIdADLNgpJUK1jnjzvYF8lK+VyDab9JAmqN0YOKDdP17HlgKb2+ehPgDc8EtnRLbGCAMhA==}
+  ip-address@10.7.4:
+    resolution: {integrity: sha512-DWBMKyeM25D70nrIiTkgQth59/G+naKOTep6huF9j+GmeK3DMD60Zvxg5d5qQnz+38AHgou6ean2LECX+lrKDg==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -9735,12 +9741,8 @@ packages:
     peerDependencies:
       postcss: ^8.2.14
 
-  postcss-selector-parser@6.1.4:
-    resolution: {integrity: sha512-bIoJLOmjCO1S9XdY/DcnR5hJxvrDir1PbGChrzXG3vw0/FOliy/fA3dmdhQ441kah4gKv+TwckGzex6wNS5cnQ==}
-    engines: {node: '>=4'}
-
-  postcss-selector-parser@7.1.5:
-    resolution: {integrity: sha512-KvvtD7SrlBP7dlgkBghEE3r84CABm5SmV2aNcG4oCA+qDnJ/tvKonFVvwWAyyWUEwxuNawdfEAZKP9zM3oZ2Uw==}
+  postcss-selector-parser@7.1.6:
+    resolution: {integrity: sha512-7qASPzhKF2l2KLboRZux8CCTRMdGiV08vWmyKzPz22qZ7ZjQBOeY7rNzNoCLSUiftJ7HUq0GERHmxw/t0dCdMw==}
     engines: {node: '>=4'}
 
   postcss-value-parser@4.2.0:
@@ -13373,7 +13375,7 @@ snapshots:
       bullmq: 6.3.8(ioredis@6.0.0)(pg@8.23.0)
       dagre: 0.8.5
       framer-motion: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      hono: 4.13.5
+      hono: 4.13.13
       ioredis: 6.0.0
       lru-cache: 11.5.2
     transitivePeerDependencies:
@@ -13384,11 +13386,11 @@ snapshots:
       - react
       - react-dom
 
-  '@getworkbench/fastify@0.9.1(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(bullmq@6.3.8(ioredis@6.0.0)(pg@8.23.0))(fastify@5.12.4)(immer@11.1.18)(ioredis@6.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@getworkbench/fastify@0.9.1(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(bullmq@6.3.8(ioredis@6.0.0)(pg@8.23.0))(fastify@5.12.7)(immer@11.1.18)(ioredis@6.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@getworkbench/core': 0.8.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(bullmq@6.3.8(ioredis@6.0.0)(pg@8.23.0))(immer@11.1.18)(ioredis@6.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       bullmq: 6.3.8(ioredis@6.0.0)(pg@8.23.0)
-      fastify: 5.12.4
+      fastify: 5.12.7
     transitivePeerDependencies:
       - '@emotion/is-prop-valid'
       - '@types/react'
@@ -13419,9 +13421,9 @@ snapshots:
 
   '@henrygd/queue@1.2.0': {}
 
-  '@hono/node-server@2.1.1(hono@4.13.5)':
+  '@hono/node-server@2.1.1(hono@4.13.13)':
     dependencies:
-      hono: 4.13.5
+      hono: 4.13.13
 
   '@hookform/resolvers@5.9.1(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1)(ajv@8.20.0)(react-hook-form@7.88.0(react@19.2.3))(zod@4.6.5)':
     dependencies:
@@ -13928,7 +13930,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.31.0(zod@3.25.76)':
     dependencies:
-      '@hono/node-server': 2.1.1(hono@4.13.5)
+      '@hono/node-server': 2.1.1(hono@4.13.13)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5
@@ -13938,7 +13940,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.2.1
       express-rate-limit: 8.7.0(express@5.2.1)
-      hono: 4.13.5
+      hono: 4.13.13
       jose: 6.2.10
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -14119,7 +14121,7 @@ snapshots:
       '@nestjs/common': 12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 12.0.3(@nestjs/common@12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/websockets@12.0.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       fast-querystring: 1.1.2
-      fastify: 5.12.4
+      fastify: 5.12.7
       find-my-way: 9.9.0
       light-my-request: 6.6.0
       path-to-regexp: 8.4.2
@@ -14989,12 +14991,12 @@ snapshots:
 
   '@orpc/interop@1.15.2': {}
 
-  '@orpc/json-schema@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)':
+  '@orpc/json-schema@1.15.2(@opentelemetry/api@1.9.1)(ws@8.21.3)':
     dependencies:
       '@orpc/contract': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/interop': 1.15.2
-      '@orpc/openapi': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
-      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
+      '@orpc/openapi': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
+      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
       '@orpc/shared': 1.15.2(@opentelemetry/api@1.9.1)
       json-schema-typed: 8.0.2
     transitivePeerDependencies:
@@ -15003,24 +15005,24 @@ snapshots:
       - fastify
       - ws
 
-  '@orpc/nest@1.15.2(@nestjs/common@12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.3)(@opentelemetry/api@1.9.1)(express@5.2.1)(fastify@5.12.4)(rxjs@7.8.2)(ws@8.21.3)':
+  '@orpc/nest@1.15.2(@nestjs/common@12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.3)(@opentelemetry/api@1.9.1)(express@5.2.1)(fastify@5.12.7)(rxjs@7.8.2)(ws@8.21.3)':
     dependencies:
       '@nestjs/common': 12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 12.0.3(@nestjs/common@12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/websockets@12.0.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@orpc/client': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/contract': 1.15.2(@opentelemetry/api@1.9.1)
-      '@orpc/openapi': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
+      '@orpc/openapi': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
       '@orpc/openapi-client': 1.15.2(@opentelemetry/api@1.9.1)
-      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
+      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
       '@orpc/shared': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server': 1.15.2(@opentelemetry/api@1.9.1)
-      '@orpc/standard-server-fastify': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)
+      '@orpc/standard-server-fastify': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)
       '@orpc/standard-server-fetch': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server-node': 1.15.2(@opentelemetry/api@1.9.1)
       rxjs: 7.8.2
     optionalDependencies:
       express: 5.2.1
-      fastify: 5.12.4
+      fastify: 5.12.7
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - crossws
@@ -15035,13 +15037,13 @@ snapshots:
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  '@orpc/openapi@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)':
+  '@orpc/openapi@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)':
     dependencies:
       '@orpc/client': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/contract': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/interop': 1.15.2
       '@orpc/openapi-client': 1.15.2(@opentelemetry/api@1.9.1)
-      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
+      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
       '@orpc/shared': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server': 1.15.2(@opentelemetry/api@1.9.1)
       json-schema-typed: 8.0.2
@@ -15052,7 +15054,7 @@ snapshots:
       - fastify
       - ws
 
-  '@orpc/server@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)':
+  '@orpc/server@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)':
     dependencies:
       '@orpc/client': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/contract': 1.15.2(@opentelemetry/api@1.9.1)
@@ -15060,7 +15062,7 @@ snapshots:
       '@orpc/shared': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server-aws-lambda': 1.15.2(@opentelemetry/api@1.9.1)
-      '@orpc/standard-server-fastify': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)
+      '@orpc/standard-server-fastify': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)
       '@orpc/standard-server-fetch': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server-node': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server-peer': 1.15.2(@opentelemetry/api@1.9.1)
@@ -15087,13 +15089,13 @@ snapshots:
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  '@orpc/standard-server-fastify@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)':
+  '@orpc/standard-server-fastify@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)':
     dependencies:
       '@orpc/shared': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server': 1.15.2(@opentelemetry/api@1.9.1)
       '@orpc/standard-server-node': 1.15.2(@opentelemetry/api@1.9.1)
     optionalDependencies:
-      fastify: 5.12.4
+      fastify: 5.12.7
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
@@ -15133,12 +15135,12 @@ snapshots:
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  '@orpc/zod@1.15.2(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.2(@opentelemetry/api@1.9.1))(@orpc/server@1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3))(fastify@5.12.4)(ws@8.21.3)(zod@4.6.5)':
+  '@orpc/zod@1.15.2(@opentelemetry/api@1.9.1)(@orpc/contract@1.15.2(@opentelemetry/api@1.9.1))(@orpc/server@1.15.2(@opentelemetry/api@1.9.1)(ws@8.21.3))(ws@8.21.3)(zod@4.6.5)':
     dependencies:
       '@orpc/contract': 1.15.2(@opentelemetry/api@1.9.1)
-      '@orpc/json-schema': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
-      '@orpc/openapi': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
-      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.4)(ws@8.21.3)
+      '@orpc/json-schema': 1.15.2(@opentelemetry/api@1.9.1)(ws@8.21.3)
+      '@orpc/openapi': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
+      '@orpc/server': 1.15.2(@opentelemetry/api@1.9.1)(fastify@5.12.7)(ws@8.21.3)
       '@orpc/shared': 1.15.2(@opentelemetry/api@1.9.1)
       escape-string-regexp: 5.0.0
       wildcard-match: 5.1.4
@@ -19071,7 +19073,7 @@ snapshots:
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       express: 5.2.1
-      ip-address: 10.7.0
+      ip-address: 10.7.4
     transitivePeerDependencies:
       - supports-color
 
@@ -19125,7 +19127,7 @@ snapshots:
     dependencies:
       pure-rand: 8.4.2
 
-  fast-copy@4.0.4: {}
+  fast-copy@4.2.0: {}
 
   fast-decode-uri-component@1.0.1: {}
 
@@ -19180,7 +19182,7 @@ snapshots:
 
   fastify-plugin@6.0.0: {}
 
-  fastify@5.12.4:
+  fastify@5.12.7:
     dependencies:
       '@fastify/ajv-compiler': 4.0.6
       '@fastify/error': 4.2.0
@@ -19189,7 +19191,7 @@ snapshots:
       abstract-logging: 2.0.1
       avvio: 9.3.0
       fast-json-stringify: 7.0.1
-      find-my-way: 9.8.0
+      find-my-way: 9.9.0
       light-my-request: 6.6.0
       pino: 10.3.1
       process-warning: 5.1.0
@@ -19281,12 +19283,6 @@ snapshots:
       statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
-
-  find-my-way@9.8.0:
-    dependencies:
-      fast-deep-equal: 3.1.3
-      fast-querystring: 1.1.2
-      safe-regex2: 5.1.1
 
   find-my-way@9.9.0:
     dependencies:
@@ -19552,7 +19548,7 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
-  hono@4.13.5: {}
+  hono@4.13.13: {}
 
   hookified@1.15.1: {}
 
@@ -19690,7 +19686,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  ip-address@10.7.0: {}
+  ip-address@10.7.4: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -21045,7 +21041,7 @@ snapshots:
     dependencies:
       colorette: 2.0.20
       dateformat: 4.6.3
-      fast-copy: 4.0.4
+      fast-copy: 4.2.0
       fast-safe-stringify: 2.1.1
       help-me: 5.0.0
       joycon: 3.1.1
@@ -21150,14 +21146,9 @@ snapshots:
   postcss-nested@6.2.0(postcss@8.5.26):
     dependencies:
       postcss: 8.5.26
-      postcss-selector-parser: 6.1.4
+      postcss-selector-parser: 7.1.6
 
-  postcss-selector-parser@6.1.4:
-    dependencies:
-      cssesc: 3.0.0
-      util-deprecate: 1.0.2
-
-  postcss-selector-parser@7.1.5:
+  postcss-selector-parser@7.1.6:
     dependencies:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
@@ -22061,7 +22052,7 @@ snapshots:
       open: 11.0.1
       ora: 8.2.0
       postcss: 8.5.26
-      postcss-selector-parser: 7.1.5
+      postcss-selector-parser: 7.1.6
       prompts: 2.4.2
       recast: 0.23.21
       socks: 2.8.9
@@ -22214,7 +22205,7 @@ snapshots:
 
   socks@2.8.9:
     dependencies:
-      ip-address: 10.7.0
+      ip-address: 10.7.4
       smart-buffer: 4.2.0
 
   sonic-boom@4.2.1:
@@ -22489,7 +22480,7 @@ snapshots:
       postcss-js: 4.1.0(postcss@8.5.26)
       postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.26)(tsx@4.23.15)(yaml@2.9.0)
       postcss-nested: 6.2.0(postcss@8.5.26)
-      postcss-selector-parser: 6.1.4
+      postcss-selector-parser: 7.1.6
       resolve: 1.22.12
       sucrase: 3.35.1
     transitivePeerDependencies:
