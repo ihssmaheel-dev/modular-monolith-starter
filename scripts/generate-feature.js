@@ -149,10 +149,11 @@ function registerModuleInAppModule(root, name, pascalName) {
       : source.replace("@Module({", `${importLine}\n\n@Module({`);
   }
   if (!source.includes(moduleEntry)) {
-    const anchor = "    FilesModule,\n  ],";
-    source = source.includes(anchor)
-      ? source.replace(anchor, `    FilesModule,\n${moduleEntry}\n  ],`)
-      : source.replace("  providers: [", `${moduleEntry}\n  providers: [`);
+    const anchor = "    ...applicationFeatureModules(),\n";
+    if (!source.includes(anchor)) {
+      throw new Error("Cannot register feature: AppModule imports anchor was not found.");
+    }
+    source = source.replace(anchor, `${anchor}${moduleEntry}\n`);
   }
   fs.writeFileSync(appModulePath, source, "utf8");
   console.log(`  [update] Registered ${pascalName}Module in apps/api/src/app.module.ts`);

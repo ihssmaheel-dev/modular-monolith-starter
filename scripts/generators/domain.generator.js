@@ -104,13 +104,9 @@ export class ${Feature}DeletedEvent {
 }
 `;
 
-  const errorContent = `import { BaseDomainError } from "../../../../common";
-
-export class ${Feature}NotFoundError extends BaseDomainError {
+  const errorContent = `export class ${Feature}NotFoundError {
   readonly type = "${Feature.toUpperCase()}_NOT_FOUND";
-  constructor(public readonly id: string) {
-    super(\`${Feature} not found: \${id}\`);
-  }
+  constructor(public readonly id: string) {}
 }
 `;
 

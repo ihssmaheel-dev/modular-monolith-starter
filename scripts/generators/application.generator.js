@@ -31,8 +31,8 @@ export class Create${Feature}Command {
     private readonly database: DatabaseService,
   ) {}
 
-  async execute(dto: Create${Feature}Dto, actor: AuthenticatedUser): Promise<Result<${Feature}, { type: "EVENT_DISPATCH_FAILED" } | { type: "TRANSACTION_FAILED" } | Error>> {
-    return this.database.withResultTransaction(async () => {
+  async execute(dto: Create${Feature}Dto, actor: AuthenticatedUser): Promise<Result<${Feature}, { type: "TENANT_REQUIRED" } | { type: "EVENT_DISPATCH_FAILED" } | { type: "TRANSACTION_FAILED" } | Error>> {
+    return this.database.withResultTransaction(async (): Promise<Result<${Feature}, { type: "TENANT_REQUIRED" } | { type: "EVENT_DISPATCH_FAILED" } | Error>> => {
       const result = await this.repository.create({
         name: dto.name,
         description: dto.description,
@@ -92,7 +92,7 @@ describe("Create${Feature}Command", () => {
 
   const updateCmd = `import { Injectable } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
-import { err, type Result } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 import type { AuthenticatedUser, Update${Feature}Dto } from "@repo/contracts";
 import { ${Feature} } from "../../domain/entities/${feature}.entity";
 import { ${Feature}UpdatedEvent } from "../../domain/events/${feature}.events";
@@ -115,7 +115,7 @@ export class Update${Feature}Command {
     dto: Update${Feature}Dto,
     actor: AuthenticatedUser,
   ): Promise<Result<${Feature}, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | { type: "CONFLICT" } | { type: "EVENT_DISPATCH_FAILED" } | { type: "TRANSACTION_FAILED" } | Error>> {
-    return this.database.withResultTransaction(async () => {
+    return this.database.withResultTransaction(async (): Promise<Result<${Feature}, { type: "${Feature.toUpperCase()}_NOT_FOUND" } | { type: "CONFLICT" } | { type: "EVENT_DISPATCH_FAILED" } | Error>> => {
       const existing = await this.repository.findById(id);
       if (existing.isErr()) return err(existing.error);
       if (!existing.value) return err({ type: "${Feature.toUpperCase()}_NOT_FOUND" });
@@ -142,7 +142,7 @@ export class Update${Feature}Command {
         before: { id: existing.value.id, name: existing.value.name },
         after: { id: updated.value.id, name: updated.value.name },
       });
-      return updated;
+      return ok(updated.value);
     });
   }
 }
@@ -162,12 +162,14 @@ describe("Update${Feature}Command", () => {
     const existing = ${Feature}.fromPersistence({
       id: "1",
       name: "Old",
+      createdBy: "u1",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
     const updated = ${Feature}.fromPersistence({
       id: "1",
       name: "New",
+      createdBy: "u1",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -252,6 +254,7 @@ describe("Delete${Feature}Command", () => {
     const existing = ${Feature}.fromPersistence({
       id: "1",
       name: "Old",
+      createdBy: "u1",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -305,6 +308,7 @@ describe("Get${Feature}ByIdQuery", () => {
     const existing = ${Feature}.fromPersistence({
       id: "1",
       name: "Found",
+      createdBy: "u1",
       createdAt: new Date(),
       updatedAt: new Date(),
     });

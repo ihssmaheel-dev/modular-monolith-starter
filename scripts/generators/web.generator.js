@@ -110,20 +110,20 @@ export function ${FeaturePlural}List({ page, limit, onPageChange }: {
   const query = useQuery(${featurePlural}ListQuery(page, limit));
   const columns: DataTableColumn<${Feature}Row>[] = [
     {
-      key: "name",
+      accessorKey: "name",
       header: t("common.name"),
-      cell: (row) => (
+      cell: ({ row }) => (
         <Link
           to="/${featurePlural}/$${feature}Id"
-          params={{ ${feature}Id: row.id }}
+          params={{ ${feature}Id: row.original.id }}
           className="font-medium hover:underline"
         >
-          {row.name}
+          {row.original.name}
         </Link>
       ),
     },
-    { key: "description", header: t("common.description"), cell: (row) => row.description ?? "—" },
-    { key: "createdAt", header: t("common.created"), cell: (row) => formatDate(row.createdAt) },
+    { accessorKey: "description", header: t("common.description"), cell: ({ row }) => row.original.description ?? "—" },
+    { accessorKey: "createdAt", header: t("common.created"), cell: ({ row }) => formatDate(row.original.createdAt) },
   ];
 
   return <div className="w-full space-y-6">
@@ -132,7 +132,7 @@ export function ${FeaturePlural}List({ page, limit, onPageChange }: {
       {query.isLoading ? <div className="h-40 animate-pulse rounded-lg bg-muted" /> : query.isError ? (
         <EmptyState title={t("errors.networkError")} description={t("common.retry")} />
       ) : query.data?.items.length === 0 ? <EmptyState title={t("common.noResults")} /> : <>
-        <DataTable data={query.data?.items ?? []} columns={columns} getRowKey={(row) => row.id} emptyText={t("common.noResults")} />
+        <DataTable data={query.data?.items ?? []} columns={columns} getRowId={(row) => row.id} emptyText={t("common.noResults")} />
         {query.data && query.data.totalPages > 1 ? <DataTablePagination page={page} totalPages={query.data.totalPages} onPageChange={onPageChange} pageLabel={(current, total) => t("common.pageOf", { page: current, totalPages: total })} previousLabel={t("common.previous")} nextLabel={t("common.next")} /> : null}
       </>}
     </CardContent></Card>
