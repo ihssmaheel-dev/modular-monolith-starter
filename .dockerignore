@@ -10,6 +10,8 @@ build/
 **/dist/
 **/build/
 **/.turbo/
+**/*.tsbuildinfo
+**/.cache/
 **/.output/
 **/.tanstack/
 **/.expo/

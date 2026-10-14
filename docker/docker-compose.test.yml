@@ -142,7 +142,9 @@ services:
       retries: 20
 
   minio:
-    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    image: starter-minio-fixture:ci
+    build:
+      context: ./fixtures/minio
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -154,11 +156,18 @@ services:
       retries: 20
 
   minio-init:
-    image: quay.io/minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
-    entrypoint: /bin/sh
+    # Reuse the tested SDK image instead of pulling an archived mc helper.
+    image: ${TEST_API_IMAGE:?set TEST_API_IMAGE}
+    entrypoint: node
     command:
-      - -c
-      - mc alias set test http://minio:9000 minioadmin minioadmin && mc mb --ignore-existing test/uploads
+      - -e
+      - |
+        const { S3Client, CreateBucketCommand } = require('/app/apps/api/node_modules/@aws-sdk/client-s3');
+        const client = new S3Client({region: 'us-east-1', endpoint: 'http://minio:9000', forcePathStyle: true,
+          credentials: {accessKeyId: 'minioadmin', secretAccessKey: 'minioadmin'}});
+        client.send(new CreateBucketCommand({Bucket: 'uploads'})).catch(error => {
+          console.error(error); process.exitCode = 1;
+        }).finally(() => client.destroy());
     depends_on:
       minio:
         condition: service_healthy

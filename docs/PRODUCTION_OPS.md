@@ -12,7 +12,43 @@ tests, migration lineage and upgrade checks, a real backup/restore check, depend
 budgets, Compose validation, image builds, Storybook, and a generated feature typecheck. Third-party
 actions are pinned to commits.
 
-`.github/workflows/cd.yml` runs after a successful CI workflow on `main`, or by manual dispatch. It:
+CI runs four independent jobs on Ubuntu 24.04: quality/unit tests and mobile/Storybook builds;
+database migrations, backup/restore and integration tests; API/browser E2E; and container/production
+verification. The stable `Build & Test` check requires all four jobs to succeed, including when a job
+is cancelled or fails. Keep that check required in branch protection. The workflow name remains
+`CI/CD Pipeline` because CD uses it as its successful-commit prerequisite.
+
+The shared setup action restores the pnpm store and a job-specific Turbo task cache. Browser jobs
+cache Chromium, and CI/CD Docker builds use separate API/web cache scopes. E2E builds only API/web
+and their dependencies, rather than rebuilding the mobile export. CI serves the built SSR web
+application; local Playwright development binds Vite explicitly to IPv4 with a strict port.
+Production smoke tests accept `--no-build` with explicit `TEST_API_IMAGE`/`TEST_WEB_IMAGE` references
+to exercise the images built earlier in the job. They use disposable containers and isolated test
+results, preserve prebuilt images, and remove only their own environment.
+
+The disposable S3 fixture is built from the pinned official MinIO source commit in
+`docker/fixtures/minio/Dockerfile`; archived public images are no longer pullable. The composite
+fixture action shares its Docker layer cache across both browser jobs. Cold builds compile the
+fixture; warm builds load cached layers. This fixture never becomes a production storage image.
+
+Newer commits cancel obsolete CI runs for the same PR or branch. Database integration and E2E tasks
+remain uncached, and deployment checks still run for every PR and main push. Cache hits reuse tasks
+by their source/configuration hashes; they do not skip a required security or integration check.
+Wall-clock time depends on the slowest parallel job, registry/download latency, cache warmth, and
+test workload. It cannot be promised as a fixed number or inferred from module count alone.
+Parallel jobs reduce elapsed time but duplicate some runner setup, so elapsed time and billed runner
+minutes are different measurements. Track both; the caches reduce repeated work across runs.
+
+The dependency audit remains blocking at `high` severity, including findings with no upstream
+patch. Passing tests do not override that gate. Unpatched findings require an upstream fix or an
+explicitly reviewed policy change; CI does not automatically suppress development-tool advisories.
+
+CD defaults the browser API URL to `/api/v1` for same-origin deployments. For a separate origin, set
+the public repository variable `VITE_API_URL`; this value is browser configuration, not a secret.
+
+`.github/workflows/cd.yml` publishes after a successful push-triggered CI workflow on this
+repository's `main`, or a manual dispatch on `main` with matching successful CI evidence. A fork/PR
+workflow cannot trigger a privileged registry publication even if its head branch is named `main`. It:
 
 1. checks out the exact successful commit;
 2. builds API and web images with a 12-character commit tag;

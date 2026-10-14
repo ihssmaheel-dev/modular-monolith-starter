@@ -5,8 +5,9 @@ const { spawnSync } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
 const composeFile = path.join(root, "docker", "docker-compose.test.yml");
 const project = `starter-test-${process.pid}-${crypto.randomBytes(4).toString("hex")}`;
-const apiImage = `${project}-api`;
-const webImage = `${project}-web`;
+const usePrebuilt = process.argv.includes("--no-build");
+const apiImage = usePrebuilt ? process.env.TEST_API_IMAGE : `${project}-api`;
+const webImage = usePrebuilt ? process.env.TEST_WEB_IMAGE : `${project}-web`;
 const pnpmCli = process.env.npm_execpath;
 const dockerEnvironment = {
   ...process.env,
@@ -49,16 +50,21 @@ function main() {
     if (!pnpmCli) {
       throw new Error("pnpm did not expose npm_execpath to the production test harness");
     }
+    if (!apiImage || !webImage) {
+      throw new Error("--no-build requires TEST_API_IMAGE and TEST_WEB_IMAGE");
+    }
 
-    const build = compose(["build", "api", "web"]);
-    if (fail(build, "Production test image build")) return;
+    if (!usePrebuilt) {
+      const build = compose(["build", "api", "web", "minio"]);
+      if (fail(build, "Production test image build")) return;
+    }
 
     const up = compose([
       "up",
       "-d",
       "--no-build",
       "--pull",
-      "never",
+      "missing",
       "--wait",
       "--wait-timeout",
       "240",
@@ -97,7 +103,7 @@ function main() {
     process.exitCode = 1;
   } finally {
     compose(["down", "--volumes", "--remove-orphans"]);
-    removeTestImages();
+    if (!usePrebuilt) removeTestImages();
   }
 }
 

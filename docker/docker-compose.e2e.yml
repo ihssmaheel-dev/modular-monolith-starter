@@ -1,0 +1,44 @@
+# Disposable browser-test dependencies. No developer volumes or fixed container names.
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports: ["127.0.0.1:5432:5432"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.30.0
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  minio:
+    image: starter-minio-fixture:ci
+    build:
+      context: ./fixtures/minio
+    ports: ["127.0.0.1:9000:9000"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:9000/minio/health/live"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

@@ -2,17 +2,73 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  TENANCY_MODE: multi
+  EXAMPLE_FEATURES_ENABLED: "true"
+  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/app_test
+  TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/app_test
+  REDIS_URL: redis://127.0.0.1:6379
+  MAILPIT_URL: http://127.0.0.1:8025
+  E2E_USE_CONTAINERS: "true"
+  JWT_SECRET: super-secret-test-access-token-key-32chars
+  JWT_REFRESH_SECRET: super-secret-test-refresh-token-key-32chars
+  STORAGE_DRIVER: s3
+  S3_ENDPOINT: http://127.0.0.1:9000
+  S3_BUCKET: uploads
+  S3_ACCESS_KEY_ID: minioadmin
+  S3_SECRET_ACCESS_KEY: minioadmin
+  S3_FORCE_PATH_STYLE: "true"
+  SMTP_HOST: 127.0.0.1
+  VITE_API_URL: http://127.0.0.1:5156/api/v1
+  VITE_FILE_UPLOAD_ORIGIN: http://127.0.0.1:9000
+  VITE_EXAMPLE_FEATURES_ENABLED: "true"
 
 jobs:
-  build-and-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
+  quality:
+    name: Quality and unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: ./.github/actions/setup
+      - name: Architecture, generator, and format checks
+        run: |
+          pnpm rules:check
+          pnpm test:generator
+          pnpm format:check
+      - name: Build shared packages
+        run: pnpm turbo build --filter='./packages/*'
+      - name: Lint, types, and unit tests
+        run: pnpm turbo lint typecheck test:unit --concurrency=4
+      - name: Dependency audit
+        run: pnpm audit --audit-level high
+      - name: Mobile export and Storybook
+        run: pnpm turbo build build-storybook --filter=mobile --filter=@repo/ui --concurrency=2
+      - name: Verify generated owner-scoped slice
+        run: |
+          pnpm generate:feature generator-smoke smokeitem --access=owner
+          pnpm turbo build --filter='./packages/*'
+          # Vite regenerates TanStack route types before checking the new screens.
+          pnpm --filter web exec vite build
+          pnpm typecheck
+          pnpm --filter api test:unit src/modules/generator-smoke
 
+  database:
+    name: Database and API integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16-alpine
@@ -20,106 +76,31 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: app_test
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
+        ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      mailpit:
-        image: axllent/mailpit:v1.30.0
-        ports:
-          - 1025:1025
-          - 8025:8025
-
-    env:
-      NODE_ENV: test
-      TENANCY_MODE: multi
-      EXAMPLE_FEATURES_ENABLED: "true"
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/app_test
-      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/app_test
-      REDIS_URL: redis://localhost:6379
-      MAILPIT_URL: http://localhost:8025
-      E2E_USE_CONTAINERS: "true"
-      JWT_SECRET: super-secret-test-access-token-key-32chars
-      JWT_REFRESH_SECRET: super-secret-test-refresh-token-key-32chars
-      STORAGE_DRIVER: s3
-      S3_ENDPOINT: http://localhost:9000
-      S3_BUCKET: uploads
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
-
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24.21.0
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
-        with:
-          version: 10.34.5
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: ./.github/actions/setup
+      - name: Build API dependency closure
+        run: pnpm turbo build --filter=api
+      - name: Migration fresh, upgrade, lineage and status checks
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Architecture Rules Check
-        run: pnpm run rules:check
-
-      - name: Generator Smoke Test
-        run: pnpm run test:generator
-
-      - name: Formatting Check
-        run: pnpm run format:check
-
-      - name: Lint
-        run: pnpm run lint
-
-      - name: Build workspace packages
-        # Unit tests resolve workspace packages via built dist: build first
-        # so source changes (contracts, email templates) cannot test stale.
-        run: pnpm build
-
-      - name: Unit Tests
-        run: pnpm test:unit
-
-      - name: Contract and migration checks (fresh + upgrade)
-        run: |
-          pnpm --filter @repo/contracts build
           pnpm db:migrate:lineage
           pnpm db:migrate:check
           pnpm db:migrate
           pnpm db:migrate:status
-
       - name: Backup and restore verification
         run: |
           sudo apt-get update
@@ -136,28 +117,66 @@ jobs:
       - name: Integration Tests
         run: pnpm test:integration
 
-      - name: Install Playwright browser
-        run: pnpm --filter web exec playwright install --with-deps chromium
-
-      - name: End-to-End Tests
+  e2e:
+    name: API and browser end-to-end
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/minio-fixture
+      - name: Start disposable browser dependencies
+        run: docker compose -p ci-e2e -f docker/docker-compose.e2e.yml up -d --no-build --wait --wait-timeout 90
+      - name: Initialize private upload bucket
+        run: node scripts/setup-e2e-storage.js
+      - name: Build API and SSR web only
+        run: pnpm turbo build --filter=api --filter=web
+      - name: Migrate the disposable browser database
+        run: pnpm db:migrate
+      - name: Cache Playwright browser
+        id: browsers
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright Chromium and system libraries
+        run: |
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+            pnpm --filter web exec playwright install-deps chromium
+          else
+            pnpm --filter web exec playwright install --with-deps chromium
+          fi
+      - name: End-to-end tests
         run: pnpm test:e2e
-
-      - name: Typecheck all workspaces
-        run: pnpm typecheck
-
-      - name: Dependency audit
-        run: pnpm audit --audit-level high
-
-      - name: Build
-        run: pnpm run build
-
-      - name: Enforce web bundle budgets
+      - name: Web bundle budget
         run: pnpm bundle:check
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: browser-failure-${{ github.run_id }}
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+      - name: Dependency logs on failure
+        if: failure()
+        run: docker compose -p ci-e2e -f docker/docker-compose.e2e.yml logs --no-color
+      - name: Stop disposable dependencies
+        if: always()
+        run: docker compose -p ci-e2e -f docker/docker-compose.e2e.yml down --volumes --remove-orphans
 
+  deployment:
+    name: Containers and production verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: ./.github/actions/setup
       - name: Production compose validation
         run: |
-          DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
-          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DATABASE_URL="postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require" \
+          DB_DIRECT_URL="postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require" \
           REDIS_URL=rediss://redis.example.net:6380 \
           JWT_SECRET=ci-production-access-secret-32-characters \
           JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
@@ -174,7 +193,7 @@ jobs:
           ALERTMANAGER_CONFIG_FILE=/tmp/alertmanager.yml \
           ALERTMANAGER_SMTP_PASSWORD_FILE=/tmp/alertmanager_smtp_password \
           GF_SECURITY_ADMIN_PASSWORD=ci-grafana-password-32-characters \
-          OBSERVABILITY_POSTGRES_EXPORTER_DSN=postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full \
+          OBSERVABILITY_POSTGRES_EXPORTER_DSN="postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full" \
           OBSERVABILITY_REDIS_EXPORTER_URL=rediss://:password@redis.example.net:6380 \
           API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
           WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
@@ -186,8 +205,8 @@ jobs:
 
       - name: Production compose pooling profile validation
         run: |
-          DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
-          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DATABASE_URL="postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require" \
+          DB_DIRECT_URL="postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require" \
           REDIS_URL=rediss://redis.example.net:6380 \
           JWT_SECRET=ci-production-access-secret-32-characters \
           JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
@@ -204,7 +223,7 @@ jobs:
           ALERTMANAGER_CONFIG_FILE=/tmp/alertmanager.yml \
           ALERTMANAGER_SMTP_PASSWORD_FILE=/tmp/alertmanager_smtp_password \
           GF_SECURITY_ADMIN_PASSWORD=ci-grafana-password-32-characters \
-          OBSERVABILITY_POSTGRES_EXPORTER_DSN=postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full \
+          OBSERVABILITY_POSTGRES_EXPORTER_DSN="postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full" \
           OBSERVABILITY_REDIS_EXPORTER_URL=rediss://:password@redis.example.net:6380 \
           API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
           WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
@@ -219,8 +238,8 @@ jobs:
           printf 'ci-metrics-token-32-characters-long' > /tmp/metrics_token
           printf 'ci-alertmanager-smtp-password' > /tmp/alertmanager_smtp_password
           cp docker/observability/alertmanager/alertmanager.prod.example.yml /tmp/alertmanager.yml
-          DATABASE_URL=postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require \
-          DB_DIRECT_URL=postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require \
+          DATABASE_URL="postgres://ci_user:ci_password@db.example.net:5432/app?sslmode=require" \
+          DB_DIRECT_URL="postgres://migration_user:ci_password@db.example.net:5432/app?sslmode=require" \
           REDIS_URL=rediss://redis.example.net:6380 \
           JWT_SECRET=ci-production-access-secret-32-characters \
           JWT_REFRESH_SECRET=ci-production-refresh-secret-32chars \
@@ -237,7 +256,7 @@ jobs:
           ALERTMANAGER_CONFIG_FILE=/tmp/alertmanager.yml \
           ALERTMANAGER_SMTP_PASSWORD_FILE=/tmp/alertmanager_smtp_password \
           GF_SECURITY_ADMIN_PASSWORD=ci-grafana-password-32-characters \
-          OBSERVABILITY_POSTGRES_EXPORTER_DSN=postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full \
+          OBSERVABILITY_POSTGRES_EXPORTER_DSN="postgresql://metrics:password@db.example.net:5432/app?sslmode=verify-full" \
           OBSERVABILITY_REDIS_EXPORTER_URL=rediss://:password@redis.example.net:6380 \
           API_IMAGE_REF=ghcr.io/example/app-api@sha256:0000000000000000000000000000000000000000000000000000000000000000 \
           WEB_IMAGE_REF=ghcr.io/example/app-web@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
@@ -250,19 +269,64 @@ jobs:
           docker run --rm --entrypoint promtool -v "$PWD/docker/observability/prometheus:/etc/prometheus:ro" -v /tmp/metrics_token:/run/secrets/metrics_token:ro prom/prometheus:v2.55.1 check config /etc/prometheus/prometheus.prod.yml
           pnpm observability:rules:test
 
-      - name: Build production API image
-        run: docker build --file Dockerfile --tag modular-monolith-api:ci .
-
-      - name: Build production web image
-        run: docker build --file apps/web/Dockerfile --build-arg VITE_API_URL=http://localhost:5156/api/v1 --tag modular-monolith-web:ci .
-
-      - name: Built-output production browser smoke test
-        run: pnpm test:production
-
-      - name: Build Storybook catalog
-        run: pnpm turbo build-storybook --filter=@repo/ui
-
-      - name: Typecheck a generated owner-scoped vertical slice
+      - name: Build disposable S3 fixture and set up Buildx
+        uses: ./.github/actions/minio-fixture
+      - name: Build production API image once
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile
+          load: true
+          tags: modular-monolith-api:ci
+          cache-from: type=gha,scope=ci-api
+          cache-to: type=gha,scope=ci-api,mode=max
+      - name: Build production web image once
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          load: true
+          tags: modular-monolith-web:ci
+          cache-from: type=gha,scope=ci-web
+          cache-to: type=gha,scope=ci-web,mode=max
+          build-args: |
+            VITE_API_URL=/api/v1
+            VITE_EXAMPLE_FEATURES_ENABLED=true
+      - name: Cache Playwright browser
+        id: browsers
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright Chromium and system libraries
         run: |
-          pnpm generate:feature generator-smoke generated-item --access=owner
-          pnpm typecheck
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+            pnpm --filter web exec playwright install-deps chromium
+          else
+            pnpm --filter web exec playwright install --with-deps chromium
+          fi
+      - name: Exercise the exact built images without rebuilding
+        run: pnpm test:production --no-build
+        env:
+          TEST_API_IMAGE: modular-monolith-api:ci
+          TEST_WEB_IMAGE: modular-monolith-web:ci
+      - name: Upload production browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: production-browser-failure-${{ github.run_id }}
+          path: apps/web/test-results-production/
+          retention-days: 7
+
+  build-and-test:
+    # Keep this stable name for branch protection; every required job must succeed.
+    name: Build & Test
+    runs-on: ubuntu-24.04
+    needs: [quality, database, e2e, deployment]
+    if: always()
+    steps:
+      - name: Require all verification jobs
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")'

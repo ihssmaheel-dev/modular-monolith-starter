@@ -4,7 +4,7 @@ This is the supported local-development path for the monorepo.
 
 ## Prerequisites
 
-- Node.js 20.19 or newer (tested on Node 20 + 22)
+- Node.js `>=24.21.0 <25` (see `.node-version` and the root `engines`)
 - pnpm 10.34.5 (`corepack enable` then `corepack prepare pnpm@10.34.5 --activate`)
 - Docker Desktop, or Docker Engine with Compose v2.17+
 - Git
@@ -165,7 +165,7 @@ existing administrator. Remove the credentials from `.env` after use.
 pnpm build              # required first: tests resolve workspace packages via built dist
 pnpm test:unit          # fast unit tests across the workspace
 pnpm test:integration   # real infrastructure tests
-pnpm test:e2e           # API/application flows (Fastify inject)
+pnpm test:e2e           # API flows (Fastify inject) + built/development web flows (Playwright)
 pnpm lint               # oxlint across api + web + shared packages
 pnpm format:check
 pnpm rules:check        # dependency-cruiser + conventions (api domain isolation + no fetch in routes + no hardcoded i18n)
@@ -176,7 +176,41 @@ pnpm --filter web typecheck
 
 Integration tests require `TEST_DATABASE_URL` in `apps/api/.env`; its database name must contain
 `test`. API E2E tests require `E2E_USE_CONTAINERS=true` and a working Docker-compatible runtime.
-Both suites fail fast when their required infrastructure is unavailable. Run one API test with:
+Both suites fail fast when their required infrastructure is unavailable.
+
+Browser E2E requires disposable PostgreSQL, Redis, Mailpit and an initialized private S3 fixture.
+`docker/docker-compose.e2e.yml` supplies those dependencies on the standard loopback ports and uses
+no developer volumes. Do not run it alongside the development Compose stack on the same ports.
+Build the disposable S3 image first with `docker compose -f docker/docker-compose.e2e.yml build minio`.
+It compiles the pinned official MinIO source because the archived public image is unavailable.
+The first build downloads and compiles dependencies; subsequent builds reuse Docker layers. This
+image is a compatibility fixture, not a supported production object store.
+Use `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/app_test`,
+`REDIS_URL=redis://127.0.0.1:6379`, `S3_ENDPOINT=http://127.0.0.1:9000`, the fixture's S3 credentials,
+and the same IPv4 host for both browser and API cookies. After starting this Compose project, run
+`node scripts/setup-e2e-storage.js` and `pnpm db:migrate` with those test values. In CI, the workflow
+creates and removes this project automatically. API E2E uses separate Testcontainers dependencies
+and can run alongside the browser suite without clearing its database or Redis state.
+
+`pnpm test:production` builds API, web and S3 fixture images and removes its isolated containers
+after the smoke test. To reuse API/web images, pass `--no-build` and set `TEST_API_IMAGE` and
+`TEST_WEB_IMAGE`; `starter-minio-fixture:ci` must also be built locally first. CI builds and caches
+these images before invoking the harness.
+
+The browser fixtures verify real emailed tokens and create a real organization for each scenario.
+Test proxy headers isolate each scenario's IP rate-limit budget without disabling production rate
+limits. CI starts the built SSR web output; local runs bind Vite to `127.0.0.1` with a strict port.
+Authentication controls remain disabled in server-rendered HTML until React hydrates them, preventing
+early typing from being lost when the form initializes. Guard scenarios wait for the authenticated
+screen to finish loading before starting another navigation.
+The regular and production suites have separate result directories so concurrent runs cannot erase
+each other's screenshots or traces.
+
+CI also generates a disposable owner-scoped feature, builds its shared package exports, regenerates
+TanStack route types through Vite, and checks all workspace types plus the generated backend tests.
+The module exists only in that job's checkout. It must not be committed or added to production images.
+
+Run one API test with:
 
 ```sh
 pnpm --filter api exec vitest run src/path/file.test.ts --config vitest.config.mts
