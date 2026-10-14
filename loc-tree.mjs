@@ -12,6 +12,7 @@
  *   --sort=lines|name    Sort order within a directory (default: lines)
  *   --ignore-dir=a,b     Extra directory names to skip (merged with defaults)
  *   --ignore-ext=.a,.b   Extra extensions to skip (merged with defaults)
+ *   Git-ignored files and directories are always skipped
  *   --follow-symlinks    Follow symlinked directories (cycle-safe)
  *   --no-color           Disable ANSI colors
  *   -h, --help           Show this help
@@ -22,6 +23,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -86,6 +88,75 @@ const DEFAULT_IGNORE_FILENAMES = new Set([
 
 // Bytes sniffed to decide "is this file binary?" before trying to count lines.
 const BINARY_SNIFF_BYTES = 8000;
+const GIT_IGNORE_MAX_BUFFER = 64 * 1024 * 1024;
+
+function loadGitIgnoredPaths(target, targetIsDirectory) {
+  const cwd = targetIsDirectory ? target : path.dirname(target);
+  let root;
+
+  try {
+    root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch (error) {
+    const warning =
+      error.code === "ENOENT" ? "Git is unavailable; Git ignore rules were not applied." : null;
+    return { root: null, paths: new Set(), warning };
+  }
+
+  try {
+    const relativeTarget = path.relative(root, target).split(path.sep).join("/");
+    const args = [
+      "ls-files",
+      "--cached",
+      "--others",
+      "--ignored",
+      "--exclude-standard",
+      "--directory",
+      "-z",
+    ];
+
+    if (relativeTarget) args.push("--", `:(literal)${relativeTarget}`);
+
+    const output = execFileSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: GIT_IGNORE_MAX_BUFFER,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const paths = output
+      .split("\0")
+      .filter(Boolean)
+      .map((filePath) => filePath.replace(/\/$/, ""));
+
+    return { root, paths: new Set(paths), warning: null };
+  } catch {
+    return { root, paths: new Set(), warning: "Git ignore rules could not be loaded." };
+  }
+}
+
+function isGitIgnored(filePath, context) {
+  if (!context.root) return false;
+
+  const relativePath = path.relative(context.root, filePath).split(path.sep).join("/");
+  if (
+    !relativePath ||
+    path.isAbsolute(relativePath) ||
+    relativePath === ".." ||
+    relativePath.startsWith("../")
+  ) {
+    return false;
+  }
+
+  let candidate = "";
+  for (const segment of relativePath.split("/")) {
+    candidate = candidate ? `${candidate}/${segment}` : segment;
+    if (context.paths.has(candidate)) return true;
+  }
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing (zero dependencies)
@@ -157,6 +228,7 @@ Options:
   --sort=lines|name    Sort order (default lines)
   --ignore-dir=a,b     Extra directory names to skip
   --ignore-ext=.a,.b   Extra extensions to skip
+  Git-ignored files and directories are always skipped
   --follow-symlinks    Follow symlinked directories (cycle-safe)
   --no-color           Disable ANSI colors
   -h, --help           Show this help`);
@@ -248,6 +320,12 @@ function buildTree(dir, opts, stats, visitedRealPaths = new Set()) {
   for (const entry of entries) {
     const name = entry.name;
     const full = path.join(dir, name);
+
+    if (isGitIgnored(full, opts.gitIgnore)) {
+      if (entry.isDirectory()) stats.skipped.dirs++;
+      else stats.skipped.files++;
+      continue;
+    }
 
     let isDir = entry.isDirectory();
     let isSymlink = entry.isSymbolicLink();
@@ -393,9 +471,14 @@ function main() {
 
   const startedAt = Date.now();
   const targetStat = fs.statSync(target);
+  opts.gitIgnore = loadGitIgnoredPaths(target, targetStat.isDirectory());
+  if (opts.gitIgnore.warning) console.error(`Warning: ${opts.gitIgnore.warning}`);
 
   const tree = targetStat.isFile()
     ? (() => {
+        if (isGitIgnored(target, opts.gitIgnore)) {
+          return { name: path.basename(target), type: "file", lines: 0 };
+        }
         const { lines, binary, error } = analyzeFile(target);
         if (error) {
           console.error(`Error reading file: ${error}`);
