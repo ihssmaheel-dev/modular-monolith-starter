@@ -1,7 +1,7 @@
 # Disposable browser-test dependencies. No developer volumes or fixed container names.
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     ports: ["127.0.0.1:5432:5432"]
     environment:
       POSTGRES_USER: postgres
@@ -13,7 +13,7 @@ services:
       timeout: 3s
       retries: 30
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     ports: ["127.0.0.1:6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -21,7 +21,7 @@ services:
       timeout: 3s
       retries: 30
   mailpit:
-    image: axllent/mailpit:v1.30.0
+    image: axllent/mailpit:v1.31.5
     ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
     healthcheck:
       test: ["CMD", "/mailpit", "readyz"]
