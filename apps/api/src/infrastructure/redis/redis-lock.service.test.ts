@@ -178,6 +178,36 @@ describe("RedisLockService", () => {
       expect(mockRedisClient.eval).not.toHaveBeenCalled();
     });
 
+    it("does not accumulate concurrent heartbeat requests when Redis is slow", async () => {
+      vi.useFakeTimers();
+      try {
+        mockRedisClient.set.mockResolvedValue("OK");
+        let resolveRenewal!: (result: number) => void;
+        mockRedisClient.eval
+          .mockImplementationOnce(
+            () =>
+              new Promise<number>((resolve) => {
+                resolveRenewal = resolve;
+              }),
+          )
+          .mockResolvedValue(1);
+        let finishWork!: (value: string) => void;
+        const work = new Promise<string>((resolve) => {
+          finishWork = resolve;
+        });
+        const running = lockService.withLock("slow-redis", () => work, 60_000);
+
+        await vi.advanceTimersByTimeAsync(45_000);
+        expect(mockRedisClient.eval).toHaveBeenCalledTimes(1);
+        resolveRenewal(1);
+        finishWork("done");
+        await expect(running).resolves.toEqual({ executed: true, result: "done" });
+        expect(mockRedisClient.eval).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("releases lock even when worker function throws (crash recovery)", async () => {
       mockRedisClient.set.mockResolvedValue("OK");
       mockRedisClient.eval.mockResolvedValue(1);

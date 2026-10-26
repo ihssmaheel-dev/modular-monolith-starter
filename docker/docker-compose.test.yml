@@ -97,14 +97,19 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         VITE_API_URL: /api/v1
+        VITE_APP_NAME: Workspace
+        VITE_FILE_UPLOAD_ORIGIN: ""
         VITE_EXAMPLE_FEATURES_ENABLED: "true"
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
-      VITE_API_URL: /api/v1
-      VITE_APP_NAME: Workspace
-      VITE_EXAMPLE_FEATURES_ENABLED: "true"
+      # Deliberately conflict with the image build: SSR must use the same baked
+      # public configuration as the browser, not these container overrides.
+      VITE_API_URL: https://runtime-config.invalid/api/v1
+      VITE_FILE_UPLOAD_ORIGIN: https://runtime-upload.invalid
+      VITE_APP_NAME: Unexpected runtime application
+      VITE_EXAMPLE_FEATURES_ENABLED: "false"
     healthcheck:
       test:
         ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/auth || exit 1"]

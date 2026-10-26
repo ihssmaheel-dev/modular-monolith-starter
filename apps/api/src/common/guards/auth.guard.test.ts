@@ -74,6 +74,17 @@ describe("AuthGuard", () => {
     ).rejects.toThrow(UnauthorizedException);
     expect(staleVerifier.verifyUserAuthVersion).toHaveBeenCalledWith(actor.sub, actor.authVersion);
   });
+
+  it("rejects malformed metric-token bytes as unauthorized instead of an internal error", async () => {
+    await expect(
+      guard.canActivate(
+        contextFor({
+          url: "/metrics",
+          headers: { authorization: `Bearer ${"é".repeat(32)}` },
+        }),
+      ),
+    ).rejects.toThrow(UnauthorizedException);
+  });
 });
 
 function contextFor(request: object): ExecutionContext {

@@ -34,13 +34,17 @@ export default function RootLayout() {
       if (useAuthStore.getState().status === "loading") {
         try {
           const res = await getApiClient().auth.me();
-          if (res.status === 200 && res.body?.user) useAuthStore.getState().setUser(res.body.user);
-          else useAuthStore.getState().clearAuth();
+          if (active && useAuthStore.getState().status === "loading") {
+            if (res.status === 200 && res.body?.user)
+              useAuthStore.getState().setUser(res.body.user);
+            else useAuthStore.getState().clearAuth();
+          }
         } catch {
-          useAuthStore.getState().clearAuth();
+          if (active && useAuthStore.getState().status === "loading")
+            useAuthStore.getState().clearAuth();
         }
       }
-      setReady(true);
+      if (active) setReady(true);
     })();
     return () => {
       active = false;

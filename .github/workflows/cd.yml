@@ -92,6 +92,9 @@ jobs:
           cache-to: type=gha,scope=cd-web,mode=max
           build-args: |
             VITE_API_URL=${{ vars.VITE_API_URL || '/api/v1' }}
+            VITE_FILE_UPLOAD_ORIGIN=${{ vars.VITE_FILE_UPLOAD_ORIGIN || '' }}
+            VITE_APP_NAME=${{ vars.VITE_APP_NAME || 'Workspace' }}
+            VITE_EXAMPLE_FEATURES_ENABLED=${{ vars.VITE_EXAMPLE_FEATURES_ENABLED || 'false' }}
 
       - name: Trivy scan API image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

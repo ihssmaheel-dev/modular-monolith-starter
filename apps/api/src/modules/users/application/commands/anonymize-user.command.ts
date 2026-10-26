@@ -32,22 +32,30 @@ export class AnonymizeUserCommand {
     @Optional() private readonly database?: DatabaseService,
   ) {}
 
-  async execute(userId: string): Promise<Result<User, UserNotFound | TransactionError>> {
-    const operation = () => this.persist(userId);
+  /** Prepare outside the caller's transaction when anonymization joins an atomic workflow. */
+  preparePasswordHash(): Promise<string> {
+    return hash(randomBytes(32).toString("hex"));
+  }
+
+  async execute(
+    userId: string,
+    preparedPasswordHash?: string,
+  ): Promise<Result<User, UserNotFound | TransactionError>> {
+    const passwordHash = preparedPasswordHash ?? (await this.preparePasswordHash());
+    const operation = () => this.persist(userId, passwordHash);
     if (!this.database) return operation();
     return this.database.withResultTransaction(operation);
   }
 
-  private async persist(userId: string): Promise<Result<User, UserNotFound>> {
+  private async persist(userId: string, passwordHash: string): Promise<Result<User, UserNotFound>> {
     const existing = await this.getUserById.execute(userId);
     if (existing.isErr()) return err(existing.error);
 
-    const unusableHash = await hash(randomBytes(32).toString("hex"));
     const updated = await this.repository.updateById(userId, {
       email: anonymizedEmail(userId),
       name: ANONYMIZED_USER_NAME,
       avatarFileId: null,
-      passwordHash: unusableHash,
+      passwordHash,
       passwordResetTokenHash: null,
       passwordResetExpiresAt: null,
       emailVerificationTokenHash: null,

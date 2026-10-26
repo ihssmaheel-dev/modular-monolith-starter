@@ -76,6 +76,57 @@ describe("refresh coordinator", () => {
     await expect(coordinator.refresh()).resolves.toEqual({ kind: "unsupported" });
   });
 
+  it.each([200, 401])(
+    "ignores a stale refresh response (%s) after switching account",
+    async (status) => {
+      let resolveFetch!: (response: Response) => void;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveFetch = resolve;
+            }),
+        ),
+      );
+      let identity = "u-1";
+      let token = "old-access";
+      const onAuthRefreshed = vi.fn();
+      const coordinator = createRefreshCoordinator("https://api.test/api/v1", {
+        getAuthIdentity: () => identity,
+        getAuthFingerprint: () => `${identity}:${token}`,
+        getAccessToken: () => token,
+        onAuthRefreshed,
+      });
+      const pending = coordinator.refresh();
+      identity = "u-2";
+      token = "other-account-access";
+      resolveFetch(status === 200 ? Response.json(REFRESHED) : new Response(null, { status }));
+
+      await expect(pending).resolves.toEqual({ kind: "superseded" });
+      expect(onAuthRefreshed).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not adopt another account returned by a replaced browser cookie", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          ...REFRESHED,
+          user: { ...REFRESHED.user, id: "u-2" },
+        }),
+      ),
+    );
+    const onAuthRefreshed = vi.fn();
+    const coordinator = createRefreshCoordinator("https://api.test/api/v1", {
+      getAuthIdentity: () => "u-1",
+      onAuthRefreshed,
+    });
+    await expect(coordinator.refresh()).resolves.toEqual({ kind: "superseded" });
+    expect(onAuthRefreshed).not.toHaveBeenCalled();
+  });
+
   it("reuses a refresh adopted while waiting for the browser lock", async () => {
     vi.stubGlobal("window", {});
     vi.stubGlobal("document", { cookie: "" });

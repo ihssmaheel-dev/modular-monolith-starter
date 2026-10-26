@@ -49,6 +49,11 @@ the complete tenant plan, revokes sessions, increments `authVersion`, anonymizes
 tenancy identity rows, and commits a 30-day `REQUESTED` DSR. Organization erasure requires the owner
 and exact organization-name confirmation, then soft-deletes the organization and commits its plan.
 
+Password verification and replacement-hash preparation happen before opening the mutation
+transaction. Every organization page must load successfully before an account-erasure plan can be
+committed; an unavailable page fails the request instead of storing a partial deletion scope. The
+auth-version update is checked, and session/cache cleanup runs after the SQL transaction commits.
+
 The hourly purge worker atomically claims at most 100 expired requests with `FOR UPDATE SKIP LOCKED`.
 Claims move to `PROCESSING`, stale 15-minute leases recover automatically, and a request receives at
 most three attempts. It validates the persisted plan before destructive work. Each lifecycle

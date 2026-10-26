@@ -41,7 +41,7 @@ packages/i18n/src/
 ```typescript
 // Good
 @Post()
-async create(@Body() body: any) {
+async create(@Body(new ZodValidationPipe(CreateUserSchema)) body: CreateUserInput) {
   const result = await this.createUserCommand.execute(body);
 
   if (result.isErr()) {

@@ -232,7 +232,7 @@ fails. Per-user and per-tenant quota locks serialize reservations.
 
 ## Durable events and realtime
 
-The outbox relay claims rows briefly, validates a versioned envelope, and publishes to the BullMQ `domain-events` queue before marking the row `PUBLISHED`. Queue consumers validate envelopes, use the outbox ID as an idempotent job ID, and retain failed jobs for inspection. Dead-letter rows can be replayed through `OutboxService.replayDeadLetter`. Realtime fans out through one consumer group per API replica (`realtime-dispatchers-<instance>`), so every replica receives every event and delivers to its local connections — a single shared group would load-balance events across replicas and silently drop user-targeted messages. Groups heartbeat every loop pass; `RealtimeStreamReaper` destroys groups whose heartbeat expired, and consumers recreate their group on `NOGROUP`. `XAUTOCLAIM`, per-group delivery budgets, and a stream dead-letter key are retained; failed or malformed messages are never acknowledged until retry exhaustion.
+The outbox relay claims rows briefly, validates a versioned envelope, and publishes to the BullMQ `domain-events` queue. Enqueueing does not mark the row `PUBLISHED`: the worker acknowledges it only after required consumers succeed and the event receipt is stored. Queue consumers validate envelopes, use the outbox ID as an idempotent job ID, and retain failed jobs for inspection. Dead-letter rows can be replayed through `OutboxService.replayDeadLetter`. Realtime fans out through one consumer group per API replica (`realtime-dispatchers-<instance>`), so every replica receives every event and delivers to its local connections. Groups heartbeat every loop pass; `RealtimeStreamReaper` destroys groups whose heartbeat expired, and consumers recreate their group on `NOGROUP`. `XAUTOCLAIM` and per-group delivery budgets retry malformed messages before moving them to a diagnostic dead-letter stream capped at approximately 1,000 entries. Live UI hints are also bounded; required business effects use the durable outbox, not realtime streams.
 
 ## Worker separation
 
@@ -241,6 +241,14 @@ API process remains stateless. The worker exposes authenticated Prometheus metri
 readiness on its own port. Production orchestration scales API and worker replicas independently and
 monitors queue depth, outbox age, retry/dead-letter state, notification delivery, privacy export,
 realtime lag, and worker heartbeat. Every bundled alert maps to a runbook.
+
+Outbox writers persist `schemaVersion` in `outbox_events.schema_version`. Both `dispatchTenant(topic,
+payload, version)` and `dispatchGlobal(topic, payload, version)` default to version 1; the relay uses
+the stored version, and consumers receive it in event metadata. The migration backfills historical
+rows with version 1. Unsupported versions fail validation instead of being interpreted using the
+latest payload shape. Before emitting a new version, register its schema and deploy compatible
+consumers while retaining support for existing backlog versions. Local fallback delivery also awaits
+the required consumer registry before acknowledging an event.
 
 ## Verification gate
 

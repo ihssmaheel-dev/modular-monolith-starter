@@ -4,6 +4,7 @@ import {
   type FileMetadataResponse,
 } from "@repo/contracts";
 import { createFilesClient } from "./files";
+import { throwIfAborted } from "../utils";
 
 export type UploadBody = Blob | Uint8Array | ArrayBuffer;
 
@@ -103,11 +104,44 @@ export async function waitForUploadReady(
   options: UploadWaitOptions = {},
 ): Promise<FileMetadataResponse> {
   const deadlineAt = Date.now() + (options.deadlineMs ?? DEFAULT_PROCESSING_DEADLINE_MS);
-  let interval = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const controller = new AbortController();
+  const onAbort = () => controller.abort(options.signal?.reason);
+  if (options.signal?.aborted) onAbort();
+  else options.signal?.addEventListener("abort", onAbort, { once: true });
+  const timeout = setTimeout(() => controller.abort(), Math.max(0, deadlineAt - Date.now()));
+  try {
+    return await pollUploadReady(
+      client,
+      fileId,
+      deadlineAt,
+      controller.signal,
+      options.pollIntervalMs,
+    );
+  } catch (error) {
+    if (options.signal?.aborted) throw options.signal.reason ?? abortError();
+    if (Date.now() >= deadlineAt) throw new UploadProcessingTimeoutError(fileId);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+async function pollUploadReady(
+  client: Pick<FilesClient, "getById">,
+  fileId: string,
+  deadlineAt: number,
+  signal: AbortSignal,
+  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+): Promise<FileMetadataResponse> {
+  let interval = pollIntervalMs;
 
   while (Date.now() < deadlineAt) {
-    await abortableDelay(interval, options.signal);
-    const response = await client.getById({ params: { id: fileId } });
+    await abortableDelay(Math.min(interval, deadlineAt - Date.now()), signal);
+    throwIfAborted(signal);
+    if (Date.now() >= deadlineAt) break;
+    const response = await client.getById({ params: { id: fileId }, signal });
+    throwIfAborted(signal);
     if (response.status !== 200 || !response.body) {
       throw new Error(clientErrorKey(response.error, "api.error.uploadFailed"));
     }

@@ -277,12 +277,10 @@ export class DatabaseService implements OnApplicationShutdown {
 
   /**
    * Runs a critical scheduled task exclusively across clustered worker instances.
-   * Checks out a dedicated client from the pool and attempts to acquire a session-level
-   * advisory lock without holding an open transaction snapshot.
-   *
-   * This allows long-running jobs (e.g. S3 deletion, batch processing) to execute their own
-   * short, isolated transactions without blocking autovacuum or tying up transaction snapshots.
-   * If another replica is already executing the task, skips execution cleanly.
+   * Uses the Redis lease authority without holding a PostgreSQL connection.
+   * Long-running tasks must honor the abort signal between bounded operations
+   * and fence individual writes; a lease is not an exactly-once guarantee.
+   * Fails closed when the shared lock authority is unavailable.
    */
   async withExclusiveExecution<T>(
     key: string,

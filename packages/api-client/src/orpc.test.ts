@@ -46,4 +46,79 @@ describe("createOrpcClient 401 retry", () => {
     expect(keys[0]).toBeTruthy();
     expect(keys[1]).toBe(keys[0]);
   });
+
+  it.each(["tenant", "account"])(
+    "does not replay a mutation after changing %s during refresh",
+    async (scope) => {
+      let tenantId = "tenant-a";
+      let identity = "u-1";
+      const fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 401 }));
+      vi.stubGlobal("fetch", fetch);
+      const coordinator = {
+        refresh: vi.fn(async () => {
+          if (scope === "tenant") tenantId = "tenant-b";
+          else identity = "u-2";
+          return { kind: "refreshed" as const, response: null };
+        }),
+        handleFailure: vi.fn(),
+      };
+      const client = createOrpcClient(
+        "https://api.example.com/api/v1",
+        {
+          getTenantId: () => tenantId,
+          getAuthIdentity: () => identity,
+        },
+        coordinator,
+      );
+
+      await expect(client.notes.create({ title: "T", content: "C" })).rejects.toMatchObject({
+        status: 401,
+      });
+      expect(fetch).toHaveBeenCalledOnce();
+      expect(coordinator.handleFailure).not.toHaveBeenCalled();
+    },
+  );
+
+  it("discards late responses from a previous account without refreshing the new session", async () => {
+    let identity = "u-1";
+    const fetch = vi.fn(async () => {
+      identity = "u-2";
+      return Response.json(CREATED);
+    });
+    vi.stubGlobal("fetch", fetch);
+    const coordinator = { refresh: vi.fn(), handleFailure: vi.fn() };
+    const client = createOrpcClient(
+      "https://api.example.com/api/v1",
+      {
+        getAuthIdentity: () => identity,
+      },
+      coordinator,
+    );
+
+    await expect(client.notes.create({ title: "T", content: "C" })).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(coordinator.refresh).not.toHaveBeenCalled();
+    expect(coordinator.handleFailure).not.toHaveBeenCalled();
+  });
+
+  it("does not replay a cancelled mutation after shared refresh finishes", async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 401 }));
+    vi.stubGlobal("fetch", fetch);
+    const coordinator = {
+      refresh: vi.fn(async () => {
+        controller.abort();
+        return { kind: "refreshed" as const, response: null };
+      }),
+      handleFailure: vi.fn(),
+    };
+    const client = createOrpcClient("https://api.example.com/api/v1", {}, coordinator);
+
+    await expect(
+      client.notes.create({ title: "T", content: "C" }, { signal: controller.signal }),
+    ).rejects.toBeDefined();
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(coordinator.handleFailure).not.toHaveBeenCalled();
+  });
 });

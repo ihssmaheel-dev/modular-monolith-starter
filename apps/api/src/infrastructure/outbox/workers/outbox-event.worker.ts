@@ -166,6 +166,7 @@ export class OutboxEventWorker implements OnModuleInit {
     const meta: OutboxEventMetadata = {
       eventId: event.id,
       topic: event.topic,
+      version: event.version,
       tenantId: event.tenantId,
     };
     const consume = async () => {

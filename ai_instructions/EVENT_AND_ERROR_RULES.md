@@ -38,12 +38,14 @@ export type UserError = UserNotFound | EmailTaken | InvalidUserData;
 // modules/users/application/commands/create-user.command.ts
 import { ok, err, Result } from "neverthrow";
 import { UserError } from "../../domain/errors/user.errors";
+import type { CreateUserInput } from "@repo/contracts";
 
 @Injectable()
 export class CreateUserCommand {
-  async execute(body: any): Promise<Result<User, UserError>> {
+  async execute(body: CreateUserInput): Promise<Result<User, UserError>> {
     const existingUser = await this.repo.findByEmail(body.email);
-    if (existingUser) {
+    if (existingUser.isErr()) return err(existingUser.error);
+    if (existingUser.value) {
       return err({ type: "EMAIL_TAKEN", email: body.email }); // Strongly typed, explicit
     }
     // ...
@@ -99,7 +101,7 @@ Domain errors stay internal. Controllers translate them to safe HTTP responses:
 
 ```typescript
 // Good — safe for client
-return { status: 404, body: { message: "User not found" } };
+return { status: 404, body: { message: this.i18n.t("api.user.notFound", locale) } };
 
 // Bad — leaks internal details
 return { status: 404, body: { message: `User ${id} not found in database table users` } };
@@ -186,16 +188,17 @@ supported `TENANCY_MODE`.
 ### Level 2: Reliable Async Work (BullMQ)
 
 - When you need retries, persistence, backoff, or multi-instance safety.
-- Application command/query publishes a job via BullMQ.
+- Infrastructure publishes technical jobs through BullMQ. Commands requiring atomic database changes and delivery persist an outbox event inside their transaction; a required consumer enqueues the job. Never rely on a database write followed by a separate queue write as one atomic operation.
 - Workers live in `infrastructure/queue/` or module-specific processors.
 
 ```typescript
-// modules/users/application/commands/create-user.command.ts
-async createUser(data: CreateUserInput): Promise<Result<User, UserError>> {
-  // ... create user ...
-  await this.queue.add("send-welcome-email", { userId: user.id, email: user.email });
-  return ok(user);
+// A required outbox consumer owns the queue hand-off after the user transaction commits.
+// Failure must return err(...) so the durable consumer is retried.
+const result = await enqueueEmail({ operationId: eventId, userId, email });
+if (result.isErr()) {
+  return err(result.error);
 }
+return ok(undefined);
 ```
 
 ### Promotion Rule

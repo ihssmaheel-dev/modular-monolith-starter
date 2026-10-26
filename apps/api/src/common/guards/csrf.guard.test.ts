@@ -72,6 +72,15 @@ describe("CsrfGuard", () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
+  it("rejects equal-length Unicode text with different byte lengths without throwing a RangeError", () => {
+    const context = createMockContext({
+      method: "POST",
+      cookies: { "XSRF-TOKEN": "aa" },
+      headers: { "x-xsrf-token": "éé" },
+    });
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
+
   it("accepts the alternate cookie and header names (H08)", () => {
     const context = createMockContext({
       method: "POST",

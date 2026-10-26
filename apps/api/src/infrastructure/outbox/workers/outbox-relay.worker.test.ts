@@ -6,10 +6,12 @@ import { OutboxRelayWorker } from "./outbox-relay.worker";
 import { OutboxRelayDelivery } from "../services/outbox-relay.delivery";
 import type { OutboxEvent, OutboxRepository } from "../repositories/outbox.repository";
 import type { DatabaseService, TenantContextService } from "../../database";
+import { OutboxConsumerRegistry } from "../services/outbox-consumer.registry";
 
 const EVENT: OutboxEvent = {
   id: "event-1",
   topic: "user.created",
+  schemaVersion: 1,
   payload: {
     userId: "user-1",
     email: "user@example.test",
@@ -53,7 +55,9 @@ describe("OutboxRelayWorker", () => {
     const database = {
       runTransaction: vi.fn().mockImplementation(async (callback) => callback()),
     } as unknown as DatabaseService;
-    delivery = new OutboxRelayDelivery(repository, emitter, metrics, database, logger);
+    const registry = new OutboxConsumerRegistry();
+    registry.registerObserverTopics([EVENT.topic]);
+    delivery = new OutboxRelayDelivery(repository, emitter, metrics, database, logger, registry);
     worker = new OutboxRelayWorker(repository, metrics, tenantContext, database, delivery, logger);
   });
 

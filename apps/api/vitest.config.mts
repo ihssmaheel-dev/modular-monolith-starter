@@ -24,6 +24,7 @@ const isolatedTestPatterns = [
   "**/src/infrastructure/queue/workbench.setup.test.ts",
   "**/src/infrastructure/rate-limit/rate-limit.service.test.ts",
   "**/src/infrastructure/realtime/transports/realtime-websocket.gateway.test.ts",
+  "**/src/infrastructure/redis/redis.service.test.ts",
   "**/src/infrastructure/session/session.service.test.ts",
   "**/src/infrastructure/storage/storage.service.test.ts",
   "**/src/infrastructure/tracing/tracing.interceptor.test.ts",

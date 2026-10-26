@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BaseRepository } from "./base.repository";
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { DatabaseService } from "../database.service";
 import type { TenantContextService } from "../tenancy/tenant-context.service";
 
@@ -8,6 +8,7 @@ const testTable = pgTable("test_entities", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id"),
   name: text("name"),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 interface Entity {

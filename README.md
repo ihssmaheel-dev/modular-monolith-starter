@@ -18,7 +18,7 @@ A production-grade, highly scalable TypeScript modular monolith architecture des
   - `@repo/typescript-config`: Centralized TypeScript configurations (TS ~6)
 - **Observability:** Grafana + Prometheus + Loki + Alloy + Tempo + cAdvisor + Postgres & Redis Exporters
 - **Documentation:** Interactive Scalar API Reference (`@scalar/fastify-api-reference`) & OpenAPI 3.1
-- **Tooling & Monorepo:** Turborepo 2.10 + pnpm 10 workspaces + TypeScript ~6 + Vitest 5 (api) + Playwright (web)
+- **Tooling & Monorepo:** Turborepo 2.11 + pnpm 10 workspaces + TypeScript ~6 + Vitest 5 (api) + Playwright (web)
 
 ---
 
@@ -135,7 +135,7 @@ class node_postgres,node_redis,node_object_storage,node_email_provider,node_obse
 
 ## Prerequisites
 
-- **Node.js**: `>= 20.19.0` (required for the CommonJS API build to load oRPC's ESM runtime)
+- **Node.js**: `>=24.21.0 <25`; use the version pinned in `.node-version`. The root `engines` field, CI, and container runtime define the supported release line.
 - **pnpm**: `10.34.5` (`corepack enable` then `corepack prepare pnpm@10.34.5 --activate`)
 - **Docker**: Docker Engine with Docker Compose v2.17+
 

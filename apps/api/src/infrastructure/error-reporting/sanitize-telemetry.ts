@@ -18,6 +18,11 @@ export function sanitizeClientUrl(rawUrl: string | undefined): string {
   if (!rawUrl) return "";
   try {
     const parsed = new URL(rawUrl, "http://localhost");
+    parsed.username = "";
+    parsed.password = "";
+    // Fragments can carry OAuth tokens or application state; they are not needed
+    // to identify the page that reported an error.
+    parsed.hash = "";
     for (const key of Array.from(parsed.searchParams.keys())) {
       if (/token|secret|key|auth|pass|code|cred/i.test(key)) {
         parsed.searchParams.set(key, "[REDACTED]");
@@ -27,6 +32,8 @@ export function sanitizeClientUrl(rawUrl: string | undefined): string {
       ? parsed.toString()
       : `${parsed.pathname}${parsed.search}`;
   } catch {
-    return rawUrl.replace(/((?:token|secret|key|auth|pass|code)=)[^&]+/gi, "$1[REDACTED]");
+    return rawUrl
+      .split("#", 1)[0]!
+      .replace(/((?:token|secret|key|auth|pass|code)=)[^&]+/gi, "$1[REDACTED]");
   }
 }

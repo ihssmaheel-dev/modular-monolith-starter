@@ -58,9 +58,10 @@ async function coordinateRefresh(
   options: ApiClientOptions,
 ): Promise<RefreshOutcome> {
   const fingerprint = options.getAuthFingerprint?.();
+  const identity = options.getAuthIdentity?.();
   const accessToken = options.getAccessToken?.() ?? null;
   if (!isBrowserRuntime()) {
-    return requestRefresh(baseUrl, options, fingerprint, accessToken);
+    return requestRefresh(baseUrl, options, fingerprint, accessToken, identity);
   }
 
   const lockManager = browserLockManager();
@@ -71,9 +72,9 @@ async function coordinateRefresh(
   try {
     return await lockManager.request(LOCK_NAME, { signal: lockAbort.signal }, async () => {
       clearTimeout(timer);
-      const changed = resolveChangedIdentity(options, fingerprint, accessToken);
+      const changed = resolveChangedIdentity(options, fingerprint, accessToken, identity);
       if (changed) return changed;
-      return requestRefresh(baseUrl, options, fingerprint, accessToken);
+      return requestRefresh(baseUrl, options, fingerprint, accessToken, identity);
     });
   } catch (error) {
     return isAbortError(error)
@@ -89,6 +90,7 @@ export async function requestRefresh(
   options: ApiClientOptions,
   expectedFingerprint = options.getAuthFingerprint?.(),
   previousAccessToken = options.getAccessToken?.() ?? null,
+  expectedIdentity = options.getAuthIdentity?.(),
 ): Promise<RefreshOutcome> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REFRESH_DEADLINE_MS);
@@ -107,14 +109,30 @@ export async function requestRefresh(
       body: JSON.stringify({ refreshToken: explicitRefreshToken ?? undefined }),
     });
 
+    const superseded = resolveChangedIdentity(
+      options,
+      expectedFingerprint,
+      previousAccessToken,
+      expectedIdentity,
+    );
+    if (superseded) return superseded;
     if ([400, 401, 403].includes(response.status)) return { kind: "invalid_session" };
     if (!response.ok) return { kind: "retryable_failure", reason: "server" };
 
     const parsed = AuthResponseSchema.safeParse(await response.json());
     if (!parsed.success) return { kind: "retryable_failure", reason: "server" };
 
-    const changed = resolveChangedIdentity(options, expectedFingerprint, previousAccessToken);
+    const changed = resolveChangedIdentity(
+      options,
+      expectedFingerprint,
+      previousAccessToken,
+      expectedIdentity,
+    );
     if (changed) return changed;
+    // A sibling tab may have replaced the cookie session without updating this tab yet.
+    if (expectedIdentity != null && parsed.data.user.id !== expectedIdentity) {
+      return { kind: "superseded" };
+    }
     options.onAuthRefreshed?.(parsed.data);
     return { kind: "refreshed", response: parsed.data };
   } catch (error) {
@@ -130,7 +148,11 @@ function resolveChangedIdentity(
   options: ApiClientOptions,
   expectedFingerprint: string | undefined,
   previousAccessToken: string | null,
+  expectedIdentity: string | null | undefined,
 ): RefreshOutcome | null {
+  if (expectedIdentity !== undefined && options.getAuthIdentity?.() !== expectedIdentity) {
+    return { kind: "superseded" };
+  }
   if (expectedFingerprint === undefined || options.getAuthFingerprint?.() === expectedFingerprint) {
     return null;
   }

@@ -37,11 +37,13 @@ export class CsrfGuard implements CanActivate {
       throw new ForbiddenException();
     }
 
-    if (cookieToken.length !== headerToken.length) {
+    const cookieBytes = Buffer.from(cookieToken);
+    const headerBytes = Buffer.from(headerToken);
+    if (cookieBytes.length !== headerBytes.length) {
       throw new ForbiddenException();
     }
 
-    const isValid = timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken));
+    const isValid = timingSafeEqual(cookieBytes, headerBytes);
     if (!isValid) {
       throw new ForbiddenException();
     }

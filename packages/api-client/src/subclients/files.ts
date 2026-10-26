@@ -54,12 +54,16 @@ export function createFilesClient(fetchFn: FetchFn, orpc?: OrpcClient) {
             {},
             DownloadUrlResponseSchema,
           ),
-    getById: (req: { params: { id: string } }) =>
+    getById: (req: { params: { id: string }; signal?: AbortSignal }) =>
       orpc
-        ? orpcResponse(() => orpc.files.getById({ id: req.params.id }), 200, FileMetadataSchema)
+        ? orpcResponse(
+            () => orpc.files.getById({ id: req.params.id }, { signal: req.signal }),
+            200,
+            FileMetadataSchema,
+          )
         : fetchFn<FileMetadataResponse>(
             `/files/${encodeURIComponent(req.params.id)}`,
-            {},
+            { signal: req.signal },
             FileMetadataSchema,
           ),
     listByParent: (req: { query: FileListQuery }) => {

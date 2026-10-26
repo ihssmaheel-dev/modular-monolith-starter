@@ -103,11 +103,34 @@ describe("UpdateUserCommand", () => {
     // Assert
     expect(result.isOk()).toBe(true);
     expect(repository.updateById).toHaveBeenCalledWith("123", {
-      email: "old@example.com",
       name: "New Name",
-      role: "user",
     });
     expect(outbox.dispatchGlobal).toHaveBeenCalledWith("user.updated", expect.anything());
+  });
+
+  it("does not overwrite verified identity fields from an outdated cached profile", async () => {
+    const cached = User.fromPersistence({
+      id: "123",
+      email: "previous@example.com",
+      name: "Old name",
+      role: "admin",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const current = User.fromPersistence({
+      ...cached.toJSON(),
+      email: "verified@example.com",
+      role: "user",
+      name: "New name",
+    });
+    vi.mocked(getUserById.execute).mockResolvedValue(ok(cached));
+    vi.mocked(repository.updateById).mockResolvedValue(ok(current));
+
+    const result = await command.execute("123", { name: "New name" }, self);
+
+    expect(repository.updateById).toHaveBeenCalledWith("123", { name: "New name" });
+    expect(result).toMatchObject({ value: { email: "verified@example.com", role: "user" } });
+    expect(cached.name).toBe("Old name");
   });
 
   it("should forbid a non-admin editing another user (C01)", async () => {

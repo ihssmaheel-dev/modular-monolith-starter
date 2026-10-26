@@ -220,31 +220,16 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
   ): Promise<Result<TEntity | null, { type: "CONFLICT" }>> {
     if (this.hasMissingTenantContext()) return ok(null);
     const db = this.getDb();
-    const idCol = (this.table as unknown as Record<string, unknown>)["id"] as Parameters<
-      typeof eq
-    >[0];
-    const tenantFilter = this.tenantFilter();
-    const tenantClause =
-      tenantFilter && (this.table as unknown as Record<string, unknown>)["tenantId"]
-        ? eq(
-            (this.table as unknown as Record<string, unknown>)["tenantId"] as Parameters<
-              typeof eq
-            >[0],
-            tenantFilter["tenantId"] as string,
-          )
-        : undefined;
-
+    const columns = this.table as unknown as Record<string, unknown>;
     let versionClause: unknown;
     let nextVersionPayload: Record<string, unknown> = {};
 
     if (typeof expectedVersion === "number") {
-      const versionCol = ((this.table as unknown as Record<string, unknown>)["version"] ??
-        (this.table as unknown as Record<string, unknown>)["authVersion"]) as
-        | Parameters<typeof eq>[0]
-        | undefined;
+      const versionKey = columns["version"] ? "version" : "authVersion";
+      const versionCol = columns[versionKey] as Parameters<typeof eq>[0] | undefined;
       if (!versionCol) return err({ type: "CONFLICT" });
       versionClause = eq(versionCol, expectedVersion);
-      nextVersionPayload = { version: expectedVersion + 1 };
+      nextVersionPayload = { [versionKey]: expectedVersion + 1 };
     } else if (expectedVersion instanceof Date) {
       const updatedAtColumn = (this.table as unknown as Record<string, unknown>)["updatedAt"] as
         | Parameters<typeof eq>[0]
@@ -253,9 +238,9 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       versionClause = sql`date_trunc('milliseconds', ${updatedAtColumn}) = date_trunc('milliseconds', ${expectedVersion}::timestamptz)`;
     }
 
-    const whereClause = tenantClause
-      ? and(eq(idCol, id as string), tenantClause)
-      : eq(idCol, id as string);
+    const whereClause = this.buildConditions({ id, ...this.tenantFilter() }) as Parameters<
+      typeof and
+    >[0];
     const guardedWhereClause = versionClause
       ? and(whereClause, versionClause as Parameters<typeof and>[0])
       : whereClause;
@@ -274,7 +259,7 @@ export abstract class BaseRepository<TEntity, TRow> extends BaseReadRepository<T
       .where(guardedWhereClause)
       .returning();
     const row = rows[0] ?? null;
-    if (expectedVersion && !row) return err({ type: "CONFLICT" });
+    if (expectedVersion !== undefined && !row) return err({ type: "CONFLICT" });
     return ok(
       row && !(row as unknown as Record<string, unknown>)["deletedAt"] ? this.toDomain(row) : null,
     );

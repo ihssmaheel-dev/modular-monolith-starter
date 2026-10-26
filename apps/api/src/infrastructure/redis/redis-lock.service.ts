@@ -93,7 +93,9 @@ export class RedisLockService {
   /**
    * Executes fn exclusively if the distributed lock is acquired.
    * Runs an unreferenced heartbeat timer to auto-renew the lock during execution.
-   * If lock auto-renewal fails, immediately aborts task execution.
+   * If lock auto-renewal fails, signals cooperative cancellation and rejects.
+   * Callers must check the signal between effects and fence writes where required;
+   * rejecting the wrapper cannot cancel work already sent to another system.
    * Automatically releases the lock when fn completes or throws.
    */
   async withLock<T>(
@@ -113,7 +115,10 @@ export class RedisLockService {
     });
 
     const intervalMs = Math.max(1000, Math.floor(ttlMs / 3));
+    let renewalPending = false;
     let heartbeatTimer: NodeJS.Timeout | null = setInterval(async () => {
+      if (renewalPending || abortController.signal.aborted) return;
+      renewalPending = true;
       try {
         const renewed = await handle.renew(ttlMs);
         if (!renewed) {
@@ -131,6 +136,8 @@ export class RedisLockService {
         this.logger.warn({ error, key }, "Error during distributed lock auto-renewal; aborting");
         abortController.abort(lockLostError);
         rejectAbort?.(lockLostError);
+      } finally {
+        renewalPending = false;
       }
     }, intervalMs);
 

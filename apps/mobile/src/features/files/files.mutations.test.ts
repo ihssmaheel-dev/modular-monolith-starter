@@ -97,18 +97,20 @@ describe("mobile files mutations", () => {
 describe("putBytesNative", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
-  it("PUTs the decoded bytes with the content type", async () => {
-    vi.mocked(FileSystem.readAsStringAsync).mockResolvedValue("eA==");
+  it("PUTs native file bytes with the content type without base64 expansion", async () => {
+    const bytes = vi
+      .spyOn(FileSystem.File.prototype, "bytes")
+      .mockResolvedValue(new Uint8Array([120]));
     const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal("fetch", fetch);
 
     await putBytesNative("https://cdn.test/up", "file:///tmp/a.pdf", "application/pdf");
 
-    expect(FileSystem.readAsStringAsync).toHaveBeenCalledWith("file:///tmp/a.pdf", {
-      encoding: "base64",
-    });
+    expect(bytes).toHaveBeenCalledOnce();
     const [, init] = fetch.mock.calls[0] as [
       string,
       { method: string; headers: object; body: unknown },
@@ -119,12 +121,33 @@ describe("putBytesNative", () => {
     expect(Array.from(init.body as Uint8Array)).toEqual([120]);
   });
 
-  it("throws with the status when the PUT is rejected", async () => {
-    vi.mocked(FileSystem.readAsStringAsync).mockResolvedValue("eA==");
+  it("returns a safe error key when the PUT is rejected", async () => {
+    vi.spyOn(FileSystem.File.prototype, "bytes").mockResolvedValue(new Uint8Array([120]));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 
     await expect(
       putBytesNative("https://cdn.test/up", "file:///tmp/a.pdf", "text/plain"),
-    ).rejects.toThrow("PUT failed with status 500");
+    ).rejects.toThrow("api.error.uploadFailed");
+  });
+
+  it("aborts a stalled transfer and clears its deadline timer", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(FileSystem.File.prototype, "bytes").mockResolvedValue(new Uint8Array([120]));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise<never>((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () => reject(init.signal?.reason), {
+              once: true,
+            });
+          }),
+      ),
+    );
+    const pending = putBytesNative("https://cdn.test/up", "file:///tmp/a.pdf", "application/pdf");
+    const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

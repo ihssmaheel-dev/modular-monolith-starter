@@ -65,7 +65,7 @@ describe("PrivacyExportWorker", () => {
 
     await worker.processPending();
 
-    expect(repository.markExportAttemptFailed).toHaveBeenCalledWith("export-1", false);
+    expect(repository.markExportAttemptFailed).toHaveBeenCalledWith("export-1", 1, false);
   });
 
   it("marks the last failed attempt terminal", async () => {
@@ -74,6 +74,6 @@ describe("PrivacyExportWorker", () => {
 
     await worker.processPending();
 
-    expect(repository.markExportAttemptFailed).toHaveBeenCalledWith("export-1", true);
+    expect(repository.markExportAttemptFailed).toHaveBeenCalledWith("export-1", 3, true);
   });
 });

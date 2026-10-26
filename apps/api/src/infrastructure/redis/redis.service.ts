@@ -3,6 +3,7 @@ import Redis from "ioredis";
 import { env } from "../../config/env";
 import { PinoLoggerService } from "../logger/logger.service";
 import { MetricsService } from "../metrics/metrics.service";
+import { closeRedisConnection } from "./close-redis-connection";
 
 const MAX_RETRIES_PER_REQUEST = 3;
 const RETRY_DELAY_MULTIPLIER = 200;
@@ -54,14 +55,24 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
       this.notifyReady();
     });
     this.client = client;
-    await Promise.race([
-      new Promise<void>((resolve) => client.once("ready", resolve)),
-      new Promise<void>((resolve) => setTimeout(resolve, STARTUP_READY_TIMEOUT_MS)),
-    ]);
+    await this.waitForReady(client);
     if (client.status !== "ready") {
       this.logger.error({}, "Redis was not ready before the startup deadline; reconnect continues");
     }
     return this.getClient();
+  }
+
+  private async waitForReady(client: Redis): Promise<void> {
+    await new Promise<void>((resolve) => {
+      const finish = () => {
+        clearTimeout(deadline);
+        client.removeListener("ready", finish);
+        resolve();
+      };
+      const deadline = setTimeout(finish, STARTUP_READY_TIMEOUT_MS);
+      client.once("ready", finish);
+      if (client.status === "ready") finish();
+    });
   }
 
   getClient(): Redis | null {
@@ -92,10 +103,9 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     this.readyListeners.clear();
     if (!client) return;
     try {
-      await client.quit();
+      await closeRedisConnection(client);
     } catch (error) {
       this.logger.warn({ err: error }, "Redis client did not quit cleanly");
-      client.disconnect();
     }
   }
 }

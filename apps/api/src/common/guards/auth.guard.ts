@@ -84,7 +84,10 @@ export class AuthGuard implements CanActivate {
     if (request.url?.split("?")[0] !== METRICS_PATH) return false;
     if (!env.METRICS_TOKEN) return env.NODE_ENV !== "production";
     const provided = request.headers?.authorization?.replace(/^Bearer /, "");
-    if (!provided || provided.length !== env.METRICS_TOKEN.length) return false;
-    return timingSafeEqual(Buffer.from(provided), Buffer.from(env.METRICS_TOKEN));
+    if (!provided) return false;
+    const providedBytes = Buffer.from(provided);
+    const expectedBytes = Buffer.from(env.METRICS_TOKEN);
+    if (providedBytes.length !== expectedBytes.length) return false;
+    return timingSafeEqual(providedBytes, expectedBytes);
   }
 }

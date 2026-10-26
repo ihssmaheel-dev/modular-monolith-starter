@@ -111,10 +111,12 @@ anonymize clearing.
 ## Quota scope
 
 `FILE_USER_QUOTA_BYTES` (default 100 MB) is enforced **per user globally**
-(`sumActiveBytes(uploadedBy)` across tenants, soft-deleted excluded). This
-is intentional for the starter: one abuse bucket per human. Multi-tenant
-billing that needs per-organization quotas should scope the sum by tenant
-in `RequestUploadCommand.checkQuota` and document the new semantics.
+(across tenants, soft-deleted excluded). `FILE_TENANT_QUOTA_BYTES` and
+`FILE_TENANT_MAX_OBJECTS` independently cap the active tenant's reserved bytes
+and objects. `RequestUploadCommand` serializes reservation under tenant and
+user advisory locks, in that order, and includes pending uploads in usage.
+Project billing policies may refine these limits without removing the shared
+abuse controls.
 
 ## Recipe for a new module (e.g. invoices)
 
@@ -149,6 +151,12 @@ quarantine object and makes the row eligible; the worker is the sole scan/promot
 use a token and expiring lease, and terminal updates compare that token so a stale worker cannot
 overwrite a winner. Candidate active keys keep promotion safe across lease expiry.
 
+Header validation reads at most a 4 KiB S3 range, conditional on the verified ETag/version, with a
+ten-second stream deadline. S3 requests have bounded connection/request timeouts and retry attempts.
+These checks prevent a stalled or overwritten quarantine object from occupying a scanner forever.
+The optional antivirus adapter must scan the same supplied version/ETag; signature validation alone
+does not establish that a file is malware-free.
+
 Confirmation also publishes a disposable `file-scan` BullMQ wake-up so an available worker claims
 the specific row immediately. PostgreSQL remains the durable source of state: delayed retry jobs
 follow the recorded retry deadline, and the minute scanner cron recovers any wake-up missed during a
@@ -158,6 +166,10 @@ state authority.
 The shared API-client upload helper polls the same file ID until `uploaded` or `failed`, with a
 bounded deadline. Parent attachment happens only after `uploaded`. A new upload attempt requests a
 new URL and file record; never reuse a URL past its 15-minute expiry.
+
+Cleanup rechecks a candidate's stale/unlinked status atomically and commits its tombstone before
+deleting object bytes. A file attached after candidate selection is skipped. Failed object deletion
+leaves the tombstone available to a later cleanup pass, rather than losing its retry state.
 
 ## Required bucket controls
 

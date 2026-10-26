@@ -17,26 +17,10 @@ function loadEnv(): WebEnv {
   return parsed.data;
 }
 
-// Lazy to avoid SSR issues
+// The same public build configuration must drive SSR headers and browser hydration.
 let cached: WebEnv | null = null;
 export function getWebEnv(): WebEnv {
   if (cached) return cached;
-  // On server, import.meta.env may not be available — fallback to process.env
-  if (typeof window === "undefined") {
-    const runtime = globalThis as typeof globalThis & {
-      process?: { env?: Record<string, string | undefined> };
-    };
-    const serverRaw = {
-      VITE_API_URL: runtime.process?.env?.VITE_API_URL,
-      VITE_FILE_UPLOAD_ORIGIN: runtime.process?.env?.VITE_FILE_UPLOAD_ORIGIN,
-      VITE_APP_NAME: runtime.process?.env?.VITE_APP_NAME,
-      VITE_EXAMPLE_FEATURES_ENABLED: runtime.process?.env?.VITE_EXAMPLE_FEATURES_ENABLED,
-    };
-    const parsed = webEnvSchema.safeParse(serverRaw);
-    if (!parsed.success) throw new Error("Invalid web environment configuration");
-    cached = parsed.data;
-    return cached;
-  }
   cached = loadEnv();
   return cached;
 }

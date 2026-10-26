@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { useAuthStore } from "@/stores/auth.store";
 import { getApiClient } from "@/lib/api";
-import { Route, verifySession } from "./_app";
+import { Route } from "./_app";
+import { verifySession } from "@/lib/session-bootstrap";
 import { FRONTEND_ROUTES } from "@repo/contracts";
 
 vi.mock("@/lib/api", () => ({

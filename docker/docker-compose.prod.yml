@@ -35,6 +35,8 @@ services:
       - app-network
 
   web:
+    # Public VITE_* configuration is baked into WEB_IMAGE_REF at build time.
+    # Rebuild the image to change API/upload origins, branding, or example routes.
     image: ${WEB_IMAGE_REF:?set WEB_IMAGE_REF to an immutable image digest}
     labels:
       observability.logs: "true"
@@ -44,9 +46,6 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOST: 0.0.0.0
-      VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL}
-      VITE_APP_NAME: ${VITE_APP_NAME:-Workspace}
-      VITE_EXAMPLE_FEATURES_ENABLED: ${EXAMPLE_FEATURES_ENABLED:-false}
     depends_on:
       api:
         condition: service_healthy

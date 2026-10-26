@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnApplicationShutdown, Optional } from "@nestjs/common";
 import { PinoLoggerService } from "../logger/logger.service";
 import { RedisService } from "../redis/redis.service";
+import { closeRedisConnection } from "../redis/close-redis-connection";
 import { env } from "../../config/env";
 import Redis from "ioredis";
 import type { FeatureFlagContext, FeatureFlagProvider } from "./feature-flags.types";
@@ -34,6 +35,8 @@ export class FeatureFlagsService
   private subscriber: Redis | null = null;
   private readonly logger: PinoLoggerService;
   private unsubscribeReady?: () => void;
+  private isShuttingDown = false;
+  private subscriberSetup?: Promise<void>;
 
   constructor(
     logger: PinoLoggerService,
@@ -45,6 +48,7 @@ export class FeatureFlagsService
   async onModuleInit(): Promise<void> {
     await this.loadInitialFlags();
     await this.setupSubscriber();
+    if (this.isShuttingDown) return;
     this.unsubscribeReady = this.redisService?.onReady?.(async () => {
       await this.loadInitialFlags();
       await this.setupSubscriber();
@@ -52,12 +56,10 @@ export class FeatureFlagsService
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.isShuttingDown = true;
     this.unsubscribeReady?.();
     this.unsubscribeReady = undefined;
-    if (this.subscriber) {
-      await this.subscriber.quit();
-      this.subscriber = null;
-    }
+    await this.closeSubscriber();
   }
 
   private async loadInitialFlags(): Promise<void> {
@@ -79,23 +81,41 @@ export class FeatureFlagsService
   }
 
   private async setupSubscriber(): Promise<void> {
+    if (this.isShuttingDown) return;
+    if (this.subscriberSetup) return this.subscriberSetup;
+    this.subscriberSetup = this.replaceSubscriber();
+    try {
+      await this.subscriberSetup;
+    } finally {
+      this.subscriberSetup = undefined;
+    }
+  }
+
+  private async closeSubscriber(): Promise<void> {
+    const subscriber = this.subscriber;
+    this.subscriber = null;
+    if (!subscriber) return;
+    try {
+      await closeRedisConnection(subscriber);
+    } catch (error) {
+      this.logger.warn({ error }, "Feature flag subscriber did not quit cleanly");
+    }
+  }
+
+  private async replaceSubscriber(): Promise<void> {
     const client = this.redisService?.getClient();
     if (!client) return;
-    if (this.subscriber) {
-      try {
-        await this.subscriber.quit();
-      } catch {
-        this.subscriber.disconnect();
-      }
-      this.subscriber = null;
-    }
+    await this.closeSubscriber();
+    if (this.isShuttingDown) return;
     try {
-      this.subscriber = client.duplicate();
-      this.subscriber.on("error", (error) => {
+      const subscriber = client.duplicate();
+      this.subscriber = subscriber;
+      subscriber.on("error", (error) => {
         this.logger.error({ error }, "Feature flags Redis subscriber error");
       });
-      await this.subscriber.subscribe(REDIS_FLAGS_CHANNEL);
-      this.subscriber.on("message", (channel, message) => {
+      await subscriber.subscribe(REDIS_FLAGS_CHANNEL);
+      if (this.isShuttingDown || this.subscriber !== subscriber) return;
+      subscriber.on("message", (channel, message) => {
         if (channel === REDIS_FLAGS_CHANNEL) this.handleMessage(message);
       });
       this.logger.info({}, "Subscribed to distributed feature flag updates");

@@ -6,6 +6,7 @@ import {
   getAuthorizationHeader,
   getTransferHeaders,
   readCookie,
+  throwIfAborted,
 } from "./utils";
 import { createRefreshCoordinator } from "./auth/refresh-coordinator";
 import {
@@ -20,6 +21,7 @@ import {
 } from "./subclients";
 import { createOrpcClient } from "./orpc";
 import { invalidResponseError, parseError } from "./response";
+import { captureRequestScope, discardSupersededResponse } from "./auth/request-scope";
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -31,6 +33,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
     init: RequestInit = {},
     schema?: ZodType<T>,
   ): Promise<ApiResponse<T>> => {
+    const isCurrentScope = captureRequestScope(options);
     const method = (init.method ?? "GET").toUpperCase();
     const headers: Record<string, string> = {
       "content-type": "application/json",
@@ -54,11 +57,18 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
 
     const url = `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
     let res = await fetch(url, { ...init, headers, credentials: "include" });
+    throwIfAborted(init.signal);
+    if (!isCurrentScope()) res = await discardSupersededResponse(res);
 
     const normalizedPath = path.replace(/^\/+/, "");
     const canRefresh = normalizedPath === "auth/me" || !normalizedPath.startsWith("auth/");
-    if (res.status === 401 && canRefresh) {
+    if (res.status === 401 && canRefresh && isCurrentScope()) {
       const outcome = await coordinator.refresh();
+      throwIfAborted(init.signal);
+      if (!isCurrentScope()) {
+        res = await discardSupersededResponse(res);
+        return { status: 401, body: null as T, error: parseError(null, res.headers, 401) };
+      }
       if (outcome.kind !== "refreshed") {
         if (outcome.kind === "invalid_session" || outcome.kind === "unsupported") {
           await coordinator.handleFailure();
@@ -78,7 +88,9 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
 
       const accessToken = outcome.response?.accessToken ?? options.getAccessToken?.();
       if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+      await res.body?.cancel();
       res = await fetch(url, { ...init, headers, credentials: "include" });
+      if (!isCurrentScope()) res = await discardSupersededResponse(res);
     }
 
     let body: unknown = null;

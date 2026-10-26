@@ -73,19 +73,28 @@ export class DeliveryIntentsRepository {
     return (result.rows as NotificationDeliveryIntentRow[]).map(toIntent);
   }
 
-  async markDelivered(intent: NotificationDeliveryIntent): Promise<void> {
+  async markDelivered(intent: NotificationDeliveryIntent): Promise<boolean> {
     const db = this.database.getTx() ?? this.database.getDb();
-    await db
+    const completed = await db
       .update(notificationDeliveryIntents)
       .set({ status: "delivered", lockedAt: null, lastError: null, updatedAt: new Date() })
-      .where(eq(notificationDeliveryIntents.id, intent.id));
+      .where(
+        and(
+          eq(notificationDeliveryIntents.id, intent.id),
+          eq(notificationDeliveryIntents.status, "processing"),
+          eq(notificationDeliveryIntents.attempts, intent.attempts),
+        ),
+      )
+      .returning({ id: notificationDeliveryIntents.id });
+    if (completed.length === 0) return false;
     await db.execute(sql`UPDATE notifications
       SET delivered_channels = CASE
         WHEN delivered_channels ? ${intent.channel} THEN delivered_channels
-        ELSE delivered_channels || jsonb_build_array(${intent.channel})
+        ELSE delivered_channels || jsonb_build_array(${intent.channel}::text)
       END,
       updated_at = NOW()
       WHERE id = ${intent.notificationId}`);
+    return true;
   }
 
   async getBacklogStats(): Promise<{ pending: number; dead: number; oldestPendingAt?: Date }> {
@@ -109,11 +118,11 @@ export class DeliveryIntentsRepository {
     intent: NotificationDeliveryIntent,
     error: string,
     maxAttempts: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const db = this.database.getTx() ?? this.database.getDb();
     const exhausted = intent.attempts >= maxAttempts;
     const delaySeconds = Math.min(900, 2 ** intent.attempts * 5);
-    await db
+    const completed = await db
       .update(notificationDeliveryIntents)
       .set({
         status: exhausted ? "dead" : "pending",
@@ -126,8 +135,11 @@ export class DeliveryIntentsRepository {
         and(
           eq(notificationDeliveryIntents.id, intent.id),
           eq(notificationDeliveryIntents.status, "processing"),
+          eq(notificationDeliveryIntents.attempts, intent.attempts),
         ),
-      );
+      )
+      .returning({ id: notificationDeliveryIntents.id });
+    return completed.length > 0;
   }
 
   async findNotification(intent: NotificationDeliveryIntent) {

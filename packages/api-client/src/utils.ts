@@ -1,6 +1,14 @@
 import { DEFAULT_PAGE_LIMIT, type PaginationQuery } from "@repo/contracts";
 import type { ApiClientOptions } from "./types";
 
+/** React Native's AbortSignal polyfill does not implement throwIfAborted. */
+export function throwIfAborted(signal?: AbortSignal | null): void {
+  if (!signal?.aborted) return;
+  const error = new Error("Request aborted");
+  error.name = "AbortError";
+  throw signal.reason ?? error;
+}
+
 export function createIdempotencyKey(): string {
   if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;

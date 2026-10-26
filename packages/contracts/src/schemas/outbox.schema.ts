@@ -16,6 +16,7 @@ export type OutboxEventEnvelope = z.infer<typeof OutboxEventEnvelopeSchema>;
 export interface OutboxEventMetadata {
   eventId: string;
   topic: string;
+  version: number;
   tenantId?: string;
 }
 
@@ -99,9 +100,20 @@ const payloadSchemas: Record<string, z.ZodType<Record<string, unknown>>> = {
   }),
 };
 
+// Keep previous schemas while durable rows/jobs may still reference their version.
+// Project topics can use the v1 envelope and register required consumers; add their
+// payload schema here before evolving them to another version.
+const payloadSchemasByVersion: Record<number, typeof payloadSchemas> = { 1: payloadSchemas };
+/** Internal durable-processing failure code; presentation layers map it to a localized error. */
+const UNSUPPORTED_OUTBOX_EVENT_VERSION = "UNSUPPORTED_OUTBOX_EVENT_VERSION";
+
 export function parseOutboxEventEnvelope(value: unknown): OutboxEventEnvelope {
   const envelope = OutboxEventEnvelopeSchema.parse(value);
-  const payloadSchema = payloadSchemas[envelope.topic];
+  const versionSchemas = payloadSchemasByVersion[envelope.version];
+  if (!versionSchemas) throw new Error(UNSUPPORTED_OUTBOX_EVENT_VERSION);
+  const payloadSchema = Object.hasOwn(versionSchemas, envelope.topic)
+    ? versionSchemas[envelope.topic]
+    : undefined;
   if (!payloadSchema) return envelope;
   return { ...envelope, payload: payloadSchema.parse(envelope.payload) };
 }

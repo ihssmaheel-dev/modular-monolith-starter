@@ -43,8 +43,11 @@ The dependency audit remains blocking at `high` severity, including findings wit
 patch. Passing tests do not override that gate. Unpatched findings require an upstream fix or an
 explicitly reviewed policy change; CI does not automatically suppress development-tool advisories.
 
-CD defaults the browser API URL to `/api/v1` for same-origin deployments. For a separate origin, set
-the public repository variable `VITE_API_URL`; this value is browser configuration, not a secret.
+CD defaults the browser API URL to `/api/v1` for same-origin deployments. Public repository variables
+`VITE_API_URL`, `VITE_FILE_UPLOAD_ORIGIN`, `VITE_APP_NAME`, and `VITE_EXAMPLE_FEATURES_ENABLED` are
+passed into the web image build. These are public configuration, never secrets. SSR and the browser
+use those same baked values; changing container runtime variables does not reconfigure the image.
+Rebuild it when origins, branding, or example routes change, and keep the API example setting aligned.
 
 `.github/workflows/cd.yml` publishes after a successful push-triggered CI workflow on this
 repository's `main`, or a manual dispatch on `main` with matching successful CI evidence. A fork/PR
@@ -52,7 +55,7 @@ workflow cannot trigger a privileged registry publication even if its head branc
 
 1. checks out the exact successful commit;
 2. builds API and web images with a 12-character commit tag;
-3. pushes and scans those immutable tags with Trivy;
+3. scans the locally built images with Trivy, then pushes the verified tags;
 4. validates normal, pooling, and staging Compose profiles using the resulting digests; and
 5. uploads `release-manifest.json` containing the full commit and both registry digests.
 
@@ -172,7 +175,9 @@ budgets require a project-specific delivery policy; the generic file module does
 Also configure budgets/alarms for database storage and I/O, Redis memory/commands, NAT/data transfer,
 logs/traces/metrics ingestion and retention, email/SMS/push providers, queue operations, and container
 CPU/memory. Container limits and bounded batches prevent one process from consuming unlimited host
-resources; cloud budgets and admission flags limit account-level financial exposure.
+resources. Cloud budgets provide delayed detection, not an immediate spending ceiling. Combine them
+with provider quotas, retention, maximum replica counts, and tested admission flags; monitor and
+budget the durable work that was already accepted before admission stopped.
 
 ## Observability and incident response
 
@@ -210,6 +215,12 @@ log/trace retention policies, and managed-service quotas for account-level cost 
 workflow renders this exact merge, validates dashboards, and runs `promtool` against the production
 Prometheus configuration and alert rules.
 
+Realtime streams retain approximately 10,000 live entries and 1,000 dead-letter entries. The latter
+is a bounded diagnostic buffer for reconstructable UI hints, not durable business-event storage.
+Inspect failed deliveries before older diagnostics are trimmed. Durable domain failures remain in
+the outbox and BullMQ failure paths. Redis connection shutdown has a five-second QUIT deadline,
+followed by forced socket disconnection so a failed dependency cannot indefinitely block teardown.
+
 cAdvisor is deliberately not enabled by the default production observability profile because it
 requires privileged host mounts and a Docker socket. On a dedicated single-host deployment where
 that trade-off is accepted, add `--profile observability-host` and use an explicit host firewall;
@@ -220,6 +231,12 @@ cloud deployments should use the provider's container and host metrics instead.
 remain reachable so an orchestrator can distinguish overload from process death.
 
 ## Backups and recovery
+
+The backup script writes a private temporary archive, verifies it, then atomically publishes the
+completed `.sql.gz` file. Failed dumps remove the partial archive and do not prune good backups.
+Retention requires a positive count and handles directories containing spaces. These scripts require
+Bash and GNU coreutils/findutils (Linux or Git Bash on Windows); production backup encryption,
+off-site storage, scheduling, and restore drills remain deployment responsibilities.
 
 ```bash
 DATABASE_URL=... pnpm db:backup [./backups]

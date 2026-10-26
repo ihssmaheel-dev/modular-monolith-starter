@@ -69,7 +69,7 @@ export class PurgeExpiredErasuresCommand {
           { requestId: request.id, attempts: request.attempts },
           "Erasure request exhausted its retry budget",
         );
-        await this.markFailed(request.id);
+        await this.markFailed(request);
       }
     }
     const scrubbed = await this.scrubExpiredExports();
@@ -85,7 +85,7 @@ export class PurgeExpiredErasuresCommand {
   private async fulfillRequest(request: DsrRequest): Promise<"fulfilled" | "retry" | "failed"> {
     if (request.type === "ACCOUNT_ERASURE") {
       const outcome = await this.fulfillAccount(request);
-      if (outcome === "failed") await this.markFailed(request.id);
+      if (outcome === "failed") await this.markFailed(request);
       return outcome;
     }
     if (request.type === "ORGANIZATION_ERASURE" && request.tenantId) {
@@ -95,7 +95,7 @@ export class PurgeExpiredErasuresCommand {
       { requestId: request.id, type: request.type },
       "Erasure request is not fulfillable",
     );
-    await this.markFailed(request.id);
+    await this.markFailed(request);
     return "failed";
   }
 
@@ -145,7 +145,7 @@ export class PurgeExpiredErasuresCommand {
         if (deleted.error.type === "USER_OWNS_ORGANIZATION") return ok("failed");
         return err({ type: "PURGE_FAILED" });
       }
-      const marked = await this.requests.updateById(request.id, {
+      const marked = await this.requests.updateClaimed(request.id, request.attempts, {
         status: "FULFILLED",
         payload: null,
         lockedAt: null,
@@ -173,7 +173,7 @@ export class PurgeExpiredErasuresCommand {
       return "retry";
     }
     if (result.value === "failed") {
-      await this.markFailed(request.id);
+      await this.markFailed(request);
       return "failed";
     }
     return "fulfilled";
@@ -185,7 +185,7 @@ export class PurgeExpiredErasuresCommand {
     const tenantId = request.tenantId;
     if (!tenantId) {
       this.logger.error({ requestId: request.id }, "Organization erasure has no tenant scope");
-      await this.markFailed(request.id);
+      await this.markFailed(request);
       return "failed";
     }
     const destroyed = await this.lifecycle.purgeTenant(tenantId);
@@ -196,7 +196,7 @@ export class PurgeExpiredErasuresCommand {
     const finalize = async (): Promise<Result<void, PrivacyError>> => {
       const deleted = await this.hardDeleteOrganization.execute(tenantId);
       if (deleted.isErr()) return err({ type: "PURGE_FAILED" });
-      const marked = await this.requests.updateById(request.id, {
+      const marked = await this.requests.updateClaimed(request.id, request.attempts, {
         status: "FULFILLED",
         payload: null,
         lockedAt: null,
@@ -217,12 +217,16 @@ export class PurgeExpiredErasuresCommand {
     return "fulfilled";
   }
 
-  private async markFailed(requestId: string): Promise<void> {
+  private async markFailed(request: DsrRequest): Promise<void> {
     const marked = await this.database.withResultTransaction(() =>
-      this.requests.updateById(requestId, { status: "FAILED", payload: null, lockedAt: null }),
+      this.requests.updateClaimed(request.id, request.attempts, {
+        status: "FAILED",
+        payload: null,
+        lockedAt: null,
+      }),
     );
     if (marked.isErr() || !marked.value) {
-      this.logger.error({ requestId }, "Erasure request could not be marked failed");
+      this.logger.error({ requestId: request.id }, "Erasure request could not be marked failed");
     }
   }
 

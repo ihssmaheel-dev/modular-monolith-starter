@@ -1,4 +1,14 @@
-import { pgTable, text, timestamp, pgEnum, integer, index, jsonb } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  text,
+  timestamp,
+  pgEnum,
+  integer,
+  index,
+  jsonb,
+  check,
+} from "drizzle-orm/pg-core";
 
 export const outboxStatusEnum = pgEnum("outbox_status", [
   "PENDING",
@@ -14,6 +24,7 @@ export const outboxEvents = pgTable(
     id: text("id").primaryKey(),
     tenantId: text("tenant_id"),
     topic: text("topic").notNull(),
+    schemaVersion: integer("schema_version").notNull().default(1),
     payload: jsonb("payload").notNull(),
     status: outboxStatusEnum("status").notNull().default("PENDING"),
     attempts: integer("attempts").notNull().default(0),
@@ -24,6 +35,7 @@ export const outboxEvents = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("outbox_schema_version_positive", sql`${t.schemaVersion} > 0`),
     index("outbox_status_next_attempt_idx").on(t.status, t.nextAttemptAt),
     index("outbox_status_locked_idx").on(t.status, t.lockedAt),
     index("outbox_status_updated_idx").on(t.status, t.updatedAt),

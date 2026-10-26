@@ -141,7 +141,13 @@ export class RequestExportCommand {
     expiresAt: Date,
   ): Promise<Result<DsrRequest, PrivacyError>> {
     const operation = async (): Promise<Result<DsrRequest, PrivacyError>> => {
-      const updated = await this.requests.completeExport(request.id, payload, truncated, expiresAt);
+      const updated = await this.requests.completeExport(
+        request.id,
+        request.attempts,
+        payload,
+        truncated,
+        expiresAt,
+      );
       if (updated.isErr() || !updated.value) return err({ type: "EXPORT_FAILED" });
       const dispatched = await this.outbox.dispatchGlobal(
         "privacy.export.ready",

@@ -107,6 +107,7 @@ describe("RequestExportCommand", () => {
     expect(result.isOk()).toBe(true);
     expect(requests.completeExport).toHaveBeenCalledWith(
       "dsr-1",
+      1,
       expect.objectContaining({ modules: { notes: { items: [{ id: "n1" }] } } }),
       false,
       expect.any(Date),
@@ -120,5 +121,14 @@ describe("RequestExportCommand", () => {
     const result = await command.execute(ACTOR);
 
     expect(result.isErr()).toBe(true);
+  });
+
+  it("does not emit a ready event when a newer worker owns the export", async () => {
+    vi.mocked(requests.completeExport).mockResolvedValue(ok(null));
+
+    expect(await command.process(request("PROCESSING"))).toMatchObject({
+      error: { type: "EXPORT_FAILED" },
+    });
+    expect(outbox.dispatchGlobal).not.toHaveBeenCalled();
   });
 });

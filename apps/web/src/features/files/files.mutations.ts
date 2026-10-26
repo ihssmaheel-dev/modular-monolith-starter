@@ -4,6 +4,8 @@ import { toast } from "@repo/ui/components/ui/toast";
 import { uploadFile, UploadProcessingTimeoutError, type UploadBody } from "@repo/api-client";
 import { getApiClient } from "@/lib/api";
 
+const UPLOAD_TRANSFER_TIMEOUT_MS = 60_000;
+
 export function putBytesWithProgress(
   url: string,
   body: UploadBody | undefined,
@@ -17,6 +19,7 @@ export function putBytesWithProgress(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
+    xhr.timeout = UPLOAD_TRANSFER_TIMEOUT_MS;
     xhr.setRequestHeader("Content-Type", contentType);
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress(event.loaded / event.total);
@@ -26,10 +29,12 @@ export function putBytesWithProgress(
         onProgress(1);
         resolve();
       } else {
-        reject(new Error("api.file.uploadFailed"));
+        reject(new Error("api.error.uploadFailed"));
       }
     };
-    xhr.onerror = () => reject(new Error("api.file.uploadFailed"));
+    xhr.onerror = () => reject(new Error("api.error.uploadFailed"));
+    xhr.ontimeout = () => reject(new Error("api.error.uploadFailed"));
+    xhr.onabort = () => reject(new Error("api.error.uploadFailed"));
     xhr.send(payload);
   });
 }

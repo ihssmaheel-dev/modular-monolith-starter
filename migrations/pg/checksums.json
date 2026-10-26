@@ -1,3 +1,4 @@
 {
-  "0000_initial.sql": "b0c5fd374a4bcb7dca05e3d431b6fd8a17831ed40a8ec71e4b056e3b0cad1252"
+  "0000_initial.sql": "b0c5fd374a4bcb7dca05e3d431b6fd8a17831ed40a8ec71e4b056e3b0cad1252",
+  "0001_outbox_schema_version.sql": "786bcdd3335eb91e7d22e033e419aabad85c1c1fb9a01b69c222eb68be7b6144"
 }

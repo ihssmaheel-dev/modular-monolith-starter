@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
@@ -85,18 +85,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
     limit = 100,
   ): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
-    const db = this.getDb();
-    const rows = await (
-      db as unknown as {
-        select: () => {
-          from: (t: unknown) => {
-            where: (c: unknown) => {
-              orderBy: (column: unknown) => { limit: (n: number) => Promise<FileRow[]> };
-            };
-          };
-        };
-      }
-    )
+    const rows = await this.getDb()
       .select()
       .from(files)
       .where(
@@ -113,18 +102,7 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
 
   async findUnlinkedBefore(cutoff: Date, systemScope = false, limit = 100): Promise<FileEntity[]> {
     if (!systemScope || !this.tenantContext.isSystemScope()) return [];
-    const db = this.getDb();
-    const rows = await (
-      db as unknown as {
-        select: () => {
-          from: (t: unknown) => {
-            where: (c: unknown) => {
-              orderBy: (column: unknown) => { limit: (n: number) => Promise<FileRow[]> };
-            };
-          };
-        };
-      }
-    )
+    const rows = await this.getDb()
       .select()
       .from(files)
       .where(
@@ -138,6 +116,33 @@ export class FilesRepository extends BaseRepository<FileEntity, FileRow> {
       .orderBy(asc(files.createdAt))
       .limit(limit);
     return (rows ?? []).map((r) => this.toDomain(r));
+  }
+
+  /** Atomically fences orphan cleanup against a concurrent attachment or scan. */
+  async claimCleanup(
+    id: string,
+    pendingCutoff: Date,
+    unlinkedCutoff: Date,
+  ): Promise<FileEntity | null> {
+    if (!this.tenantContext.isSystemScope()) return null;
+    const staleUpload = and(
+      lt(files.createdAt, pendingCutoff),
+      or(
+        inArray(files.status, ["pending", "uploading", "failed"]),
+        and(eq(files.status, "scanning"), lt(files.scanLeaseExpiresAt, new Date())),
+      ),
+    );
+    const unlinkedUpload = and(
+      eq(files.status, "uploaded"),
+      isNull(files.parentId),
+      lt(files.createdAt, unlinkedCutoff),
+    );
+    const [claimed] = await this.getDb()
+      .update(files)
+      .set({ deletedAt: sql`coalesce(${files.deletedAt}, now())`, updatedAt: new Date() })
+      .where(and(eq(files.id, id), or(isNotNull(files.deletedAt), staleUpload, unlinkedUpload)))
+      .returning();
+    return claimed ? this.toDomain(claimed) : null;
   }
 
   async findUploadedFiles(

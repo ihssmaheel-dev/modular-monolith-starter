@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { Redis } from "ioredis";
 import { RedisService } from "../../redis/redis.service";
+import { closeRedisConnection } from "../../redis/close-redis-connection";
 import { PinoLoggerService } from "../../logger/logger.service";
 import { MetricsService } from "../../metrics/metrics.service";
 import { RealtimeStreamRouter } from "./realtime-stream.router";
@@ -228,8 +229,12 @@ export class RealtimeStreamConsumer implements OnModuleInit, OnModuleDestroy {
     if (this.subscriber) {
       const sub = this.subscriber;
       this.subscriber = null;
+      try {
+        await closeRedisConnection(sub);
+      } catch (error) {
+        this.logger.warn({ error }, "Realtime subscriber did not quit cleanly");
+      }
       sub.removeAllListeners?.();
-      await sub.quit().catch(() => {});
     }
   }
 }

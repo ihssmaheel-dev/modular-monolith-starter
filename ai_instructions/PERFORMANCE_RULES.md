@@ -181,11 +181,11 @@ export class ImportService {
 ### Memory
 - Don't accumulate data in memory. Stream when possible.
 - Clean up event listeners and timers.
-- Use `WeakRef` for caches that should be garbage-collected.
+- Bound cache entries and value sizes, expire entries with TTLs, and release in-flight entries on both success and failure. `WeakRef` is not a predictable cache retention or capacity policy.
 
 ### Startup
 - Validate env vars once at startup (already done in `config/env.ts`).
-- Lazy-connect to Redis/Postgres. Don't block app start unless required.
+- Follow each dependency's existing startup and reconnection lifecycle. Readiness must remain unhealthy when a required dependency is unavailable; starting the process alone does not make it ready for traffic.
 
 ---
 

@@ -4,6 +4,7 @@ import { PinoLoggerService } from "../logger/logger.service";
 import { CacheMetricsService } from "./cache-metrics.service";
 
 const DEFAULT_TTL_SECONDS = 300; // 5 minutes
+export const MAX_INFLIGHT_CACHE_LOADS = 1_000;
 
 @Injectable()
 export class CacheService {
@@ -60,17 +61,30 @@ export class CacheService {
     if (existing) return existing;
 
     this.logger.debug({ key }, "Cache miss");
-    const promise = (async () => {
-      try {
-        const fresh = await fetcher();
-        await this.set(key, fresh, ttlSeconds);
-        return fresh;
-      } finally {
+    // Coalescing is an optimization: do not retain an unbounded number of keys
+    // when upstream loads stall. Overflow still uses the normal cache-aside path.
+    if (this.inflight.size >= MAX_INFLIGHT_CACHE_LOADS) {
+      return this.fetchAndCache(key, fetcher, ttlSeconds);
+    }
+    // Defer invocation until after registration so a synchronous throw cannot
+    // delete the entry before it exists and leave a permanently rejected promise.
+    const promise = Promise.resolve()
+      .then(() => this.fetchAndCache(key, fetcher, ttlSeconds))
+      .finally(() => {
         this.inflight.delete(key);
-      }
-    })();
+      });
     this.inflight.set(key, promise);
     return promise;
+  }
+
+  private async fetchAndCache<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+    ttlSeconds?: number,
+  ): Promise<T> {
+    const fresh = await fetcher();
+    await this.set(key, fresh, ttlSeconds);
+    return fresh;
   }
 
   async del(key: string): Promise<void> {

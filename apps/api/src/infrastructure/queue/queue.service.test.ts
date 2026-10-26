@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueueService } from "./queue.service";
 import type { PinoLoggerService } from "../logger/logger.service";
 
@@ -21,6 +21,7 @@ vi.mock("bullmq", () => {
 });
 
 describe("QueueService", () => {
+  afterEach(() => vi.useRealTimers());
   const mockLogger = {
     error: vi.fn(),
     warn: vi.fn(),
@@ -68,6 +69,38 @@ describe("QueueService", () => {
     service.addWorker("w1", async () => {});
 
     expect(oldWorker.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("pauses every worker and closes queues even when one active job never drains", async () => {
+    vi.useFakeTimers();
+    const service = new QueueService(mockLogger);
+    const stuck = {
+      pause: vi.fn(() => new Promise<void>(() => {})),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const healthy = {
+      pause: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const queue = { close: vi.fn().mockResolvedValue(undefined) };
+    const state = service as unknown as {
+      workers: Map<string, unknown>;
+      queues: Map<string, unknown>;
+    };
+    state.workers.set("stuck", stuck);
+    state.workers.set("healthy", healthy);
+    state.queues.set("queue", queue);
+    const shutdown = service.beforeApplicationShutdown();
+    expect(stuck.pause).toHaveBeenCalledOnce();
+    expect(healthy.pause).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await shutdown;
+    expect(healthy.close).toHaveBeenCalledWith(false);
+    expect(stuck.close).toHaveBeenCalledWith(true);
+    expect(queue.close).toHaveBeenCalledOnce();
+    expect(state.workers.size).toBe(0);
+    expect(state.queues.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("does not overlap queue metric polls or fetch a job for an empty queue", async () => {

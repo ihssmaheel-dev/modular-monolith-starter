@@ -51,25 +51,35 @@ export class RequestAccountErasureCommand {
     actor: AuthenticatedUser,
     password: string,
   ): Promise<Result<DsrRequest, PrivacyError>> {
-    const operation = () => this.persist(actor, password);
-    if (!this.database) return operation();
-    const result = await this.database.withResultTransaction(operation);
-    return result.mapErr((error) =>
-      error.type === "TRANSACTION_FAILED" ? { type: "ERASURE_FAILED" } : error,
-    );
+    const userResult = await this.getUserById.execute(actor.sub);
+    if (userResult.isErr()) return err({ type: "ERASURE_FAILED" });
+    const verified = await this.verifyCredentials.execute(userResult.value.email, password);
+    if (verified.isErr() || !verified.value || verified.value.id !== actor.sub) {
+      return err({ type: "INVALID_PASSWORD" });
+    }
+    const passwordHash = await this.anonymizeUser.preparePasswordHash();
+    const operation = () => this.persist(actor, verified.value!.email, passwordHash);
+    const result = this.database
+      ? await this.database.withResultTransaction(operation)
+      : await operation();
+    if (result.isErr())
+      return result.mapErr((error) =>
+        error.type === "TRANSACTION_FAILED" ? { type: "ERASURE_FAILED" } : error,
+      );
+    const cleanup = async () => {
+      await this.sessions.revokeAllForUser(actor.sub);
+      await this.cache.invalidateGlobal(`user:${actor.sub}`);
+    };
+    if (this.database) await this.database.runAfterCommit(cleanup, "privacy:erasure-sessions");
+    else await cleanup();
+    return ok(result.value);
   }
 
   private async persist(
     actor: AuthenticatedUser,
-    password: string,
+    email: string,
+    passwordHash: string,
   ): Promise<Result<DsrRequest, PrivacyError>> {
-    const userResult = await this.getUserById.execute(actor.sub);
-    if (userResult.isErr()) return err({ type: "ERASURE_FAILED" });
-    const user = userResult.value;
-
-    const verified = await this.verifyCredentials.execute(user.email, password);
-    if (verified.isErr() || !verified.value) return err({ type: "INVALID_PASSWORD" });
-
     const existing = await this.requests.findPendingErasureForSubject(actor.sub);
     if (existing.isErr()) return err({ type: "ERASURE_FAILED" });
     if (existing.value) return err({ type: "ERASURE_ALREADY_REQUESTED" });
@@ -77,27 +87,26 @@ export class RequestAccountErasureCommand {
     const deletable = await this.canDeleteUser.execute(actor.sub);
     if (deletable.isErr()) return err({ type: "LAST_OWNER_BLOCKED" });
 
-    // Keyset-page every membership: capping at the first page would leave
+    // Page every membership: capping at the first page would leave
     // later organizations unpurged at fulfill time.
     const tenantIds = await this.collectTenantIds(actor);
+    if (tenantIds.isErr()) return err(tenantIds.error);
 
-    await this.sessions.revokeAllForUser(actor.sub);
-    await this.incrementAuthVersion.execute(actor.sub);
+    const version = await this.incrementAuthVersion.execute(actor.sub);
+    if (version.isErr()) return err({ type: "ERASURE_FAILED" });
 
-    const anonymized = await this.anonymizeUser.execute(actor.sub);
+    const anonymized = await this.anonymizeUser.execute(actor.sub, passwordHash);
     if (anonymized.isErr()) return err({ type: "ERASURE_FAILED" });
 
-    const tenancyPurged = await this.purgeTenancy.execute(actor.sub, user.email);
+    const tenancyPurged = await this.purgeTenancy.execute(actor.sub, email);
     if (tenancyPurged.isErr()) return err({ type: "ERASURE_FAILED" });
-
-    await this.cache.invalidateGlobal(`user:${actor.sub}`);
 
     const expiresAt = new Date(Date.now() + GRACE_DAYS * 24 * 60 * 60 * 1000);
     const created = await this.requests.create({
       type: "ACCOUNT_ERASURE",
       status: "REQUESTED",
       subjectUserId: actor.sub,
-      payload: { tenantIds },
+      payload: { tenantIds: tenantIds.value },
       expiresAt,
     });
     if (created.isErr()) return err({ type: "ERASURE_FAILED" });
@@ -133,18 +142,20 @@ export class RequestAccountErasureCommand {
    * page is not enough: members past the page limit would otherwise keep
    * their data at fulfill time.
    */
-  private async collectTenantIds(actor: AuthenticatedUser): Promise<string[]> {
+  private async collectTenantIds(
+    actor: AuthenticatedUser,
+  ): Promise<Result<string[], PrivacyError>> {
     const tenantIds = new Set<string>();
     let page = 1;
     for (;;) {
       const orgsResult = await this.listOrganizations.execute(actor, page, EXPORT_PAGE_LIMIT);
-      if (orgsResult.isErr()) break;
+      if (orgsResult.isErr()) return err({ type: "ERASURE_FAILED" });
       for (const access of orgsResult.value.items) {
         tenantIds.add(access.organization.data.id);
       }
       if (page >= orgsResult.value.totalPages) break;
       page += 1;
     }
-    return [...tenantIds];
+    return ok([...tenantIds]);
   }
 }
