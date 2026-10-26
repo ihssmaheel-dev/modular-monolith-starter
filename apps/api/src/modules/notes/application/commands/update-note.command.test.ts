@@ -52,7 +52,7 @@ describe("UpdateNoteCommand", () => {
     }
   });
 
-  it("should update note and return ok", async () => {
+  it("updates the requested title without overwriting concurrently edited content", async () => {
     // Arrange
     const note = Note.fromPersistence({
       id: "123",
@@ -74,8 +74,24 @@ describe("UpdateNoteCommand", () => {
     }
     expect(repository.updateById).toHaveBeenCalledWith("123", {
       title: "New Title",
-      content: "Old Content",
     });
+  });
+
+  it("updates content without overwriting an unrelated title", async () => {
+    const note = Note.fromPersistence({
+      id: "123",
+      title: "Previously read title",
+      content: "Old content",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(getNoteById.execute).mockResolvedValue(ok(note));
+    vi.mocked(repository.updateById).mockResolvedValue(ok(note));
+
+    const result = await command.execute("123", { content: "Updated content" }, ACTOR);
+
+    expect(result.isOk()).toBe(true);
+    expect(repository.updateById).toHaveBeenCalledWith("123", { content: "Updated content" });
   });
 
   it("should return err if repository update fails", async () => {

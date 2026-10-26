@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnApplicationShutdown } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
+import { closeRedisConnection } from "../redis/close-redis-connection";
 import { PinoLoggerService } from "../logger/logger.service";
 import Redis from "ioredis";
 import { CacheMetricsService } from "./cache-metrics.service";
@@ -74,8 +75,13 @@ export class DistributedCacheService implements OnModuleInit, OnApplicationShutd
       this.sweepTimer = null;
     }
     if (this.subscriber) {
-      await this.subscriber.quit();
+      const subscriber = this.subscriber;
       this.subscriber = null;
+      try {
+        await closeRedisConnection(subscriber);
+      } catch (error) {
+        this.logger.warn({ error }, "Cache subscriber did not quit cleanly");
+      }
     }
     this.cache.clear();
   }

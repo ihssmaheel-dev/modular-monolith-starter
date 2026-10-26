@@ -2,12 +2,13 @@ import { createORPCClient } from "@orpc/client";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
 import { ApiErrorEnvelopeSchema, apiContract } from "@repo/contracts";
 import type { ContractRouterClient } from "@orpc/contract";
-import { createIdempotencyKey, readCookie } from "./utils";
+import { createIdempotencyKey, readCookie, throwIfAborted } from "./utils";
 import { createRefreshCoordinator, type RefreshCoordinator } from "./auth/refresh-coordinator";
 import type { ApiClientOptions } from "./types";
 import type { ApiResponse } from "./types";
 import type { ZodType } from "zod";
 import { invalidResponseError } from "./response";
+import { captureRequestScope, discardSupersededResponse } from "./auth/request-scope";
 
 const RPC_PATH = "/rpc";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -22,12 +23,17 @@ export function createOrpcClient(
   const link = new OpenAPILink(apiContract, {
     url: rpcUrl,
     fetch: async (request) => {
+      const isCurrentScope = captureRequestScope(options);
       const headed = withHeaders(request, options);
       const initial = headed.clone();
       const response = await fetch(headed, { credentials: "include" });
+      throwIfAborted(request.signal);
+      if (!isCurrentScope()) return discardSupersededResponse(response);
       if (response.status !== 401 || !canRefreshRequest(request)) return response;
 
       const outcome = await coordinator.refresh();
+      throwIfAborted(request.signal);
+      if (!isCurrentScope()) return discardSupersededResponse(response);
       if (outcome.kind !== "refreshed") {
         if (outcome.kind === "invalid_session" || outcome.kind === "unsupported") {
           await coordinator.handleFailure();
@@ -36,9 +42,11 @@ export function createOrpcClient(
       }
 
       const accessToken = outcome.response?.accessToken ?? options.getAccessToken?.();
-      return fetch(withHeaders(initial, options, accessToken ?? undefined), {
+      await response.body?.cancel();
+      const retried = await fetch(withHeaders(initial, options, accessToken ?? undefined), {
         credentials: "include",
       });
+      return isCurrentScope() ? retried : discardSupersededResponse(retried);
     },
   });
 

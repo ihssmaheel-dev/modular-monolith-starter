@@ -10,7 +10,7 @@ Supreme laws of this codebase. These are never negotiable.
 
 | Layer | Locked Choice |
 |-------|---------------|
-| Monorepo | Turborepo 2.10 + pnpm 10 workspaces |
+| Monorepo | Turborepo 2.11 + pnpm 10 workspaces; Node.js version from `.node-version` and root `engines` |
 | Backend | NestJS 12 + Fastify 5 |
 | Validation | Zod 4 |
 | API Contract | oRPC + Scalar API Reference (@scalar/fastify-api-reference) |

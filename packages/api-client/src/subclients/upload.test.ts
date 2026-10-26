@@ -1,5 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
-import { uploadFile, validateUploadSource, type PutBytes } from "./upload";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import {
+  uploadFile,
+  validateUploadSource,
+  waitForUploadReady,
+  UploadProcessingTimeoutError,
+  type PutBytes,
+} from "./upload";
 
 const SOURCE = {
   fileName: "a.pdf",
@@ -101,5 +107,51 @@ describe("uploadFile", () => {
       uploadFile(client, SOURCE, vi.fn(), { pollIntervalMs: 1, deadlineMs: 100 }),
     ).resolves.toEqual(uploaded);
     expect(client.getById).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("upload processing deadline", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("aborts an in-flight status request when the processing deadline expires", async () => {
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | undefined;
+    const client = {
+      getById: vi.fn(({ signal }: { signal?: AbortSignal }) => {
+        requestSignal = signal;
+        return new Promise<never>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+        });
+      }),
+    };
+    const pending = waitForUploadReady(client, "file-1", { deadlineMs: 100, pollIntervalMs: 1 });
+    const assertion = expect(pending).rejects.toBeInstanceOf(UploadProcessingTimeoutError);
+    await vi.advanceTimersByTimeAsync(100);
+    await assertion;
+    expect(requestSignal?.aborted).toBe(true);
+    expect(client.getById).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("forwards caller cancellation to an in-flight status request", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const client = {
+      getById: vi.fn(
+        ({ signal }: { signal?: AbortSignal }) =>
+          new Promise<never>((_resolve, reject) => {
+            signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+          }),
+      ),
+    };
+    const pending = waitForUploadReady(client, "file-1", {
+      signal: controller.signal,
+      pollIntervalMs: 1,
+    });
+    const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await vi.advanceTimersByTimeAsync(1);
+    controller.abort();
+    await assertion;
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

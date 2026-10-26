@@ -48,6 +48,7 @@ export class OutboxConsumerRegistry {
     const metadata: OutboxEventMetadata = {
       eventId: event.id,
       topic: event.topic,
+      version: event.version,
       tenantId: event.tenantId,
     };
     for (const consumer of consumers) {

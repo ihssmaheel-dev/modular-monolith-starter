@@ -34,6 +34,7 @@ describe("PurgeExpiredErasuresCommand", () => {
       claimExpiredErasureBatch: vi.fn().mockResolvedValue([]),
       findExpiredExportBatch: vi.fn().mockResolvedValue([]),
       updateById: vi.fn(),
+      updateClaimed: vi.fn(),
     } as unknown as PrivacyRepository;
     const deleteUserMock = { execute: vi.fn().mockResolvedValue(ok(undefined)) };
     deleteUser = deleteUserMock;
@@ -104,7 +105,7 @@ describe("PurgeExpiredErasuresCommand", () => {
       updatedAt: new Date("2025-12-01T00:00:00Z"),
     });
     vi.mocked(requests.claimExpiredErasureBatch).mockResolvedValue([erasure]);
-    vi.mocked(requests.updateById).mockResolvedValue(ok(erasure));
+    vi.mocked(requests.updateClaimed).mockResolvedValue(ok(erasure));
 
     const result = await command.execute();
 
@@ -125,13 +126,13 @@ describe("PurgeExpiredErasuresCommand", () => {
       updatedAt: new Date("2025-12-01T00:00:00Z"),
     });
     vi.mocked(requests.claimExpiredErasureBatch).mockResolvedValue([erasure]);
-    vi.mocked(requests.updateById).mockResolvedValue(ok(erasure));
+    vi.mocked(requests.updateClaimed).mockResolvedValue(ok(erasure));
 
     const result = await command.execute();
 
     expect(result.isOk()).toBe(true);
     expect(deleteUser.execute).not.toHaveBeenCalled();
-    expect(requests.updateById).toHaveBeenCalledWith("dsr-corrupt", {
+    expect(requests.updateClaimed).toHaveBeenCalledWith("dsr-corrupt", 0, {
       status: "FAILED",
       payload: null,
       lockedAt: null,
@@ -152,14 +153,14 @@ describe("PurgeExpiredErasuresCommand", () => {
       updatedAt: new Date("2025-12-01T00:00:00Z"),
     });
     vi.mocked(requests.claimExpiredErasureBatch).mockResolvedValue([erasure]);
-    vi.mocked(requests.updateById).mockResolvedValue(ok(erasure));
+    vi.mocked(requests.updateClaimed).mockResolvedValue(ok(erasure));
     lifecycle.purgeSubject.mockResolvedValue(
       err({ type: "LIFECYCLE_CONTRIBUTOR_FAILED", contributor: "files" }),
     );
 
     await command.execute();
 
-    expect(requests.updateById).toHaveBeenCalledWith("dsr-retry", {
+    expect(requests.updateClaimed).toHaveBeenCalledWith("dsr-retry", 3, {
       status: "FAILED",
       payload: null,
       lockedAt: null,

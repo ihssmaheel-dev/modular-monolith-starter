@@ -6,6 +6,8 @@ export interface ApiClientOptions {
   getRefreshToken?: () => string | null;
   getLocale?: () => string | null;
   getTenantId?: () => string | null;
+  /** Stable through token rotation; changes when the authenticated account changes. */
+  getAuthIdentity?: () => string | null;
   getAuthFingerprint?: () => string;
   onAuthRefreshed?: (response: AuthResponse) => void;
   onAuthFailure?: () => void | Promise<void>;

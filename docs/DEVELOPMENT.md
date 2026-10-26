@@ -130,7 +130,7 @@ EXPO_PUBLIC_API_URL=http://localhost:5156/api/v1
 
 `EXPO_PUBLIC_*` values are inlined at export time, so set the URL before `expo export`. iOS simulator
 can use `localhost`; the Android emulator needs `10.0.2.2`; physical devices need the machine's LAN IP
-(e.g. `http://192.168.1.10:3000/api/v1`). Verify native output with
+(e.g. `http://192.168.1.10:5156/api/v1`). Verify native output with
 `pnpm --filter mobile build` (`expo export --platform ios --platform android`), not simulators.
 
 ## Database migrations

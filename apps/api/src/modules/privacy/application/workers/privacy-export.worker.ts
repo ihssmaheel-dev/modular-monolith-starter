@@ -65,7 +65,7 @@ export class PrivacyExportWorker {
     }
     const terminal = request.attempts >= DSR_MAX_ATTEMPTS;
     await this.database.runTransaction(() =>
-      this.requests.markExportAttemptFailed(request.id, terminal),
+      this.requests.markExportAttemptFailed(request.id, request.attempts, terminal),
     );
     this.metrics.incrementCounter("privacy_export_jobs_total", "Privacy export job outcomes", 1, {
       outcome: terminal ? "failed" : "retry",

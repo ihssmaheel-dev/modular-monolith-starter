@@ -33,6 +33,7 @@ describe("FileCleanupWorker", () => {
       findPendingFilesBefore: vi.fn().mockResolvedValue([STALE_FILE]),
       findUnlinkedBefore: vi.fn().mockResolvedValue([]),
       findDeletedFiles: vi.fn().mockResolvedValue([]),
+      claimCleanup: vi.fn().mockResolvedValue(STALE_FILE),
       deleteById: vi.fn().mockResolvedValue({ isOk: () => true, value: STALE_FILE }),
     } as unknown as FilesRepository;
 
@@ -97,6 +98,7 @@ describe("FileCleanupWorker", () => {
     const unlinked = { ...STALE_FILE, id: "file-unlinked-1", status: "uploaded" as const };
     vi.mocked(mockFilesRepo.findPendingFilesBefore).mockResolvedValue([]);
     vi.mocked(mockFilesRepo.findUnlinkedBefore).mockResolvedValue([unlinked]);
+    vi.mocked(mockFilesRepo.claimCleanup).mockResolvedValue(unlinked);
 
     const result = await worker.cleanupOrphanPendingFiles();
 
@@ -112,5 +114,28 @@ describe("FileCleanupWorker", () => {
 
     expect(result.purgedCount).toBe(0);
     expect(mockLogger.error).toHaveBeenCalled();
+  });
+
+  it("does not delete bytes when a selected orphan was linked before the cleanup claim", async () => {
+    vi.mocked(mockFilesRepo.claimCleanup).mockResolvedValue(null);
+
+    const result = await worker.cleanupOrphanPendingFiles();
+
+    expect(result.purgedCount).toBe(0);
+    expect(mockStorage.delete).not.toHaveBeenCalled();
+    expect(mockFilesRepo.deleteById).not.toHaveBeenCalled();
+  });
+
+  it("uses the claimed record's complete object inventory for cleanup", async () => {
+    vi.mocked(mockFilesRepo.claimCleanup).mockResolvedValue({
+      ...STALE_FILE,
+      activeKey: "uploads/active.png",
+      scanCandidateKeys: ["uploads/candidate.png"],
+    });
+
+    await worker.cleanupOrphanPendingFiles();
+
+    expect(mockStorage.delete).toHaveBeenCalledWith("uploads/active.png");
+    expect(mockStorage.delete).toHaveBeenCalledWith("uploads/candidate.png");
   });
 });

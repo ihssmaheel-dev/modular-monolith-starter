@@ -86,6 +86,9 @@ export class ErrorReporterService implements ErrorReporter {
         body: JSON.stringify(report),
         signal: controller.signal,
       });
+      // This adapter only needs the status. Release a provider's unread response
+      // body so error storms do not retain sockets waiting for garbage collection.
+      await response.body?.cancel();
       return response.ok ? ok(undefined) : err(`HTTP_${response.status}`);
     } catch (error) {
       return err(error instanceof Error ? error.message : "REPORT_REQUEST_FAILED");

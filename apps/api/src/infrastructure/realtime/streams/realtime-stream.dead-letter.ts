@@ -2,6 +2,7 @@ import type { MetricsService } from "../../metrics/metrics.service";
 
 const MAX_DELIVERY_ATTEMPTS = 5;
 const DEAD_LETTER_STREAM_KEY = "realtime:events:dead-letter";
+const MAX_DEAD_LETTER_STREAM_LENGTH = 1_000;
 
 export type RedisStreamEntry = [id: string, fields: string[]];
 export type RedisStreamResult = [stream: string, messages: RedisStreamEntry[]][] | null;
@@ -38,6 +39,9 @@ export async function handleFailedDelivery(
   if (client.xadd) {
     await client.xadd(
       DEAD_LETTER_STREAM_KEY,
+      "MAXLEN",
+      "~",
+      MAX_DEAD_LETTER_STREAM_LENGTH,
       "*",
       "sourceId",
       id,

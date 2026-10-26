@@ -45,8 +45,12 @@ vi.mock("expo-localization", () => ({
 }));
 
 vi.mock("expo-file-system", () => ({
-  readAsStringAsync: vi.fn(),
-  EncodingType: { Base64: "base64" },
+  File: class {
+    constructor(readonly uri: string) {}
+    bytes(): Promise<Uint8Array> {
+      return Promise.resolve(new Uint8Array());
+    }
+  },
 }));
 
 vi.mock("react-native", async () => {

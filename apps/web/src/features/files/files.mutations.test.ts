@@ -4,6 +4,7 @@ import { getApiClient } from "@/lib/api";
 import { renderHookWithProviders } from "@/test/utils";
 import {
   downloadFileById,
+  putBytesWithProgress,
   useAttachNoteFileMutation,
   useDeleteFileMutation,
 } from "./files.mutations";
@@ -73,4 +74,37 @@ describe("files mutations", () => {
     await expect(downloadFileById("missing", "a.pdf")).rejects.toThrow("api.error.internal");
     expect(client.files.getDownloadUrl).toHaveBeenCalledWith({ params: { id: "missing" } });
   });
+});
+
+describe("upload transfer failures", () => {
+  it.each(["ontimeout", "onabort"] as const)(
+    "settles the upload when XHR signals %s",
+    async (event) => {
+      const xhr = {
+        open: vi.fn(),
+        setRequestHeader: vi.fn(),
+        upload: {},
+        send: vi.fn(),
+        timeout: 0,
+        ontimeout: null as (() => void) | null,
+        onabort: null as (() => void) | null,
+      };
+      const xhrMock = vi.spyOn(globalThis, "XMLHttpRequest").mockImplementation(function () {
+        return xhr as unknown as XMLHttpRequest;
+      });
+      try {
+        const pending = putBytesWithProgress(
+          "https://storage.test/file",
+          file(),
+          "application/pdf",
+          vi.fn(),
+        );
+        expect(xhr.timeout).toBeGreaterThan(0);
+        xhr[event]?.();
+        await expect(pending).rejects.toThrow("api.error.uploadFailed");
+      } finally {
+        xhrMock.mockRestore();
+      }
+    },
+  );
 });

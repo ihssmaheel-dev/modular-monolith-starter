@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
 import { env } from "../../../config/env";
 import { S3Driver } from "./s3.driver";
 
@@ -11,10 +13,35 @@ const originalStorage = {
 
 describe("S3Driver upload signing", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     env.S3_ENDPOINT = originalStorage.endpoint;
     env.S3_ACCESS_KEY_ID = originalStorage.accessKeyId;
     env.S3_SECRET_ACCESS_KEY = originalStorage.secretAccessKey;
     env.S3_FORCE_PATH_STYLE = originalStorage.forcePathStyle;
+  });
+
+  it("binds scanner reads to the expected object and bounded byte range", async () => {
+    const body = Readable.from(Buffer.from("header"));
+    const send = vi.spyOn(S3Client.prototype, "send").mockResolvedValue({ Body: body } as never);
+    const driver = new S3Driver();
+
+    expect(
+      await driver.getDownloadStream("quarantine", {
+        etag: '"expected-etag"',
+        versionId: "expected-version",
+        range: "bytes=0-4095",
+      }),
+    ).toBe(body);
+
+    expect(send).toHaveBeenCalledWith(expect.any(GetObjectCommand));
+    expect((send.mock.calls[0]?.[0] as GetObjectCommand | undefined)?.input).toMatchObject({
+      Key: "quarantine",
+      IfMatch: '"expected-etag"',
+      VersionId: "expected-version",
+      Range: "bytes=0-4095",
+    });
+    body.destroy();
+    driver.destroy();
   });
 
   it("binds declared length and content type into a quarantined upload URL", async () => {

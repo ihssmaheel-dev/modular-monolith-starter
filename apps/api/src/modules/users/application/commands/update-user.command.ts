@@ -52,7 +52,7 @@ export class UpdateUserCommand {
 
   /**
    * Separate administrative user management from own-profile edits.
-   * Platform admins may change any field; anyone else may only change
+   * Platform admins may rename any account; anyone else may only change
    * their own name. Email changes require the dedicated verification
    * flow, so self-service email updates are rejected, never stripped.
    */
@@ -75,11 +75,10 @@ export class UpdateUserCommand {
     const existing = await this.getUserById.execute(id);
     if (existing.isErr()) return err(existing.error);
 
-    existing.value.update(data);
+    // Persist only the authorized patch. Cached profile fields may predate a
+    // verified email change or a trusted role update and must never be replayed.
     const saved = await this.repository.updateById(existing.value.id, {
-      email: existing.value.email,
-      name: existing.value.name,
-      role: existing.value.role,
+      ...(data.name !== undefined ? { name: data.name } : {}),
     });
     if (saved.isErr()) return err({ type: "USER_NOT_FOUND", userId: existing.value.id });
     if (!saved.value) return err({ type: "USER_NOT_FOUND", userId: existing.value.id });

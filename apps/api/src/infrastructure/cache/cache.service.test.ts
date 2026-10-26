@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { CacheService } from "./cache.service";
+import { CacheService, MAX_INFLIGHT_CACHE_LOADS } from "./cache.service";
 import type { RedisService } from "../redis/redis.service";
 import type { CacheMetricsService } from "./cache-metrics.service";
 import type { PinoLoggerService } from "../logger/logger.service";
@@ -87,6 +87,43 @@ describe("CacheService", () => {
     mockDel.mockResolvedValue(1);
     await service.del("key1");
     expect(mockDel).toHaveBeenCalledWith("key1");
+  });
+
+  it("allows retry after a fetcher throws before returning its promise", async () => {
+    mockGet.mockResolvedValue(null);
+    const fetcher = vi
+      .fn<() => Promise<string>>()
+      .mockImplementationOnce(() => {
+        throw new Error("unavailable");
+      })
+      .mockResolvedValue("recovered");
+
+    await expect(service.getOrSet("retry", fetcher)).rejects.toThrow("unavailable");
+    await expect(service.getOrSet("retry", fetcher)).resolves.toBe("recovered");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces bounded loads and bypasses tracking for excess unique keys", async () => {
+    mockGet.mockResolvedValue(null);
+    let resolveLoads!: (value: string) => void;
+    const pending = new Promise<string>((resolve) => {
+      resolveLoads = resolve;
+    });
+    const trackedFetcher = vi.fn(() => pending);
+    const loads = Array.from({ length: MAX_INFLIGHT_CACHE_LOADS }, (_, index) =>
+      service.getOrSet(`bounded-${index}`, trackedFetcher),
+    );
+    await vi.waitFor(() => expect(trackedFetcher).toHaveBeenCalledTimes(MAX_INFLIGHT_CACHE_LOADS));
+    const duplicate = service.getOrSet("bounded-0", trackedFetcher);
+    const overflowFetcher = vi.fn(() => pending);
+    const overflow = [
+      service.getOrSet("overflow", overflowFetcher),
+      service.getOrSet("overflow", overflowFetcher),
+    ];
+    await vi.waitFor(() => expect(overflowFetcher).toHaveBeenCalledTimes(2));
+    expect(trackedFetcher).toHaveBeenCalledTimes(MAX_INFLIGHT_CACHE_LOADS);
+    resolveLoads("complete");
+    await Promise.all([...loads, duplicate, ...overflow]);
   });
 
   it("should delete keys by pattern", async () => {

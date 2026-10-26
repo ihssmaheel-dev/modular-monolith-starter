@@ -1,0 +1,2 @@
+ALTER TABLE "outbox_events" ADD COLUMN "schema_version" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "outbox_events" ADD CONSTRAINT "outbox_schema_version_positive" CHECK ("outbox_events"."schema_version" > 0);

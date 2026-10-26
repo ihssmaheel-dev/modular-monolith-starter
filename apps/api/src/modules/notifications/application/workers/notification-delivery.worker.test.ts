@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "neverthrow";
 import { NotificationDeliveryWorker } from "./notification-delivery.worker";
-import type { DeliveryIntentsRepository } from "../../infrastructure/repositories/delivery-intents.repository";
+import type {
+  DeliveryIntentsRepository,
+  NotificationDeliveryIntent,
+} from "../../infrastructure/repositories/delivery-intents.repository";
 import type { DeviceTokensRepository } from "../../infrastructure/repositories/device-tokens.repository";
 import type { PushDriverFactory } from "../../infrastructure/push/push.factory";
 import type { GetUserByIdQuery } from "../../../users/application/queries/get-user-by-id.query";
@@ -36,8 +39,8 @@ describe("NotificationDeliveryWorker", () => {
         titleKey: "notification.welcome",
         titleParams: {},
       }),
-      markDelivered: vi.fn().mockResolvedValue(undefined),
-      markFailed: vi.fn().mockResolvedValue(undefined),
+      markDelivered: vi.fn().mockResolvedValue(true),
+      markFailed: vi.fn().mockResolvedValue(true),
     } as unknown as DeliveryIntentsRepository;
 
     devices = {
@@ -113,5 +116,61 @@ describe("NotificationDeliveryWorker", () => {
     await worker.deliverPending();
     expect(intents.getBacklogStats).toHaveBeenCalledTimes(1);
     expect(intents.claimBatch).toHaveBeenCalledTimes(2);
+  });
+
+  const intent: NotificationDeliveryIntent = {
+    id: "intent-1",
+    notificationId: "notification-1",
+    userId: "user-1",
+    channel: "email",
+    attempts: 1,
+  };
+
+  it("claims the next intent only after finishing the current delivery", async () => {
+    vi.mocked(intents.claimBatch)
+      .mockResolvedValueOnce([intent])
+      .mockResolvedValueOnce([{ ...intent, id: "intent-2" }]);
+    vi.mocked(intents.markDelivered).mockImplementation(async () => {
+      expect(intents.claimBatch).toHaveBeenCalledTimes(
+        vi.mocked(intents.markDelivered).mock.calls.length,
+      );
+      return true;
+    });
+
+    await worker.deliverPending();
+
+    expect(intents.claimBatch).toHaveBeenCalledTimes(3);
+    expect(intents.claimBatch).toHaveBeenCalledWith(1);
+    expect(email.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds the number of items processed in one run", async () => {
+    vi.mocked(intents.claimBatch).mockResolvedValue([intent]);
+    vi.mocked(intents.findNotification).mockResolvedValue(null);
+
+    await worker.deliverPending();
+
+    expect(intents.claimBatch).toHaveBeenCalledTimes(50);
+  });
+
+  it("does not count stale successful attempts as completed deliveries", async () => {
+    vi.mocked(intents.claimBatch).mockResolvedValueOnce([intent]);
+    vi.mocked(intents.markDelivered).mockResolvedValue(false);
+
+    await worker.deliverPending();
+
+    expect(intents.markDelivered).toHaveBeenCalledWith(intent);
+    expect(metrics.incrementCounter).not.toHaveBeenCalled();
+  });
+
+  it("does not count stale failed attempts as retries", async () => {
+    vi.mocked(intents.claimBatch).mockResolvedValueOnce([intent]);
+    vi.mocked(intents.findNotification).mockResolvedValue(null);
+    vi.mocked(intents.markFailed).mockResolvedValue(false);
+
+    await worker.deliverPending();
+
+    expect(intents.markFailed).toHaveBeenCalledWith(intent, "notification missing", 5);
+    expect(metrics.incrementCounter).not.toHaveBeenCalled();
   });
 });

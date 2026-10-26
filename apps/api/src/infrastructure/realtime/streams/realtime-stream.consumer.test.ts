@@ -48,7 +48,11 @@ describe("RealtimeStreamConsumer", () => {
         ],
       ])
       .mockImplementation(() => new Promise<never>(() => undefined));
-    const subscriber = { xread, quit: vi.fn().mockResolvedValue("OK") } as unknown as Redis;
+    const subscriber = {
+      xread,
+      quit: vi.fn().mockResolvedValue("OK"),
+      disconnect: vi.fn(),
+    } as unknown as Redis;
     const client = { duplicate: vi.fn().mockReturnValue(subscriber) } as unknown as Redis;
     const redis = { getClient: vi.fn().mockReturnValue(client) } as unknown as RedisService;
     const router = { route: vi.fn().mockReturnValue(true) } as unknown as RealtimeStreamRouter;
@@ -97,6 +101,7 @@ describe("RealtimeStreamConsumer", () => {
       xack: vi.fn().mockResolvedValue(1),
       setex: vi.fn().mockResolvedValue("OK"),
       quit: vi.fn().mockResolvedValue("OK"),
+      disconnect: vi.fn(),
       ...overrides,
     };
   }
@@ -167,6 +172,9 @@ describe("RealtimeStreamConsumer", () => {
     await vi.waitFor(() => {
       expect(subscriber.xadd).toHaveBeenCalledWith(
         "realtime:events:dead-letter",
+        "MAXLEN",
+        "~",
+        1_000,
         "*",
         "sourceId",
         "2000-0",

@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Readable } from "node:stream";
 import { z } from "zod";
 import { env } from "../../../config/env";
 import { PinoLoggerService } from "../../logger/logger.service";
@@ -8,6 +9,7 @@ import { validateMagicBytes } from "../../../common/utils/magic-bytes.utils";
 
 const AV_SCAN_TIMEOUT_MS = 10_000;
 const HEADER_SAMPLE_BYTES = 4096;
+const HEADER_READ_TIMEOUT_MS = 10_000;
 const ScanResponseSchema = z.object({ clean: z.boolean() });
 
 export type FileScanResult = "clean" | "infected";
@@ -34,9 +36,21 @@ export class FileScannerService {
       return { error: "OBJECT_MISSING" };
     }
 
-    const streamResult = await this.storage.getDownloadStream(file.key);
+    // Sample the exact object verified above, not whichever bytes a reusable
+    // presigned URL may have overwritten between HEAD and GET.
+    const streamResult = await this.storage.getDownloadStream(file.key, {
+      etag: metadata.value.etag,
+      versionId: metadata.value.versionId,
+      range: `bytes=0-${HEADER_SAMPLE_BYTES - 1}`,
+    });
     if (streamResult.isErr()) return { error: "SCANNER_UNAVAILABLE" };
-    const chunk = await this.readHeaderBytes(streamResult.value, HEADER_SAMPLE_BYTES);
+    let chunk: Buffer;
+    try {
+      chunk = await this.readHeaderBytes(streamResult.value, HEADER_SAMPLE_BYTES);
+    } catch (error) {
+      this.logger.error({ key: file.key, error }, "File header sampling failed");
+      return { error: "SCANNER_UNAVAILABLE" };
+    }
     if (!validateMagicBytes(chunk, file.contentType)) {
       this.logger.warn(
         { key: file.key, contentType: file.contentType },
@@ -49,30 +63,30 @@ export class FileScannerService {
     return this.scanWithAv(file.key, file.versionId, file.etag);
   }
 
-  private readHeaderBytes(stream: NodeJS.ReadableStream, maxBytes: number): Promise<Buffer> {
+  private readHeaderBytes(stream: Readable, maxBytes: number): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       let total = 0;
       let completed = false;
 
       const cleanup = () => {
+        clearTimeout(timeout);
         stream.removeListener("data", onData);
         stream.removeListener("end", onEnd);
         stream.removeListener("error", onError);
+        stream.removeListener("close", onClose);
       };
 
       const onData = (chunk: Buffer) => {
         if (completed) return;
-        chunks.push(chunk);
-        total += chunk.length;
+        const sample = chunk.subarray(0, maxBytes - total);
+        chunks.push(sample);
+        total += sample.length;
         if (total >= maxBytes) {
           completed = true;
           cleanup();
-          const destroyable = stream as unknown as { destroy?: () => void };
-          if (typeof destroyable.destroy === "function") {
-            destroyable.destroy();
-          }
-          resolve(Buffer.concat(chunks).subarray(0, maxBytes));
+          stream.destroy();
+          resolve(Buffer.concat(chunks, total));
         }
       };
 
@@ -87,12 +101,20 @@ export class FileScannerService {
         if (completed) return;
         completed = true;
         cleanup();
+        stream.destroy();
         reject(err);
       };
+
+      const onClose = () => onError(new Error("File header stream closed before completion"));
+      const timeout = setTimeout(
+        () => onError(new Error("File header read timed out")),
+        HEADER_READ_TIMEOUT_MS,
+      );
 
       stream.on("data", onData);
       stream.on("end", onEnd);
       stream.on("error", onError);
+      stream.on("close", onClose);
     });
   }
 

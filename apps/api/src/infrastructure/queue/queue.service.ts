@@ -17,6 +17,7 @@ type SharedWorker = Worker<unknown, unknown, string>;
 
 const QUEUE_METRICS_INTERVAL_MS = 15_000;
 const QUEUE_SHUTDOWN_TIMEOUT_MS = 5_000;
+const QUEUE_CLOSE_TIMEOUT_MS = 1_000;
 const TRACE_CONTEXT_FIELD = "__traceContext";
 const MAX_TRACE_METADATA_LENGTH = 1_024;
 type TraceCarrier = Record<string, string>;
@@ -26,6 +27,7 @@ export class QueueService implements BeforeApplicationShutdown {
   private queues = new Map<string, SharedQueue>();
   private workers = new Map<string, SharedWorker>();
   private measuringQueueHealth = false;
+  private shuttingDown = false;
 
   constructor(
     private readonly loggerService: PinoLoggerService,
@@ -113,37 +115,46 @@ export class QueueService implements BeforeApplicationShutdown {
   }
 
   async beforeApplicationShutdown(): Promise<void> {
-    const deadline = Date.now() + QUEUE_SHUTDOWN_TIMEOUT_MS;
-    for (const worker of this.workers.values()) {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) {
-        this.loggerService.warn({}, "Queue shutdown deadline reached before all workers closed");
-        break;
-      }
-      try {
-        await settleWithin(worker.pause(), remaining);
-        await settleWithin(worker.close(), Math.max(1, deadline - Date.now()));
-      } catch (error) {
-        this.loggerService.error({ err: error }, "Error closing BullMQ worker");
-      }
+    this.shuttingDown = true;
+    // Pause every worker immediately; one slow job must not leave other workers
+    // fetching new jobs or skip their connection cleanup when the deadline expires.
+    await Promise.all(Array.from(this.workers, ([name, worker]) => this.closeWorker(name, worker)));
+    await Promise.all(
+      Array.from(this.queues, async ([name, queue]) => {
+        try {
+          await settleWithin(queue.close(), QUEUE_CLOSE_TIMEOUT_MS);
+        } catch (error) {
+          this.loggerService.error({ queue: name, err: error }, "Error closing BullMQ queue");
+          await settleWithin(queue.disconnect(), QUEUE_CLOSE_TIMEOUT_MS).catch((err) => {
+            this.loggerService.error({ queue: name, err }, "Error disconnecting BullMQ queue");
+          });
+        }
+      }),
+    );
+    this.workers.clear();
+    this.queues.clear();
+  }
+
+  private async closeWorker(name: string, worker: SharedWorker): Promise<void> {
+    let force = false;
+    try {
+      await settleWithin(worker.pause(), QUEUE_SHUTDOWN_TIMEOUT_MS);
+    } catch (error) {
+      force = true;
+      this.loggerService.warn({ queue: name, err: error }, "BullMQ worker drain deadline reached");
     }
-    for (const queue of this.queues.values()) {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) {
-        this.loggerService.warn({}, "Queue shutdown deadline reached before all queues closed");
-        break;
-      }
-      try {
-        await settleWithin(queue.close(), remaining);
-      } catch (error) {
-        this.loggerService.error({ err: error }, "Error closing BullMQ queue");
-      }
+    try {
+      // Forced close stops lock renewal; unfinished durable jobs are recovered by
+      // BullMQ's stalled-job handling. Handlers must remain idempotent.
+      await settleWithin(worker.close(force), QUEUE_CLOSE_TIMEOUT_MS);
+    } catch (error) {
+      this.loggerService.error({ queue: name, err: error }, "Error closing BullMQ worker");
     }
   }
 
   @Interval(QUEUE_METRICS_INTERVAL_MS)
   async measureQueueHealth(): Promise<void> {
-    if (!this.metricsService || this.measuringQueueHealth) return;
+    if (!this.metricsService || this.measuringQueueHealth || this.shuttingDown) return;
     this.measuringQueueHealth = true;
     try {
       for (const [name, queue] of this.queues) {

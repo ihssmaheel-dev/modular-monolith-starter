@@ -9,6 +9,7 @@ import { env } from "../../../config/env";
 const MIGRATIONS_PATH = path.resolve(process.cwd(), "../../migrations/pg");
 const DATABASE_PREFIX = "monolith_migration_check";
 const SINGLE_MIGRATION_TAG = "0000_initial";
+const LEGACY_OUTBOX_ID = "migration-check-legacy-event";
 const HARDENED_TABLES = [
   "audit_logs",
   "outbox_events",
@@ -248,6 +249,44 @@ async function assertMigrationState(database: string, expectedCount: number): Pr
   });
 }
 
+async function seedLegacyOutbox(database: string): Promise<void> {
+  await withClient(databaseUrl(database), async (client) => {
+    await client.query("SELECT set_config('app.system_scope', 'true', false)");
+    await client.query("INSERT INTO outbox_events (id, topic, payload) VALUES ($1, $2, $3)", [
+      LEGACY_OUTBOX_ID,
+      "migration.check",
+      JSON.stringify({ preserved: true }),
+    ]);
+  });
+}
+
+async function assertOutboxVersionUpgrade(database: string): Promise<void> {
+  await withClient(databaseUrl(database), async (client) => {
+    await client.query("SELECT set_config('app.system_scope', 'true', false)");
+    const result = await client.query<{
+      schema_version: number;
+      status: string;
+      payload: { preserved: boolean };
+    }>("SELECT schema_version, status, payload FROM outbox_events WHERE id = $1", [
+      LEGACY_OUTBOX_ID,
+    ]);
+    const event = result.rows[0];
+    if (event?.schema_version !== 1 || event.status !== "PENDING" || !event.payload.preserved) {
+      throw new Error("Outbox migration must preserve legacy pending events as version 1");
+    }
+    let invalidVersionRejected = false;
+    try {
+      await client.query("UPDATE outbox_events SET schema_version = 0 WHERE id = $1", [
+        LEGACY_OUTBOX_ID,
+      ]);
+    } catch (error: unknown) {
+      invalidVersionRejected = (error as { code?: string }).code === "23514";
+      if (!invalidVersionRejected) throw error;
+    }
+    if (!invalidVersionRejected) throw new Error("Outbox schema version must be positive");
+  });
+}
+
 async function verifyMigrations(): Promise<void> {
   const suffix = `${Date.now()}${process.pid}`;
   const freshDatabase = `${DATABASE_PREFIX}_${suffix}`;
@@ -268,8 +307,10 @@ async function verifyMigrations(): Promise<void> {
       await createDatabase(upgradeDatabase);
       partialMigrations = await createPartialMigrations(partialMigrationCount);
       await applyMigrations(upgradeDatabase, partialMigrations);
+      await seedLegacyOutbox(upgradeDatabase);
       await applyMigrations(upgradeDatabase, MIGRATIONS_PATH);
       await assertMigrationState(upgradeDatabase, journal.entries.length);
+      await assertOutboxVersionUpgrade(upgradeDatabase);
       process.stdout.write("[MigrationCheck] Fresh and upgrade migration paths passed.\n");
     } else {
       process.stdout.write("[MigrationCheck] Fresh baseline migration path passed.\n");

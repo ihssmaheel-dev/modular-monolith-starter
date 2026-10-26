@@ -55,7 +55,7 @@ export class FileCleanupWorker {
             const candidates = await this.findCandidates(cutoff, unlinkedCutoff);
             for (const file of candidates) {
               if (signal?.aborted) break;
-              const deleted = await this.purgeFile(file);
+              const deleted = await this.purgeFile(file, cutoff, unlinkedCutoff);
               if (deleted) {
                 purgedCount += 1;
                 reclaimedBytes += file.fileSize;
@@ -107,9 +107,19 @@ export class FileCleanupWorker {
     return [...stale, ...unlinked, ...deleted];
   }
 
-  private async purgeFile(file: { id: string; key: string; fileSize: number }): Promise<boolean> {
+  private async purgeFile(
+    file: { id: string; key: string; fileSize: number },
+    cutoff: Date,
+    unlinkedCutoff: Date,
+  ): Promise<boolean> {
     try {
-      const deletedObject = await deleteFileObjects(this.storageService, file);
+      // Recheck eligibility and commit the tombstone before touching object
+      // storage. A file attached since selection must retain all its bytes.
+      const claimed = await this.database.runTransaction(() =>
+        this.filesRepository.claimCleanup(file.id, cutoff, unlinkedCutoff),
+      );
+      if (!claimed) return false;
+      const deletedObject = await deleteFileObjects(this.storageService, claimed);
       if (deletedObject.isErr()) return false;
       const deletedRow = await this.database.runTransaction(() =>
         this.filesRepository.deleteById(file.id),

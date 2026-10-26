@@ -15,8 +15,9 @@ import {
 import { PushDriverFactory } from "../../infrastructure/push/push.factory";
 import { renderNotificationEmail } from "../commands/notification-email.renderer";
 
-const DELIVERY_BATCH_SIZE = 50;
+const DELIVERY_RUN_LIMIT = 50;
 const DELIVERY_MAX_ATTEMPTS = 5;
+const BACKLOG_CHECK_INTERVAL_MS = 60_000;
 
 @Injectable()
 export class NotificationDeliveryWorker {
@@ -44,8 +45,13 @@ export class NotificationDeliveryWorker {
     this.running = true;
     try {
       await this.tenantContext.runSystem({ mode: env.TENANCY_MODE }, async () => {
-        const intents = await this.claimAndMeasureBacklog();
-        for (const intent of intents) await this.deliverOne(intent);
+        for (let processed = 0; processed < DELIVERY_RUN_LIMIT; processed++) {
+          // Start the lease only when this process is ready to deliver the item.
+          // Preclaiming a sequential batch lets later items expire while waiting.
+          const [intent] = await this.claimAndMeasureBacklog();
+          if (!intent) break;
+          await this.deliverOne(intent);
+        }
       });
     } catch (error) {
       this.logger.error({ error }, "Notification delivery run failed");
@@ -58,7 +64,7 @@ export class NotificationDeliveryWorker {
 
   private async claimAndMeasureBacklog(): Promise<NotificationDeliveryIntent[]> {
     return this.database.runTransaction(async () => {
-      if (Date.now() - this.lastBacklogCheck >= 60_000) {
+      if (Date.now() - this.lastBacklogCheck >= BACKLOG_CHECK_INTERVAL_MS) {
         const stats = await this.intents.getBacklogStats();
         this.metrics.setGauge(
           "notification_delivery_pending_depth",
@@ -78,7 +84,7 @@ export class NotificationDeliveryWorker {
         );
         this.lastBacklogCheck = Date.now();
       }
-      return this.intents.claimBatch(DELIVERY_BATCH_SIZE);
+      return this.intents.claimBatch(1);
     });
   }
 
@@ -93,7 +99,10 @@ export class NotificationDeliveryWorker {
           ? await this.deliverEmail(intent, notification)
           : await this.deliverPush(intent, notification);
       if (!delivered) return this.recordFailure(intent, "provider delivery failed");
-      await this.database.runTransaction(() => this.intents.markDelivered(intent));
+      const completed = await this.database.runTransaction(() =>
+        this.intents.markDelivered(intent),
+      );
+      if (!completed) return;
       this.metrics.incrementCounter(
         "notification_delivery_total",
         "Notification channel deliveries",
@@ -106,9 +115,10 @@ export class NotificationDeliveryWorker {
   }
 
   private async recordFailure(intent: NotificationDeliveryIntent, error: string): Promise<void> {
-    await this.database.runTransaction(() =>
+    const completed = await this.database.runTransaction(() =>
       this.intents.markFailed(intent, error, DELIVERY_MAX_ATTEMPTS),
     );
+    if (!completed) return;
     this.metrics.incrementCounter(
       "notification_delivery_total",
       "Notification channel deliveries",

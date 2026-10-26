@@ -45,6 +45,7 @@ describe("Event-Consumer Idempotency Contract", () => {
     const meta: OutboxEventMetadata = {
       eventId: "outbox-evt-789",
       topic: "user.created",
+      version: 1,
       tenantId: "tenant-abc",
     };
 
@@ -96,6 +97,7 @@ describe("Event-Consumer Idempotency Contract", () => {
     const meta: OutboxEventMetadata = {
       eventId: "outbox-evt-inv-456",
       topic: "tenancy.invitation.created",
+      version: 1,
       tenantId: "tenant-abc",
     };
 

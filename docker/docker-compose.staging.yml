@@ -43,6 +43,8 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL}
         VITE_APP_NAME: ${VITE_APP_NAME:-Workspace}
+        VITE_FILE_UPLOAD_ORIGIN: ${VITE_FILE_UPLOAD_ORIGIN:-}
+        VITE_EXAMPLE_FEATURES_ENABLED: ${EXAMPLE_FEATURES_ENABLED:-true}
     container_name: monorepo-staging-web
     expose:
       - "3000"
@@ -50,7 +52,6 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOST: 0.0.0.0
-      VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL}
     depends_on:
       api:
         condition: service_healthy

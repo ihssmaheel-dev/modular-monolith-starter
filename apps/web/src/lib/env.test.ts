@@ -1,5 +1,5 @@
 import { webEnvSchema } from "@repo/contracts";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("web environment contract", () => {
   it.each(["/api/v1", "https://api.example.com/api/v1", "http://localhost:5156/api/v1"])(
@@ -41,4 +41,32 @@ describe("web environment contract", () => {
       }).success,
     ).toBe(false);
   });
+});
+
+describe("public build configuration", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["server", "browser"])(
+    "uses the public build values in the %s rendering context",
+    async (runtime) => {
+      vi.resetModules();
+      vi.stubEnv("VITE_API_URL", "/api/v1");
+      vi.stubEnv("VITE_FILE_UPLOAD_ORIGIN", "https://uploads.build.example");
+      vi.stubEnv("VITE_APP_NAME", "Built application");
+      vi.stubEnv("VITE_EXAMPLE_FEATURES_ENABLED", "false");
+      if (runtime === "server") vi.stubGlobal("window", undefined);
+
+      const { getWebEnv } = await import("./env");
+
+      expect(getWebEnv()).toEqual({
+        VITE_API_URL: "/api/v1",
+        VITE_FILE_UPLOAD_ORIGIN: "https://uploads.build.example",
+        VITE_APP_NAME: "Built application",
+        VITE_EXAMPLE_FEATURES_ENABLED: false,
+      });
+    },
+  );
 });

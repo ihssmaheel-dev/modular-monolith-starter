@@ -1,38 +1,26 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Linking } from "react-native";
-import * as FileSystem from "expo-file-system";
+import { File } from "expo-file-system";
 import { uploadFile } from "@repo/api-client";
 import { getApiClient } from "@/lib/api";
 
-const BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-
-function base64ToBytes(base64: string): Uint8Array {
-  const clean = base64.replace(/[^A-Za-z0-9+/=]/g, "");
-  const bytes: number[] = [];
-  for (let i = 0; i < clean.length; i += 4) {
-    const a = BASE64_CHARS.indexOf(clean[i] ?? "=");
-    const b = BASE64_CHARS.indexOf(clean[i + 1] ?? "=");
-    const c = BASE64_CHARS.indexOf(clean[i + 2] ?? "=");
-    const d = BASE64_CHARS.indexOf(clean[i + 3] ?? "=");
-    const triple = (a << 18) | (b << 12) | ((c & 63) << 6) | (d & 63);
-    bytes.push((triple >> 16) & 255);
-    if (c !== 64) bytes.push((triple >> 8) & 255);
-    if (d !== 64) bytes.push(triple & 255);
-  }
-  return new Uint8Array(bytes);
-}
+const UPLOAD_TRANSFER_TIMEOUT_MS = 60_000;
 
 export async function putBytesNative(url: string, fileUri: string, contentType: string) {
-  const base64 = await FileSystem.readAsStringAsync(fileUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const body = base64ToBytes(base64);
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: body as unknown as BodyInit,
-  });
-  if (!res.ok) throw new Error(`PUT failed with status ${res.status}`);
+  const body = await new File(fileUri).bytes();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), UPLOAD_TRANSFER_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body: body as unknown as BodyInit,
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error("api.error.uploadFailed");
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export interface NativeUploadItem {

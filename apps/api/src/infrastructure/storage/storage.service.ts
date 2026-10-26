@@ -9,6 +9,7 @@ import {
   UPLOAD_PRESIGN_TTL_SECONDS,
   DOWNLOAD_PRESIGN_TTL_SECONDS,
   StoredObjectMetadata,
+  DownloadStreamOptions,
 } from "./storage.types";
 import { S3Driver } from "./drivers/s3.driver";
 import { Readable } from "node:stream";
@@ -231,11 +232,14 @@ export class StorageService implements OnApplicationShutdown {
     );
   }
 
-  async getDownloadStream(key: string): Promise<Result<Readable, StorageError>> {
+  async getDownloadStream(
+    key: string,
+    options?: DownloadStreamOptions,
+  ): Promise<Result<Readable, StorageError>> {
     return this.timed("download_stream", () =>
       this.circuitBreaker.execute(async () => {
         try {
-          return ok(await this.driver.getDownloadStream(key));
+          return ok(await this.driver.getDownloadStream(key, options));
         } catch (error) {
           this.logger.error({ key, error }, "Download stream failed");
           return err({ code: "DOWNLOAD_FAILED", message: "api.error.notFound" });

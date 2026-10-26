@@ -7,6 +7,7 @@ export interface OutboxEvent {
   id: string;
   tenantId?: string;
   topic: string;
+  schemaVersion: number;
   payload: unknown;
   status: "PENDING" | "PROCESSING" | "PUBLISHED" | "FAILED" | "DEAD_LETTER";
   error?: string;
@@ -28,6 +29,7 @@ export class OutboxRepository extends BaseRepository<OutboxEvent, OutboxRow> {
       id: row.id,
       tenantId: row.tenantId ?? undefined,
       topic: row.topic,
+      schemaVersion: row.schemaVersion,
       payload: row.payload,
       status: row.status as OutboxEvent["status"],
       error: row.error ?? undefined,
@@ -56,6 +58,7 @@ export class OutboxRepository extends BaseRepository<OutboxEvent, OutboxRow> {
         id,
         tenant_id AS "tenantId",
         topic,
+        schema_version AS "schemaVersion",
         payload,
         status,
         attempts,

@@ -80,6 +80,20 @@ describe("ErrorReporterService", () => {
     expect(logger.warn).toHaveBeenCalledWith({ error: "offline" }, "Error report delivery failed");
   });
 
+  it.each([202, 503])("releases an unread response body for HTTP %s", async (status) => {
+    mockEnvironment.env.ERROR_REPORTING_URL = "https://telemetry.example.test/errors";
+    const cancel = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: status === 202, status, body: { cancel } }),
+    );
+    const { service } = createService();
+
+    await service.capture(new Error("boom"), context());
+
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it("bounds concurrent delivery during an exception storm", async () => {
     mockEnvironment.env.ERROR_REPORTING_URL = "https://telemetry.example.test/errors";
     const resolveDeliveries: Array<(value: { ok: boolean; status: number }) => void> = [];

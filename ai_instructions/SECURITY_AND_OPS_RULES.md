@@ -32,7 +32,7 @@ export const env = loadEnv();
 
 ### Rules
 - **Schema first**: Define all environment variables in `packages/contracts/src/schemas/env.schema.ts`.
-- **Provide safe defaults** for local development (e.g., `PORT: z.coerce.number().default(3000)`).
+- **Provide safe defaults** for local development (e.g., `PORT: z.coerce.number().default(5156)`). Container ports may differ explicitly in Compose.
 - **Never hardcode URLs or TTLs**: Dynamically consume `env.CLIENT_URL`, `env.API_URL`, and `env.JWT_EXPIRES_IN`.
 - Validate once at startup, use `env` everywhere.
 - Never access `process.env` directly outside `config/env.ts`.
@@ -73,7 +73,7 @@ export const env = loadEnv();
 - **Hybrid FGA Engine**: Enforce access via unified **RBAC + ReBAC + ABAC** evaluation.
 - **Action Vocabulary**: Use explicit permission action strings (`notes:create`, `files:upload`, `team:invite`, `privacy:erase:self`).
 - **Endpoint Fast-Guard**: Protect HTTP controllers with `@RequirePermission('...')` to reject unauthorized requests at the presentation boundary.
-- **Application & Domain Protection**: In CQRS command/query handlers or domain policies, use `AuthorizationService.check({ principal, action, resource, context })` (or `can(...)` for booleans, `assert(...)` to throw `ForbiddenException`), or the `canAccessResource()` helper in `apps/api/src/common/utils/resource-authorization.ts` for owner-aware checks.
+- **Application Protection**: CQRS handlers use `AuthorizationService.check({ principal, action, resource, context })`, `can(...)`, or `canAccessResource()` from `apps/api/src/common/utils/resource-authorization.ts`, then return a typed denied `Result`. The throwing `assert(...)` adapter belongs only in infrastructure/presentation. Pure domain objects never import Nest services or throw HTTP exceptions.
 - **ReBAC & Ownership**: Ownership grants only the actions explicitly listed by the feature's ownership policy. Future actions remain denied until registered and tested.
 - **Tenant Isolation**: Cross-tenant resource access is strictly forbidden (`TENANT_MISMATCH`).
 - **Closed-World Default Deny**: Deny by default. Allow only what is explicitly permitted by superadmin, ownership, matching policy, or role.
@@ -103,11 +103,14 @@ export const env = loadEnv();
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
-      bodyLimit: 1048576, // 1MB
-      trustProxy: true,
+      bodyLimit: MAX_BODY_SIZE_BYTES,
+      trustProxy: false, // enable only for explicitly trusted proxy addresses
     }),
   );
   ```
+
+Reuse the configured adapter in `apps/api/src/main.ts`. The production reverse proxy must replace
+client-supplied forwarding headers; never copy unrestricted `trustProxy: true` into a deployment.
 
 ---
 

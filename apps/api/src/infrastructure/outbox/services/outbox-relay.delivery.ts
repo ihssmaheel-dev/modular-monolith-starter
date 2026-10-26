@@ -12,6 +12,7 @@ import {
   OUTBOX_QUEUE,
 } from "../outbox.constants";
 import { env } from "../../../config/env";
+import { OutboxConsumerRegistry } from "./outbox-consumer.registry";
 
 const RETRY_BASE_DELAY_MS = 5_000;
 const RETRY_MULTIPLIER = 2;
@@ -24,6 +25,7 @@ export class OutboxRelayDelivery {
     private readonly metrics: MetricsService,
     private readonly database: DatabaseService,
     logger: PinoLoggerService,
+    private readonly consumers: OutboxConsumerRegistry,
     @Optional() private readonly queues?: QueueService,
   ) {
     this.logger = logger.child({ module: "OutboxRelayDelivery" });
@@ -36,7 +38,7 @@ export class OutboxRelayDelivery {
       const envelope = parseOutboxEventEnvelope({
         id: event.id,
         topic: event.topic,
-        version: 1,
+        version: event.schemaVersion,
         tenantId: event.tenantId,
         payload: event.payload,
       });
@@ -69,9 +71,11 @@ export class OutboxRelayDelivery {
         const meta = {
           eventId: event.id,
           topic: event.topic,
+          version: envelope.version,
           tenantId: event.tenantId,
         };
-        await this.eventEmitter.emitAsync(event.topic, event.payload, meta);
+        await this.consumers.executeRequired(envelope);
+        await this.eventEmitter.emitAsync(event.topic, envelope.payload, meta);
         await this.database.runTransaction(() =>
           this.repository.updateById(event.id, {
             status: "PUBLISHED",

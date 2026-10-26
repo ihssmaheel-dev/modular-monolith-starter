@@ -59,5 +59,16 @@ describe("sanitize-telemetry", () => {
       const input = "https://example.test/dashboard/notes?page=2&limit=20";
       expect(sanitizeClientUrl(input)).toBe(input);
     });
+
+    it("does not retain URL credentials or fragment tokens", () => {
+      expect(
+        sanitizeClientUrl("https://user:password@example.test/callback#access_token=secret"),
+      ).toBe("https://example.test/callback");
+      expect(sanitizeClientUrl("/callback#access_token=secret")).toBe("/callback");
+    });
+
+    it("drops fragments even if the URL cannot be parsed", () => {
+      expect(sanitizeClientUrl("http://[invalid#access_token=secret")).toBe("http://[invalid");
+    });
   });
 });

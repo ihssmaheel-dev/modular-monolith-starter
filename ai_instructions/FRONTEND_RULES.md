@@ -30,7 +30,7 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 
 ### State and API
 
-- `src/stores/auth.store.ts` persists only short-lived auth state; httpOnly cookies remain the primary credential transport.
+- `src/stores/auth.store.ts` persists only non-sensitive user profile metadata. Access and refresh tokens remain memory-only; host-only httpOnly cookies provide durable credentials. Never persist tokens to localStorage.
 - `src/stores/locale.store.ts` persists the selected locale.
 - `src/stores/tenant.store.ts` persists the active tenant ID and is the only source for `x-tenant-id`.
 - `src/lib/api.ts` exposes one `getApiClient()` singleton configured with auth, locale, tenant, idempotency, and refresh callbacks.
@@ -57,7 +57,7 @@ No alternatives without architecture review (see `PACKAGE_POLICY.md`).
 
 ## Testing (mobile)
 
-- Vitest (node) under `apps/mobile/vitest.config.ts`; co-located `*.test.ts` (see `TESTING_RULES.md`).
+- Vitest (node) under `apps/mobile/vitest.config.mts`; co-located `*.test.ts` (see `TESTING_RULES.md`).
 - Native seams are mocked once in `src/test/setup.ts`; tests drive them via `src/test/native-state.ts`.
 - The only network transports are `getApiClient()` and the presigned-PUT in `features/files/files.mutations.ts` (enforced by `pnpm rules:check`).
 - Component tests are deferred until a Jest/RNTL exception passes architecture review (`PACKAGE_POLICY.md` rule 8); until then, coverage excludes the presentational layer.

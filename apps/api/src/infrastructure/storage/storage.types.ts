@@ -31,6 +31,12 @@ export interface StoredObjectMetadata {
 
 export type FileInput = Buffer | Readable | ReadableStream;
 
+export interface DownloadStreamOptions {
+  etag?: string;
+  versionId?: string;
+  range?: string;
+}
+
 export interface StorageDriver {
   upload(key: string, body: FileInput, contentType: string): Promise<UploadResult>;
   getPresignedUploadUrl(
@@ -45,7 +51,7 @@ export interface StorageDriver {
     options?: { filename?: string },
   ): Promise<string>;
   getMetadata(key: string): Promise<StoredObjectMetadata | null>;
-  getDownloadStream(key: string): Promise<Readable>;
+  getDownloadStream(key: string, options?: DownloadStreamOptions): Promise<Readable>;
   delete(key: string): Promise<void>;
   copy(
     sourceKey: string,

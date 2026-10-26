@@ -25,3 +25,17 @@ test("built HTML uses a matching per-response CSP nonce", async ({ page, request
   expect(themeNonce).toMatch(/^[a-f0-9]{32}$/);
   expect(consoleErrors.filter((message) => message.includes("hydrated"))).toEqual([]);
 });
+
+test("SSR and the browser retain image build configuration despite runtime overrides", async ({
+  page,
+  request,
+}) => {
+  const response = await request.get("/login");
+  expect(response.ok()).toBe(true);
+  expect(response.headers()["content-security-policy"]).not.toContain("runtime-config.invalid");
+  expect(response.headers()["content-security-policy"]).not.toContain("runtime-upload.invalid");
+  expect(await response.text()).toContain("<title>Workspace</title>");
+
+  await page.goto("/login");
+  await expect(page).toHaveTitle("Workspace");
+});

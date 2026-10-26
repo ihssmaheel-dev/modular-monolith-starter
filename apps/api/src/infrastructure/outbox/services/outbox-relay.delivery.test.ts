@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
+import { OutboxConsumerRegistry } from "./outbox-consumer.registry";
 import { OutboxRelayDelivery } from "./outbox-relay.delivery";
 import type { OutboxEvent, OutboxRepository } from "../repositories/outbox.repository";
 import type { EventEmitter2 } from "@nestjs/event-emitter";
@@ -11,6 +12,7 @@ import type { QueueService } from "../../queue/queue.service";
 const EVENT: OutboxEvent = {
   id: "event-1",
   topic: "user.created",
+  schemaVersion: 1,
   payload: {
     userId: "user-1",
     email: "user@example.test",
@@ -48,6 +50,7 @@ describe("OutboxRelayDelivery", () => {
       { incrementCounter: vi.fn(), recordHistogram: vi.fn() } as unknown as MetricsService,
       database,
       logger,
+      new OutboxConsumerRegistry(),
       queues,
     );
   });
@@ -85,6 +88,7 @@ describe("OutboxRelayDelivery", () => {
       { incrementCounter: vi.fn(), recordHistogram: vi.fn() } as unknown as MetricsService,
       database,
       logger,
+      observerRegistry(),
     );
 
     await direct.deliver(EVENT);
@@ -99,4 +103,54 @@ describe("OutboxRelayDelivery", () => {
       expect.objectContaining({ status: "PUBLISHED" }),
     );
   });
+
+  it("never rewrites an unsupported persisted version as v1", async () => {
+    await delivery.deliver({ ...EVENT, schemaVersion: 2 });
+    expect(queue.add).not.toHaveBeenCalled();
+    expect(repository.updateById).toHaveBeenCalledWith(
+      EVENT.id,
+      expect.objectContaining({
+        status: "PENDING",
+        error: "UNSUPPORTED_OUTBOX_EVENT_VERSION",
+      }),
+    );
+  });
+
+  it("does not acknowledge failed required consumers in the local fallback", async () => {
+    const registry = new OutboxConsumerRegistry();
+    const handler = vi.fn().mockResolvedValue(err({ type: "SEND_FAILED" }));
+    registry.register({ id: "required-v1", topics: [EVENT.topic], handle: handler });
+    const emitter = { emitAsync: vi.fn() } as unknown as EventEmitter2;
+    const logger = {
+      child: vi.fn().mockReturnThis(),
+      warn: vi.fn(),
+    } as unknown as PinoLoggerService;
+    const database = {
+      runTransaction: async (fn: () => Promise<unknown>) => fn(),
+    } as unknown as DatabaseService;
+    const direct = new OutboxRelayDelivery(
+      repository,
+      emitter,
+      {
+        incrementCounter: vi.fn(),
+        recordHistogram: vi.fn(),
+      } as unknown as MetricsService,
+      database,
+      logger,
+      registry,
+    );
+    await direct.deliver(EVENT);
+    expect(handler).toHaveBeenCalledWith(EVENT.payload, expect.objectContaining({ version: 1 }));
+    expect(emitter.emitAsync).not.toHaveBeenCalled();
+    expect(repository.updateById).toHaveBeenCalledWith(
+      EVENT.id,
+      expect.objectContaining({ status: "PENDING" }),
+    );
+  });
 });
+
+function observerRegistry(): OutboxConsumerRegistry {
+  const registry = new OutboxConsumerRegistry();
+  registry.registerObserverTopics([EVENT.topic]);
+  return registry;
+}

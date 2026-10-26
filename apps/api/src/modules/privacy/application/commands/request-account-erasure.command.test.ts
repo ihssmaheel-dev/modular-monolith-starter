@@ -23,6 +23,10 @@ describe("RequestAccountErasureCommand", () => {
   let requests: PrivacyRepository;
   let verifyCredentials: VerifyUserCredentialsQuery;
   let outbox: OutboxService;
+  let anonymizeUser: AnonymizeUserCommand;
+  let listOrganizations: ListOrganizationsQuery;
+  let incrementAuthVersion: IncrementAuthVersionCommand;
+  let sessions: SessionService;
 
   const user = User.fromPersistence({
     id: "user-1",
@@ -44,14 +48,15 @@ describe("RequestAccountErasureCommand", () => {
     verifyCredentials = {
       execute: vi.fn().mockResolvedValue(ok(user)),
     } as unknown as VerifyUserCredentialsQuery;
-    const anonymizeUser = {
+    anonymizeUser = {
       execute: vi.fn().mockResolvedValue(ok(user)),
+      preparePasswordHash: vi.fn().mockResolvedValue("prepared-unusable-hash"),
     } as unknown as AnonymizeUserCommand;
-    const incrementAuthVersion = {
+    incrementAuthVersion = {
       execute: vi.fn().mockResolvedValue(ok(user)),
     } as unknown as IncrementAuthVersionCommand;
-    const sessions = { revokeAllForUser: vi.fn() } as unknown as SessionService;
-    const listOrganizations = {
+    sessions = { revokeAllForUser: vi.fn() } as unknown as SessionService;
+    listOrganizations = {
       execute: vi
         .fn()
         .mockResolvedValue(ok({ items: [], total: 0, page: 1, limit: 100, totalPages: 1 })),
@@ -135,7 +140,7 @@ describe("RequestAccountErasureCommand", () => {
       requests,
       { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
       verifyCredentials,
-      { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
+      anonymizeUser,
       { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
       { revokeAllForUser: vi.fn() } as never,
       pagedList,
@@ -165,7 +170,7 @@ describe("RequestAccountErasureCommand", () => {
       requests,
       { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
       verifyCredentials,
-      {} as never,
+      anonymizeUser,
       {} as never,
       {} as never,
       {} as never,
@@ -203,5 +208,103 @@ describe("RequestAccountErasureCommand", () => {
     const result = await cmd.execute(ACTOR, "secret123");
 
     expect(result.isErr()).toBe(true);
+  });
+
+  it("aborts before destructive changes when a later membership page cannot be collected", async () => {
+    vi.mocked(listOrganizations.execute)
+      .mockResolvedValueOnce(
+        ok({
+          items: [],
+          total: 2,
+          page: 1,
+          limit: 1,
+          totalPages: 2,
+        }),
+      )
+      .mockResolvedValueOnce(err({ type: "TENANCY_OPERATION_FAILED" }));
+
+    const result = await command.execute(ACTOR, "secret123");
+
+    expect(result).toMatchObject({ error: { type: "ERASURE_FAILED" } });
+    expect(anonymizeUser.execute).not.toHaveBeenCalled();
+    expect(incrementAuthVersion.execute).not.toHaveBeenCalled();
+    expect(sessions.revokeAllForUser).not.toHaveBeenCalled();
+    expect(requests.create).not.toHaveBeenCalled();
+  });
+
+  it("aborts if token revocation cannot be persisted", async () => {
+    vi.mocked(incrementAuthVersion.execute).mockResolvedValue(
+      err({
+        type: "USER_NOT_FOUND",
+        userId: ACTOR.sub,
+      }),
+    );
+
+    expect(await command.execute(ACTOR, "secret123")).toMatchObject({
+      error: { type: "ERASURE_FAILED" },
+    });
+    expect(anonymizeUser.execute).not.toHaveBeenCalled();
+    expect(sessions.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
+  it("does not revoke Redis sessions when the erasure transaction fails", async () => {
+    vi.mocked(requests.create).mockResolvedValue(err({ type: "TENANT_REQUIRED" }));
+
+    expect((await command.execute(ACTOR, "secret123")).isErr()).toBe(true);
+    expect(sessions.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
+  it("performs credential work before the transaction and external cleanup after commit", async () => {
+    let transactionActive = false;
+    const database = {
+      withResultTransaction: vi.fn(async (operation: () => Promise<unknown>) => {
+        transactionActive = true;
+        try {
+          return await operation();
+        } finally {
+          transactionActive = false;
+        }
+      }),
+      runAfterCommit: vi.fn(async (operation: () => Promise<void>) => {
+        expect(transactionActive).toBe(false);
+        await operation();
+      }),
+      emitAfterCommit: vi.fn(),
+    };
+    vi.mocked(verifyCredentials.execute).mockImplementation(async () => {
+      expect(transactionActive).toBe(false);
+      return ok(user);
+    });
+    vi.mocked(anonymizeUser.preparePasswordHash).mockImplementation(async () => {
+      expect(transactionActive).toBe(false);
+      return "prepared-unusable-hash";
+    });
+    vi.mocked(anonymizeUser.execute).mockImplementation(async () => {
+      expect(transactionActive).toBe(true);
+      return ok(user);
+    });
+    vi.mocked(sessions.revokeAllForUser).mockImplementation(async () => {
+      expect(transactionActive).toBe(false);
+    });
+    vi.mocked(requests.create).mockResolvedValue(ok({ id: "dsr-transaction" }) as never);
+    const transactional = new RequestAccountErasureCommand(
+      requests,
+      { execute: vi.fn().mockResolvedValue(ok(user)) } as never,
+      verifyCredentials,
+      anonymizeUser,
+      incrementAuthVersion,
+      sessions,
+      listOrganizations,
+      { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
+      { execute: vi.fn().mockResolvedValue(ok(undefined)) } as never,
+      { invalidateGlobal: vi.fn() } as never,
+      outbox,
+      { emitAsync: vi.fn() } as never,
+      database as never,
+    );
+
+    expect((await transactional.execute(ACTOR, "secret123")).isOk()).toBe(true);
+    expect(anonymizeUser.execute).toHaveBeenCalledWith(ACTOR.sub, "prepared-unusable-hash");
+    expect(sessions.revokeAllForUser).toHaveBeenCalledWith(ACTOR.sub);
   });
 });

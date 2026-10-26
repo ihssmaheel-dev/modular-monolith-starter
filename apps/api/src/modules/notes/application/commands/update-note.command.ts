@@ -49,8 +49,8 @@ export class UpdateNoteCommand {
 
     existing.value.update(data);
     const saved = await this.repository.updateById(existing.value.id, {
-      title: existing.value.title,
-      content: existing.value.content,
+      ...(data.title !== undefined ? { title: existing.value.title } : {}),
+      ...(data.content !== undefined ? { content: existing.value.content } : {}),
     });
 
     if (saved.isErr()) return err({ type: "NOTE_NOT_FOUND", noteId: id });

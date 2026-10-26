@@ -14,11 +14,15 @@ import {
   FileInput,
   UPLOAD_PRESIGN_TTL_SECONDS,
   DOWNLOAD_PRESIGN_TTL_SECONDS,
+  type DownloadStreamOptions,
 } from "../storage.types";
 
 const ACTIVE_OBJECT_TAG = "lifecycle=active";
 const QUARANTINE_OBJECT_TAG = "lifecycle=quarantine";
 const REQUIRED_UPLOAD_HEADERS = new Set(["content-type"]);
+const STORAGE_CONNECTION_TIMEOUT_MS = 5_000;
+const STORAGE_REQUEST_TIMEOUT_MS = 30_000;
+const STORAGE_MAX_ATTEMPTS = 3;
 
 export class S3Driver implements StorageDriver {
   private client: S3Client;
@@ -42,6 +46,12 @@ export class S3Driver implements StorageDriver {
       // WHEN_SUPPORTED would therefore bind the CRC32 of an empty body to the
       // URL, making every non-empty browser upload fail checksum validation.
       requestChecksumCalculation: "WHEN_REQUIRED",
+      maxAttempts: STORAGE_MAX_ATTEMPTS,
+      requestHandler: {
+        connectionTimeout: STORAGE_CONNECTION_TIMEOUT_MS,
+        requestTimeout: STORAGE_REQUEST_TIMEOUT_MS,
+        throwOnRequestTimeout: true,
+      },
     });
   }
 
@@ -146,8 +156,16 @@ export class S3Driver implements StorageDriver {
     return `${base}/${cleanKey}`;
   }
 
-  async getDownloadStream(key: string): Promise<Readable> {
-    const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+  async getDownloadStream(key: string, options?: DownloadStreamOptions): Promise<Readable> {
+    const result = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        IfMatch: options?.etag,
+        VersionId: options?.versionId,
+        Range: options?.range,
+      }),
+    );
     if (!(result.Body instanceof Readable)) throw new Error("File stream unavailable");
     return result.Body;
   }

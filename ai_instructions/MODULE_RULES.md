@@ -167,7 +167,7 @@ All shared infrastructure modules:
 Rules for shared infrastructure:
 - Must be `@Global()` if used across multiple modules.
 - Must use `env` from `config/env.ts` — never `process.env`.
-- Must implement `OnModuleDestroy` for cleanup.
+- Modules that own connections, timers, listeners, or pools must release them through the appropriate Nest shutdown lifecycle hook. Bound shutdown waits and stop reconnect loops on failure; stateless services do not need empty cleanup hooks.
 - No business logic. Pure technical concern.
 
 Never put business logic in either infrastructure folder.
@@ -242,6 +242,6 @@ export class AppModule {}
 ## Cross-Module Communication
 
 1. **Preferred:** Application command/query calls another module's command/query.
-2. **Allowed:** Domain events (in-process via EventEmitter2).
+2. **Durable side effects:** Transactional outbox with required consumers. EventEmitter2 is allowed only for reconstructable local hints; never use in-process delivery as the sole carrier of a required business effect.
 3. **Never:** Direct import of another module's repository or Drizzle schema.
 4. **Never:** Shared mutable state between modules.

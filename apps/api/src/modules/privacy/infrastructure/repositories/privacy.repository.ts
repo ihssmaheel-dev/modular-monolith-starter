@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import { type Result } from "neverthrow";
+import { and, eq, gt, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { ok, type Result } from "neverthrow";
 import { DatabaseService } from "../../../../infrastructure/database";
 import { TenantContextService } from "../../../../infrastructure/database";
 import { BaseRepository } from "../../../../infrastructure/database";
@@ -8,6 +8,15 @@ import { dsrRequests, type DsrRow } from "../schemas/privacy.schema";
 import { DSR_MAX_ATTEMPTS, DsrRequest } from "../../domain/entities/dsr.entity";
 
 const ERASURE_LOCK_TIMEOUT_MINUTES = 15;
+const CLAIM_COLUMNS = sql`id, type, status, subject_user_id AS "subjectUserId",
+  tenant_id AS "tenantId", payload, attempts, locked_at AS "lockedAt",
+  expires_at AS "expiresAt", created_at AS "createdAt", updated_at AS "updatedAt"`;
+type ClaimRow = Omit<DsrRow, "lockedAt" | "expiresAt" | "createdAt" | "updatedAt"> & {
+  lockedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 @Injectable()
 export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
@@ -81,8 +90,8 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
     SET status = 'PROCESSING', attempts = attempts + 1,
         locked_at = NOW(), updated_at = NOW()
     WHERE id IN (SELECT id FROM candidates)
-    RETURNING *`);
-    return (result.rows as DsrRow[]).map((row) => this.toDomain(row));
+    RETURNING ${CLAIM_COLUMNS}`);
+    return (result.rows as ClaimRow[]).map((row) => this.fromClaimRow(row));
   }
 
   async getExportBacklogStats(): Promise<{
@@ -117,8 +126,14 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
     return result.rows.length;
   }
 
-  async completeExport(id: string, payload: unknown, truncated: boolean, expiresAt: Date) {
-    return this.updateById(id, {
+  async completeExport(
+    id: string,
+    attempts: number,
+    payload: unknown,
+    truncated: boolean,
+    expiresAt: Date,
+  ) {
+    return this.updateClaimed(id, attempts, {
       status: truncated ? "PARTIAL" : "READY",
       payload,
       expiresAt,
@@ -126,12 +141,33 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
     });
   }
 
-  async markExportAttemptFailed(id: string, terminal: boolean) {
-    return this.updateById(id, {
+  async markExportAttemptFailed(id: string, attempts: number, terminal: boolean) {
+    return this.updateClaimed(id, attempts, {
       status: terminal ? "FAILED" : "REQUESTED",
       payload: null,
       lockedAt: null,
     });
+  }
+
+  /** A reclaimed or completed request cannot be overwritten by an older worker. */
+  async updateClaimed(
+    id: string,
+    attempts: number,
+    patch: Partial<Pick<DsrRow, "status" | "payload" | "expiresAt" | "lockedAt">>,
+  ): Promise<Result<DsrRequest | null, never>> {
+    const rows = await this.getDb()
+      .update(dsrRequests)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(
+        and(
+          eq(dsrRequests.id, id),
+          eq(dsrRequests.status, "PROCESSING"),
+          eq(dsrRequests.attempts, attempts),
+          or(ne(dsrRequests.type, "EXPORT"), gt(dsrRequests.expiresAt, new Date())),
+        ),
+      )
+      .returning();
+    return ok(rows[0] ? this.toDomain(rows[0]) : null);
   }
 
   async claimExpiredErasureBatch(limit: number): Promise<DsrRequest[]> {
@@ -164,8 +200,19 @@ export class PrivacyRepository extends BaseRepository<DsrRequest, DsrRow> {
     SET status = 'PROCESSING', attempts = attempts + 1,
         locked_at = NOW(), updated_at = NOW()
     WHERE id IN (SELECT id FROM candidates)
-    RETURNING *`);
-    return (result.rows as DsrRow[]).map((row) => this.toDomain(row));
+    RETURNING ${CLAIM_COLUMNS}`);
+    return (result.rows as ClaimRow[]).map((row) => this.fromClaimRow(row));
+  }
+
+  private fromClaimRow(row: ClaimRow): DsrRequest {
+    // Raw pg execution bypasses Drizzle's column-name and timestamp decoders.
+    return this.toDomain({
+      ...row,
+      lockedAt: row.lockedAt ? new Date(row.lockedAt) : null,
+      expiresAt: row.expiresAt ? new Date(row.expiresAt) : null,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    });
   }
 
   async findExpiredExportBatch(limit: number): Promise<DsrRequest[]> {
